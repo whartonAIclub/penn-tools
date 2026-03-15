@@ -111,7 +111,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     userId,
     role: assistantToolId ? "tool" : "assistant",
     content: assistantContent,
-    toolId: assistantToolId,
+    ...(assistantToolId !== undefined ? { toolId: assistantToolId } : {}),
   });
 
   // ── Update chat title on first exchange ──────────────────────────────────

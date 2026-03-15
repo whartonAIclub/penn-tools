@@ -5,7 +5,7 @@ AI-powered tools for the Penn community. Built on a Next.js monorepo with a chat
 ## Quick start
 
 ```bash
-bash scripts/setup.sh
+bash scripts/test.sh
 ```
 
 The setup script handles everything: installs dependencies, builds packages, spins up a Postgres container via Docker, applies the database schema, runs tests, builds the web app, and starts the dev server at **http://localhost:3000**.
@@ -29,7 +29,7 @@ Copy `.env.example` to `apps/web/.env.local` (the setup script does this automat
 OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""
 
-# Auto-filled by setup.sh if Docker is available
+# Auto-filled by test.sh if Docker is available
 DATABASE_URL="postgresql://penntools:penntools@localhost:5432/penntools"
 
 # Optional
@@ -49,7 +49,7 @@ tools/
 docs/
   ARCHITECTURE.md             Architecture decisions and conventions
 scripts/
-  setup.sh                    One-shot dev setup
+  test.sh                    One-shot dev setup
 ```
 
 ## Common commands

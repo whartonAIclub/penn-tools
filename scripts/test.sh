@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/setup.sh — one-shot local dev setup for PennTools
+# scripts/test.sh — one-shot local dev setup for PennTools
 set -euo pipefail
 
 # ── Colours ───────────────────────────────────────────────────────────────────

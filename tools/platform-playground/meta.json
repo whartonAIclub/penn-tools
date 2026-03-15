@@ -1,0 +1,13 @@
+{
+  "name": "Platform Playground",
+  "description": "To test Platform APIs",
+  "category": "Platform",
+  "builders": [
+    "Anushka Sheoran",
+    "Harsh Mishra",
+    "Henry Corkran",
+    "Ronak Suchindra",
+    "Tony Sui"
+  ],
+  "mentor": "Ananya Chandra"
+}

@@ -37,9 +37,8 @@ import type { Analytics } from "@penntools/core/analytics";
 import type { UserId, User } from "@penntools/core/types";
 
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
-// TODO: import and register tools here once they are built.
-// e.g. import { CourseFinderTool } from "@penntools/tool-course-finder";
-//      toolRegistry.register(new CourseFinderTool());
+import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
+toolRegistry.register(new PlatformPlaygroundTool());
 
 // ── Repositories ──────────────────────────────────────────────────────────────
 // If DATABASE_URL is not set, use in-memory repositories so the app runs

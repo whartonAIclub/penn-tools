@@ -60,6 +60,14 @@ export interface ToolManifest {
   image: string;
   /** GitHub usernames or display names of the people who built this tool. */
   contributors: string[];
+  /** Student, faculty or staff mentor for this tool, if any. */
+  mentor?: string;
+  /** Semver string, e.g. "1.0.0" */
+  version: string;
+  /** ISO date string when the tool was first created, e.g. "2025-01-15" */
+  inceptionDate: string;
+  /** ISO date string of the latest version release, e.g. "2025-03-01" */
+  latestReleaseDate: string;
 }
 
 // ── Base class ────────────────────────────────────────────────────────────────

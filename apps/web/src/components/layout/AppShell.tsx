@@ -1,20 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { ChatThread } from "../chat/ChatThread";
 import { ChatInput } from "../chat/ChatInput";
 import { useChat } from "@/hooks/useChat";
 import { useAnonymousIdentity } from "@/hooks/useAnonymousIdentity";
+import type { ToolManifest } from "@penntools/core/tools";
 import styles from "./AppShell.module.css";
 
 export function AppShell() {
   const { userId } = useAnonymousIdentity();
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [tools, setTools] = useState<ToolManifest[]>([]);
   const { messages, chats, sendMessage, startNewChat, isLoading } = useChat({
     userId,
     chatId: activeChatId,
   });
+
+  useEffect(() => {
+    fetch("/api/tools")
+      .then((r) => r.json())
+      .then(setTools)
+      .catch(() => {});
+  }, []);
 
   const hasMessages = messages.length > 0;
 
@@ -42,6 +51,7 @@ export function AppShell() {
         activeChatId={activeChatId}
         onSelectChat={setActiveChatId}
         onNewChat={handleNewChat}
+        tools={tools}
       />
 
       <main className={styles.main}>

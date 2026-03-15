@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import type { Chat } from "@penntools/core/types";
+import type { ToolManifest } from "@penntools/core/tools";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -8,6 +10,7 @@ interface SidebarProps {
   activeChatId: string | null;
   onSelectChat: (id: string) => void;
   onNewChat: () => void;
+  tools: ToolManifest[];
 }
 
 function IconNewChat() {
@@ -34,6 +37,14 @@ function IconChat() {
   );
 }
 
+function IconTool() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    </svg>
+  );
+}
+
 function IconGrid() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,12 +53,12 @@ function IconGrid() {
   );
 }
 
-export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat }: SidebarProps) {
+export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat, tools }: SidebarProps) {
   return (
     <aside className={styles.sidebar}>
       {/* Top nav */}
       <nav className={styles.topNav}>
-        <button className={styles.newChat} onClick={onNewChat}>
+        <button className={styles.newChat} onClick={onNewChat} disabled>
           <IconNewChat />
           <span>New chat</span>
         </button>
@@ -62,17 +73,17 @@ export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat }: Sideba
       </nav>
 
       {/* Tools section */}
-      <div className={styles.section}>
-        <p className={styles.sectionLabel}>Tools</p>
-        <button className={styles.navItem} disabled>
-          <span className={styles.toolIcon}>🎓</span>
-          <span>Course Finder</span>
-        </button>
-        <button className={styles.navItem} disabled>
-          <span className={styles.toolIcon}>🔍</span>
-          <span>Explore Tools</span>
-        </button>
-      </div>
+      {tools.length > 0 && (
+        <div className={styles.section}>
+          <p className={styles.sectionLabel}>Tools</p>
+          {tools.map((tool) => (
+            <Link key={tool.id} href={`/tools/${tool.id}`} className={styles.toolItem}>
+              <IconTool />
+              <span className={styles.chatTitle}>{tool.title}</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Chats section */}
       <div className={styles.section}>

@@ -32,9 +32,9 @@ importers:
       '@penntools/platform':
         specifier: workspace:*
         version: link:../../packages/platform
-      '@penntools/tool-course-finder':
+      '@penntools/tool-platform-playground':
         specifier: workspace:*
-        version: link:../../tools/course-finder
+        version: link:../../tools/platform-playground
       next:
         specifier: ^14.2.0
         version: 14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -89,7 +89,7 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
-  tools/course-finder:
+  tools/platform-playground:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
