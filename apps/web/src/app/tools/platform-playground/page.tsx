@@ -6,7 +6,6 @@ import { useState } from "react";
 type NavItem = "playground" | "api-reference";
 
 type UserResponse = { id: string; type: string; name: string | null; pennId: string | null };
-type ChatsResponse = { chats: Array<{ id: string; title: string }> };
 type LlmResponse = { content: string; model: string; usage: { promptTokens: number; completionTokens: number; totalTokens: number } };
 
 type ApiState<T> = { status: "idle" | "loading" | "success" | "error"; data: T | null; error: string | null };
@@ -31,7 +30,6 @@ export default function PlatformPlaygroundPage() {
   const [userApi, setUserApi] = useState<ApiState<UserResponse>>(idle());
   const [llmApi, setLlmApi] = useState<ApiState<LlmResponse>>(idle());
   const [llmPrompt, setLlmPrompt] = useState("");
-  const [chatsApi, setChatsApi] = useState<ApiState<ChatsResponse>>(idle());
 
   async function runUserApi() {
     setUserApi({ status: "loading", data: null, error: null });
@@ -49,14 +47,12 @@ export default function PlatformPlaygroundPage() {
     if (!llmPrompt.trim()) return;
     setLlmApi({ status: "loading", data: null, error: null });
     try {
-      const apiKey = typeof window !== "undefined"
-        ? (localStorage.getItem("penntools_api_key") ?? "")
-        : "";
+      const storedKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
       const res = await fetch("/api/llm/complete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(apiKey ? { "X-Api-Key": apiKey } : {}),
+          ...(storedKey ? { "X-Api-Key": storedKey } : {}),
         },
         body: JSON.stringify({ prompt: llmPrompt }),
       });
@@ -68,18 +64,6 @@ export default function PlatformPlaygroundPage() {
     }
   }
 
-  async function runChatsApi() {
-    setChatsApi({ status: "loading", data: null, error: null });
-    try {
-      const res = await fetch("/api/chats");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ChatsResponse = await res.json();
-      setChatsApi({ status: "success", data, error: null });
-    } catch (err) {
-      setChatsApi({ status: "error", data: null, error: String(err) });
-    }
-  }
-
   const NAV_ITEMS: Array<{ id: NavItem; label: string; render: () => React.ReactNode }> = [
     {
       id: "playground",
@@ -88,12 +72,12 @@ export default function PlatformPlaygroundPage() {
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: "#0d0d0d" }}>Playground</h2>
           <p style={{ ...prose, marginBottom: 28 }}>
-            Invoke platform APIs directly from your browser. Responses reflect your current session.
+            Try the platform APIs below. Use these in your tool to get user info or call an AI model.
           </p>
           <ApiCard
             title="User API"
-            description="Returns the current session's user record. name and pennId are null for anonymous users (v1 — populated after SSO)."
-            endpoint="GET /api/me"
+            description="Get the logged-in user's name and ID."
+            usagePrompt="Implement User API and refer to the platform playground implementation for guidance."
             apiState={userApi}
             onRun={runUserApi}
             renderResult={(data) => (
@@ -110,33 +94,6 @@ export default function PlatformPlaygroundPage() {
             onPromptChange={setLlmPrompt}
             onSend={runLlmApi}
             apiState={llmApi}
-          />
-          <ApiCard
-            title="Chats API"
-            description="Returns all chats for the current session. Identity is resolved via cookie automatically."
-            endpoint="GET /api/chats"
-            apiState={chatsApi}
-            onRun={runChatsApi}
-            renderResult={(data) => {
-              const chats = data.chats;
-              if (chats.length === 0) {
-                return <p style={{ color: "#9ca3af", fontSize: 13, margin: 0 }}>No chats yet.</p>;
-              }
-              return (
-                <div>
-                  <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 10px" }}>
-                    {chats.length} chat{chats.length !== 1 ? "s" : ""}
-                  </p>
-                  <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 4 }}>
-                    {chats.map((chat) => (
-                      <li key={chat.id} style={{ fontSize: 13, color: "#374151" }}>
-                        {chat.title}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              );
-            }}
           />
         </div>
       ),
@@ -163,230 +120,52 @@ export default function PlatformPlaygroundPage() {
               Platform API Reference
             </h1>
             <p style={{ color: "#6e6e80", fontSize: 15, margin: 0, lineHeight: 1.6, maxWidth: 580 }}>
-              Everything available to your tool via <Code>ToolContext</Code>. Your{" "}
-              <Code>execute(input, context)</Code> method receives a fully-constructed context — import nothing
-              from <Code>@penntools/platform</Code> or env vars directly.
+              Two APIs are available to your tool: <strong>User API</strong> and <strong>LLM API</strong>.
+              Your <Code>execute(input, context)</Code> method receives these via <Code>ToolContext</Code> — import
+              nothing from <Code>@penntools/platform</Code> or env vars directly.
             </p>
           </header>
 
-          <Section title="ToolContext" badge="Entry point" badgeColor="#011F5B">
+          <Section title="User API" badge="context.currentUser" badgeColor="#2d7a4f">
             <p style={prose}>
-              The second argument to <Code>execute()</Code>. All platform services are accessed through this
-              object.
+              Get the logged-in user{"'"}s name and ID. Access via <Code>context.currentUser</Code> in your tool{"'"}s backend,
+              or call <Code>GET /api/me</Code> from your landing page.
             </p>
-            <CodeBlock>{`interface ToolContext {
-  userId:      UserId;          // anonymous UUID of the caller
-  currentUser: User;            // full user record (name/pennId null until SSO)
-
-  db: {
-    chats:    ChatRepository;
-    messages: MessageRepository;
-    toolData: ToolDataRepository;
-    users:    UserRepository;
-  };
-
-  llm:       LLMProvider;       // LLM completions & streaming
-  analytics: Analytics;         // event tracking
-  logger:    Logger;            // structured logging
-  config:    ToolConfig;        // injected config; toolId always present
-}`}</CodeBlock>
-            <CalloutBox>
-              Tools may <strong>read</strong> anything on <Code>context</Code> but must{" "}
-              <strong>never</strong> import <Code>@penntools/platform</Code>, <Code>process.env</Code>,{" "}
-              <Code>fetch</Code>, or Prisma directly.
-            </CalloutBox>
+            <CodeBlock>{`// Backend — in your execute() method
+const user = context.currentUser;
+// user.id     — stable UUID
+// user.name   — display name (null until SSO)
+// user.pennId — Penn ID (null until SSO)
+// user.type   — "anonymous" | "authenticated"`}</CodeBlock>
+            <UsageExample>{`// Frontend — in your landing page
+const res = await fetch("/api/me");
+const user = await res.json();
+// { id, type, name, pennId }`}</UsageExample>
           </Section>
 
-          <Section title="LLMProvider" badge="context.llm" badgeColor="#1a56a4">
+          <Section title="LLM API" badge="context.llm" badgeColor="#1a56a4">
             <p style={prose}>
-              Vendor-agnostic LLM interface. Works with OpenAI and Anthropic adapters interchangeably.
+              Send text input from the user and receive text output from an AI model.
+              Supports OpenAI and Anthropic. Use <Code>context.llm.complete()</Code> in your tool{"'"}s backend,
+              or call <Code>POST /api/llm/complete</Code> from your landing page.
             </p>
-            <CodeBlock>{`interface LLMProvider {
-  complete(request: CompletionRequest): Promise<CompletionResponse>;
-  stream(request: CompletionRequest):   AsyncGenerator<StreamChunk>;
-  readonly providerName: string;        // e.g. "anthropic" | "openai"
-}
-
-interface CompletionRequest {
-  messages:     LLMMessage[];   // { role, content }[]
-  systemPrompt?: string;
-  maxTokens?:   number;
-  temperature?: number;         // 0–1
-  model?:       string;         // override; platform default used if omitted
-}
-
-interface CompletionResponse {
-  content: string;
-  model:   string;              // actual model used (may differ from request)
-  usage: {
-    promptTokens:     number;
-    completionTokens: number;
-    totalTokens:      number;
-  };
-}
-
-interface StreamChunk {
-  delta: string;
-  done:  boolean;
-}`}</CodeBlock>
-            <UsageExample>{`// Non-streaming completion
+            <CodeBlock>{`// Backend — in your execute() method
 const res = await context.llm.complete({
   messages: [{ role: "user", content: input.prompt }],
   systemPrompt: "You are a helpful Penn assistant.",
   temperature: 0.7,
 });
-return { assistantMessage: res.content, telemetry: { durationMs: 0, tokensUsed: res.usage.totalTokens } };
-
-// Streaming (for real-time UI)
-for await (const chunk of context.llm.stream({ messages })) {
-  process.stdout.write(chunk.delta);
-  if (chunk.done) break;
-}`}</UsageExample>
-          </Section>
-
-          <Section title="ChatRepository" badge="context.db.chats" badgeColor="#2d7a4f">
-            <CodeBlock>{`interface ChatRepository {
-  findById(id: ChatId):                          Promise<Chat | null>;
-  findAllByUser(userId: UserId):                 Promise<Chat[]>;
-  create(input: CreateChatInput):                Promise<Chat>;
-  update(id: ChatId, input: UpdateChatInput):    Promise<Chat>;
-  delete(id: ChatId):                            Promise<void>;
-}
-
-interface CreateChatInput { userId: UserId; title: string; }
-interface UpdateChatInput { title?: string; }
-
-interface Chat {
-  id:        ChatId;
-  userId:    UserId;
-  title:     string;
-  createdAt: Date;
-  updatedAt: Date;
-}`}</CodeBlock>
-          </Section>
-
-          <Section title="MessageRepository" badge="context.db.messages" badgeColor="#2d7a4f">
-            <CodeBlock>{`interface MessageRepository {
-  findById(id: MessageId):          Promise<Message | null>;
-  findByChatId(chatId: ChatId):     Promise<Message[]>;
-  create(input: CreateMessageInput): Promise<Message>;
-  deleteByChatId(chatId: ChatId):   Promise<void>;  // hard delete
-}
-
-interface CreateMessageInput {
-  chatId:  ChatId;
-  userId:  UserId;
-  role:    MessageRole;   // "user" | "assistant" | "tool"
-  content: string;
-  toolId?: string;        // set when role === "tool"
-}
-
-interface Message {
-  id:        MessageId;
-  chatId:    ChatId;
-  userId:    UserId;
-  role:      MessageRole;
-  content:   string;
-  toolId:    string | null;
-  createdAt: Date;
-}`}</CodeBlock>
-          </Section>
-
-          <Section title="ToolDataRepository" badge="context.db.toolData" badgeColor="#2d7a4f">
-            <p style={prose}>
-              Per-user, per-tool key-value store. Great for persisting tool state without needing your own DB
-              table.
-            </p>
-            <CodeBlock>{`interface ToolDataRepository {
-  get(userId: UserId, toolId: string, key: string): Promise<ToolData | null>;
-  upsert(input: UpsertToolDataInput):               Promise<ToolData>;
-  deleteByUser(userId: UserId, toolId: string):     Promise<void>;
-}
-
-interface UpsertToolDataInput {
-  userId:    UserId;
-  toolId:    string;
-  key:       string;
-  jsonValue: Record<string, any>;  // arbitrary JSON
-}
-
-interface ToolData {
-  id:        ToolDataId;
-  userId:    UserId;
-  toolId:    string;
-  key:       string;
-  jsonValue: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
-}`}</CodeBlock>
-            <UsageExample>{`// Save user preferences
-await context.db.toolData.upsert({
-  userId:    context.userId,
-  toolId:    context.config.toolId,
-  key:       "preferences",
-  jsonValue: { theme: "dark", language: "en" },
+// res.content — the AI response text
+// res.model   — model used
+// res.usage   — { promptTokens, completionTokens, totalTokens }`}</CodeBlock>
+            <UsageExample>{`// Frontend — in your landing page
+const res = await fetch("/api/llm/complete", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ prompt: "Hello!" }),
 });
-
-// Load them back
-const record = await context.db.toolData.get(context.userId, context.config.toolId, "preferences");
-const prefs = record?.jsonValue ?? {};`}</UsageExample>
-          </Section>
-
-          <Section title="UserRepository" badge="context.db.users" badgeColor="#2d7a4f">
-            <CodeBlock>{`interface UserRepository {
-  findById(id: UserId):                                      Promise<User | null>;
-  findByPennId(pennId: string):                              Promise<User | null>;
-  create(input: CreateUserInput):                            Promise<User>;
-  updateProfile(id: UserId, input: UpdateProfileInput):      Promise<User>;
-}
-
-interface User {
-  id:        UserId;       // UUID; stable across sessions
-  type:      UserType;     // "anonymous" | "authenticated"
-  name:      string | null;   // null until SSO login (v2)
-  pennId:    string | null;   // null until SSO login (v2)
-  createdAt: Date;
-}`}</CodeBlock>
-            <CalloutBox>
-              In v1 all users are <Code>anonymous</Code>. <Code>context.currentUser</Code> is already resolved
-              — tools rarely need to call <Code>context.db.users</Code> directly.
-            </CalloutBox>
-          </Section>
-
-          <Section title="Analytics" badge="context.analytics" badgeColor="#7c3aed">
-            <p style={prose}>
-              Vendor-agnostic analytics interface (PostHog in production, no-op in dev/tests).
-            </p>
-            <CodeBlock>{`interface Analytics {
-  track(userId: UserId, event: string, props?: EventProperties): void;
-  identify(userId: UserId, traits?: EventProperties):            void;
-  flush():                                                       Promise<void>;
-}
-
-// EventProperties = Record<string, string | number | boolean | null>
-// Flat key-value only — no nested objects (compatibility with all backends).`}</CodeBlock>
-            <UsageExample>{`context.analytics.track(context.userId, "tool_executed", {
-  toolId:     context.config.toolId,
-  tokensUsed: res.usage.totalTokens,
-  success:    true,
-});
-
-// Call flush() at the end of serverless functions so events aren't dropped
-await context.analytics.flush();`}</UsageExample>
-          </Section>
-
-          <Section title="Logger" badge="context.logger" badgeColor="#b45309">
-            <p style={prose}>
-              Structured logger — prefer this over <Code>console.log</Code> for easier log aggregation.
-            </p>
-            <CodeBlock>{`interface Logger {
-  info(message: string,  meta?: Record<string, unknown>): void;
-  warn(message: string,  meta?: Record<string, unknown>): void;
-  error(message: string, error?: unknown):               void;
-}`}</CodeBlock>
-            <UsageExample>{`context.logger.info("Tool started", { userId: context.userId, input });
-context.logger.warn("Slow response", { durationMs: elapsed });
-context.logger.error("LLM call failed", err);`}</UsageExample>
+const data = await res.json();
+// { content, model, usage }`}</UsageExample>
           </Section>
 
           <Section title="Tool Base Class" badge="@penntools/core/tools" badgeColor="#011F5B">
@@ -449,7 +228,7 @@ interface ToolManifest {
         borderTop: "1px solid #e5e5e5",
       }}
     >
-      {/* Left nav — never scrolls, only 2 items */}
+      {/* Left nav — never scrolls */}
       <nav
         style={{
           width: 220,
@@ -498,17 +277,73 @@ interface ToolManifest {
 
 // ── ApiCard ────────────────────────────────────────────────────────────────────
 
+function CopyPrompt({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        background: "#f5f7ff",
+        border: "1px solid #dce3ff",
+        borderRadius: 6,
+        padding: "8px 12px",
+        marginBottom: 14,
+      }}
+    >
+      <span style={{ fontSize: 12, color: "#6b7280", flexShrink: 0, fontWeight: 600 }}>Ask your agent:</span>
+      <span
+        style={{
+          fontSize: 12,
+          color: "#1e3a8a",
+          fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+          flex: 1,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {text}
+      </span>
+      <button
+        onClick={handleCopy}
+        style={{
+          flexShrink: 0,
+          background: copied ? "#dcfce7" : "#fff",
+          border: `1px solid ${copied ? "#86efac" : "#d1d5db"}`,
+          borderRadius: 4,
+          padding: "3px 10px",
+          fontSize: 11,
+          fontWeight: 600,
+          color: copied ? "#166534" : "#374151",
+          cursor: "pointer",
+          transition: "all 0.15s",
+        }}
+      >
+        {copied ? "Copied!" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 function ApiCard<T>({
   title,
   description,
-  endpoint,
+  usagePrompt,
   apiState,
   onRun,
   renderResult,
 }: {
   title: string;
   description: string;
-  endpoint: string;
+  usagePrompt: string;
   apiState: ApiState<T>;
   onRun: () => void;
   renderResult: (data: T) => React.ReactNode;
@@ -527,7 +362,6 @@ function ApiCard<T>({
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <span style={{ fontSize: 16, fontWeight: 700, color: "#0d0d0d" }}>{title}</span>
-        <Code>{endpoint}</Code>
         <button
           onClick={onRun}
           disabled={isLoading}
@@ -549,11 +383,14 @@ function ApiCard<T>({
       </div>
 
       {/* Description */}
-      <p style={{ ...prose, marginBottom: apiState.status === "idle" ? 0 : 14 }}>{description}</p>
+      <p style={{ ...prose, marginBottom: 10 }}>{description}</p>
+
+      {/* Copyable usage prompt */}
+      <CopyPrompt text={usagePrompt} />
 
       {/* Result panel */}
       {apiState.status === "loading" && (
-        <p style={{ color: "#9ca3af", fontSize: 13, margin: 0 }}>Running…</p>
+        <p style={{ color: "#9ca3af", fontSize: 13, margin: "4px 0 0" }}>Running…</p>
       )}
       {apiState.status === "error" && (
         <div
@@ -611,13 +448,11 @@ function LlmCard({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <span style={{ fontSize: 16, fontWeight: 700, color: "#0d0d0d" }}>LLM API</span>
-        <Code>POST /api/llm/complete</Code>
       </div>
-      <p style={{ ...prose, marginBottom: 14 }}>
-        Send a prompt to the configured LLM and get a text response. Tools use{" "}
-        <Code>context.llm.complete()</Code> the same way — for question answering, summarisation,
-        classification, or generating structured output from user input.
+      <p style={{ ...prose, marginBottom: 10 }}>
+        Send text input from the user and receive text output from an AI model.
       </p>
+      <CopyPrompt text="Implement LLM API and refer to the platform playground implementation for guidance." />
       <textarea
         value={prompt}
         onChange={(e) => onPromptChange(e.target.value)}

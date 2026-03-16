@@ -116,7 +116,7 @@ export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat, tools }:
       </div>
 
       {/* API Key */}
-      <div className={styles.section}>
+      <div className={`${styles.section} ${styles.apiKeySection}`}>
         <p className={styles.sectionLabel}>API Key</p>
         <input
           type="password"

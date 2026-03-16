@@ -111,6 +111,11 @@
   min-width: 0;
 }
 
+/* API Key section — pinned just above user row */
+.apiKeySection {
+  margin-top: auto;
+}
+
 /* API Key input */
 .apiKeyInput {
   width: 100%;
@@ -129,7 +134,6 @@
 
 /* User row */
 .userRow {
-  margin-top: auto;
   padding: 8px 4px;
   display: flex;
   align-items: center;

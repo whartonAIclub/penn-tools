@@ -81,7 +81,53 @@ After scaffolding, remind the team to:
 
 ---
 
-## 4. Architecture Quick Reference
+## 4. Adding Platform APIs to a Tool
+
+When a tool team asks to use a platform API (LLM, database, analytics, etc.), use the **Platform Playground** (`tools/platform-playground/`) as the reference implementation. Do **not** modify any files outside the tool's scope — all platform APIs are already available via `ToolContext`.
+
+### Available APIs
+
+#### User API
+Get the logged-in user's name and ID.
+
+> **Usage:** Ask your coding agent: `Implement User API and refer to the platform playground implementation for guidance.`
+
+#### LLM API
+Send text input from the user and receive text output from an AI model (supports OpenAI & Anthropic).
+
+> **Usage:** Ask your coding agent: `Implement LLM API and refer to the platform playground implementation for guidance.`
+
+### How to add an API integration
+
+1. **Read the reference first.** Before writing any code, read the corresponding usage in:
+   - `tools/platform-playground/src/PlatformPlaygroundTool.ts` — backend usage of `context.llm`, `context.currentUser`, etc.
+   - `apps/web/src/app/tools/platform-playground/page.tsx` — frontend patterns for calling `GET /api/me` (User API) and `POST /api/llm/complete` (LLM API)
+
+2. **Backend (tool logic)** — Edit only `tools/{id}/src/`:
+   - For **User API**: access the logged-in user via `context.currentUser` (returns name and ID)
+   - For **LLM API**: call `context.llm.complete(request)` or `context.llm.stream(request)` for AI completions
+   - Import types from `@penntools/core` only — never from `@penntools/platform`
+   - Never use `process.env`, `fetch` to external services, or vendor SDKs directly
+
+3. **Frontend (landing page)** — Edit only `apps/web/src/app/tools/{id}/`:
+   - For **User API**: call `GET /api/me` to get the logged-in user's name and ID
+   - For **LLM API**: call `POST /api/llm/complete` with `{ messages }` in the body; optionally pass a user-provided API key via the `X-Api-Key` header
+   - Mirror the patterns in the Platform Playground's `page.tsx`
+
+4. **Verify compilation** after changes:
+   ```
+   npx tsc --noEmit -p apps/web/tsconfig.json
+   ```
+
+### Rules
+
+- **All changes must stay within the tool's two directories.** Only the User API and LLM API are available. If a team needs something beyond these, explain that they should request it from the Platform team — do not add it yourself.
+- **Do not create new API routes.** Tools consume existing platform routes; only the Platform team creates new ones.
+- **Do not duplicate platform logic.** If the Platform Playground already demonstrates the pattern, adapt it — don't reinvent it.
+
+---
+
+## 5. Architecture Quick Reference
 
 | Area | Path | Who can edit |
 |------|------|--------------|
