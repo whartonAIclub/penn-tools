@@ -7,10 +7,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./track4": {
-      "types": "./dist/track4/index.d.ts",
-      "import": "./dist/track4/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -23,8 +19,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@penntools/core": "workspace:*",
-    "xlsx": "^0.18.5"
+    "@penntools/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

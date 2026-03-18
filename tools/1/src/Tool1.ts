@@ -7,13 +7,13 @@ export class Tool1 extends Tool<Tool1Input, Tool1Output> {
   readonly manifest: ToolManifest = {
     id: "1",
     title: "CourseMatch Assist",
-    description: "CourseMatch Assist will curate a course list and recommended utilities for your next semester! Send it your priorities and transcript - and watch the magic happen as it reduces your stress",
+    description: "This tool is a one-stop-shop for making the most of CourseMatch: giving you your recommended schedule based on various inputs, and even exact utilities you should put into CourseMatch",
     image: "/tools/1/icon.png",
-    contributors: ["Ishi Tripathi", "Brendan Holleck", "Evens Esperance", "Sanjana Wadhwa"],
+    contributors: ["Ishi Tripathi", "Sanjana Wadhwa", "Brendan Holleck", "Evens Esperance"],
     mentor: "Manas Sharma",
     version: "0.0.1",
-    inceptionDate: "2026-03-23",
-    latestReleaseDate: "2026-03-23",
+    inceptionDate: "2026-03-18",
+    latestReleaseDate: "2026-03-18",
   };
 
   async execute(
