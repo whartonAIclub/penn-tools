@@ -18,12 +18,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────
@@ -109,6 +111,26 @@ model ToolData {
   @@unique([userId, toolId, key])
   @@index([userId, toolId])
   @@map("tool_data")
+}
+
+// ── Resources ─────────────────────────────────────────────────────────────────
+
+/// Penn resources and AskPenn tool entries stored with vector embeddings for
+/// semantic retrieval.  The embedding column uses pgvector (vector(1536)) and
+/// is populated by the platform on upsert.  Raw SQL is required for the
+/// vector column because Prisma marks it as Unsupported.
+model Resource {
+  id        String   @id
+  title     String
+  url       String
+  /// Combined text used for embedding: title + description + intent + tags.
+  content   String   @db.Text
+  /// text-embedding-3-small produces 1536-dimensional vectors.
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("resources")
 }
 
 // ── Tools (OPTIONAL metadata table) ──────────────────────────────────────────

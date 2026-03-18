@@ -32,7 +32,7 @@ export function AppShell() {
       const id = await startNewChat();
       if (id) {
         setActiveChatId(id);
-        sendMessage(content);
+        sendMessage(content, id);
       }
     } else {
       sendMessage(content);

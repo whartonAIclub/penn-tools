@@ -1,0 +1,28 @@
+{
+  "resources": [
+    {
+      "id": "pennpay",
+      "title": "PennPay",
+      "url": "https://srfs.upenn.edu/billing-payment/pennpay",
+      "description": "PennPay is Penn's official student billing and payment portal. Use it to view your account balance, make tuition and fee payments, set up a payment plan, or grant a parent access as an authorized payer.",
+      "intent": "Pay my tuition bill, view my student account balance, set up a payment plan, add a parent as an authorized payer, pay housing or dining fees",
+      "semanticTags": ["tuition", "billing", "payment", "student account", "payment plan", "authorized payer", "fees", "financial services"]
+    },
+    {
+      "id": "handshake",
+      "title": "Handshake",
+      "url": "https://upenn.joinhandshake.com",
+      "description": "Handshake is Penn's career platform where students and alumni find internships, full-time jobs, and on-campus recruiting events. Employers post positions directly and students can apply, schedule interviews through Career Services, and attend info sessions.",
+      "intent": "Find internships, search for full-time jobs, sign up for on-campus recruiting, connect with employers, attend career fairs or info sessions",
+      "semanticTags": ["internship", "jobs", "recruiting", "career", "on-campus recruiting", "OCR", "employer", "Career Services", "job search", "full-time offer"]
+    },
+    {
+      "id": "isss-travel",
+      "title": "ISSS Travel Information",
+      "url": "https://global.upenn.edu/isss/home/immigration/travel/",
+      "description": "Penn's ISSS travel page. F-1 students must carry these 7 documents when traveling: (1) Valid Form I-20 with a valid travel signature on page 2, (2) Valid passport (must be valid for at least 6 months into the future), (3) Valid F-1 visa stamp (except for travel to Canada/Mexico for less than 30 days), (4) Proof of valid immigration status (I-94 record), (5) Proof of financial support, (6) Proof of enrollment (recent transcript or enrollment verification letter), (7) EAD card if on OPT.",
+      "intent": "Travel documents for international students, F-1 travel requirements, what to carry when traveling as an F-1 student, travel signature, re-entry, I-20, visa, passport, I-94, EAD, OPT travel",
+      "semanticTags": ["travel", "F-1", "J-1", "international student", "ISSS", "I-20", "visa", "passport", "travel signature", "re-entry", "immigration", "travel documents"]
+    }
+  ]
+}

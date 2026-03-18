@@ -14,11 +14,11 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function submit() {
-    // const trimmed = value.trim();
-    // if (!trimmed || disabled) return;
-    // onSend(trimmed);
-    // setValue("");
-    // if (textareaRef.current) textareaRef.current.style.height = "auto";
+    const trimmed = value.trim();
+    if (!trimmed || disabled) return;
+    onSend(trimmed);
+    setValue("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {

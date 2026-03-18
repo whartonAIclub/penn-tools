@@ -50,3 +50,10 @@
 }
 
 .content { white-space: pre-wrap; word-break: break-word; }
+
+.link {
+  color: #1d4ed8;
+  text-decoration: underline;
+  word-break: break-all;
+}
+.link:hover { color: #1e40af; }

@@ -3,6 +3,25 @@
 import type { Message } from "@penntools/core/types";
 import styles from "./MessageBubble.module.css";
 
+const URL_REGEX = /(https?:\/\/[^\s)]+)/g;
+
+function Linkify({ text }: { text: string }) {
+  const parts = text.split(URL_REGEX);
+  return (
+    <>
+      {parts.map((part, i) =>
+        URL_REGEX.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={styles.link}>
+            {part}
+          </a>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
 export function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
 
@@ -13,7 +32,7 @@ export function MessageBubble({ message }: { message: Message }) {
         {message.toolId && (
           <div><span className={styles.toolBadge}>via {message.toolId}</span></div>
         )}
-        <p className={styles.content}>{message.content}</p>
+        <p className={styles.content}><Linkify text={message.content} /></p>
       </div>
     </div>
   );
