@@ -46,6 +46,8 @@ import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
 import { Tool8 } from "@penntools/tool-8";
 toolRegistry.register(new Tool8());
+import { PennPlannerTool } from "@penntools/tool-penn-planner";
+toolRegistry.register(new PennPlannerTool());
 
 // ── Resource seeding (fire-and-forget) ────────────────────────────────────────
 // Imported lazily to avoid a circular reference with the logger defined below.
