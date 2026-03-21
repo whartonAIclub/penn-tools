@@ -1,0 +1,10 @@
+{
+  "name": "Career Canvas",
+  "description": "An AI Powered Course, Major and Career Planner which identifies interests and skill gaps and builds a course roadmap for students",
+  "category": "Career",
+  "builders": ["Ritika Agarwal", "Dee Xie", "Parmvir Chahal", "Malvika Sinha"],
+  "mentor": "Itay Zitvar",
+  "version": "0.1.0",
+  "inceptionDate": "2026-02-25",
+  "latestReleaseDate": "2026-03-20"
+}
