@@ -44,6 +44,8 @@ import type { UserId, User } from "@penntools/core/types";
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
 import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
+import { PennPlannerTool } from "@penntools/tool-penn-planner";
+toolRegistry.register(new PennPlannerTool());
 
 // ── Resource seeding (fire-and-forget) ────────────────────────────────────────
 // Imported lazily to avoid a circular reference with the logger defined below.
