@@ -13,11 +13,12 @@
     "@penntools/core": "workspace:*",
     "@penntools/platform": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
+    "@penntools/tool-7": "workspace:*",
+    "@penntools/tool-8": "workspace:*",
+    "@penntools/tool-penn-planner": "workspace:*",
     "next": "^14.2.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "@penntools/tool-8": "workspace:*"
-    "@penntools/tool-penn-planner": "workspace:*"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
