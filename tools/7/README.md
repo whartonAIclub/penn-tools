@@ -12,7 +12,7 @@ This guide covers everything your team needs to work on this project. No prior G
 
 **2. Clone the repo** (do this once):
 ```
-git clone <repo-url>
+git clone https://github.com/whartonAIclub/penn-tools
 cd penn-tools
 ```
 
@@ -62,6 +62,29 @@ Example commit messages:
 * `"update resume template styling"`
 
 **Commit often.** Small, frequent commits are much easier to undo if something breaks.
+
+**Do this yourself** — don't use Claude or an AI tool to commit for you. Committing is how you stay aware of exactly what's going into the repo. If you don't know what you're committing, you risk pushing broken code or files that shouldn't be there.
+
+### Before every commit: check what you're about to save
+
+Run this first:
+```
+git status
+```
+
+This shows every file you've changed. Read it carefully. You should only see files inside:
+- `tools/7/`
+- `apps/web/src/app/tools/7/`
+
+**If you see anything outside those two folders — stop.** Do not commit until you understand why that file changed. You may have accidentally edited something that belongs to another team or the platform. Committing it could break the whole app for everyone.
+
+Common files to watch out for:
+- `apps/web/package.json` — only changes when a new tool is registered; don't touch otherwise
+- `apps/web/src/lib/container.ts` — same
+- Anything in `tools/` that isn't `tools/7/`
+- Anything in `packages/`
+
+If you're unsure, ask before pushing.
 
 ---
 
