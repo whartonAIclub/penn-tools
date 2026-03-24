@@ -534,13 +534,13 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
             {pdfLoading ? "Exporting…" : "Export PDF"}
           </button>
         </div>
-        <PdfScroll>
+<PdfScroll>
   <PdfCard>
     {previewFile?.fileUrl ? (
       <div
         style={{
           width: "100%",
-          height: "900px",
+          height: PDF_HEIGHT,
           background: "#fff",
           borderRadius: 4,
           overflow: "hidden",
