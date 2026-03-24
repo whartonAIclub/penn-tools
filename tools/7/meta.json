@@ -1,0 +1,10 @@
+{
+  "name": "Resume Customizer",
+  "description": "AI-powered tool that generates tailored resumes and cover letters from a student's full professional knowledge base",
+  "category": "Recruiting",
+  "builders": ["Vismay Churiwala", "Nicole Goon", "Hongyu Mao", "Samir Patki"],
+  "mentor": "Sanjana Wadhwa",
+  "version": "0.0.1",
+  "inceptionDate": "2026-03-19",
+  "latestReleaseDate": "2026-03-19"
+}
