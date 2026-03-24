@@ -32,9 +32,15 @@ importers:
       '@penntools/platform':
         specifier: workspace:*
         version: link:../../packages/platform
+      '@penntools/tool-1':
+        specifier: workspace:*
+        version: link:../../tools/1
       '@penntools/tool-8':
         specifier: workspace:*
         version: link:../../tools/8
+      '@penntools/tool-penn-planner':
+        specifier: workspace:*
+        version: link:../../tools/penn-planner
       '@penntools/tool-platform-playground':
         specifier: workspace:*
         version: link:../../tools/platform-playground
@@ -98,7 +104,33 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  tools/1:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
   tools/8:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
+  tools/penn-planner:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
