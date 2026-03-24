@@ -1,10 +1,26 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { parseFile } from "./parseFile";
+import type { UploadedFile } from "./parseFile";
+import { downloadAsPDF, copyToClipboard } from "./exportResume";
 
 type Screen = "landing" | "onboarding" | "workspace" | "generating" | "comparison" | "edit" | "export";
 
 const TOPBAR_PAD_LEFT  = 148;
 const TOPBAR_PAD_RIGHT = 64;
+
+// ── LLM helper ─────────────────────────────────────────────────────────────────
+async function llmComplete(prompt: string): Promise<string> {
+  const key = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+  const res = await fetch("/api/llm/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(key ? { "X-Api-Key": key } : {}) },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json() as { content: string };
+  return data.content.trim();
+}
 
 // ── PDF dimensions (96 dpi) ────────────────────────────────────────────────────
 const PDF_WIDTH  = 816;   // 8.5 in
@@ -32,22 +48,8 @@ function makeW(pt: number) {
 }
 const W = makeW(12); // default — read-only views always render at 12 pt
 
-// ── Mock data ──────────────────────────────────────────────────────────────────
-const MOCK_FILES = [
-  { id: "1", name: "Resume_Master_v3.pdf",       tag: "Resume",          date: "Mar 15" },
-  { id: "2", name: "Resume_Tech_Focus.pdf",      tag: "Resume",          date: "Mar 10" },
-  { id: "3", name: "McKinsey_Cover_Letter.docx", tag: "Cover Letter",    date: "Mar 8"  },
-  { id: "4", name: "BCG_Project_Description.docx", tag: "Project",       date: "Feb 28" },
-  { id: "5", name: "Goldman_Analyst_JD.pdf",     tag: "Job Description", date: "Feb 20" },
-  { id: "6", name: "Writing_Sample_Econ.pdf",    tag: "Writing Sample",  date: "Jan 12" },
-];
-
-const MOCK_MESSAGES = [
-  { role: "user" as const,      content: "I just uploaded the Goldman Sachs Summer Analyst JD. Can you tailor my resume for this role?" },
-  { role: "assistant" as const, content: "Analyzed the Goldman Sachs IB JD and cross-referenced your knowledge base.\n\n• Leading with 'financial modeling' and 'valuation' keywords\n• Pulling in your DCF project from BCG_Project_Description.docx\n• Reordering skills to match Goldman's exact terminology\n\nTailored resume ready in the preview →" },
-  { role: "user" as const,      content: "Looks great! Can you tighten the McKinsey bullets?" },
-  { role: "assistant" as const, content: "Done — McKinsey bullets cut to two tight lines each, action-verb led, numbers preserved. Preview updated." },
-];
+// display: true = selectable as base resume, false = context-only file
+type WorkspaceFile = { id: string; name: string; tag: string; date: string; isResume: boolean; llmText: string; html?: string };
 
 const TAG_COLORS: Record<string, { bg: string; color: string }> = {
   Resume:            { bg: "#e0f2fe", color: "#0369a1" },
@@ -55,24 +57,6 @@ const TAG_COLORS: Record<string, { bg: string; color: string }> = {
   Project:           { bg: "#dcfce7", color: "#15803d" },
   "Job Description": { bg: "#fef9c3", color: "#92400e" },
   "Writing Sample":  { bg: "#ede9fe", color: "#6d28d9" },
-};
-
-type ResumeSection = "education" | "gs" | "blackstone" | "mckinsey" | "leadership" | "additional";
-
-const SUGGESTION_SECTION: Record<string, ResumeSection> = {
-  "Make this more results-driven": "gs",
-  "Shorten this bullet":           "blackstone",
-  "Add quantified impact":         "mckinsey",
-  "Match Goldman tone":            "gs",
-  "Tighten leadership section":    "leadership",
-};
-const SECTION_LABEL: Record<ResumeSection, string> = {
-  education:  "Education",
-  gs:         "Goldman Sachs",
-  blackstone: "Blackstone",
-  mckinsey:   "McKinsey",
-  leadership: "Leadership & Activities",
-  additional: "Additional Information",
 };
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -99,332 +83,144 @@ function PdfScroll({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Resume document (read-only, 12 pt) ────────────────────────────────────────
-function ResumeDocument({ w = W }: { w?: ReturnType<typeof makeW> }) {
-  return (
-    <div style={w.doc}>
-      <div style={w.name}>Jane Doe</div>
-      <div style={w.contact}>3820 Locust Walk, Philadelphia, PA 19104 &nbsp;|&nbsp; (215) 555-0192 &nbsp;|&nbsp; jane.doe@wharton.upenn.edu</div>
-
-      <div style={w.section}>Education</div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>The Wharton School, University of Pennsylvania</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Bachelor of Science in Economics; Concentration in Finance</span><span style={w.meta}>Expected May 2027</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>GPA: 3.87/4.00; Dean&apos;s List all semesters; Joseph Wharton Scholar (top 10% of class); Dean&apos;s Scholarship recipient</li>
-          <li style={w.li}><span style={{ fontStyle: "italic" }}>Leadership:</span> Wharton Investment &amp; Trading Group (VP, Investment Banking); Penn Finance Club (Analyst); Undergraduate Finance Club (Member)</li>
-          <li style={w.li}><span style={{ fontStyle: "italic" }}>Coursework:</span> Corporate Finance, Financial Statement Analysis, Econometrics, Derivatives, M&amp;A Strategy, Valuation &amp; Private Equity</li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>London School of Economics and Political Science</span><span style={w.meta}>London, United Kingdom</span></div>
-        <div style={w.row}><span style={w.role}>Visiting Student, International Finance &amp; Political Economy</span><span style={w.meta}>Spring 2026</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Competitive exchange program (20 of 400 applicants selected); coursework in EU financial markets, sovereign debt, and international trade policy</li>
-        </ul>
-      </div>
-
-      <div style={w.section}>Experience</div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Goldman Sachs &amp; Co.</span><span style={w.meta}>New York, NY</span></div>
-        <div style={w.row}><span style={w.role}>Investment Banking Division — Spring Insight Program</span><span style={w.meta}>January 2026</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Built three-statement financial model and DCF valuation for a $2.4B healthcare M&amp;A transaction; presented findings to two Managing Directors and shaped final pricing assumptions</li>
-          <li style={w.li}>Conducted comparable company and precedent transactions analysis across 12 public peers; prepared 40-page pitch book using Bloomberg and FactSet for TMT sector coverage</li>
-          <li style={w.li}>Synthesized 50+ sell-side analyst reports into sector investment framework adopted by two Associates for ongoing client coverage materials</li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Blackstone Group</span><span style={w.meta}>New York, NY</span></div>
-        <div style={w.row}><span style={w.role}>Private Equity — Summer Analyst</span><span style={w.meta}>Summer 2025</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Supported two add-on acquisitions ($340M combined); built integrated LBO model and sensitivity analysis underpinning investment committee memo reviewed by the CIO</li>
-          <li style={w.li}>Drafted 15-page investment thesis on prospective platform acquisition; analysis advanced deal to second-round diligence and informed a $180M bid strategy</li>
-          <li style={w.li}>Synthesized operational findings from portfolio company to identify $18M cost-reduction opportunity; presented to deal team and incorporated into 100-day plan</li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>McKinsey &amp; Company</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Strategy &amp; Operations — Sophomore Extern</span><span style={w.meta}>January 2025</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Contributed to post-merger integration workstream for Fortune 500 client; built PMO tracker for 200+ open items across legal, finance, and technology functions</li>
-          <li style={w.li}>Developed market sizing model for organic growth initiative; identified $2.3B addressable opportunity in adjacent segment, presented to Engagement Manager</li>
-          <li style={w.li}>Prepared competitive landscape analysis across 8 industry verticals; synthesized findings into 20-slide executive briefing delivered to client C-suite</li>
-        </ul>
-      </div>
-
-      <div style={w.section}>Leadership &amp; Activities</div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Wharton Investment &amp; Trading Group</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Vice President, Investment Banking Division</span><span style={w.meta}>September 2025 – Present</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Lead 30-person IB division; organize technical training workshops and alumni networking events reaching 200+ club members per semester</li>
-          <li style={w.li}>Manage annual pitching competition ($50K prize pool); coordinate judging panel of 12 professionals from bulge-bracket and boutique advisory firms</li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Penn Undergraduate Economics Society</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Research Analyst</span><span style={w.meta}>January 2025 – Present</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Co-authored research paper on fiscal multiplier heterogeneity; presented findings at Penn Undergraduate Economics Symposium to faculty and 80+ peers</li>
-        </ul>
-      </div>
-
-      <div style={w.section}>Additional Information</div>
-
-      <div style={w.entryTop}>
-        <ul style={{ ...w.ul, marginBottom: 0 }}>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Technical Skills:</span> Financial Modeling (advanced), LBO &amp; DCF Analysis, M&amp;A Valuation, Bloomberg Terminal, FactSet, Excel (VBA), Python (pandas, NumPy), PowerPoint</li>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Languages:</span> English (native), Mandarin Chinese (professional proficiency), Spanish (conversational)</li>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Interests:</span> Competitive tennis (USTA ranked), macroeconomics research, international travel (15 countries), long-distance running</li>
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-// ── Tailored resume (comparison) ───────────────────────────────────────────────
-function TailoredResumeDocument({ w = W }: { w?: ReturnType<typeof makeW> }) {
-  const hl  = { background: "#fef9c3", borderRadius: 2 } as React.CSSProperties;
-  const add = { background: "#dcfce7", borderRadius: 2 } as React.CSSProperties;
-  const badge = { display: "inline-block", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3, marginLeft: 5, verticalAlign: "middle" } as React.CSSProperties;
-
-  return (
-    <div style={w.doc}>
-      <div style={w.name}>Jane Doe</div>
-      <div style={w.contact}>3820 Locust Walk, Philadelphia, PA 19104 &nbsp;|&nbsp; (215) 555-0192 &nbsp;|&nbsp; jane.doe@wharton.upenn.edu</div>
-
-      <div style={w.section}>Education</div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>The Wharton School, University of Pennsylvania</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Bachelor of Science in Economics; Concentration in Finance</span><span style={w.meta}>Expected May 2027</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>GPA: 3.87/4.00; Dean&apos;s List all semesters; Joseph Wharton Scholar; Dean&apos;s Scholarship recipient</li>
-          <li style={w.li}><span style={{ fontStyle: "italic" }}>Leadership:</span> Wharton Investment &amp; Trading Group (VP, IB); Penn Finance Club; Undergraduate Finance Club</li>
-          <li style={w.li}><span style={{ fontStyle: "italic" }}>Coursework:</span> Corporate Finance, Financial Statement Analysis, Derivatives, M&amp;A Strategy, <span style={hl}>Valuation &amp; Private Equity, Investment Banking Seminar</span></li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>London School of Economics and Political Science</span><span style={w.meta}>London, United Kingdom</span></div>
-        <div style={w.row}><span style={w.role}>Visiting Student, International Finance &amp; Political Economy</span><span style={w.meta}>Spring 2026</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Competitive exchange program (20 of 400 applicants selected); coursework in EU financial markets, sovereign debt, and international trade policy</li>
-        </ul>
-      </div>
-
-      <div style={w.section}>Experience</div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Goldman Sachs &amp; Co.</span><span style={w.meta}>New York, NY</span></div>
-        <div style={w.row}><span style={w.role}>Investment Banking Division — Spring Insight Program</span><span style={w.meta}>January 2026</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}><span style={hl}>Led financial modeling and DCF valuation for $2.4B healthcare M&amp;A transaction; delivered pricing assumptions directly to Managing Directors, accelerating deal timeline by two weeks</span><span style={{ ...badge, background: "#fde68a", color: "#92400e" }}>Rewrote for impact</span></li>
-          <li style={w.li}>Conducted comparable company and precedent transactions analysis across 12 public peers; prepared 40-page pitch book using Bloomberg and FactSet for TMT sector coverage</li>
-          <li style={w.li}>Synthesized 50+ sell-side analyst reports into sector investment framework adopted by two Associates for ongoing coverage</li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Blackstone Group</span><span style={w.meta}>New York, NY</span></div>
-        <div style={w.row}><span style={w.role}>Private Equity — Summer Analyst</span><span style={w.meta}>Summer 2025</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Supported two add-on acquisitions ($340M combined); built integrated LBO model and sensitivity analysis underpinning investment committee memo reviewed by the CIO</li>
-          <li style={w.li}>Drafted 15-page investment thesis; analysis advanced deal to second-round diligence and informed a $180M bid strategy</li>
-          <li style={{ ...w.li, ...add }}>Synthesized operational findings to identify $18M cost-reduction opportunity; incorporated into 100-day plan presented to portfolio company CEO<span style={{ ...badge, background: "#bbf7d0", color: "#15803d" }}>Added project</span></li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>McKinsey &amp; Company</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Strategy &amp; Operations — Sophomore Extern</span><span style={w.meta}>January 2025</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Contributed to post-merger integration workstream for Fortune 500 client; built PMO tracker for 200+ open items across legal, finance, and technology</li>
-          <li style={w.li}>Developed market sizing model; identified $2.3B addressable opportunity in adjacent segment, presented to Engagement Manager</li>
-          <li style={w.li}><span style={hl}>Prepared competitive landscape analysis across 8 industry verticals; synthesized into 20-slide executive briefing for client C-suite and Goldman stakeholders</span><span style={{ ...badge, background: "#fde68a", color: "#92400e" }}>Rewrote for impact</span></li>
-        </ul>
-      </div>
-
-      <div style={w.section}>Leadership &amp; Activities</div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Wharton Investment &amp; Trading Group</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Vice President, Investment Banking Division</span><span style={w.meta}>September 2025 – Present</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Lead 30-person IB division; organize technical training workshops and alumni networking events reaching 200+ members</li>
-          <li style={w.li}>Manage annual pitching competition ($50K prize pool); coordinate judging panel of 12 professionals from bulge-bracket and boutique firms</li>
-        </ul>
-      </div>
-
-      <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Penn Undergraduate Economics Society</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Research Analyst</span><span style={w.meta}>January 2025 – Present</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>Co-authored research paper on fiscal multiplier heterogeneity; presented at Penn Undergraduate Economics Symposium to faculty and 80+ peers</li>
-        </ul>
-      </div>
-
-      <div style={w.section}>Additional Information</div>
-
-      <div style={w.entryTop}>
-        <ul style={{ ...w.ul, marginBottom: 0 }}>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Technical Skills:</span> <span style={hl}>Financial Modeling (advanced), LBO &amp; DCF Analysis, M&amp;A Valuation, Bloomberg Terminal, FactSet,</span> Excel (VBA), Python (pandas), PowerPoint</li>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Languages:</span> English (native), Mandarin Chinese (professional proficiency), Spanish (conversational)</li>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Interests:</span> Competitive tennis, macroeconomics research, international travel (15 countries), long-distance running</li>
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-// ── Editable resume (Edit Mode) ────────────────────────────────────────────────
-function EditableResumeDocument({
-  fontSizePt,
-  fontFamily,
-  activeSection,
-  onSectionClick,
-}: {
-  fontSizePt: number;
-  fontFamily: string;
-  activeSection: ResumeSection | null;
-  onSectionClick: (s: ResumeSection) => void;
-}) {
-  const baseW = makeW(fontSizePt);
-  const w = { ...baseW, doc: { ...baseW.doc, fontFamily } };
-
-  const sectionWrap = (id: ResumeSection, children: React.ReactNode) => {
-    const active = activeSection === id;
+// ── Renders resume content — HTML if available, plain text otherwise ──────────
+function ResumeTextView({ text, html }: { text: string; html?: string }) {
+  if (html) {
     return (
-      <div onClick={() => onSectionClick(id)} style={{ borderLeft: active ? "3px solid #3b82f6" : "3px solid transparent", background: active ? "#eff6ff" : "transparent", paddingLeft: active ? 6 : 0, borderRadius: 3, cursor: "text", transition: "all 0.15s" }}>
-        {children}
-      </div>
+      <div
+        style={{ ...W.doc }}
+        // mammoth HTML is safe (generated from user's own DOCX)
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     );
+  }
+  return (
+    <div style={{ ...W.doc, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      {text || <span style={{ color: "#9ca3af", fontStyle: "italic" }}>No content to display.</span>}
+    </div>
+  );
+}
+
+// ── Chat message type ──────────────────────────────────────────────────────────
+type ChatMsg = { role: "user" | "assistant"; content: string };
+
+// ── Shared AI chat panel ───────────────────────────────────────────────────────
+// Used in both WorkspaceScreen and EditScreen.
+// footer: rendered below the text input (primary CTA button lives here).
+// onApply: if provided, shows an "Apply" button on the latest assistant message.
+function AiChatPanel({
+  title,
+  systemPrompt,
+  getContextText,
+  onApply,
+  footer,
+}: {
+  title: string;
+  systemPrompt: string;
+  getContextText?: () => string;
+  onApply?: (text: string) => void;
+  footer: React.ReactNode;
+}) {
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, loading]);
+
+  const send = async () => {
+    const text = chatInput.trim();
+    if (!text || loading) return;
+    const userMsg: ChatMsg = { role: "user", content: text };
+    const next = [...messages, userMsg];
+    setMessages(next);
+    setChatInput("");
+    setLoading(true);
+
+    // Build a single prompt that includes context + full conversation history
+    const contextText = getContextText?.() ?? "";
+    const history = next.map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n");
+    const prompt  = [
+      systemPrompt,
+      "",
+      contextText ? `Context:\n${contextText}` : "",
+      "",
+      history,
+      "",
+      "Assistant:",
+    ].filter(l => l !== undefined).join("\n");
+
+    try {
+      const reply = await llmComplete(prompt);
+      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", content: `Error: ${err instanceof Error ? err.message : "Could not reach the AI. Check your API key in the platform playground."}` }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const editable = (text: string) => (
-    <span contentEditable suppressContentEditableWarning style={{ outline: "none", borderBottom: "1px dashed transparent" }}
-      onFocus={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = "#93c5fd"; }}
-      onBlur={e  => { (e.currentTarget as HTMLElement).style.borderBottomColor = "transparent"; }}>
-      {text}
-    </span>
-  );
-
   return (
-    <div style={w.doc}>
-      <div style={w.name}>Jane Doe</div>
-      <div style={w.contact}>3820 Locust Walk, Philadelphia, PA 19104 &nbsp;|&nbsp; (215) 555-0192 &nbsp;|&nbsp; jane.doe@wharton.upenn.edu</div>
-
-      <div style={w.section}>Education</div>
-
-      {sectionWrap("education", <>
-        <div style={{ ...w.entryTop }}>
-          <div style={w.row}><span style={w.org}>The Wharton School, University of Pennsylvania</span><span style={w.meta}>Philadelphia, PA</span></div>
-          <div style={w.row}><span style={w.role}>Bachelor of Science in Economics; Concentration in Finance</span><span style={w.meta}>Expected May 2027</span></div>
-          <ul style={w.ul}>
-            <li style={w.li}>{editable("GPA: 3.87/4.00; Dean's List all semesters; Joseph Wharton Scholar (top 10% of class); Dean's Scholarship recipient")}</li>
-            <li style={w.li}><span style={{ fontStyle: "italic" }}>Leadership: </span>{editable("Wharton Investment & Trading Group (VP, Investment Banking); Penn Finance Club (Analyst); Undergraduate Finance Club")}</li>
-            <li style={w.li}><span style={{ fontStyle: "italic" }}>Coursework: </span>{editable("Corporate Finance, Financial Statement Analysis, Derivatives, M&A Strategy, Valuation & Private Equity, Investment Banking Seminar")}</li>
-          </ul>
-        </div>
-        <div style={w.entryTop}>
-          <div style={w.row}><span style={w.org}>London School of Economics and Political Science</span><span style={w.meta}>London, United Kingdom</span></div>
-          <div style={w.row}><span style={w.role}>Visiting Student, International Finance &amp; Political Economy</span><span style={w.meta}>Spring 2026</span></div>
-          <ul style={w.ul}>
-            <li style={w.li}>{editable("Competitive exchange program (20 of 400 applicants selected); coursework in EU financial markets, sovereign debt, and international trade policy")}</li>
-          </ul>
-        </div>
-      </>)}
-
-      <div style={w.section}>Experience</div>
-
-      {sectionWrap("gs", <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Goldman Sachs &amp; Co.</span><span style={w.meta}>New York, NY</span></div>
-        <div style={w.row}><span style={w.role}>Investment Banking Division — Spring Insight Program</span><span style={w.meta}>January 2026</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>{editable("Led financial modeling and DCF valuation for $2.4B healthcare M&A transaction; delivered pricing assumptions to Managing Directors, accelerating deal timeline by two weeks")}</li>
-          <li style={w.li}>{editable("Conducted comparable company and precedent transactions analysis across 12 peers; prepared 40-page pitch book using Bloomberg and FactSet for TMT sector coverage")}</li>
-          <li style={w.li}>{editable("Synthesized 50+ sell-side analyst reports into sector investment framework adopted by two Associates for ongoing client coverage materials")}</li>
-        </ul>
-      </div>)}
-
-      {sectionWrap("blackstone", <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>Blackstone Group</span><span style={w.meta}>New York, NY</span></div>
-        <div style={w.row}><span style={w.role}>Private Equity — Summer Analyst</span><span style={w.meta}>Summer 2025</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>{editable("Supported two add-on acquisitions ($340M combined); built integrated LBO model and sensitivity analysis underpinning investment committee memo reviewed by the CIO")}</li>
-          <li style={w.li}>{editable("Drafted 15-page investment thesis; analysis advanced deal to second-round diligence and informed a $180M bid strategy")}</li>
-          <li style={w.li}>{editable("Synthesized operational findings to identify $18M cost-reduction opportunity; incorporated into 100-day plan presented to portfolio company CEO")}</li>
-        </ul>
-      </div>)}
-
-      {sectionWrap("mckinsey", <div style={w.entryTop}>
-        <div style={w.row}><span style={w.org}>McKinsey &amp; Company</span><span style={w.meta}>Philadelphia, PA</span></div>
-        <div style={w.row}><span style={w.role}>Strategy &amp; Operations — Sophomore Extern</span><span style={w.meta}>January 2025</span></div>
-        <ul style={w.ul}>
-          <li style={w.li}>{editable("Contributed to post-merger integration workstream for Fortune 500 client; built PMO tracker for 200+ open items across legal, finance, and technology functions")}</li>
-          <li style={w.li}>{editable("Developed market sizing model for organic growth initiative; identified $2.3B addressable opportunity in adjacent segment, presented to Engagement Manager")}</li>
-          <li style={w.li}>{editable("Prepared competitive landscape analysis across 8 industry verticals; synthesized into 20-slide executive briefing delivered to client C-suite")}</li>
-        </ul>
-      </div>)}
-
-      <div style={w.section}>Leadership &amp; Activities</div>
-
-      {sectionWrap("leadership", <>
-        <div style={w.entryTop}>
-          <div style={w.row}><span style={w.org}>Wharton Investment &amp; Trading Group</span><span style={w.meta}>Philadelphia, PA</span></div>
-          <div style={w.row}><span style={w.role}>Vice President, Investment Banking Division</span><span style={w.meta}>September 2025 – Present</span></div>
-          <ul style={w.ul}>
-            <li style={w.li}>{editable("Lead 30-person IB division; organize technical training workshops and alumni networking events reaching 200+ club members per semester")}</li>
-            <li style={w.li}>{editable("Manage annual pitching competition ($50K prize pool); coordinate judging panel of 12 professionals from bulge-bracket and boutique advisory firms")}</li>
-          </ul>
-        </div>
-        <div style={w.entryTop}>
-          <div style={w.row}><span style={w.org}>Penn Undergraduate Economics Society</span><span style={w.meta}>Philadelphia, PA</span></div>
-          <div style={w.row}><span style={w.role}>Research Analyst</span><span style={w.meta}>January 2025 – Present</span></div>
-          <ul style={w.ul}>
-            <li style={w.li}>{editable("Co-authored research paper on fiscal multiplier heterogeneity; presented at Penn Undergraduate Economics Symposium to faculty and 80+ peers")}</li>
-          </ul>
-        </div>
-      </>)}
-
-      <div style={w.section}>Additional Information</div>
-
-      {sectionWrap("additional", <div style={{ ...w.entryTop }}>
-        <ul style={{ ...w.ul, marginBottom: 0 }}>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Technical Skills: </span>{editable("Financial Modeling (advanced), LBO & DCF Analysis, M&A Valuation, Bloomberg Terminal, FactSet, Excel (VBA), Python (pandas), PowerPoint")}</li>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Languages: </span>{editable("English (native), Mandarin Chinese (professional proficiency), Spanish (conversational)")}</li>
-          <li style={w.li}><span style={{ fontWeight: 700 }}>Interests: </span>{editable("Competitive tennis (USTA ranked), macroeconomics research, international travel (15 countries), long-distance running")}</li>
-        </ul>
-      </div>)}
-    </div>
-  );
-}
-
-// ── Cover letter ───────────────────────────────────────────────────────────────
-function CoverLetterDocument({ w = W }: { w?: ReturnType<typeof makeW> }) {
-  const p: React.CSSProperties = { ...w.doc, marginBottom: 9, textAlign: "justify" };
-  return (
-    <div style={w.doc}>
-      <div style={w.name}>Jane Doe</div>
-      <div style={w.contact}>3820 Locust Walk, Philadelphia, PA 19104 &nbsp;|&nbsp; (215) 555-0192 &nbsp;|&nbsp; jane.doe@wharton.upenn.edu</div>
-      <div style={{ marginBottom: 10 }}>
-        <div>March 19, 2026</div>
-        <div style={{ marginTop: 8 }}>Investment Banking Recruiting<br />Goldman Sachs &amp; Co.<br />200 West Street, New York, NY 10282</div>
+    <aside style={{ flex: "0 0 300px", borderLeft: "1px solid #e5e5e5", background: "#f0f4ff", display: "flex", flexDirection: "column" }}>
+      {/* Header */}
+      <div style={{ padding: "13px 16px", borderBottom: "1px solid #dde4f5", background: "#e8eefb", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <span style={{ color: "#011F5B" }}><IconChat /></span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#011F5B" }}>{title}</span>
       </div>
-      <p style={p}>Dear Recruiting Team,</p>
-      <p style={p}>It is with great enthusiasm that I submit my application for the Summer Analyst position in the Investment Banking Division. As a sophomore at the Wharton School pursuing a B.S. in Economics with a concentration in Finance, I have had the privilege of engaging with Goldman Sachs through the Spring Insight Program, campus information sessions, and coffee chats with analysts and associates across several coverage groups. Each interaction has deepened my conviction that Goldman Sachs is where I want to develop as a banker.</p>
-      <p style={p}>My experience spans both private equity and investment banking. Last summer at Blackstone, I supported two add-on acquisitions totaling $340M, building the integrated LBO model and drafting the investment committee memo. Through the Goldman Spring Insight Program, I built a three-statement model and DCF valuation for a $2.4B healthcare acquisition and presented directly to Managing Directors. Earlier, at McKinsey, I developed a market sizing model that identified a $2.3B addressable opportunity in an adjacent segment. Across these roles, I have built the analytical rigor, attention to detail, and ability to manage competing workstreams that a fast-paced deal environment demands.</p>
-      <p style={{ ...p, marginBottom: 0 }}>I believe my background, combined with a genuine passion for transaction work, makes me a strong fit for Goldman&apos;s Summer Analyst program. I would welcome the opportunity to discuss my candidacy. Thank you sincerely for your consideration.</p>
-      <div style={{ marginTop: 10 }}>Sincerely,<br /><br />Jane Doe</div>
-    </div>
+
+      {/* Message list */}
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {messages.length === 0 && !loading && (
+          <div style={{ textAlign: "center", color: "#9ca3af", fontSize: 12, marginTop: 24, lineHeight: 1.6 }}>
+            Ask a question or describe what you&apos;d like to change.
+          </div>
+        )}
+        {messages.map((msg, i) => {
+          const isLast = i === messages.length - 1;
+          return (
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+              <div style={{ maxWidth: "90%", padding: "8px 12px", borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: msg.role === "user" ? "#011F5B" : "#fff", color: msg.role === "user" ? "#fff" : "#111827", fontSize: 12.5, lineHeight: 1.6, whiteSpace: "pre-wrap", boxShadow: msg.role === "assistant" ? "0 1px 3px rgba(0,0,0,0.08)" : "none", border: msg.role === "assistant" ? "1px solid #dde4f5" : "none" }}>
+                {msg.content}
+              </div>
+              {onApply && msg.role === "assistant" && isLast && (
+                <button onClick={() => onApply(msg.content)} style={{ marginTop: 5, fontSize: 11, fontWeight: 600, padding: "4px 12px", background: "#011F5B", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer" }}>
+                  Apply to editor ↑
+                </button>
+              )}
+            </div>
+          );
+        })}
+        {loading && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#011F5B", opacity: 0.4, animation: "pulse 1s infinite" }} />
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#011F5B", opacity: 0.4, animation: "pulse 1s 0.2s infinite" }} />
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#011F5B", opacity: 0.4, animation: "pulse 1s 0.4s infinite" }} />
+            <style>{`@keyframes pulse { 0%,100%{opacity:.2} 50%{opacity:.9} }`}</style>
+          </div>
+        )}
+      </div>
+
+      {/* Input + footer CTA */}
+      <div style={{ padding: "8px 12px", borderTop: "1px solid #dde4f5", background: "#e8eefb", flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, background: "#fff", border: "1px solid #c7d4f0", borderRadius: 10, padding: "6px 8px" }}>
+          <textarea
+            value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="Ask the AI… (Enter to send)"
+            rows={2}
+            style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 12, fontFamily: "inherit", resize: "none", color: "#111827", lineHeight: 1.5 }}
+          />
+          <button onClick={send} disabled={loading || !chatInput.trim()}
+            style={{ background: loading || !chatInput.trim() ? "#d1d5db" : "#011F5B", color: "#fff", border: "none", borderRadius: 7, padding: "6px 8px", cursor: loading || !chatInput.trim() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", flexShrink: 0, transition: "background 0.15s" }}>
+            <IconSend />
+          </button>
+        </div>
+        {footer}
+      </div>
+    </aside>
   );
 }
 
@@ -440,7 +236,7 @@ function LandingScreen({ onNext }: { onNext: () => void }) {
       <h1 style={{ fontSize: 42, fontWeight: 800, color: "#0d0d0d", lineHeight: 1.15, maxWidth: 560, margin: 0 }}>Generate Tailored Resumes in Seconds</h1>
       <p style={{ fontSize: 17, color: "#6b7280", maxWidth: 440, margin: 0, lineHeight: 1.6 }}>Free. Fast. Built for job seekers.</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
-        {["AI-powered tailoring", "Wharton resume format", "Side-by-side comparison", "Export to PDF"].map(f => (
+        {["AI-powered tailoring", "Side-by-side comparison", "Edit & export"].map(f => (
           <span key={f} style={{ fontSize: 12, fontWeight: 500, padding: "5px 12px", borderRadius: 20, background: "#e0f2fe", color: "#0369a1" }}>{f}</span>
         ))}
       </div>
@@ -450,11 +246,51 @@ function LandingScreen({ onNext }: { onNext: () => void }) {
 }
 
 // ── Screen 2: Onboarding ───────────────────────────────────────────────────────
-function OnboardingScreen({ onNext }: { onNext: () => void }) {
-  const [uploaded, setUploaded] = useState(false);
-  const [tag, setTag] = useState("Projects");
+function OnboardingScreen({ onNext, onFilesUploaded }: {
+  onNext: () => void;
+  onFilesUploaded: (files: UploadedFile[]) => void;
+}) {
+  const [parsedFiles, setParsedFiles] = useState<UploadedFile[]>([]);
+  const [parsing, setParsing]         = useState(false);
+  const [uploadTag, setUploadTag]     = useState("Resume");
+  const [isDragging, setIsDragging]   = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const canContinue = parsedFiles.length > 0;
+
+  const handleFiles = useCallback(async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setParsing(true);
+    const newFiles: UploadedFile[] = [];
+    for (const file of Array.from(fileList)) {
+      const { text, html } = await parseFile(file);
+      newFiles.push({ id: `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: file.name, tag: uploadTag, text, ...(html ? { html } : {}), date: "Today" });
+    }
+    const all = [...parsedFiles, ...newFiles];
+    setParsedFiles(all);
+    onFilesUploaded(all);
+    setParsing(false);
+  }, [uploadTag, parsedFiles, onFilesUploaded]);
+
+  const handleTagChange = (id: string, newTag: string) => {
+    const updated = parsedFiles.map(f => f.id === id ? { ...f, tag: newTag } : f);
+    setParsedFiles(updated);
+    onFilesUploaded(updated);
+  };
+
+  const handleDelete = (id: string) => {
+    const remaining = parsedFiles.filter(f => f.id !== id);
+    setParsedFiles(remaining);
+    onFilesUploaded(remaining);
+  };
+
   return (
-    <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+    <div style={{ flex: 1, display: "flex", minHeight: 0 }}
+      onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+      onDragLeave={e => { e.preventDefault(); setIsDragging(false); }}
+      onDrop={e => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}>
+
+      {/* Left blue panel */}
       <div style={{ flex: 1, background: "#011F5B", color: "#fff", display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 52px", gap: 28 }}>
         <h2 style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.2, margin: 0 }}>Create a Strong,<br />Tailored Resume</h2>
         <div style={{ display: "flex", gap: 12 }}>
@@ -468,114 +304,231 @@ function OnboardingScreen({ onNext }: { onNext: () => void }) {
         </div>
         <p style={{ fontSize: 13, opacity: 0.7, margin: 0, lineHeight: 1.6 }}>More context = better tailoring. Upload your resume and any supporting files.</p>
       </div>
-      <div style={{ flex: 1, background: "#fafafa", display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 52px", gap: 24 }}>
+
+      {/* Right form panel */}
+      <div style={{ flex: 1, background: "#fafafa", display: "flex", flexDirection: "column", justifyContent: "center", padding: "48px 52px", gap: 20, overflowY: "auto" }}>
         <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#0d0d0d" }}>Upload your files</h3>
+
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Resume <span style={{ color: "#ef4444" }}>*</span></div>
-          <button onClick={() => setUploaded(true)} style={{ width: "100%", padding: "20px", border: `2px dashed ${uploaded ? "#15803d" : "#d1d5db"}`, borderRadius: 10, background: uploaded ? "#f0fdf4" : "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            {uploaded ? <><div style={{ fontSize: 22 }}>✓</div><div style={{ fontSize: 13, fontWeight: 600, color: "#15803d" }}>resume.pdf uploaded</div></> : <><div style={{ color: "#9ca3af" }}><IconUpload /></div><div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Upload Resume</div><div style={{ fontSize: 11, color: "#9ca3af" }}>PDF, DOCX up to 10MB</div></>}
-          </button>
-        </div>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Add Additional Files <span style={{ color: "#9ca3af" }}>(Optional)</span></div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <select value={tag} onChange={e => setTag(e.target.value)} style={{ flex: 1, padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, background: "#fff", color: "#374151" }}>
-              {["Projects","Past resumes","Writing samples","Job description"].map(t => <option key={t}>{t}</option>)}
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>File Type for next upload</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <select value={uploadTag} onChange={e => setUploadTag(e.target.value)} style={{ flex: 1, padding: "8px 12px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, background: "#fff", color: "#374151" }}>
+              {Object.keys(TAG_COLORS).map(t => <option key={t}>{t}</option>)}
             </select>
-            <button style={{ padding: "8px 14px", background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 7, fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer" }}>+ Add</button>
+            <button onClick={() => fileRef.current?.click()} disabled={parsing}
+              style={{ padding: "8px 16px", background: "#011F5B", color: "#fff", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: parsing ? "not-allowed" : "pointer", opacity: parsing ? 0.6 : 1, display: "flex", alignItems: "center", gap: 6 }}>
+              <IconUpload />{parsing ? "Parsing…" : "+ Add File"}
+            </button>
           </div>
+          <input ref={fileRef} type="file" multiple accept=".pdf,.docx,.pptx,.ppt,.txt" style={{ display: "none" }} onChange={e => handleFiles(e.target.files)} />
+
+          <div onClick={() => fileRef.current?.click()}
+            style={{ width: "100%", padding: "18px", border: `2px dashed ${isDragging ? "#011F5B" : parsedFiles.length > 0 ? "#15803d" : "#d1d5db"}`, borderRadius: 10, background: isDragging ? "#e8eefb" : parsedFiles.length > 0 ? "#f0fdf4" : "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            {parsedFiles.length > 0
+              ? <div style={{ fontSize: 13, fontWeight: 600, color: "#15803d" }}>{parsedFiles.length} file{parsedFiles.length > 1 ? "s" : ""} uploaded — click to add more</div>
+              : <><div style={{ color: "#9ca3af" }}><IconUpload /></div><div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Drag & drop or click to upload</div><div style={{ fontSize: 11, color: "#9ca3af" }}>PDF, DOCX, PPTX, TXT · up to 10MB</div></>}
+          </div>
+
+          {parsedFiles.length > 0 && (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+              {parsedFiles.map(f => {
+                const ts = TAG_COLORS[f.tag] ?? { bg: "#f3f4f6", color: "#374151" };
+                return (
+                  <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 6 }}>
+                    <span style={{ color: "#9ca3af", flexShrink: 0 }}><IconFile /></span>
+                    <span style={{ flex: 1, fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#111827" }}>{f.name}</span>
+                    <select
+                      value={f.tag}
+                      onChange={e => handleTagChange(f.id, e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      style={{ fontSize: 10, fontWeight: 600, padding: "2px 4px", borderRadius: 3, border: `1px solid ${ts.color}`, background: ts.bg, color: ts.color, cursor: "pointer", flexShrink: 0 }}>
+                      {Object.keys(TAG_COLORS).map(t => <option key={t}>{t}</option>)}
+                    </select>
+                    <button onClick={() => handleDelete(f.id)}
+                      style={{ fontSize: 13, lineHeight: 1, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", padding: "0 2px", flexShrink: 0 }}
+                      title="Remove file">×</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-        <button onClick={onNext} disabled={!uploaded} style={{ ...btnPrimary, width: "100%", padding: "13px", opacity: uploaded ? 1 : 0.4, cursor: uploaded ? "pointer" : "not-allowed", borderRadius: 9 }}>
+
+        <button onClick={onNext} disabled={!canContinue}
+          style={{ ...btnPrimary, width: "100%", padding: "13px", opacity: canContinue ? 1 : 0.4, cursor: canContinue ? "pointer" : "not-allowed", borderRadius: 9 }}>
           Continue to Workspace →
         </button>
-        {!uploaded && <p style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", margin: "-12px 0 0" }}>Upload a resume to continue</p>}
+        {!canContinue && <p style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", margin: "-12px 0 0" }}>Upload at least one file to continue</p>}
       </div>
     </div>
   );
 }
 
 // ── Screen 3: Workspace ────────────────────────────────────────────────────────
-function WorkspaceScreen({ onGenerate }: { onGenerate: () => void }) {
+function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagChange, onFileDelete }: {
+  uploadedFiles: UploadedFile[];
+  onGenerate: (jobDescription: string, activeResumeContent: string, allFiles: UploadedFile[]) => void;
+  onFilesAdded: (files: UploadedFile[]) => void;
+  onFileTagChange: (id: string, tag: string) => void;
+  onFileDelete: (id: string) => void;
+}) {
   const [isDragging, setIsDragging] = useState(false);
-  const [tab, setTab] = useState<"resume" | "cover-letter">("resume");
-  const [input, setInput] = useState("");
+  const [input, setInput]           = useState("");
+  const [uploadTag, setUploadTag]   = useState("Resume");
+  const [parsing, setParsing]       = useState(false);
+  const [copied, setCopied]         = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const onOver  = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true);  }, []);
   const onLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
-  const onDrop  = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
+
+  const handleMoreFiles = useCallback(async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setParsing(true);
+    const newFiles: UploadedFile[] = [];
+    for (const file of Array.from(fileList)) {
+      const { text, html } = await parseFile(file);
+      newFiles.push({ id: `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: file.name, tag: uploadTag, text, ...(html ? { html } : {}), date: "Today" });
+    }
+    onFilesAdded(newFiles);
+    setParsing(false);
+  }, [uploadTag, onFilesAdded]);
+
+  const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); handleMoreFiles(e.dataTransfer.files); }, [handleMoreFiles]);
+
+  // Build file list from uploads
+  const allFiles: WorkspaceFile[] = uploadedFiles.map(f => ({
+    id: f.id, name: f.name, tag: f.tag, date: f.date,
+    isResume: f.tag === "Resume",
+    llmText: f.text,
+    ...(f.html ? { html: f.html } : {}),
+  }));
+  const resumeFiles = allFiles.filter(f => f.isResume);
+
+  const defaultId = resumeFiles[0]?.id ?? "";
+  const [activeResumeId, setActiveResumeId] = useState(defaultId);
+  const activeFile = allFiles.find(f => f.id === activeResumeId) ?? resumeFiles[0];
+
+  function renderCenter(file: WorkspaceFile | undefined) {
+    return <ResumeTextView text={file?.llmText ?? ""} {...(file?.html ? { html: file.html } : {})} />;
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", minHeight: 0 }} onDragOver={onOver} onDragLeave={onLeave} onDrop={onDrop}>
       {/* Sidebar */}
       <aside style={{ flex: "0 0 220px", borderRight: "1px solid #e5e5e5", background: "#fff", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #f3f4f6" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0d0d0d", marginBottom: 10 }}>My Files</div>
-          <button onClick={() => fileRef.current?.click()} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 10px", background: "#011F5B", color: "#fff", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: "pointer", justifyContent: "center" }}><IconUpload />+ Upload More</button>
-          <input ref={fileRef} type="file" style={{ display: "none" }} multiple />
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0d0d0d", marginBottom: 6 }}>My Files</div>
+          <select value={uploadTag} onChange={e => setUploadTag(e.target.value)} style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 11, background: "#fff", color: "#374151", marginBottom: 6 }}>
+            {["Resume","Cover Letter","Project","Job Description","Writing Sample"].map(t => <option key={t}>{t}</option>)}
+          </select>
+          <button onClick={() => fileRef.current?.click()} disabled={parsing} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 10px", background: "#011F5B", color: "#fff", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: parsing ? "not-allowed" : "pointer", justifyContent: "center", opacity: parsing ? 0.6 : 1 }}><IconUpload />{parsing ? "Parsing…" : "+ Upload More"}</button>
+          <input ref={fileRef} type="file" style={{ display: "none" }} multiple accept=".pdf,.docx,.pptx,.ppt,.txt" onChange={e => handleMoreFiles(e.target.files)} />
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
-          {MOCK_FILES.map(file => {
-            const ts = TAG_COLORS[file.tag] ?? { bg: "#f3f4f6", color: "#374151" };
-            return (
-              <div key={file.id} style={{ padding: "9px 14px", cursor: "pointer", borderBottom: "1px solid #f9fafb" }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "#f9fafb"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                  <span style={{ color: "#9ca3af", marginTop: 1 }}><IconFile /></span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11.5, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{file.name}</div>
-                    <div style={{ display: "flex", gap: 5 }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 5px", borderRadius: 3, background: ts.bg, color: ts.color }}>{file.tag}</span>
-                      <span style={{ fontSize: 10, color: "#9ca3af" }}>{file.date}</span>
-                    </div>
+          {allFiles.length === 0
+            ? <div style={{ padding: "20px 14px", textAlign: "center", color: "#9ca3af", fontSize: 12 }}>No files uploaded yet.<br/>Upload files in the previous step.</div>
+            : allFiles.map(file => {
+              const ts = TAG_COLORS[file.tag] ?? { bg: "#f3f4f6", color: "#374151" };
+              const isActive = file.id === activeResumeId;
+              const isResume = file.isResume;
+              return (
+                <div key={file.id}
+                  style={{ padding: "8px 10px", borderBottom: "1px solid #f9fafb", borderLeft: isActive ? "3px solid #011F5B" : "3px solid transparent", background: isActive ? "#f0f4ff" : "transparent", transition: "background 0.1s" }}>
+                  {/* File name row — click to set as base resume */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                    <span style={{ color: isActive ? "#011F5B" : "#9ca3af", flexShrink: 0, cursor: isResume ? "pointer" : "default" }} onClick={() => isResume && setActiveResumeId(file.id)}><IconFile /></span>
+                    <div style={{ flex: 1, fontSize: 11, fontWeight: isActive ? 700 : 500, color: isActive ? "#011F5B" : "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: isResume ? "pointer" : "default" }} onClick={() => isResume && setActiveResumeId(file.id)}>{file.name}</div>
+                    <button onClick={() => onFileDelete(file.id)}
+                      style={{ fontSize: 14, lineHeight: 1, color: "#d1d5db", background: "none", border: "none", cursor: "pointer", padding: "0 2px", flexShrink: 0 }}
+                      title="Delete file"
+                      onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"}
+                      onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = "#d1d5db"}>×</button>
+                  </div>
+                  {/* Tag select + active badge */}
+                  <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                    <select
+                      value={file.tag}
+                      onChange={e => { onFileTagChange(file.id, e.target.value); if (isActive && e.target.value !== "Resume") setActiveResumeId(""); }}
+                      style={{ fontSize: 10, fontWeight: 600, padding: "2px 4px", borderRadius: 3, border: `1px solid ${ts.color}`, background: ts.bg, color: ts.color, cursor: "pointer", flex: 1 }}>
+                      {Object.keys(TAG_COLORS).map(t => <option key={t}>{t}</option>)}
+                    </select>
+                    {isActive && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "#011F5B", color: "#fff", letterSpacing: 0.3, flexShrink: 0 }}>BASE</span>}
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          }
         </div>
-        <div style={{ padding: "10px 14px", borderTop: "1px solid #f3f4f6", fontSize: 10.5, color: "#9ca3af", textAlign: "center" }}>Drop files anywhere to upload</div>
+        <div style={{ padding: "10px 14px", borderTop: "1px solid #f3f4f6", fontSize: 10.5, color: "#9ca3af", textAlign: "center" }}>Click a resume filename to set as base</div>
       </aside>
 
-      {/* Center */}
+      {/* Center — shows active base resume */}
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "#e5e7eb", position: "relative" }}>
-        <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", padding: "0 20px", flexShrink: 0 }}>
-          <div style={{ display: "flex", flex: 1 }}>
-            {(["resume","cover-letter"] as const).map(t => {
-              const active = tab === t;
-              return <button key={t} onClick={() => setTab(t)} style={{ padding: "12px 16px", fontSize: 13, fontWeight: active ? 600 : 400, color: active ? "#011F5B" : "#6b7280", background: "none", border: "none", borderBottom: active ? "2px solid #011F5B" : "2px solid transparent", cursor: "pointer" }}>{t === "resume" ? "Resume" : "Cover Letter"}</button>;
-            })}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={{ padding: "6px 14px", background: "#011F5B", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Copy</button>
-            <button style={{ padding: "6px 14px", background: "#f3f4f6", color: "#374151", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Export PDF</button>
-          </div>
+        {/* Top bar with dropdown switcher */}
+        <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", padding: "0 16px", gap: 10, flexShrink: 0, height: 46 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", flexShrink: 0 }}>Base Resume</span>
+          <select
+            value={activeResumeId}
+            onChange={e => setActiveResumeId(e.target.value)}
+            style={{ flex: 1, maxWidth: 320, height: 30, fontSize: 13, fontWeight: 500, border: "1px solid #d1d5db", borderRadius: 6, padding: "0 8px", background: "#fff", color: "#111827", cursor: "pointer", outline: "none" }}
+          >
+            {resumeFiles.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={async () => {
+              try { await copyToClipboard(activeFile?.llmText ?? ""); } catch { /* ignore */ }
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            style={{ padding: "5px 12px", background: copied ? "#f0fdf4" : "#011F5B", color: copied ? "#15803d" : "#fff", border: copied ? "1px solid #15803d" : "none", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
+            {copied ? "✓ Copied" : "Copy"}
+          </button>
+          <button
+            disabled={pdfLoading}
+            onClick={async () => {
+              if (!activeFile) return;
+              setPdfLoading(true);
+              const { downloadAsPDF: dl } = await import("./exportResume");
+              const html = activeFile.html ?? `<pre style="white-space:pre-wrap;font-family:inherit">${activeFile.llmText}</pre>`;
+              try { await dl(html, activeFile.name.replace(/\.[^.]+$/, "") + ".pdf"); }
+              finally { setPdfLoading(false); }
+            }}
+            style={{ padding: "5px 12px", background: "#f3f4f6", color: pdfLoading ? "#9ca3af" : "#374151", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: pdfLoading ? "not-allowed" : "pointer" }}>
+            {pdfLoading ? "Exporting…" : "Export PDF"}
+          </button>
         </div>
         <PdfScroll>
-          <PdfCard>{tab === "resume" ? <ResumeDocument /> : <CoverLetterDocument />}</PdfCard>
+          <PdfCard>{renderCenter(activeFile)}</PdfCard>
         </PdfScroll>
         {isDragging && <div style={{ position: "absolute", inset: 0, background: "rgba(1,31,91,0.08)", border: "2px dashed #011F5B", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><div style={{ fontSize: 18, fontWeight: 700, color: "#011F5B" }}>Drop files to add to your knowledge base</div></div>}
       </main>
 
-      {/* Right: AI */}
+      {/* Right: Job description + generate */}
       <aside style={{ flex: "0 0 280px", borderLeft: "1px solid #e5e5e5", background: "#f0f4ff", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "13px 16px", borderBottom: "1px solid #dde4f5", background: "#e8eefb", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <span style={{ color: "#011F5B" }}><IconChat /></span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#011F5B" }}>Ask Resume Customizer</span>
+          <span style={{ color: "#011F5B" }}><IconSend /></span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#011F5B" }}>Generate Tailored Resume</span>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "14px 12px", display: "flex", flexDirection: "column", gap: 14 }}>
-          {MOCK_MESSAGES.map((msg, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", gap: 7, alignItems: "flex-end" }}>
-              {msg.role === "assistant" && <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#011F5B", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RobotAvatar /></div>}
-              <div style={{ maxWidth: "82%", padding: "9px 12px", borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", background: msg.role === "user" ? "#011F5B" : "#fff", color: msg.role === "user" ? "#fff" : "#111827", fontSize: 12.5, lineHeight: 1.6, whiteSpace: "pre-wrap", boxShadow: msg.role === "assistant" ? "0 1px 3px rgba(0,0,0,0.08)" : "none", border: msg.role === "assistant" ? "1px solid #dde4f5" : "none" }}>{msg.content}</div>
-            </div>
-          ))}
+        <div style={{ flex: 1, padding: "16px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Job Description</div>
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Paste the job description here…"
+            style={{ flex: 1, padding: "10px 12px", border: "1px solid #c7d4f0", borderRadius: 8, fontSize: 12, fontFamily: "inherit", resize: "none", background: "#fff", outline: "none", color: "#111827", lineHeight: 1.6 }}
+          />
         </div>
-        <div style={{ padding: "10px 12px", borderTop: "1px solid #dde4f5", background: "#e8eefb", flexShrink: 0 }}>
-          <textarea value={input} onChange={e => setInput(e.target.value)} placeholder="Paste job description here…" rows={3} style={{ width: "100%", padding: "8px 10px", border: "1px solid #c7d4f0", borderRadius: 8, fontSize: 12, fontFamily: "inherit", resize: "none", background: "#fff", boxSizing: "border-box", outline: "none", marginBottom: 8 }} />
-          <button onClick={onGenerate} style={{ ...btnPrimary, width: "100%", padding: "10px", fontSize: 13, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><IconSend />Generate Tailored Resume</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
-            <button onClick={() => fileRef.current?.click()} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: 3, display: "flex" }}><IconPaperclip /></button>
-            <div style={{ fontSize: 10, color: "#7b8fbd" }}>RC uses your uploaded files to tailor your resume.</div>
-          </div>
+        <div style={{ padding: "12px 14px", borderTop: "1px solid #dde4f5", background: "#e8eefb", flexShrink: 0 }}>
+          <button
+            onClick={() => onGenerate(input, activeFile?.llmText ?? "", uploadedFiles)}
+            disabled={!input.trim()}
+            style={{ ...btnPrimary, width: "100%", padding: "11px", fontSize: 13, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: input.trim() ? 1 : 0.5, cursor: input.trim() ? "pointer" : "not-allowed" }}>
+            <IconSend /> Generate Tailored Resume
+          </button>
         </div>
       </aside>
     </div>
@@ -583,58 +536,238 @@ function WorkspaceScreen({ onGenerate }: { onGenerate: () => void }) {
 }
 
 // ── Screen 4: Generating ───────────────────────────────────────────────────────
-function GeneratingScreen({ onDone }: { onDone: () => void }) {
-  useEffect(() => { const t = setTimeout(onDone, 1600); return () => clearTimeout(t); }, [onDone]);
+function GeneratingScreen({ baseResume, jobDescription, allFiles, onDone }: {
+  baseResume: string;
+  jobDescription: string;
+  allFiles: UploadedFile[];
+  onDone: (tailored: string) => void;
+}) {
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const contextFiles = allFiles.filter(f => f.text && f.text !== baseResume);
+    const contextSection = contextFiles.length > 0
+      ? [
+          "",
+          "=== ADDITIONAL CONTEXT ===",
+          ...contextFiles.map(f => `--- ${f.name} (${f.tag}) ---\n${f.text}`),
+        ].join("\n")
+      : "";
+
+    const prompt = [
+      "You are an expert resume writer. Tailor the resume below to match the job description.",
+      "Use any additional context files to strengthen the resume with relevant experience and skills.",
+      "Return ONLY the tailored resume text — no preamble, no markdown fences.",
+      "",
+      "=== JOB DESCRIPTION ===",
+      jobDescription || "No job description provided.",
+      "",
+      "=== ORIGINAL RESUME ===",
+      baseResume || "No resume provided.",
+      contextSection,
+      "",
+      "=== TAILORED RESUME ===",
+    ].join("\n");
+
+    llmComplete(prompt)
+      .then(content => onDone(content))
+      .catch(err => setError(err instanceof Error ? err.message : String(err)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, background: "#f9fafb" }}>
-      <div style={{ width: 52, height: 52, border: "4px solid #e0e7ff", borderTop: "4px solid #011F5B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "#0d0d0d" }}>Generating tailored resume…</div>
-        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>Analyzing job description and cross-referencing your knowledge base</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {[{ label: "Reading job description", done: true }, { label: "Matching skills & keywords", done: true }, { label: "Rewriting bullets for impact", done: false }, { label: "Inserting relevant projects", done: false }].map(({ label, done }) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 18, height: 18, borderRadius: "50%", background: done ? "#011F5B" : "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{done && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}</div>
-            <span style={{ fontSize: 13, color: done ? "#374151" : "#9ca3af" }}>{label}</span>
+      {error ? (
+        <>
+          <div style={{ fontSize: 36 }}>⚠️</div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#dc2626" }}>Generation failed</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6, maxWidth: 360 }}>{error}</div>
+            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Make sure your API key is set in the Platform Playground, then go back and try again.</div>
           </div>
-        ))}
-      </div>
+        </>
+      ) : (
+        <>
+          <div style={{ width: 52, height: 52, border: "4px solid #e0e7ff", borderTop: "4px solid #011F5B", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#0d0d0d" }}>Generating tailored resume…</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>Analyzing job description and cross-referencing your knowledge base</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[{ label: "Reading job description", done: true }, { label: "Matching skills & keywords", done: true }, { label: "Rewriting bullets for impact", done: false }, { label: "Inserting relevant projects", done: false }].map(({ label, done }) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: done ? "#011F5B" : "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{done && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}</div>
+                <span style={{ fontSize: 13, color: done ? "#374151" : "#9ca3af" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Diff helpers ───────────────────────────────────────────────────────────────
+
+type WordSpan = { text: string; changed: boolean };
+
+/** Tokenize a line into words + whitespace tokens for word-level diff. */
+function tokenize(text: string): string[] {
+  return text.split(/(\s+)/).filter(t => t.length > 0);
+}
+
+/** Word-level LCS diff of two lines. Returns spans for left (removed) and right (added). */
+function wordDiff(oldLine: string, newLine: string): { leftSpans: WordSpan[]; rightSpans: WordSpan[] } {
+  const a = tokenize(oldLine), b = tokenize(newLine);
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i]![j] = a[i-1]!.toLowerCase() === b[j-1]!.toLowerCase()
+        ? dp[i-1]![j-1]! + 1
+        : Math.max(dp[i-1]![j]!, dp[i]![j-1]!);
+
+  const ops: Array<{ type: "equal"|"delete"|"insert"; tok: string }> = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1]!.toLowerCase() === b[j-1]!.toLowerCase()) { ops.unshift({ type: "equal",  tok: a[i-1]! }); i--; j--; }
+    else if (j > 0 && (i === 0 || dp[i]![j-1]! >= dp[i-1]![j]!))            { ops.unshift({ type: "insert", tok: b[j-1]! }); j--; }
+    else                                                                       { ops.unshift({ type: "delete", tok: a[i-1]! }); i--; }
+  }
+  const leftSpans: WordSpan[] = [], rightSpans: WordSpan[] = [];
+  for (const op of ops) {
+    if (op.type === "equal")  { leftSpans.push({ text: op.tok, changed: false }); rightSpans.push({ text: op.tok, changed: false }); }
+    else if (op.type === "delete") leftSpans.push({ text: op.tok, changed: true });
+    else                           rightSpans.push({ text: op.tok, changed: true });
+  }
+  return { leftSpans, rightSpans };
+}
+
+type LeftDiffLine  = { kind: "equal"|"delete"; text: string } | { kind: "modify"; spans: WordSpan[] };
+type RightDiffLine = { kind: "equal"|"insert"; text: string } | { kind: "modify"; spans: WordSpan[] };
+
+/** Line-level LCS diff, with adjacent delete+insert pairs promoted to word-level modify. */
+function computeResumeDiff(oldText: string, newText: string): { left: LeftDiffLine[]; right: RightDiffLine[] } {
+  const oldLines = oldText.split("\n"), newLines = newText.split("\n");
+  const m = oldLines.length, n = newLines.length;
+  const norm = (l: string) => l.trim().toLowerCase();
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i]![j] = norm(oldLines[i-1]!) === norm(newLines[j-1]!)
+        ? dp[i-1]![j-1]! + 1 : Math.max(dp[i-1]![j]!, dp[i]![j-1]!);
+
+  type Op = { type: "equal"; old: string; new: string } | { type: "insert"; new: string } | { type: "delete"; old: string };
+  const ops: Op[] = [];
+  let oi = m, oj = n;
+  while (oi > 0 || oj > 0) {
+    if (oi > 0 && oj > 0 && norm(oldLines[oi-1]!) === norm(newLines[oj-1]!)) { ops.unshift({ type: "equal",  old: oldLines[oi-1]!, new: newLines[oj-1]! }); oi--; oj--; }
+    else if (oj > 0 && (oi === 0 || dp[oi]![oj-1]! >= dp[oi-1]![oj]!))       { ops.unshift({ type: "insert", new: newLines[oj-1]! }); oj--; }
+    else                                                                        { ops.unshift({ type: "delete", old: oldLines[oi-1]! }); oi--; }
+  }
+
+  const left: LeftDiffLine[] = [], right: RightDiffLine[] = [];
+  let k = 0;
+  while (k < ops.length) {
+    const op = ops[k]!;
+    if (op.type === "equal") {
+      left.push({ kind: "equal", text: op.old! }); right.push({ kind: "equal", text: op.new! }); k++;
+    } else if (op.type === "delete" && k + 1 < ops.length && ops[k+1]!.type === "insert") {
+      const nextOp = ops[k+1]!;
+      const oldL = op.old, newL = nextOp.type === "insert" ? nextOp.new : "";
+      const oW = new Set(oldL.trim().toLowerCase().split(/\s+/).filter(Boolean));
+      const nW = new Set(newL.trim().toLowerCase().split(/\s+/).filter(Boolean));
+      const inter = [...oW].filter(w => nW.has(w)).length;
+      const union = new Set([...oW, ...nW]).size;
+      // If ≥25% word overlap → treat as a modification, do word-level diff
+      if (union > 0 && inter / union >= 0.25 && oldL.trim() && newL.trim()) {
+        const { leftSpans, rightSpans } = wordDiff(oldL, newL);
+        left.push({ kind: "modify", spans: leftSpans }); right.push({ kind: "modify", spans: rightSpans }); k += 2;
+      } else {
+        left.push({ kind: "delete", text: oldL }); right.push({ kind: "insert", text: newL }); k += 2;
+      }
+    } else if (op.type === "delete") {
+      left.push({ kind: "delete", text: op.old! }); k++;
+    } else {
+      right.push({ kind: "insert", text: op.new! }); k++;
+    }
+  }
+  return { left, right };
+}
+
+function LeftDiffView({ lines }: { lines: LeftDiffLine[] }) {
+  return (
+    <div style={{ ...W.doc, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      {lines.map((line, i) => {
+        if (line.kind === "equal")  return <div key={i}>{line.text || "\u00a0"}</div>;
+        if (line.kind === "delete") return <div key={i} style={{ background: "#fee2e2", borderRadius: 2, marginLeft: -3, paddingLeft: 3 }}>{line.text || "\u00a0"}</div>;
+        const spans = (line as { kind: "modify"; spans: WordSpan[] }).spans;
+        return (
+          <div key={i}>{spans.map((s: WordSpan, j: number) =>
+            s.changed
+              ? <mark key={j} style={{ background: "#fecaca", borderRadius: 2, padding: "0 1px" }}>{s.text}</mark>
+              : <span key={j}>{s.text}</span>
+          )}</div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RightDiffView({ lines }: { lines: RightDiffLine[] }) {
+  return (
+    <div style={{ ...W.doc, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      {lines.map((line, i) => {
+        if (line.kind === "equal")  return <div key={i}>{line.text || "\u00a0"}</div>;
+        if (line.kind === "insert") return <div key={i} style={{ background: "#dcfce7", borderRadius: 2, marginLeft: -3, paddingLeft: 3 }}>{line.text || "\u00a0"}</div>;
+        const spans = (line as { kind: "modify"; spans: WordSpan[] }).spans;
+        return (
+          <div key={i}>{spans.map((s: WordSpan, j: number) =>
+            s.changed
+              ? <mark key={j} style={{ background: "#bbf7d0", borderRadius: 2, padding: "0 1px" }}>{s.text}</mark>
+              : <span key={j}>{s.text}</span>
+          )}</div>
+        );
+      })}
     </div>
   );
 }
 
 // ── Screen 5: Comparison ──────────────────────────────────────────────────────
 const COMP_ZOOM = 0.75;
-function ComparisonScreen({ onAccept }: { onAccept: () => void }) {
+function ComparisonScreen({ onAccept, jobDescription, baseResumeContent, tailoredResume }: {
+  onAccept: () => void;
+  jobDescription: string;
+  baseResumeContent: string;
+  tailoredResume: string;
+}) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, background: "#f9fafb" }}>
       <div style={{ padding: "16px 32px", background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#0d0d0d" }}>Here&apos;s your tailored resume</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Tailored for Goldman Sachs Summer Analyst — IB Division</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{jobDescription ? `Tailored for: "${jobDescription.slice(0, 80)}${jobDescription.length > 80 ? "…" : ""}"` : "Tailored resume ready"}</div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onAccept} style={btnSecondary}>Edit</button>
           <button onClick={onAccept} style={btnPrimary}>Accept Changes</button>
         </div>
       </div>
-      <div style={{ padding: "8px 32px", background: "#fff", borderBottom: "1px solid #f3f4f6", display: "flex", gap: 16, flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 2, background: "#fef9c3", border: "1px solid #fde68a" }} /><span style={{ fontSize: 11, color: "#6b7280" }}>Rewrote for impact</span></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 2, background: "#dcfce7", border: "1px solid #bbf7d0" }} /><span style={{ fontSize: 11, color: "#6b7280" }}>Added project</span></div>
-      </div>
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: "1px solid #e5e5e5" }}>
           <div style={{ padding: "10px 20px", background: "#f3f4f6", borderBottom: "1px solid #e5e5e5", fontSize: 12, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, flexShrink: 0 }}>Original Resume</div>
           <div style={{ flex: 1, overflowY: "auto", overflowX: "auto", padding: "20px", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
-            <div style={{ zoom: COMP_ZOOM } as React.CSSProperties}><PdfCard><ResumeDocument /></PdfCard></div>
+            <div style={{ zoom: COMP_ZOOM } as React.CSSProperties}>
+              <PdfCard><ResumeTextView text={baseResumeContent} /></PdfCard>
+            </div>
           </div>
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "10px 20px", background: "#e0f2fe", borderBottom: "1px solid #bae6fd", fontSize: 12, fontWeight: 700, color: "#0369a1", textTransform: "uppercase", letterSpacing: 1, flexShrink: 0 }}>Tailored Resume ✦</div>
           <div style={{ flex: 1, overflowY: "auto", overflowX: "auto", padding: "20px", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
-            <div style={{ zoom: COMP_ZOOM } as React.CSSProperties}><PdfCard><TailoredResumeDocument /></PdfCard></div>
+            <div style={{ zoom: COMP_ZOOM } as React.CSSProperties}>
+              <PdfCard><ResumeTextView text={tailoredResume || "Generating…"} /></PdfCard>
+            </div>
           </div>
         </div>
       </div>
@@ -643,13 +776,6 @@ function ComparisonScreen({ onAccept }: { onAccept: () => void }) {
 }
 
 // ── Screen 6: Edit Mode ────────────────────────────────────────────────────────
-const EDIT_SUGGESTIONS = [
-  { label: "Make this more results-driven", section: "gs"         as ResumeSection },
-  { label: "Shorten this bullet",           section: "blackstone" as ResumeSection },
-  { label: "Add quantified impact",          section: "mckinsey"  as ResumeSection },
-  { label: "Match Goldman tone",             section: "gs"         as ResumeSection },
-  { label: "Tighten leadership section",     section: "leadership" as ResumeSection },
-];
 
 // ── Formatting toolbar helpers ─────────────────────────────────────────────────
 const FONT_FAMILIES = [
@@ -685,13 +811,22 @@ function exec(cmd: string, value?: string) {
   document.execCommand(cmd, false, value);
 }
 
-function EditScreen({ fontSizePt, setFontSizePt, onExport }: { fontSizePt: number; setFontSizePt: (n: number) => void; onExport: () => void }) {
-  const [clicked, setClicked]       = useState<ResumeSection | null>(null);
-  const [hovered, setHovered]       = useState<string | null>(null);
+function EditScreen({ fontSizePt, setFontSizePt, onExport, tailoredResume }: {
+  fontSizePt: number;
+  setFontSizePt: (n: number) => void;
+  onExport: (html: string, text: string) => void;
+  tailoredResume: string;
+}) {
+  const editAreaRef = useRef<HTMLDivElement>(null);
   const [fontFamily, setFontFamily] = useState(FONT_FAMILIES[0]!.value);
   const [marginPx, setMarginPx]     = useState(72); // 0.75"
   const [align, setAlign]           = useState<"left" | "center" | "right" | "justify">("left");
-  const activeSection = hovered ? (SUGGESTION_SECTION[hovered] ?? clicked) : clicked;
+
+  useEffect(() => {
+    if (editAreaRef.current && !editAreaRef.current.innerHTML) {
+      editAreaRef.current.innerText = tailoredResume;
+    }
+  }, [tailoredResume]);
 
   const handleAlign = (a: "left" | "center" | "right" | "justify") => {
     setAlign(a);
@@ -708,11 +843,8 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport }: { fontSizePt: numbe
 
       {/* ── Row 1: title bar ── */}
       <div style={{ padding: "6px 24px", background: "#fff", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-        <div style={{ flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "#0d0d0d" }}>Edit Mode</span>
-          {activeSection && <span style={{ fontSize: 11, color: "#3b82f6", marginLeft: 12 }}>→ <strong>{SECTION_LABEL[activeSection]}</strong></span>}
-        </div>
-        <button onClick={onExport} style={{ ...btnPrimary, padding: "7px 18px", fontSize: 13 }}>Export →</button>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#0d0d0d" }}>Edit Mode</span>
+        <span style={{ fontSize: 12, color: "#9ca3af", marginLeft: 4 }}>Use the toolbar to format · Ask the AI to revise · Export when ready</span>
       </div>
 
       {/* ── Row 2: formatting toolbar ── */}
@@ -729,7 +861,7 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport }: { fontSizePt: numbe
         </select>
 
         {/* Font size */}
-        <select value={fontSizePt} onChange={e => setFontSizePt(Number(e.target.value))} style={{ ...tbSelect, width: 62 }} title="Font size (pt)">
+        <select value={fontSizePt} onChange={e => { const pt = Number(e.target.value); setFontSizePt(pt); exec("fontSize", "7"); /* set to max then override via style */ if (editAreaRef.current) { const spans = editAreaRef.current.querySelectorAll<HTMLSpanElement>("font[size='7']"); spans.forEach(s => { s.removeAttribute("size"); (s as HTMLElement).style.fontSize = `${pt}pt`; }); } }} style={{ ...tbSelect, width: 62 }} title="Font size (pt)">
           {[8, 9, 10, 11, 12, 13, 14, 16, 18].map(pt => <option key={pt} value={pt}>{pt} pt</option>)}
         </select>
         <TbDivider />
@@ -782,66 +914,89 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport }: { fontSizePt: numbe
         <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "#e5e7eb" }}>
           <PdfScroll>
             <PdfCard style={{ padding: marginPx }}>
-              <EditableResumeDocument fontSizePt={fontSizePt} fontFamily={fontFamily} activeSection={activeSection} onSectionClick={setClicked} />
+              <div
+                ref={editAreaRef}
+                contentEditable
+                suppressContentEditableWarning
+                style={{ ...W.doc, whiteSpace: "pre-wrap", wordBreak: "break-word", outline: "none", minHeight: PDF_HEIGHT - marginPx * 2 }}
+              />
             </PdfCard>
           </PdfScroll>
-          <div style={{ padding: "5px 16px", background: "#f3f4f6", borderTop: "1px solid #e5e7eb", fontSize: 10.5, color: "#9ca3af", textAlign: "center", flexShrink: 0 }}>
-            Click any section to edit · Hover a suggestion to highlight the relevant area
-          </div>
         </main>
 
-        {/* Right: AI suggestions */}
-        <aside style={{ flex: "0 0 280px", borderLeft: "1px solid #e5e5e5", background: "#f0f4ff", display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "13px 16px", borderBottom: "1px solid #dde4f5", background: "#e8eefb", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "#011F5B" }}><IconChat /></span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#011F5B" }}>AI Suggestions</span>
-          </div>
-          <div style={{ flex: 1, padding: "14px 12px", display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
-            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>Hover to highlight · Click to apply</div>
-            {EDIT_SUGGESTIONS.map(({ label, section }) => {
-              const isHov = hovered === label;
-              return (
-                <button key={label} onMouseEnter={() => setHovered(label)} onMouseLeave={() => setHovered(null)} onClick={() => setClicked(section)}
-                  style={{ width: "100%", padding: "10px 14px", textAlign: "left", background: isHov ? "#e8eefb" : "#fff", border: isHov ? "1px solid #93c5fd" : "1px solid #dde4f5", borderLeft: isHov ? "3px solid #3b82f6" : "3px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: 500, color: isHov ? "#1d4ed8" : "#374151", cursor: "pointer", lineHeight: 1.4, transition: "all 0.12s" }}>
-                  <div>✦ {label}</div>
-                  <div style={{ fontSize: 10, color: isHov ? "#60a5fa" : "#9ca3af", marginTop: 3 }}>→ {SECTION_LABEL[section]}</div>
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ padding: "10px 12px", borderTop: "1px solid #dde4f5", background: "#e8eefb" }}>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 7, background: "#fff", border: "1px solid #c7d4f0", borderRadius: 10, padding: "7px 10px" }}>
-              <textarea placeholder="Ask the AI to revise…" rows={2} style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 12, fontFamily: "inherit", resize: "none", color: "#111827", lineHeight: 1.5 }} />
-              <button style={{ background: "#011F5B", color: "#fff", border: "none", borderRadius: 7, padding: "7px 9px", cursor: "pointer", display: "flex", alignItems: "center" }}><IconSend /></button>
-            </div>
-          </div>
-        </aside>
+        <AiChatPanel
+          title="AI Editor"
+          systemPrompt="You are an expert resume editor. The user's current resume is provided in Context. When asked to rewrite or revise, return ONLY the complete updated resume text with no preamble, no markdown fences, and no explanation. For questions or advice, respond concisely."
+          getContextText={() => {
+            const t = editAreaRef.current?.innerText?.trim();
+            return t ? `Current resume:\n${t}` : "";
+          }}
+          onApply={text => {
+            if (!editAreaRef.current) return;
+            // Convert plain-text response to HTML so the editor stays rich
+            const escaped = text
+              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            editAreaRef.current.innerHTML = escaped
+              .split("\n")
+              .map(line => `<div>${line || "<br>"}</div>`)
+              .join("");
+          }}
+          footer={
+            <button
+              onClick={() => { const html = editAreaRef.current?.innerHTML ?? ""; const text = editAreaRef.current?.innerText ?? ""; onExport(html, text); }}
+              style={{ ...btnPrimary, width: "100%", padding: "10px", fontSize: 13, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              Export →
+            </button>
+          }
+        />
       </div>
     </div>
   );
 }
 
 // ── Screen 7: Export ───────────────────────────────────────────────────────────
-function ExportScreen({ onRestart }: { onRestart: () => void }) {
-  const [copied, setCopied] = useState(false);
+function ExportScreen({ onRestart, editedHtml, editedText, jobDescription }: {
+  onRestart: () => void;
+  editedHtml: string;
+  editedText: string;
+  jobDescription: string;
+}) {
+  const [copied, setCopied]         = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const jdLabel = jobDescription
+    ? `Tailored for: "${jobDescription.slice(0, 60)}${jobDescription.length > 60 ? "…" : ""}"`
+    : "Your tailored resume is ready.";
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, background: "#f9fafb", padding: 40, textAlign: "center" }}>
       <div style={{ fontSize: 44 }}>🎉</div>
       <h2 style={{ fontSize: 28, fontWeight: 800, color: "#0d0d0d", margin: 0 }}>Your resume is ready!</h2>
-      <p style={{ fontSize: 15, color: "#6b7280", maxWidth: 400, margin: 0, lineHeight: 1.6 }}>Tailored for Goldman Sachs Summer Analyst — IB Division.</p>
+      <p style={{ fontSize: 15, color: "#6b7280", maxWidth: 440, margin: 0, lineHeight: 1.6 }}>{jdLabel}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", maxWidth: 340, marginTop: 8 }}>
-        <button style={{ ...btnPrimary, padding: "14px", fontSize: 15, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><span>↓</span> Download PDF</button>
-        <button style={{ ...btnSecondary, padding: "14px", fontSize: 15, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><span>↓</span> Download Word Document</button>
-        <button onClick={() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ ...btnSecondary, padding: "14px", fontSize: 15, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: copied ? "#f0fdf4" : "#fff", borderColor: copied ? "#15803d" : "#011F5B", color: copied ? "#15803d" : "#011F5B" }}>
+        <button
+          disabled={pdfLoading}
+          onClick={async () => {
+            setPdfLoading(true);
+            try { await downloadAsPDF(editedHtml || "<p>No content to export.</p>"); }
+            finally { setPdfLoading(false); }
+          }}
+          style={{ ...btnPrimary, padding: "14px", fontSize: 15, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: pdfLoading ? 0.7 : 1, cursor: pdfLoading ? "not-allowed" : "pointer" }}>
+          <span>↓</span>{pdfLoading ? "Generating PDF…" : "Download PDF"}
+        </button>
+
+        <button
+          onClick={async () => {
+            try { await copyToClipboard(editedText || "No content to copy."); } catch { /* ignore */ }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          style={{ ...btnSecondary, padding: "14px", fontSize: 15, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: copied ? "#f0fdf4" : "#fff", borderColor: copied ? "#15803d" : "#011F5B", color: copied ? "#15803d" : "#011F5B" }}>
           {copied ? "✓ Copied!" : "⎘ Copy Text"}
         </button>
       </div>
-      <div style={{ display: "flex", gap: 32, marginTop: 8 }}>
-        {[{ label: "Bullets rewritten", value: "4" }, { label: "Projects added", value: "1" }, { label: "Keywords matched", value: "14" }].map(({ label, value }) => (
-          <div key={label}><div style={{ fontSize: 24, fontWeight: 800, color: "#011F5B" }}>{value}</div><div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{label}</div></div>
-        ))}
-      </div>
-      <button onClick={onRestart} style={{ fontSize: 13, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginTop: 4 }}>Start over with a new job description</button>
+
+      <button onClick={onRestart} style={{ fontSize: 13, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", marginTop: 4 }}>Tailor for another job →</button>
     </div>
   );
 }
@@ -881,19 +1036,89 @@ function TopBar({ screen, setScreen }: { screen: Screen; setScreen: (s: Screen) 
 
 // ── Root ───────────────────────────────────────────────────────────────────────
 export default function Tool7Page() {
-  const [screen, setScreen]       = useState<Screen>("landing");
-  const [fontSizePt, setFontSizePt] = useState(12);
+  const [screen, setScreen]                           = useState<Screen>("landing");
+  const [fontSizePt, setFontSizePt]                   = useState(12);
+  const [uploadedFiles, setUploadedFiles]             = useState<UploadedFile[]>([]);
+  const [allGenerateFiles, setAllGenerateFiles]       = useState<UploadedFile[]>([]);
+  const [activeResumeContent, setActiveResumeContent] = useState("");
+  const [jobDescription, setJobDescription]           = useState("");
+  const [tailoredResume, setTailoredResume]           = useState("");
+  const [editedHtml, setEditedHtml]                   = useState("");
+  const [editedText, setEditedText]                   = useState("");
+  const [userId, setUserId]                           = useState("anonymous");
+
+  const handleFileTagChange = (id: string, tag: string) => {
+    setUploadedFiles(prev => prev.map(f => f.id === id ? { ...f, tag } : f));
+  };
+  const handleFileDelete = (id: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  // Fetch platform user id on mount
+  useEffect(() => {
+    fetch("/api/me")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { id?: string } | null) => { if (data?.id) setUserId(data.id); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", background: "#f9fafb" }}>
       <TopBar screen={screen} setScreen={setScreen} />
-      {screen === "landing"    && <LandingScreen    onNext={() => setScreen("onboarding")} />}
-      {screen === "onboarding" && <OnboardingScreen onNext={() => setScreen("workspace")} />}
-      {screen === "workspace"  && <WorkspaceScreen  onGenerate={() => setScreen("generating")} />}
-      {screen === "generating" && <GeneratingScreen onDone={() => setScreen("comparison")} />}
-      {screen === "comparison" && <ComparisonScreen onAccept={() => setScreen("edit")} />}
-      {screen === "edit"       && <EditScreen fontSizePt={fontSizePt} setFontSizePt={setFontSizePt} onExport={() => setScreen("export")} />}
-      {screen === "export"     && <ExportScreen     onRestart={() => setScreen("landing")} />}
+      {screen === "landing"    && <LandingScreen onNext={() => setScreen("onboarding")} />}
+      {screen === "onboarding" && (
+        <OnboardingScreen
+          onNext={() => setScreen("workspace")}
+          onFilesUploaded={setUploadedFiles}
+        />
+      )}
+      {screen === "workspace"  && (
+        <WorkspaceScreen
+          uploadedFiles={uploadedFiles}
+          onGenerate={(jd, content, files) => {
+            setJobDescription(jd);
+            setActiveResumeContent(content);
+            setAllGenerateFiles(files);
+            setScreen("generating");
+          }}
+          onFilesAdded={newFiles => setUploadedFiles(prev => [...prev, ...newFiles])}
+          onFileTagChange={handleFileTagChange}
+          onFileDelete={handleFileDelete}
+        />
+      )}
+      {screen === "generating" && (
+        <GeneratingScreen
+          baseResume={activeResumeContent}
+          jobDescription={jobDescription}
+          allFiles={allGenerateFiles}
+          onDone={output => { setTailoredResume(output); setScreen("comparison"); }}
+        />
+      )}
+      {screen === "comparison" && (
+        <ComparisonScreen
+          onAccept={() => setScreen("edit")}
+          jobDescription={jobDescription}
+          baseResumeContent={activeResumeContent}
+          tailoredResume={tailoredResume}
+        />
+      )}
+      {screen === "edit" && (
+        <EditScreen
+          fontSizePt={fontSizePt}
+          setFontSizePt={setFontSizePt}
+          onExport={(html, text) => { setEditedHtml(html); setEditedText(text); setScreen("export"); }}
+          tailoredResume={tailoredResume}
+        />
+      )}
+      {screen === "export" && (
+        <ExportScreen
+          onRestart={() => setScreen("workspace")}
+          editedHtml={editedHtml}
+          editedText={editedText}
+          jobDescription={jobDescription}
+        />
+      )}
     </div>
   );
 }
+
