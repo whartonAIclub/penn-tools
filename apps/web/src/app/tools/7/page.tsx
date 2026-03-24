@@ -9,6 +9,36 @@ type Screen = "landing" | "onboarding" | "workspace" | "generating" | "compariso
 const TOPBAR_PAD_LEFT  = 148;
 const TOPBAR_PAD_RIGHT = 64;
 
+// ── Resizable column hook + drag handle ────────────────────────────────────────
+function useResizable(initial: number, min: number, max: number, inverted = false) {
+  const [width, setWidth] = useState(initial);
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = width;
+    const onMove = (ev: MouseEvent) => {
+      const delta = inverted ? startX - ev.clientX : ev.clientX - startX;
+      setWidth(Math.min(max, Math.max(min, startW + delta)));
+    };
+    const onUp   = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [width, min, max, inverted]);
+  return { width, onMouseDown };
+}
+
+function DragHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ width: 5, flexShrink: 0, cursor: "col-resize", background: hovered ? "#c7d4f0" : "#e5e5e5", transition: "background 0.15s", zIndex: 1 }}
+    />
+  );
+}
+
 // ── LLM helper ─────────────────────────────────────────────────────────────────
 async function llmComplete(prompt: string): Promise<string> {
   const key = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
@@ -49,7 +79,7 @@ function makeW(pt: number) {
 const W = makeW(12); // default — read-only views always render at 12 pt
 
 // display: true = selectable as base resume, false = context-only file
-type WorkspaceFile = { id: string; name: string; tag: string; date: string; isResume: boolean; llmText: string; html?: string };
+type WorkspaceFile = { id: string; name: string; tag: string; date: string; isResume: boolean; llmText: string; html?: string; fileUrl?: string; };
 
 const TAG_COLORS: Record<string, { bg: string; color: string }> = {
   Resume:            { bg: "#e0f2fe", color: "#0369a1" },
@@ -63,9 +93,7 @@ const TAG_COLORS: Record<string, { bg: string; color: string }> = {
 const IconFile = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 const IconUpload = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>;
 const IconSend = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
-const IconPaperclip = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>;
 const IconChat = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
-const RobotAvatar = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M9 8V5a3 3 0 0 1 6 0v3"/><circle cx="9" cy="14" r="1.5" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.5" fill="currentColor" stroke="none"/><line x1="9" y1="18" x2="15" y2="18"/></svg>;
 
 // ── PDF card — exact US Letter, 0.75" margins ──────────────────────────────────
 function PdfCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -163,7 +191,7 @@ function AiChatPanel({
   };
 
   return (
-    <aside style={{ flex: "0 0 300px", borderLeft: "1px solid #e5e5e5", background: "#f0f4ff", display: "flex", flexDirection: "column" }}>
+    <aside style={{ width: "100%", height: "100%", background: "#f0f4ff", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div style={{ padding: "13px 16px", borderBottom: "1px solid #dde4f5", background: "#e8eefb", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
         <span style={{ color: "#011F5B" }}><IconChat /></span>
@@ -263,8 +291,8 @@ function OnboardingScreen({ onNext, onFilesUploaded }: {
     setParsing(true);
     const newFiles: UploadedFile[] = [];
     for (const file of Array.from(fileList)) {
-      const { text, html } = await parseFile(file);
-      newFiles.push({ id: `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: file.name, tag: uploadTag, text, ...(html ? { html } : {}), date: "Today" });
+      const { text, html, fileUrl } = await parseFile(file);
+      newFiles.push({ id: `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: file.name, tag: uploadTag, text, ...(html ? { html } : {}), ...(fileUrl ? { fileUrl } : {}) ,date: "Today" });
     }
     const all = [...parsedFiles, ...newFiles];
     setParsedFiles(all);
@@ -379,6 +407,8 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
   const [copied, setCopied]         = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const leftCol  = useResizable(220, 160, 380);
+  const rightCol = useResizable(280, 200, 480, true);
   const onOver  = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true);  }, []);
   const onLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); }, []);
 
@@ -387,8 +417,8 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
     setParsing(true);
     const newFiles: UploadedFile[] = [];
     for (const file of Array.from(fileList)) {
-      const { text, html } = await parseFile(file);
-      newFiles.push({ id: `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: file.name, tag: uploadTag, text, ...(html ? { html } : {}), date: "Today" });
+      const { text, html, fileUrl} = await parseFile(file);
+      newFiles.push({ id: `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: file.name, tag: uploadTag, text, ...(html ? { html } : {}), ...(fileUrl ? { fileUrl } : {}), date: "Today" });
     }
     onFilesAdded(newFiles);
     setParsing(false);
@@ -402,21 +432,21 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
     isResume: f.tag === "Resume",
     llmText: f.text,
     ...(f.html ? { html: f.html } : {}),
+    ...(f.fileUrl ? { fileUrl: f.fileUrl } : {}),
   }));
   const resumeFiles = allFiles.filter(f => f.isResume);
 
-  const defaultId = resumeFiles[0]?.id ?? "";
-  const [activeResumeId, setActiveResumeId] = useState(defaultId);
-  const activeFile = allFiles.find(f => f.id === activeResumeId) ?? resumeFiles[0];
+  const defaultResumeId = resumeFiles[0]?.id ?? "";
+  const [previewId,    setPreviewId]    = useState(defaultResumeId); // any file
+  const [baseResumeId, setBaseResumeId] = useState(defaultResumeId); // resume only
 
-  function renderCenter(file: WorkspaceFile | undefined) {
-    return <ResumeTextView text={file?.llmText ?? ""} {...(file?.html ? { html: file.html } : {})} />;
-  }
+  const previewFile = allFiles.find(f => f.id === previewId) ?? allFiles[0];
+  const baseFile    = allFiles.find(f => f.id === baseResumeId) ?? resumeFiles[0];
 
   return (
     <div style={{ flex: 1, display: "flex", minHeight: 0 }} onDragOver={onOver} onDragLeave={onLeave} onDrop={onDrop}>
       {/* Sidebar */}
-      <aside style={{ flex: "0 0 220px", borderRight: "1px solid #e5e5e5", background: "#fff", display: "flex", flexDirection: "column" }}>
+      <aside style={{ width: leftCol.width, flexShrink: 0, minWidth: 0, overflow: "hidden", borderRight: "none", background: "#fff", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #f3f4f6" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#0d0d0d", marginBottom: 6 }}>My Files</div>
           <select value={uploadTag} onChange={e => setUploadTag(e.target.value)} style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 11, background: "#fff", color: "#374151", marginBottom: 6 }}>
@@ -425,62 +455,65 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
           <button onClick={() => fileRef.current?.click()} disabled={parsing} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 10px", background: "#011F5B", color: "#fff", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: parsing ? "not-allowed" : "pointer", justifyContent: "center", opacity: parsing ? 0.6 : 1 }}><IconUpload />{parsing ? "Parsing…" : "+ Upload More"}</button>
           <input ref={fileRef} type="file" style={{ display: "none" }} multiple accept=".pdf,.docx,.pptx,.ppt,.txt" onChange={e => handleMoreFiles(e.target.files)} />
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "6px 0" }}>
           {allFiles.length === 0
             ? <div style={{ padding: "20px 14px", textAlign: "center", color: "#9ca3af", fontSize: 12 }}>No files uploaded yet.<br/>Upload files in the previous step.</div>
             : allFiles.map(file => {
               const ts = TAG_COLORS[file.tag] ?? { bg: "#f3f4f6", color: "#374151" };
-              const isActive = file.id === activeResumeId;
-              const isResume = file.isResume;
+              const isPreviewing = file.id === previewId;
+              const isBase    = file.id === baseResumeId;
+              const isResume  = file.isResume;
               return (
                 <div key={file.id}
-                  style={{ padding: "8px 10px", borderBottom: "1px solid #f9fafb", borderLeft: isActive ? "3px solid #011F5B" : "3px solid transparent", background: isActive ? "#f0f4ff" : "transparent", transition: "background 0.1s" }}>
-                  {/* File name row — click to set as base resume */}
+                  onClick={() => setPreviewId(file.id)}
+                  style={{ padding: "8px 10px", borderBottom: "1px solid #f9fafb", borderLeft: isPreviewing ? "3px solid #011F5B" : "3px solid transparent", background: isPreviewing ? "#f0f4ff" : "transparent", transition: "background 0.1s", cursor: "pointer" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-                    <span style={{ color: isActive ? "#011F5B" : "#9ca3af", flexShrink: 0, cursor: isResume ? "pointer" : "default" }} onClick={() => isResume && setActiveResumeId(file.id)}><IconFile /></span>
-                    <div style={{ flex: 1, fontSize: 11, fontWeight: isActive ? 700 : 500, color: isActive ? "#011F5B" : "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: isResume ? "pointer" : "default" }} onClick={() => isResume && setActiveResumeId(file.id)}>{file.name}</div>
-                    <button onClick={() => onFileDelete(file.id)}
+                    <span style={{ color: isPreviewing ? "#011F5B" : "#9ca3af", flexShrink: 0 }}><IconFile /></span>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: isPreviewing ? 700 : 500, color: isPreviewing ? "#011F5B" : "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</div>
+                    <button onClick={e => { e.stopPropagation(); onFileDelete(file.id); }}
                       style={{ fontSize: 14, lineHeight: 1, color: "#d1d5db", background: "none", border: "none", cursor: "pointer", padding: "0 2px", flexShrink: 0 }}
                       title="Delete file"
                       onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = "#ef4444"}
                       onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = "#d1d5db"}>×</button>
                   </div>
-                  {/* Tag select + active badge */}
                   <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
                     <select
                       value={file.tag}
-                      onChange={e => { onFileTagChange(file.id, e.target.value); if (isActive && e.target.value !== "Resume") setActiveResumeId(""); }}
-                      style={{ fontSize: 10, fontWeight: 600, padding: "2px 4px", borderRadius: 3, border: `1px solid ${ts.color}`, background: ts.bg, color: ts.color, cursor: "pointer", flex: 1 }}>
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => { e.stopPropagation(); onFileTagChange(file.id, e.target.value); if (isBase && e.target.value !== "Resume") setBaseResumeId(""); }}
+                      style={{ fontSize: 10, fontWeight: 600, padding: "2px 4px", borderRadius: 3, border: `1px solid ${ts.color}`, background: ts.bg, color: ts.color, cursor: "pointer", flex: 1, minWidth: 0 }}>
                       {Object.keys(TAG_COLORS).map(t => <option key={t}>{t}</option>)}
                     </select>
-                    {isActive && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "#011F5B", color: "#fff", letterSpacing: 0.3, flexShrink: 0 }}>BASE</span>}
+                    {isResume && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setBaseResumeId(file.id); }}
+                        style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 3, background: isBase ? "#011F5B" : "#e5e7eb", color: isBase ? "#fff" : "#6b7280", border: "none", cursor: "pointer", flexShrink: 0, letterSpacing: 0.3 }}>
+                        {isBase ? "BASE ✓" : "Set Base"}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })
           }
         </div>
-        <div style={{ padding: "10px 14px", borderTop: "1px solid #f3f4f6", fontSize: 10.5, color: "#9ca3af", textAlign: "center" }}>Click a resume filename to set as base</div>
+        <div style={{ padding: "10px 14px", borderTop: "1px solid #f3f4f6", fontSize: 10.5, color: "#9ca3af", textAlign: "center" }}>Click any file to preview · Set Base for generation</div>
       </aside>
 
-      {/* Center — shows active base resume */}
+      <DragHandle onMouseDown={leftCol.onMouseDown} />
+
+      {/* Center — shows previewed file */}
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "#e5e7eb", position: "relative" }}>
-        {/* Top bar with dropdown switcher */}
         <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", padding: "0 16px", gap: 10, flexShrink: 0, height: 46 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", flexShrink: 0 }}>Base Resume</span>
-          <select
-            value={activeResumeId}
-            onChange={e => setActiveResumeId(e.target.value)}
-            style={{ flex: 1, maxWidth: 320, height: 30, fontSize: 13, fontWeight: 500, border: "1px solid #d1d5db", borderRadius: 6, padding: "0 8px", background: "#fff", color: "#111827", cursor: "pointer", outline: "none" }}
-          >
-            {resumeFiles.map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", flexShrink: 0 }}>Previewing</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>{previewFile?.name ?? "—"}</span>
+          {baseFile && baseFile.id !== previewFile?.id && (
+            <span style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>· Base: <strong style={{ color: "#374151" }}>{baseFile.name}</strong></span>
+          )}
           <div style={{ flex: 1 }} />
           <button
             onClick={async () => {
-              try { await copyToClipboard(activeFile?.llmText ?? ""); } catch { /* ignore */ }
+              try { await copyToClipboard(previewFile?.llmText ?? ""); } catch { /* ignore */ }
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
             }}
@@ -490,11 +523,11 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
           <button
             disabled={pdfLoading}
             onClick={async () => {
-              if (!activeFile) return;
+              if (!previewFile) return;
               setPdfLoading(true);
               const { downloadAsPDF: dl } = await import("./exportResume");
-              const html = activeFile.html ?? `<pre style="white-space:pre-wrap;font-family:inherit">${activeFile.llmText}</pre>`;
-              try { await dl(html, activeFile.name.replace(/\.[^.]+$/, "") + ".pdf"); }
+              const html = previewFile.html ?? `<pre style="white-space:pre-wrap;font-family:inherit">${previewFile.llmText}</pre>`;
+              try { await dl(html, previewFile.name.replace(/\.[^.]+$/, "") + ".pdf"); }
               finally { setPdfLoading(false); }
             }}
             style={{ padding: "5px 12px", background: "#f3f4f6", color: pdfLoading ? "#9ca3af" : "#374151", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: pdfLoading ? "not-allowed" : "pointer" }}>
@@ -502,13 +535,40 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
           </button>
         </div>
         <PdfScroll>
-          <PdfCard>{renderCenter(activeFile)}</PdfCard>
-        </PdfScroll>
+  <PdfCard>
+    {previewFile?.fileUrl ? (
+      <div
+        style={{
+          width: "100%",
+          height: "900px",
+          background: "#fff",
+          borderRadius: 4,
+          overflow: "hidden",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+        }}
+      >
+        <iframe
+          src={`${previewFile.fileUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+          width="100%"
+          height="100%"
+          style={{ border: "none" }}
+        />
+      </div>
+    ) : (
+      <ResumeTextView
+        text={previewFile?.llmText ?? ""}
+        {...(previewFile?.html ? { html: previewFile.html } : {})}
+      />
+    )}
+  </PdfCard>
+</PdfScroll>
         {isDragging && <div style={{ position: "absolute", inset: 0, background: "rgba(1,31,91,0.08)", border: "2px dashed #011F5B", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><div style={{ fontSize: 18, fontWeight: 700, color: "#011F5B" }}>Drop files to add to your knowledge base</div></div>}
       </main>
 
+      <DragHandle onMouseDown={rightCol.onMouseDown} />
+
       {/* Right: Job description + generate */}
-      <aside style={{ flex: "0 0 280px", borderLeft: "1px solid #e5e5e5", background: "#f0f4ff", display: "flex", flexDirection: "column" }}>
+      <aside style={{ width: rightCol.width, flexShrink: 0, borderLeft: "none", background: "#f0f4ff", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "13px 16px", borderBottom: "1px solid #dde4f5", background: "#e8eefb", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <span style={{ color: "#011F5B" }}><IconSend /></span>
           <span style={{ fontSize: 12, fontWeight: 700, color: "#011F5B" }}>Generate Tailored Resume</span>
@@ -524,7 +584,7 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
         </div>
         <div style={{ padding: "12px 14px", borderTop: "1px solid #dde4f5", background: "#e8eefb", flexShrink: 0 }}>
           <button
-            onClick={() => onGenerate(input, activeFile?.llmText ?? "", uploadedFiles)}
+            onClick={() => onGenerate(input, baseFile?.llmText ?? "", uploadedFiles)}
             disabled={!input.trim()}
             style={{ ...btnPrimary, width: "100%", padding: "11px", fontSize: 13, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: input.trim() ? 1 : 0.5, cursor: input.trim() ? "pointer" : "not-allowed" }}>
             <IconSend /> Generate Tailored Resume
@@ -603,132 +663,6 @@ function GeneratingScreen({ baseResume, jobDescription, allFiles, onDone }: {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-// ── Diff helpers ───────────────────────────────────────────────────────────────
-
-type WordSpan = { text: string; changed: boolean };
-
-/** Tokenize a line into words + whitespace tokens for word-level diff. */
-function tokenize(text: string): string[] {
-  return text.split(/(\s+)/).filter(t => t.length > 0);
-}
-
-/** Word-level LCS diff of two lines. Returns spans for left (removed) and right (added). */
-function wordDiff(oldLine: string, newLine: string): { leftSpans: WordSpan[]; rightSpans: WordSpan[] } {
-  const a = tokenize(oldLine), b = tokenize(newLine);
-  const m = a.length, n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i]![j] = a[i-1]!.toLowerCase() === b[j-1]!.toLowerCase()
-        ? dp[i-1]![j-1]! + 1
-        : Math.max(dp[i-1]![j]!, dp[i]![j-1]!);
-
-  const ops: Array<{ type: "equal"|"delete"|"insert"; tok: string }> = [];
-  let i = m, j = n;
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i-1]!.toLowerCase() === b[j-1]!.toLowerCase()) { ops.unshift({ type: "equal",  tok: a[i-1]! }); i--; j--; }
-    else if (j > 0 && (i === 0 || dp[i]![j-1]! >= dp[i-1]![j]!))            { ops.unshift({ type: "insert", tok: b[j-1]! }); j--; }
-    else                                                                       { ops.unshift({ type: "delete", tok: a[i-1]! }); i--; }
-  }
-  const leftSpans: WordSpan[] = [], rightSpans: WordSpan[] = [];
-  for (const op of ops) {
-    if (op.type === "equal")  { leftSpans.push({ text: op.tok, changed: false }); rightSpans.push({ text: op.tok, changed: false }); }
-    else if (op.type === "delete") leftSpans.push({ text: op.tok, changed: true });
-    else                           rightSpans.push({ text: op.tok, changed: true });
-  }
-  return { leftSpans, rightSpans };
-}
-
-type LeftDiffLine  = { kind: "equal"|"delete"; text: string } | { kind: "modify"; spans: WordSpan[] };
-type RightDiffLine = { kind: "equal"|"insert"; text: string } | { kind: "modify"; spans: WordSpan[] };
-
-/** Line-level LCS diff, with adjacent delete+insert pairs promoted to word-level modify. */
-function computeResumeDiff(oldText: string, newText: string): { left: LeftDiffLine[]; right: RightDiffLine[] } {
-  const oldLines = oldText.split("\n"), newLines = newText.split("\n");
-  const m = oldLines.length, n = newLines.length;
-  const norm = (l: string) => l.trim().toLowerCase();
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i]![j] = norm(oldLines[i-1]!) === norm(newLines[j-1]!)
-        ? dp[i-1]![j-1]! + 1 : Math.max(dp[i-1]![j]!, dp[i]![j-1]!);
-
-  type Op = { type: "equal"; old: string; new: string } | { type: "insert"; new: string } | { type: "delete"; old: string };
-  const ops: Op[] = [];
-  let oi = m, oj = n;
-  while (oi > 0 || oj > 0) {
-    if (oi > 0 && oj > 0 && norm(oldLines[oi-1]!) === norm(newLines[oj-1]!)) { ops.unshift({ type: "equal",  old: oldLines[oi-1]!, new: newLines[oj-1]! }); oi--; oj--; }
-    else if (oj > 0 && (oi === 0 || dp[oi]![oj-1]! >= dp[oi-1]![oj]!))       { ops.unshift({ type: "insert", new: newLines[oj-1]! }); oj--; }
-    else                                                                        { ops.unshift({ type: "delete", old: oldLines[oi-1]! }); oi--; }
-  }
-
-  const left: LeftDiffLine[] = [], right: RightDiffLine[] = [];
-  let k = 0;
-  while (k < ops.length) {
-    const op = ops[k]!;
-    if (op.type === "equal") {
-      left.push({ kind: "equal", text: op.old! }); right.push({ kind: "equal", text: op.new! }); k++;
-    } else if (op.type === "delete" && k + 1 < ops.length && ops[k+1]!.type === "insert") {
-      const nextOp = ops[k+1]!;
-      const oldL = op.old, newL = nextOp.type === "insert" ? nextOp.new : "";
-      const oW = new Set(oldL.trim().toLowerCase().split(/\s+/).filter(Boolean));
-      const nW = new Set(newL.trim().toLowerCase().split(/\s+/).filter(Boolean));
-      const inter = [...oW].filter(w => nW.has(w)).length;
-      const union = new Set([...oW, ...nW]).size;
-      // If ≥25% word overlap → treat as a modification, do word-level diff
-      if (union > 0 && inter / union >= 0.25 && oldL.trim() && newL.trim()) {
-        const { leftSpans, rightSpans } = wordDiff(oldL, newL);
-        left.push({ kind: "modify", spans: leftSpans }); right.push({ kind: "modify", spans: rightSpans }); k += 2;
-      } else {
-        left.push({ kind: "delete", text: oldL }); right.push({ kind: "insert", text: newL }); k += 2;
-      }
-    } else if (op.type === "delete") {
-      left.push({ kind: "delete", text: op.old! }); k++;
-    } else {
-      right.push({ kind: "insert", text: op.new! }); k++;
-    }
-  }
-  return { left, right };
-}
-
-function LeftDiffView({ lines }: { lines: LeftDiffLine[] }) {
-  return (
-    <div style={{ ...W.doc, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-      {lines.map((line, i) => {
-        if (line.kind === "equal")  return <div key={i}>{line.text || "\u00a0"}</div>;
-        if (line.kind === "delete") return <div key={i} style={{ background: "#fee2e2", borderRadius: 2, marginLeft: -3, paddingLeft: 3 }}>{line.text || "\u00a0"}</div>;
-        const spans = (line as { kind: "modify"; spans: WordSpan[] }).spans;
-        return (
-          <div key={i}>{spans.map((s: WordSpan, j: number) =>
-            s.changed
-              ? <mark key={j} style={{ background: "#fecaca", borderRadius: 2, padding: "0 1px" }}>{s.text}</mark>
-              : <span key={j}>{s.text}</span>
-          )}</div>
-        );
-      })}
-    </div>
-  );
-}
-
-function RightDiffView({ lines }: { lines: RightDiffLine[] }) {
-  return (
-    <div style={{ ...W.doc, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-      {lines.map((line, i) => {
-        if (line.kind === "equal")  return <div key={i}>{line.text || "\u00a0"}</div>;
-        if (line.kind === "insert") return <div key={i} style={{ background: "#dcfce7", borderRadius: 2, marginLeft: -3, paddingLeft: 3 }}>{line.text || "\u00a0"}</div>;
-        const spans = (line as { kind: "modify"; spans: WordSpan[] }).spans;
-        return (
-          <div key={i}>{spans.map((s: WordSpan, j: number) =>
-            s.changed
-              ? <mark key={j} style={{ background: "#bbf7d0", borderRadius: 2, padding: "0 1px" }}>{s.text}</mark>
-              : <span key={j}>{s.text}</span>
-          )}</div>
-        );
-      })}
     </div>
   );
 }
@@ -924,6 +858,19 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport, tailoredResume }: {
           </PdfScroll>
         </main>
 
+        <EditChatResizer editAreaRef={editAreaRef} onExport={onExport} />
+      </div>
+    </div>
+  );
+}
+
+/** Separate component so useResizable hook is valid (hooks must be at component top level). */
+function EditChatResizer({ editAreaRef, onExport }: { editAreaRef: React.RefObject<HTMLDivElement | null>; onExport: (html: string, text: string) => void }) {
+  const chatCol = useResizable(300, 220, 520, true);
+  return (
+    <>
+      <DragHandle onMouseDown={chatCol.onMouseDown} />
+      <div style={{ width: chatCol.width, flexShrink: 0, display: "flex", flexDirection: "column", borderLeft: "none" }}>
         <AiChatPanel
           title="AI Editor"
           systemPrompt="You are an expert resume editor. The user's current resume is provided in Context. When asked to rewrite or revise, return ONLY the complete updated resume text with no preamble, no markdown fences, and no explanation. For questions or advice, respond concisely."
@@ -950,7 +897,7 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport, tailoredResume }: {
           }
         />
       </div>
-    </div>
+    </>
   );
 }
 
@@ -1045,22 +992,12 @@ export default function Tool7Page() {
   const [tailoredResume, setTailoredResume]           = useState("");
   const [editedHtml, setEditedHtml]                   = useState("");
   const [editedText, setEditedText]                   = useState("");
-  const [userId, setUserId]                           = useState("anonymous");
-
   const handleFileTagChange = (id: string, tag: string) => {
     setUploadedFiles(prev => prev.map(f => f.id === id ? { ...f, tag } : f));
   };
   const handleFileDelete = (id: string) => {
     setUploadedFiles(prev => prev.filter(f => f.id !== id));
   };
-
-  // Fetch platform user id on mount
-  useEffect(() => {
-    fetch("/api/me")
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { id?: string } | null) => { if (data?.id) setUserId(data.id); })
-      .catch(() => {});
-  }, []);
 
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", background: "#f9fafb" }}>

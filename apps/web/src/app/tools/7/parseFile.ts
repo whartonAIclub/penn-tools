@@ -11,13 +11,18 @@ export interface UploadedFile {
   text: string;   // plain text sent to the LLM
   html?: string;  // HTML (DOCX only) used for richer in-app preview
   date: string;
+  fileUrl?: string; // for rendering PDF
 }
 
 /** Extract text (and optional HTML) from a File. */
-export async function parseFile(file: File): Promise<{ text: string; html?: string }> {
+export async function parseFile(file: File): Promise<{ text: string; html?: string; fileUrl?: string }> {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   try {
-    if (ext === "pdf")  return { text: cleanResumeText(await parsePDF(file)) };
+    if (ext === "pdf") {
+      const text = cleanResumeText(await parsePDF(file));
+      const fileUrl = URL.createObjectURL(file);
+      return { text, fileUrl };
+    }
     if (ext === "docx") return await parseDocx(file);
     if (ext === "pptx" || ext === "ppt") return { text: await parsePptx(file) };
     return { text: await readAsText(file) };
@@ -255,7 +260,7 @@ async function parsePDF(file: File): Promise<string> {
 
 // ── DOCX (mammoth) ───────────────────────────────────────────────────────────
 
-async function parseDocx(file: File): Promise<{ text: string; html: string }> {
+async function parseDocx(file: File): Promise<{ text: string; html?: string; fileUrl?: string}> {
   const arrayBuffer = await readAsArrayBuffer(file);
   const mammoth     = await import("mammoth");
   const [textResult, htmlResult] = await Promise.all([
