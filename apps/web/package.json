@@ -17,7 +17,7 @@
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
     "html2canvas": "^1.4.1",
-    "jspdf": "^4.2.1",
+    "jspdf": "^2.5.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "next": "^14.2.0",
