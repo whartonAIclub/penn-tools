@@ -810,11 +810,13 @@ function ScaledPdfPane({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ComparisonScreen({ onAccept, jobDescription, baseResumeContent, tailoredResume, baseResumeFileUrl }: {
+function ComparisonScreen({ onAccept, onBack, jobDescription, baseResumeContent, editedHtml, editedText, baseResumeFileUrl }: {
   onAccept: () => void;
+  onBack: () => void;
   jobDescription: string;
   baseResumeContent: string;
-  tailoredResume: string;
+  editedHtml: string;
+  editedText: string;
   baseResumeFileUrl: string;
 }) {
   return (
@@ -822,12 +824,12 @@ function ComparisonScreen({ onAccept, jobDescription, baseResumeContent, tailore
       {/* Top bar */}
       <div style={{ padding: "16px 32px", background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#0d0d0d" }}>Here&apos;s your tailored resume</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{jobDescription ? `Tailored for: "${jobDescription.slice(0, 80)}${jobDescription.length > 80 ? "…" : ""}"` : "Tailored resume ready"}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#0d0d0d" }}>Review your changes</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{jobDescription ? `Tailored for: "${jobDescription.slice(0, 80)}${jobDescription.length > 80 ? "…" : ""}"` : "Compare your edited resume against the original"}</div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onAccept} style={btnSecondary}>Edit</button>
-          <button onClick={onAccept} style={btnPrimary}>Accept Changes</button>
+          <button onClick={onBack} style={btnSecondary}>← Back to Edit</button>
+          <button onClick={onAccept} style={btnPrimary}>Export →</button>
         </div>
       </div>
 
@@ -837,7 +839,7 @@ function ComparisonScreen({ onAccept, jobDescription, baseResumeContent, tailore
           Original Resume
         </div>
         <div style={{ flex: 1, padding: "10px 20px", background: "#0369a1", fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: 1 }}>
-          Tailored Resume ✦
+          Edited Resume ✦
         </div>
       </div>
 
@@ -863,7 +865,7 @@ function ComparisonScreen({ onAccept, jobDescription, baseResumeContent, tailore
 
           <ScaledPdfPane>
             <PdfCard>
-              <StructuredResumeView text={tailoredResume} />
+              <ResumeTextView html={editedHtml} text={editedText} />
             </PdfCard>
           </ScaledPdfPane>
         </div>
@@ -1173,7 +1175,7 @@ function EditChatResizer({ editAreaRef, onExport }: { editAreaRef: React.RefObje
             <button
               onClick={() => { const html = editAreaRef.current?.innerHTML ?? ""; const text = editAreaRef.current?.innerText ?? ""; onExport(html, text); }}
               style={{ ...btnPrimary, width: "100%", padding: "10px", fontSize: 13, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              Export →
+              Compare →
             </button>
           }
         />
@@ -1230,9 +1232,9 @@ function ExportScreen({ onRestart, editedHtml, editedText, jobDescription }: {
 }
 
 // ── Top nav ────────────────────────────────────────────────────────────────────
-const SCREEN_ORDER: Screen[] = ["landing","onboarding","workspace","generating","comparison","edit","export"];
-const STEPS: Screen[]        = ["onboarding","workspace","comparison","edit","export"];
-const STEP_LABELS: Partial<Record<Screen,string>> = { onboarding:"Upload", workspace:"Workspace", comparison:"Compare", edit:"Edit", export:"Export" };
+const SCREEN_ORDER: Screen[] = ["landing","onboarding","workspace","generating","edit","comparison","export"];
+const STEPS: Screen[]        = ["onboarding","workspace","edit","comparison","export"];
+const STEP_LABELS: Partial<Record<Screen,string>> = { onboarding:"Upload", workspace:"Workspace", edit:"Edit", comparison:"Compare", export:"Export" };
 
 function TopBar({ screen, setScreen }: { screen: Screen; setScreen: (s: Screen) => void }) {
   if (screen === "landing") return null;
@@ -1317,23 +1319,25 @@ export default function Tool7Page() {
           baseResume={activeResumeContent}
           jobDescription={jobDescription}
           allFiles={allGenerateFiles}
-          onDone={output => { setTailoredResume(output); setScreen("comparison"); }}
+          onDone={output => { setTailoredResume(output); setScreen("edit"); }}
         />
       )}
       {screen === "comparison" && (
         <ComparisonScreen
-          onAccept={() => setScreen("edit")}
+          onAccept={() => setScreen("export")}
+          onBack={() => setScreen("edit")}
           jobDescription={jobDescription}
           baseResumeContent={activeResumeContent}
-          tailoredResume={tailoredResume}
-          baseResumeFileUrl={baseResumeFileUrl} // ⭐ ADD THIS
+          editedHtml={editedHtml}
+          editedText={editedText}
+          baseResumeFileUrl={baseResumeFileUrl}
         />
       )}
       {screen === "edit" && (
         <EditScreen
           fontSizePt={fontSizePt}
           setFontSizePt={setFontSizePt}
-          onExport={(html, text) => { setEditedHtml(html); setEditedText(text); setScreen("export"); }}
+          onExport={(html, text) => { setEditedHtml(html); setEditedText(text); setScreen("comparison"); }}
           tailoredResume={tailoredResume}
         />
       )}
