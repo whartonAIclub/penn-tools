@@ -86,8 +86,8 @@ const TAG_COLORS: Record<string, { bg: string; color: string }> = {
   Resume:            { bg: "#e0f2fe", color: "#0369a1" },
   "Cover Letter":    { bg: "#fce7f3", color: "#9d174d" },
   Project:           { bg: "#dcfce7", color: "#15803d" },
-  "Job Description": { bg: "#fef9c3", color: "#92400e" },
   "Writing Sample":  { bg: "#ede9fe", color: "#6d28d9" },
+  "Other": { bg: "#fef9c3", color: "#92400e" },
 };
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -591,7 +591,7 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
         <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid #f3f4f6" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#0d0d0d", marginBottom: 6 }}>My Files</div>
           <select value={uploadTag} onChange={e => setUploadTag(e.target.value)} style={{ width: "100%", padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 11, background: "#fff", color: "#374151", marginBottom: 6 }}>
-            {["Resume","Cover Letter","Project","Job Description","Writing Sample"].map(t => <option key={t}>{t}</option>)}
+            {["Resume","Cover Letter","Project","Writing Sample", "Other"].map(t => <option key={t}>{t}</option>)}
           </select>
           <button onClick={() => fileRef.current?.click()} disabled={parsing} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "7px 10px", background: "#011F5B", color: "#fff", border: "none", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: parsing ? "not-allowed" : "pointer", justifyContent: "center", opacity: parsing ? 0.6 : 1 }}><IconUpload />{parsing ? "Parsing…" : "+ Upload More"}</button>
           <input ref={fileRef} type="file" style={{ display: "none" }} multiple accept=".pdf,.docx,.pptx,.ppt,.txt" onChange={e => handleMoreFiles(e.target.files)} />
