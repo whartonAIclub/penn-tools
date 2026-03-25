@@ -12,8 +12,11 @@
   "dependencies": {
     "@penntools/core": "workspace:*",
     "@penntools/platform": "workspace:*",
+    "@penntools/tool-1": "workspace:*",
+    "@penntools/tool-3": "workspace:*",
     "@penntools/tool-7": "workspace:*",
     "@penntools/tool-8": "workspace:*",
+    "@penntools/tool-18": "workspace:*",
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
     "html2canvas": "^1.4.1",

@@ -1,0 +1,10 @@
+{
+  "name": "Penn Planner",
+  "description": "The planning tool centralizes a Wharton student's deadlines and commitments across academics and recruiting into a single prioritized to-do list.",
+  "category": "Student Health",
+  "builders": ["Alec Roslin", "Nyla Thompson", "Travon Martin", "Nikunj Agrawal"],
+  "mentor": "Steven Adelberg",
+  "version": "0.0.1",
+  "inceptionDate": "2026-03-18",
+  "latestReleaseDate": "2026-03-18"
+}

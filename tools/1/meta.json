@@ -1,0 +1,10 @@
+{
+  "name": "CourseMatch Assist",
+  "description": "CourseMatch Assist will curate a course list and recommended utilities for your next semester! Send it your priorities and transcript - and watch the magic happen as it reduces your stress",
+  "category": "Academics",
+  "builders": ["Ishi Tripathi", "Brendan Holleck", "Evens Esperance", "Sanjana Wadhwa"],
+  "mentor": "Manas Sharma",
+  "version": "0.0.1",
+  "inceptionDate": "2026-03-23",
+  "latestReleaseDate": "2026-03-23"
+}
