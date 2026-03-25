@@ -52,6 +52,8 @@ import { Tool8 } from "@penntools/tool-8";
 toolRegistry.register(new Tool8());
 import { PennPlannerTool } from "@penntools/tool-penn-planner";
 toolRegistry.register(new PennPlannerTool());
+import { Tool1 } from "@penntools/tool-1";
+toolRegistry.register(new Tool1());
 import { Tool18 } from "@penntools/tool-18";
 toolRegistry.register(new Tool18());
 
