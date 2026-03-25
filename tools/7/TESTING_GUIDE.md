@@ -61,19 +61,19 @@ Review your uploaded files in the sidebar. The center panel shows a preview of w
 - **Paste the job description** into the right panel
 - Click **Generate Tailored Resume** when ready
 
-### Step 3 — Compare
-Side-by-side view of your original resume (left) and the AI-generated tailored version (right).
-
-- Click **Edit** to open the editor and make changes
-- Click **Accept Changes** to go directly to the editor
-
-### Step 4 — Edit
-The tailored resume is loaded into a rich-text editor.
+### Step 3 — Edit
+The AI-generated tailored resume is loaded into a rich-text editor.
 
 - Use the **formatting toolbar** to adjust font, size, bold/italic/underline, alignment, and margins
 - Use the **AI Editor chat panel** (right side) to ask the AI to revise specific sections — type your request and press Enter
 - Click **"Apply to editor ↑"** on any AI response to replace the editor content with the suggested revision
-- Click **Export →** when you're satisfied
+- Click **Compare →** when you're satisfied with your edits
+
+### Step 4 — Compare
+Side-by-side view of your original resume (left) and your final edited version (right).
+
+- Click **← Back to Edit** to return to the editor and make further changes
+- Click **Export →** when you're happy with the result
 
 ### Step 5 — Export
 - **Download PDF** — generates a US Letter PDF of your edited resume
@@ -86,7 +86,7 @@ The tailored resume is loaded into a rich-text editor.
 
 - Parse and extract text from PDF, DOCX, PPTX, and TXT files
 - Use your base resume + all uploaded context files to generate a tailored resume for a specific job description
-- Show a side-by-side comparison of original vs. tailored
+- Show a side-by-side comparison of original vs. your final edited version
 - Let you make direct edits in a rich-text editor with formatting controls
 - Let you chat with an AI to revise the resume in the editor
 - Export as PDF or copy as plain text
