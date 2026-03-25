@@ -644,7 +644,7 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
       <DragHandle onMouseDown={leftCol.onMouseDown} />
 
       {/* Center — shows previewed file */}
-      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "#e5e7eb", position: "relative" }}>
+      <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", background: "#e5e7eb", position: "relative" }}>
         <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", padding: "0 16px", gap: 10, flexShrink: 0, height: 46 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", flexShrink: 0 }}>Previewing</span>
           <span style={{ fontSize: 13, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>{previewFile?.name ?? "—"}</span>
@@ -675,18 +675,18 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
             {pdfLoading ? "Exporting…" : "Export PDF"}
           </button>
         </div>
-  <PdfScroll>
-  <PdfCard style={previewFile?.fileUrl ? { padding: 0, overflow: "hidden" } : {}}>
-    {previewFile?.fileUrl ? (
-      <PdfCanvasViewer fileUrl={previewFile.fileUrl} />
-    ) : (
-      <ResumeTextView
-        text={previewFile?.llmText ?? ""}
-        {...(previewFile?.html ? { html: previewFile.html } : {})}
-      />
-    )}
-  </PdfCard>
-</PdfScroll>
+  <ScaledPdfPane>
+    <PdfCard style={previewFile?.fileUrl ? { padding: 0, overflow: "hidden" } : {}}>
+      {previewFile?.fileUrl ? (
+        <PdfCanvasViewer fileUrl={previewFile.fileUrl} />
+      ) : (
+        <ResumeTextView
+          text={previewFile?.llmText ?? ""}
+          {...(previewFile?.html ? { html: previewFile.html } : {})}
+        />
+      )}
+    </PdfCard>
+  </ScaledPdfPane>
         {isDragging && <div style={{ position: "absolute", inset: 0, background: "rgba(1,31,91,0.08)", border: "2px dashed #011F5B", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}><div style={{ fontSize: 18, fontWeight: 700, color: "#011F5B" }}>Drop files to add to your knowledge base</div></div>}
       </main>
 
@@ -818,31 +818,36 @@ function GeneratingScreen({ baseResume, jobDescription, allFiles, onDone }: {
 // ── Screen 5: Comparison ──────────────────────────────────────────────────────
 const COMP_ZOOM = 0.75;
 // ── Scaled PDF pane — fills its flex column and scales PDF to fit ──────────────
-function ScaledPdfPane({ children }: { children: React.ReactNode }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+// fixedScale: if provided, skips auto-fit and uses this value directly (for edit mode zoom control)
+function ScaledPdfPane({ children, fixedScale }: { children: React.ReactNode; fixedScale?: number }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [autoScale, setAutoScale] = useState(1);
 
   useEffect(() => {
-    const el = containerRef.current;
+    if (fixedScale !== undefined) return; // skip auto-calc when caller controls zoom
+    const el = wrapperRef.current;
     if (!el) return;
     const update = () => {
-      const availW = el.clientWidth - 40; // 20px padding each side
-      setScale(Math.min(0.75, availW / PDF_WIDTH));
+      // Measure the outer wrapper (stable, parent-constrained) so scale doesn't depend on content size
+      const availW = el.clientWidth - 40;   // 20px padding each side
+      const availH = el.clientHeight - 40;  // 20px padding top/bottom
+      setAutoScale(Math.min(availW / PDF_WIDTH, availH / PDF_HEIGHT));
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [fixedScale]);
+
+  const scale = fixedScale ?? autoScale;
 
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-      <div ref={containerRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "20px", background: "#f3f4f6" }}>
-        {/* Outer box tells the scroll container how much space the scaled content takes */}
-        <div style={{ width: PDF_WIDTH * scale, minHeight: PDF_HEIGHT * scale }}>
-          <div style={{ width: PDF_WIDTH, transformOrigin: "top left", transform: `scale(${scale})` }}>
-            {children}
-          </div>
+    // minHeight:0 lets this flex child shrink below its content height, enabling inner scroll
+    <div ref={wrapperRef} style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "20px", background: "#f3f4f6", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
+        {/* zoom scales layout + visuals together so centering and scrolling work naturally */}
+        <div style={{ width: PDF_WIDTH, zoom: scale, flexShrink: 0 }}>
+          {children}
         </div>
       </div>
     </div>
@@ -882,12 +887,12 @@ function classifyOrigLine(line: string, tailLines: string[]): OrigKind {
 }
 
 const TAIL_BG: Record<ChangeKind, string> = {
-  added:     "rgba(34,197,94,0.11)",
-  modified:  "rgba(234,179,8,0.11)",
+  added:     "transparent",
+  modified:  "transparent",
   unchanged: "transparent",
 };
 const ORIG_BG: Record<OrigKind, string> = {
-  deleted:   "rgba(239,68,68,0.10)",
+  deleted:   "transparent",
   unchanged: "transparent",
 };
 
@@ -1030,10 +1035,6 @@ function ComparisonScreen({ onAccept, onBack, jobDescription, baseResumeContent,
         </div>
         <div style={{ flex: 1, padding: "10px 20px", background: "#0369a1", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: 1 }}>Tailored Resume ✦</span>
-          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", display: "flex", gap: 6 }}>
-            <span style={{ background: "rgba(34,197,94,0.3)",  borderRadius: 3, padding: "1px 6px" }}>green = added</span>
-            <span style={{ background: "rgba(234,179,8,0.3)",  borderRadius: 3, padding: "1px 6px" }}>yellow = changed</span>
-          </span>
         </div>
       </div>
 
@@ -1219,6 +1220,7 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport, tailoredResume }: {
   const [fontFamily, setFontFamily] = useState(FONT_FAMILIES[0]!.value);
   const [marginPx, setMarginPx]     = useState(72); // 0.75"
   const [align, setAlign]           = useState<"left" | "center" | "right" | "justify">("left");
+  const [zoomScale, setZoomScale]   = useState(0.9); // default: slightly zoomed in for editing
 
   useEffect(() => {
     if (editAreaRef.current && !editAreaRef.current.innerHTML) {
@@ -1305,12 +1307,19 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport, tailoredResume }: {
         <select value={marginPx} onChange={e => setMarginPx(Number(e.target.value))} style={{ ...tbSelect, width: 68 }} title="Page margins">
           {MARGIN_OPTIONS.map(m => <option key={m.px} value={m.px}>{m.label}</option>)}
         </select>
+        <TbDivider />
+
+        {/* Zoom */}
+        <span style={{ fontSize: 11, color: "#6b7280", marginRight: 2 }}>Zoom:</span>
+        <TbBtn title="Zoom out" onClick={() => setZoomScale(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))}>−</TbBtn>
+        <span style={{ fontSize: 11, color: "#374151", minWidth: 34, textAlign: "center" }}>{Math.round(zoomScale * 100)}%</span>
+        <TbBtn title="Zoom in"  onClick={() => setZoomScale(z => Math.min(1.5, Math.round((z + 0.1) * 10) / 10))}>+</TbBtn>
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Center: formatted editable resume */}
-        <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "#e5e7eb" }}>
-          <PdfScroll>
+        <main style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", background: "#e5e7eb" }}>
+          <ScaledPdfPane fixedScale={zoomScale}>
             <PdfCard style={{ padding: marginPx }}>
               <div
                 ref={editAreaRef}
@@ -1319,7 +1328,7 @@ function EditScreen({ fontSizePt, setFontSizePt, onExport, tailoredResume }: {
                 style={{ ...W.doc, whiteSpace: "pre-wrap", wordBreak: "break-word", outline: "none", minHeight: PDF_HEIGHT - marginPx * 2 }}
               />
             </PdfCard>
-          </PdfScroll>
+          </ScaledPdfPane>
         </main>
 
         <EditChatResizer editAreaRef={editAreaRef} onExport={onExport} />
