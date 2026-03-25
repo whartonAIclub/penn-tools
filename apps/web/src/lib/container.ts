@@ -56,6 +56,8 @@ import { Tool1 } from "@penntools/tool-1";
 toolRegistry.register(new Tool1());
 import { Tool18 } from "@penntools/tool-18";
 toolRegistry.register(new Tool18());
+import { Tool17 } from "@penntools/tool-17";
+toolRegistry.register(new Tool17());
 
 // ── Resource seeding (fire-and-forget) ────────────────────────────────────────
 // Imported lazily to avoid a circular reference with the logger defined below.

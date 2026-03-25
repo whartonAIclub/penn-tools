@@ -1,0 +1,10 @@
+{
+  "name": "PennXchange",
+  "description": "A buy/sell marketplace for Penn students",
+  "category": "Marketplace",
+  "builders": ["Johnny Kim", "Samragyee De", "Alex Goreing"],
+  "mentor": "Mahima Singh",
+  "version": "0.0.1",
+  "inceptionDate": "2026-03-19",
+  "latestReleaseDate": "2026-03-19"
+}
