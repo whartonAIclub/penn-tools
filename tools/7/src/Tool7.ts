@@ -6,14 +6,14 @@ import type { Tool7Input, Tool7Output } from "./types.js";
 export class Tool7 extends Tool<Tool7Input, Tool7Output> {
   readonly manifest: ToolManifest = {
     id: "7",
-    title: "PitchCoach.AI",
-    description: "AI-powered communication coaching tool designed to help students improve their networking pitches and behavioral interview responses through structured, private practice",
+    title: "Resume Customizer",
+    description: "AI-powered tool that generates tailored resumes and cover letters from a student's full professional knowledge base",
     image: "/tools/7/icon.png",
-    contributors: ["Hannah Guo", "Ariana Katsanis", "Tony Sui", "Chithira Mamallan"],
+    contributors: ["Vismay Churiwala", "Nicole Goon", "Hongyu Mao", "Samir Patki"],
     mentor: "Sanjana Wadhwa",
     version: "0.0.1",
-    inceptionDate: "2026-03-18",
-    latestReleaseDate: "2026-03-18",
+    inceptionDate: "2026-03-19",
+    latestReleaseDate: "2026-03-19",
   };
 
   async execute(

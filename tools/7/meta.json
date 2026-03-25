@@ -1,10 +1,10 @@
 {
-  "name": "PitchCoach.AI",
-  "description": "AI-powered communication coaching tool designed to help students improve their networking pitches and behavioral interview responses through structured, private practice",
+  "name": "Resume Customizer",
+  "description": "AI-powered tool that generates tailored resumes and cover letters from a student's full professional knowledge base",
   "category": "Recruiting",
-  "builders": ["Hannah Guo", "Ariana Katsanis", "Tony Sui", "Chithira Mamallan"],
+  "builders": ["Vismay Churiwala", "Nicole Goon", "Hongyu Mao", "Samir Patki"],
   "mentor": "Sanjana Wadhwa",
   "version": "0.0.1",
-  "inceptionDate": "2026-03-18",
-  "latestReleaseDate": "2026-03-18"
+  "inceptionDate": "2026-03-19",
+  "latestReleaseDate": "2026-03-19"
 }
