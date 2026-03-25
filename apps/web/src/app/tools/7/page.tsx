@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { parseFile } from "./parseFile";
 import { parseResumeToStructuredData } from "./parseFile";
 import type { UploadedFile } from "./parseFile";
@@ -95,6 +95,109 @@ const IconFile = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="non
 const IconUpload = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>;
 const IconSend = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
 const IconChat = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+
+// Lightweight word-overlap check used before wordSim is defined in the file.
+function lineOverlap(a: string, b: string): number {
+  const tok = (s: string) => s.toLowerCase().replace(/[^\w]/g, " ").split(/\s+/).filter(w => w.length > 2);
+  const wa = tok(a); const wb = new Set(tok(b));
+  if (!wa.length || !wb.size) return 0;
+  return wa.filter(w => wb.has(w)).length / Math.max(wa.length, wb.size);
+}
+
+// ── Canvas-based PDF renderer — supports deletion overlays ─────────────────────
+type PageData = { url: string; overlays: { top: number; height: number }[] };
+
+function PdfCanvasViewer({ fileUrl, deletedLines }: { fileUrl: string; deletedLines?: string[] }) {
+  const [pages, setPages] = useState<PageData[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const pdfjsLib = await import("pdfjs-dist");
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      const pdf = await pdfjsLib.getDocument(fileUrl).promise;
+      const dpr = window.devicePixelRatio || 1;
+      const result: PageData[] = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        if (cancelled) return;
+        const page = await pdf.getPage(i);
+        const naturalW = page.getViewport({ scale: 1 }).width;
+        const scale = (PDF_WIDTH / naturalW) * dpr;
+        const viewport = page.getViewport({ scale });
+
+        // Render canvas
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(viewport.width);
+        canvas.height = Math.round(viewport.height);
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        // Compute overlays from text positions
+        const overlays: PageData["overlays"] = [];
+        if (deletedLines?.length) {
+          type Item = { str: string; transform: number[] };
+          const items = (await page.getTextContent()).items as Item[];
+
+          // Group items onto lines by y proximity (within 3 PDF units)
+          const lineGroups: { y: number; h: number; text: string }[] = [];
+          for (const item of items) {
+            if (!item.str.trim()) continue;
+            const pdfY = item.transform[5] ?? 0;
+            const pdfH = Math.abs(item.transform[3] ?? 10);
+            const existing = lineGroups.find(g => Math.abs(g.y - pdfY) < 3);
+            if (existing) { existing.text += " " + item.str; }
+            else { lineGroups.push({ y: pdfY, h: pdfH, text: item.str }); }
+          }
+
+          for (const line of lineGroups) {
+            const isDeleted = deletedLines.some(dl => lineOverlap(line.text, dl) > 0.35);
+            if (!isDeleted) continue;
+            // Convert PDF coords (bottom-up) → viewport pixels (top-down) → CSS px
+            const [, vpBaseline] = viewport.convertToViewportPoint(0, line.y);
+            const lineH = line.h * scale;
+            overlays.push({
+              top:    Math.max(0, (vpBaseline - lineH) / dpr),
+              height: lineH / dpr + 2,
+            });
+          }
+        }
+
+        result.push({ url: canvas.toDataURL("image/png"), overlays });
+      }
+      if (!cancelled) setPages(result);
+    })().catch(console.error);
+    return () => { cancelled = true; };
+  }, [fileUrl, deletedLines]);
+
+  if (!pages.length) {
+    return (
+      <div style={{ width: PDF_WIDTH, height: PDF_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: 13 }}>
+        Loading…
+      </div>
+    );
+  }
+  return (
+    <div style={{ width: PDF_WIDTH }}>
+      {pages.map((page, i) => (
+        <div key={i} style={{ position: "relative" }}>
+          <img src={page.url} width={PDF_WIDTH} style={{ display: "block" }} alt={`Page ${i + 1}`} />
+          {page.overlays.map((o, j) => (
+            <div key={j} style={{
+              position: "absolute", left: 0, right: 0,
+              top: o.top, height: o.height,
+              background: "rgba(239,68,68,0.18)",
+              pointerEvents: "none",
+            }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── PDF card — exact US Letter, 0.75" margins ──────────────────────────────────
 function PdfCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -481,7 +584,7 @@ function OnboardingScreen({ onNext, onFilesUploaded }: {
 // ── Screen 3: Workspace ────────────────────────────────────────────────────────
 function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagChange, onFileDelete }: {
   uploadedFiles: UploadedFile[];
-  onGenerate: (jobDescription: string, activeResumeContent: string, allFiles: UploadedFile[]) => void;
+  onGenerate: (jobDescription: string, activeResumeContent: string, allFiles: UploadedFile[], baseHtml?: string, baseFileUrl?: string) => void;
   onFilesAdded: (files: UploadedFile[]) => void;
   onFileTagChange: (id: string, tag: string) => void;
   onFileDelete: (id: string) => void;
@@ -621,25 +724,9 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
           </button>
         </div>
   <PdfScroll>
-  <PdfCard>
+  <PdfCard style={previewFile?.fileUrl ? { padding: 0, overflow: "hidden" } : {}}>
     {previewFile?.fileUrl ? (
-      <div
-        style={{
-          width: "100%",
-          height: PDF_HEIGHT,
-          background: "#fff",
-          borderRadius: 4,
-          overflow: "hidden",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
-        }}
-      >
-        <iframe
-          src={`${previewFile.fileUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-          width="100%"
-          height="100%"
-          style={{ border: "none" }}
-        />
-      </div>
+      <PdfCanvasViewer fileUrl={previewFile.fileUrl} />
     ) : (
       <ResumeTextView
         text={previewFile?.llmText ?? ""}
@@ -670,7 +757,7 @@ function WorkspaceScreen({ uploadedFiles, onGenerate, onFilesAdded, onFileTagCha
         </div>
         <div style={{ padding: "12px 14px", borderTop: "1px solid #dde4f5", background: "#e8eefb", flexShrink: 0 }}>
           <button
-            onClick={() => onGenerate(input, baseFile?.llmText ?? "", uploadedFiles)}
+            onClick={() => onGenerate(input, baseFile?.llmText ?? "", uploadedFiles, baseFile?.html, baseFile?.fileUrl)}
             disabled={!input.trim()}
             style={{ ...btnPrimary, width: "100%", padding: "11px", fontSize: 13, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: input.trim() ? 1 : 0.5, cursor: input.trim() ? "pointer" : "not-allowed" }}>
             <IconSend /> Generate Tailored Resume
@@ -810,15 +897,172 @@ function ScaledPdfPane({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ComparisonScreen({ onAccept, onBack, jobDescription, baseResumeContent, editedHtml, editedText, baseResumeFileUrl }: {
+// ── Diff helpers ──────────────────────────────────────────────────────────────
+
+function wordSim(a: string, b: string): number {
+  const tok = (s: string) => s.toLowerCase().replace(/[^\w]/g, " ").split(/\s+/).filter(Boolean);
+  const wa = tok(a); const wb = tok(b);
+  if (!wa.length && !wb.length) return 1;
+  if (!wa.length || !wb.length) return 0;
+  const sa = new Set(wa); const sb = new Set(wb);
+  let inter = 0;
+  sa.forEach(w => { if (sb.has(w)) inter++; });
+  return inter / (sa.size + sb.size - inter);
+}
+
+// Only flag major changes: truly new content (<0.2) or heavy rewrites (0.2–0.62).
+// Minor wording/spelling tweaks (>0.62) are left unmarked.
+type ChangeKind = "added" | "modified" | "unchanged";
+type OrigKind   = "deleted" | "unchanged";
+
+function classifyTailLine(line: string, origLines: string[]): ChangeKind {
+  if (!origLines.length) return "added";
+  const best = origLines.reduce((m, o) => Math.max(m, wordSim(line, o)), 0);
+  if (best > 0.62) return "unchanged";
+  if (best > 0.20) return "modified";
+  return "added";
+}
+
+function classifyOrigLine(line: string, tailLines: string[]): OrigKind {
+  if (!tailLines.length) return "deleted";
+  const best = tailLines.reduce((m, t) => Math.max(m, wordSim(line, t)), 0);
+  return best > 0.20 ? "unchanged" : "deleted";
+}
+
+const TAIL_BG: Record<ChangeKind, string> = {
+  added:     "rgba(34,197,94,0.11)",
+  modified:  "rgba(234,179,8,0.11)",
+  unchanged: "transparent",
+};
+const ORIG_BG: Record<OrigKind, string> = {
+  deleted:   "rgba(239,68,68,0.10)",
+  unchanged: "transparent",
+};
+
+// ── Shared line-renderer so both sides use identical Wharton layout ────────────
+function renderAnnotatedLines(
+  text: string,
+  getBg: (line: string) => string,
+): React.ReactNode[] {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+
+  const firstSectionIdx = lines.findIndex(l => SECTION_RE.test(l.trim()));
+  const headerLines = firstSectionIdx > 0 ? lines.slice(0, firstSectionIdx) : [];
+  const bodyLines   = firstSectionIdx >= 0 ? lines.slice(firstSectionIdx) : lines;
+
+  let nameRendered = false;
+  headerLines.forEach((line, i) => {
+    const t = line.trim();
+    if (!t) return;
+    const bg = getBg(t);
+    if (!nameRendered) {
+      elements.push(<div key={`h${i}`} style={{ ...W.name, background: bg, borderRadius: 2 }}>{t}</div>);
+      nameRendered = true;
+    } else {
+      elements.push(<div key={`hc${i}`} style={{ ...W.contact, background: bg, borderRadius: 2 }}>{t}</div>);
+    }
+  });
+
+  const pendingBullets: { text: string; bg: string }[] = [];
+  const flushBullets = (key: string) => {
+    if (!pendingBullets.length) return;
+    elements.push(
+      <ul key={key} style={W.ul}>
+        {pendingBullets.map((b, idx) => (
+          <li key={idx} style={{ ...W.li, background: b.bg, borderRadius: 2 }}>{b.text}</li>
+        ))}
+      </ul>
+    );
+    pendingBullets.length = 0;
+  };
+
+  bodyLines.forEach((line, i) => {
+    const t = line.trim();
+
+    if (SECTION_RE.test(t)) {
+      flushBullets(`bl${i}`);
+      elements.push(<div key={`sh${i}`} style={{ ...W.section, marginTop: 10, marginBottom: 4 }}>{t}</div>);
+      return;
+    }
+
+    if (/^[•\-]/.test(t)) {
+      const clean = t.replace(/^[•\-]\s*/, "");
+      pendingBullets.push({ text: clean, bg: getBg(clean) });
+      return;
+    }
+
+    flushBullets(`bl${i}`);
+    if (!t) return;
+
+    const pipeCol  = t.includes(" | ") ? t.split(" | ") : null;
+    const spaceCol = !pipeCol ? t.match(/^(.+?)\s{3,}(\S.*)$/) : null;
+    const left  = pipeCol ? pipeCol[0]!.trim() : spaceCol ? spaceCol[1]!.trim() : null;
+    const right = pipeCol ? pipeCol.slice(1).join(" | ").trim() : spaceCol ? spaceCol[2]!.trim() : null;
+
+    if (left && right) {
+      const isOrg = /^[A-Z][A-Z\s&,\-\.]{2,}/.test(left);
+      const bg    = getBg(t);
+      elements.push(
+        <div key={`r${i}`} style={{ ...W.row, marginTop: isOrg ? 6 : 0, background: bg, borderRadius: 2 }}>
+          <span style={isOrg ? W.org : W.role}>{left}</span>
+          <span style={{ ...W.meta, fontWeight: 700 }}>{right}</span>
+        </div>
+      );
+      return;
+    }
+
+    const isAllCaps = /^[A-Z\s&,\-\.]+$/.test(t) && t.length > 3;
+    const bg = getBg(t);
+    elements.push(
+      <div key={`l${i}`} style={{ background: bg, borderRadius: 2, ...(isAllCaps ? { fontWeight: 700, textTransform: "uppercase" as const, marginTop: 4 } : { fontStyle: "italic", marginBottom: 1 }) }}>
+        {t}
+      </div>
+    );
+  });
+
+  flushBullets("final");
+  return elements;
+}
+
+// Right pane: highlights additions + major rewrites in the tailored resume
+function DiffAnnotatedView({ origText, tailText }: { origText: string; tailText: string }) {
+  const origLines = origText.split("\n").map(l => l.trim()).filter(Boolean);
+  const getBg = (line: string) => TAIL_BG[classifyTailLine(line, origLines)];
+  return <div style={{ ...W.doc }}>{renderAnnotatedLines(tailText, getBg)}</div>;
+}
+
+// Left pane: renders original text as-is (no reformatting) with deleted lines highlighted.
+// Uses plain pre-wrap rendering to preserve the original document's line structure exactly.
+function DiffOriginalView({ origText, tailText }: { origText: string; tailText: string }) {
+  const tailLines = tailText.split("\n").map(l => l.trim()).filter(Boolean);
+  return (
+    <div style={{ ...W.doc, wordBreak: "break-word" }}>
+      {origText.split("\n").map((line, i) => {
+        const t = line.trim();
+        if (!t) return <div key={i} style={{ height: "0.6em" }} />;
+        const bg = ORIG_BG[classifyOrigLine(t, tailLines)];
+        return <div key={i} style={{ background: bg, borderRadius: 2 }}>{line}</div>;
+      })}
+    </div>
+  );
+}
+
+function ComparisonScreen({ onAccept, onBack, jobDescription, baseResumeContent, baseResumeHtml, baseResumeFileUrl, editedText }: {
   onAccept: () => void;
   onBack: () => void;
   jobDescription: string;
   baseResumeContent: string;
-  editedHtml: string;
+  baseResumeHtml?: string;
+  baseResumeFileUrl?: string;
   editedText: string;
-  baseResumeFileUrl: string;
 }) {
+  const deletedLines = useMemo(() => {
+    const tailLines = editedText.split("\n").map(l => l.trim()).filter(Boolean);
+    return baseResumeContent.split("\n").map(l => l.trim()).filter(Boolean)
+      .filter(line => classifyOrigLine(line, tailLines) === "deleted");
+  }, [baseResumeContent, editedText]);
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
       {/* Top bar */}
@@ -835,11 +1079,18 @@ function ComparisonScreen({ onAccept, onBack, jobDescription, baseResumeContent,
 
       {/* Full-width column headers */}
       <div style={{ display: "flex", flexShrink: 0, gap: 4 }}>
-        <div style={{ flex: 1, padding: "10px 20px", background: "#4b5563", fontSize: 12, fontWeight: 700, color: "#f9fafb", textTransform: "uppercase", letterSpacing: 1 }}>
-          Original Resume
+        <div style={{ flex: 1, padding: "10px 20px", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: 1 }}>Original Resume</span>
+          <span style={{ fontSize: 10, color: "#9ca3af" }}>
+            <span style={{ background: "rgba(239,68,68,0.18)", borderRadius: 3, padding: "1px 6px", color: "#b91c1c" }}>red = removed</span>
+          </span>
         </div>
-        <div style={{ flex: 1, padding: "10px 20px", background: "#0369a1", fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: 1 }}>
-          Edited Resume ✦
+        <div style={{ flex: 1, padding: "10px 20px", background: "#0369a1", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: 1 }}>Tailored Resume ✦</span>
+          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", display: "flex", gap: 6 }}>
+            <span style={{ background: "rgba(34,197,94,0.3)",  borderRadius: 3, padding: "1px 6px" }}>green = added</span>
+            <span style={{ background: "rgba(234,179,8,0.3)",  borderRadius: 3, padding: "1px 6px" }}>yellow = changed</span>
+          </span>
         </div>
       </div>
 
@@ -848,24 +1099,21 @@ function ComparisonScreen({ onAccept, onBack, jobDescription, baseResumeContent,
         <div style={{ display: "flex", width: "100%", maxWidth: (PDF_WIDTH * 0.75 + 40) * 2, minHeight: 0 }}>
           <ScaledPdfPane>
             {baseResumeFileUrl ? (
-              <div style={{ width: PDF_WIDTH, minHeight: PDF_HEIGHT, background: "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.15)", borderRadius: 1 }}>
-                <iframe
-                  src={`${baseResumeFileUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                  width={PDF_WIDTH}
-                  height={PDF_HEIGHT}
-                  style={{ border: "none", display: "block" }}
-                />
-              </div>
+              <PdfCard style={{ padding: 0, overflow: "hidden" }}>
+                <PdfCanvasViewer fileUrl={baseResumeFileUrl} deletedLines={deletedLines} />
+              </PdfCard>
             ) : (
               <PdfCard>
-                <ResumeTextView text={baseResumeContent} />
+                {baseResumeHtml
+                  ? <ResumeTextView html={baseResumeHtml} text={baseResumeContent} />
+                  : <DiffOriginalView origText={baseResumeContent} tailText={editedText} />}
               </PdfCard>
             )}
           </ScaledPdfPane>
 
           <ScaledPdfPane>
             <PdfCard>
-              <ResumeTextView html={editedHtml} text={editedText} />
+              <DiffAnnotatedView origText={baseResumeContent} tailText={editedText} />
             </PdfCard>
           </ScaledPdfPane>
         </div>
@@ -1173,7 +1421,7 @@ function EditChatResizer({ editAreaRef, onExport }: { editAreaRef: React.RefObje
           }}
           footer={
             <button
-              onClick={() => { const html = editAreaRef.current?.innerHTML ?? ""; const text = editAreaRef.current?.innerText ?? ""; onExport(html, text); }}
+              onClick={() => { const html = editAreaRef.current?.innerHTML ?? ""; const text = editAreaRef.current ? htmlToResumeText(editAreaRef.current) : ""; onExport(html, text); }}
               style={{ ...btnPrimary, width: "100%", padding: "10px", fontSize: 13, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               Compare →
             </button>
@@ -1269,9 +1517,11 @@ export default function Tool7Page() {
   const [screen, setScreen]                           = useState<Screen>("landing");
   const [fontSizePt, setFontSizePt]                   = useState(12);
   const [uploadedFiles, setUploadedFiles]             = useState<UploadedFile[]>([]);
-  const [baseResumeFileUrl, setBaseResumeFileUrl] = useState(""); // ⭐ ADD THIS
+
   const [allGenerateFiles, setAllGenerateFiles]       = useState<UploadedFile[]>([]);
   const [activeResumeContent, setActiveResumeContent] = useState("");
+  const [baseResumeHtml, setBaseResumeHtml]           = useState<string | undefined>(undefined);
+  const [baseResumeFileUrl, setBaseResumeFileUrl]     = useState<string | undefined>(undefined);
   const [jobDescription, setJobDescription]           = useState("");
   const [tailoredResume, setTailoredResume]           = useState("");
   const [editedHtml, setEditedHtml]                   = useState("");
@@ -1296,16 +1546,12 @@ export default function Tool7Page() {
       {screen === "workspace"  && (
         <WorkspaceScreen
         uploadedFiles={uploadedFiles}
-        onGenerate={(jd, content, files) => {
+        onGenerate={(jd, content, files, html, fileUrl) => {
           setJobDescription(jd);
           setActiveResumeContent(content);
           setAllGenerateFiles(files);
-      
-          // ⭐ ADD THIS BLOCK
-          const baseFile = files.find(f => f.tag === "Resume");
-          if (baseFile?.fileUrl) {
-            setBaseResumeFileUrl(baseFile.fileUrl);
-          }
+          setBaseResumeHtml(html);
+          setBaseResumeFileUrl(fileUrl);
       
           setScreen("generating");
         }}
@@ -1328,9 +1574,9 @@ export default function Tool7Page() {
           onBack={() => setScreen("edit")}
           jobDescription={jobDescription}
           baseResumeContent={activeResumeContent}
-          editedHtml={editedHtml}
+          {...(baseResumeHtml    ? { baseResumeHtml }    : {})}
+          {...(baseResumeFileUrl ? { baseResumeFileUrl } : {})}
           editedText={editedText}
-          baseResumeFileUrl={baseResumeFileUrl}
         />
       )}
       {screen === "edit" && (
