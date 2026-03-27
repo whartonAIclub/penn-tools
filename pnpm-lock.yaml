@@ -47,6 +47,9 @@ importers:
       '@penntools/tool-8':
         specifier: workspace:*
         version: link:../../tools/8
+      '@penntools/tool-ai-compass':
+        specifier: workspace:*
+        version: link:../../tools/ai-compass
       '@penntools/tool-penn-planner':
         specifier: workspace:*
         version: link:../../tools/penn-planner
@@ -166,6 +169,19 @@ importers:
         version: 1.6.1(@types/node@20.19.33)
 
   tools/8:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
+  tools/ai-compass:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
