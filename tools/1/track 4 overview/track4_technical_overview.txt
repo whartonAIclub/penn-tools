@@ -1,0 +1,289 @@
+Track 4 — Bidding Guidance: Technical Overview
+================================================
+CourseMatch Companion Tool (Tool 1)
+Last updated: March 2026
+
+
+════════════════════════════════════════════════════════════════
+1. DATA PIPELINE
+════════════════════════════════════════════════════════════════
+
+MBA Inside XLSX file
+       │
+       ▼
+  ingestClearingPrices(buffer, term, options?)       [ingest.ts]
+       │
+       ▼
+  parseXlsx()                                        [parseXlsx.ts]
+  • Reads workbook with SheetJS
+  • Normalises column names (handles variants like
+    "Clearing Price", "clearingprice", "price", etc.)
+  • Validates required columns are present
+       │
+       ▼
+  sanitizeRecord()   (per row)                       [sanitize.ts]
+  • Field-level validation and type coercion
+  • Strict mode (default): blocks prompt-injection via
+    character allowlist — disable with { strict: false }
+    while LLM integration is not active
+  • Rejected rows are logged in IngestionResult,
+    not silently dropped
+       │
+       ▼
+  upsertRecords()                                    [store.ts]
+  • Stored in-memory Map keyed by "courseId::section"
+  • Multiple terms accumulated per course/section
+  • Same term re-ingested → replaces existing record
+  • Always sorted oldest → newest
+       │
+       ▼
+  computeBidGuidance() / getBidGuidance()            [bidEngine.ts]
+  • Reads history from store (or accepts array directly)
+  • Outputs BidGuidance with thresholds
+       │
+       ▼
+  Frontend / Other Tracks consume BidGuidance
+
+
+════════════════════════════════════════════════════════════════
+2. MATH: BID RECOMMENDATION ENGINE
+════════════════════════════════════════════════════════════════
+
+All calculations operate on the array of historical clearing
+prices for a given course+section, sorted oldest to newest.
+
+── 2.1 PROJECTED PRICE ─────────────────────────────────────────
+
+Uses ordinary least squares (OLS) linear regression to fit a
+slope to the price history, then projects one term forward.
+
+  slope = Σ[(i - mean_i)(price_i - mean_price)]
+          ─────────────────────────────────────
+                   Σ[(i - mean_i)²]
+
+  projected_price = last_price + slope
+
+  (If fewer than 2 terms of data, slope = 0 and
+   projected_price = last known price.)
+
+Example (FNCE611: 320, 380, 430, 490):
+  mean_i = 1.5,  mean_price = 405
+  slope  ≈ 56.7 pts/term
+  projected ≈ 490 + 56.7 ≈ 547 pts
+
+── 2.2 TREND CLASSIFICATION ────────────────────────────────────
+
+  threshold = mean_price × 0.02   (2% of average)
+
+  if slope > +threshold  → "rising"
+  if slope < -threshold  → "falling"
+  else                   → "stable"
+
+The 2% threshold filters out noise — small slopes that don't
+meaningfully change bid strategy are treated as stable.
+
+── 2.3 VOLATILITY CLASSIFICATION ───────────────────────────────
+
+Uses the coefficient of variation (CV = stdDev / mean),
+which normalises volatility relative to price level so that
+a 50pt swing on a 100pt course is treated differently than
+a 50pt swing on a 1000pt course.
+
+  stdDev = sqrt( Σ[(price_i - mean)²] / n )
+  CV     = stdDev / mean_price
+
+  if CV < 0.10  → "low"      (prices are consistent)
+  if CV < 0.25  → "medium"   (moderate swings)
+  else          → "high"     (large, unpredictable swings)
+
+── 2.4 TIER DETERMINATION ──────────────────────────────────────
+
+Tier is determined by combining trend and volatility:
+
+  Trend     Volatility   Tier
+  ────────────────────────────────────
+  rising    high         safe
+  rising    medium       safe
+  rising    low          competitive
+  stable    high         safe
+  stable    medium       competitive
+  stable    low          competitive
+  falling   high         safe
+  falling   medium       competitive
+  falling   low          reach
+
+  Logic: high volatility always warrants a safe bid regardless
+  of trend — unpredictable courses can spike without warning.
+  Only falling + low volatility (predictably declining demand)
+  justifies a reach bid.
+
+── 2.5 BID THRESHOLDS ──────────────────────────────────────────
+
+Three concrete minimum bids are output, all based on the
+projected price and the standard deviation as a buffer:
+
+  safe        = clamp(projected_price + stdDev)
+  competitive = clamp(projected_price)
+  reach       = clamp(projected_price - stdDev)
+
+  clamp() ensures all values stay within [0, 5000] pts.
+
+  Interpretation:
+  • safe:        bid AT LEAST this — very likely to clear
+  • competitive: bid AT LEAST this — likely to clear (≈50%)
+  • reach:       bid AT LEAST this — risky, may not clear
+
+  Note: in CourseMatch, the clearing price is determined by
+  aggregate demand AFTER bidding. These thresholds are
+  projections based on historical patterns, not guarantees.
+
+
+════════════════════════════════════════════════════════════════
+3. PUBLIC API — WHAT OTHER TRACKS IMPORT
+════════════════════════════════════════════════════════════════
+
+  import { ... } from "@penntools/tool-1/track4";
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ FUNCTION                   DESCRIPTION                  │
+  ├─────────────────────────────────────────────────────────┤
+  │ getBidGuidance(            Store-backed lookup.          │
+  │   courseId, section        Returns BidGuidance | null   │
+  │ )                          for a single section.        │
+  ├─────────────────────────────────────────────────────────┤
+  │ computeBidGuidance(        Pure function, no store.     │
+  │   courseId,                Pass your own history array. │
+  │   section,                 Returns BidGuidance | null.  │
+  │   history[]                                             │
+  │ )                                                       │
+  ├─────────────────────────────────────────────────────────┤
+  │ getBidGuidanceForBundle(   Batch lookup for a schedule  │
+  │   [{courseId, section}]    bundle. Skips courses with   │
+  │ )                          no history (no error).       │
+  ├─────────────────────────────────────────────────────────┤
+  │ getSectionsForCourse(      Returns all section IDs      │
+  │   courseId                 with history for a course.   │
+  │ )                          Useful before section is     │
+  │                            known (e.g. Track 2).        │
+  ├─────────────────────────────────────────────────────────┤
+  │ ingestClearingPrices(      Server-side ingestion.       │
+  │   buffer, term, options?   Called once per term when    │
+  │ )                          MBA Inside file arrives.     │
+  └─────────────────────────────────────────────────────────┘
+
+  BidGuidance shape (what other tracks receive):
+
+  {
+    courseId:        string
+    section:         string
+    title:           string
+    trend:           "rising" | "falling" | "stable"
+    volatility:      "low" | "medium" | "high"
+    tier:            "safe" | "competitive" | "reach"
+    projectedPrice:  number          // estimated next clearing price
+    averagePrice:    number          // mean across all historical terms
+    thresholds: {
+      safe:          number          // bid ≥ this to be very likely in
+      competitive:   number          // bid ≥ this to be likely in
+      reach:         number          // bid ≥ this — risky
+    }
+    historicalPrices: [              // sorted oldest → newest
+      { term: string, price: number }
+    ]
+  }
+
+
+════════════════════════════════════════════════════════════════
+4. CROSS-TRACK INTERFACES
+════════════════════════════════════════════════════════════════
+
+── TRACK 2 → TRACK 4 ───────────────────────────────────────────
+
+Track 2 produces a list of courses a student is interested in,
+but at the COURSE level only (e.g. "FNCE611") — it does not
+know which section the student will end up in. Track 4's store
+is keyed at the course+section level.
+
+WHAT TRACK 2 MUST DO:
+  1. For each recommended course, call:
+       getSectionsForCourse("FNCE611")
+       → returns ["001", "002", ...]
+  2. Then call getBidGuidance() for each section, or pass all
+     sections to getBidGuidanceForBundle().
+  3. Surface all section options + their bid thresholds to the
+     student so they can factor section availability into
+     their bidding strategy.
+
+WHAT TRACK 2 DOES NOT NEED TO DO:
+  • Parse or store any clearing price data — that is
+    entirely owned by Track 4.
+  • Filter out sections — return all and let the student choose.
+
+── TRACK 3 → TRACK 4 ───────────────────────────────────────────
+
+Track 3 generates schedule bundles — sets of non-conflicting
+sections with specific courseId + section for each course.
+The project spec states that schedule bundles should include
+"bid guidance per course in the bundle."
+
+WHAT TRACK 3 MUST DO:
+  1. Once a schedule bundle is generated, call:
+       getBidGuidanceForBundle([
+         { courseId: "FNCE611", section: "001" },
+         { courseId: "MGMT611", section: "001" },
+         ...
+       ])
+       → returns BidGuidance[] for all courses that have data
+  2. Attach the returned BidGuidance array to the schedule
+     bundle before passing it to the frontend or LLM layer.
+  3. Handle the case where some courses have no bid guidance
+     (getBidGuidanceForBundle silently skips unknowns — Track 3
+     should display "no data available" for those courses).
+
+WHAT TRACK 3 DOES NOT NEED TO DO:
+  • Compute any bid math — call Track 4's functions directly.
+  • Worry about ingestion — the store is pre-populated
+    server-side before any student session begins.
+
+AGREED INTERFACE (Track 3 should plan around this shape):
+
+  // Track 3 output — suggested final shape
+  interface ScheduleBundle {
+    sections:                 Array<{ courseId: string; section: string; ... }>
+    requirementCoverageScore: number
+    preferenceAlignmentScore: number
+    bidGuidance:              BidGuidance[]   // ← Track 4 fills this
+  }
+
+── TRACK 1 → TRACK 4 ───────────────────────────────────────────
+
+Track 1 (transcript parsing) has no direct integration with
+Track 4. Completed courses should not appear in bid guidance
+requests — but this filtering responsibility belongs to
+Track 2 (preference/recommendation layer), not Track 4.
+
+Track 4 does not need to know which courses a student has
+already completed.
+
+
+════════════════════════════════════════════════════════════════
+5. CURRENT LIMITATIONS & KNOWN GAPS
+════════════════════════════════════════════════════════════════
+
+• In-memory store: clears on server restart. Bid guidance will
+  not be available until ingestClearingPrices() is called again.
+  Needs a persistent database before production.
+
+• Strict mode off by default during development: the prompt-
+  injection character allowlist is bypassed when
+  { strict: false } is passed to ingestClearingPrices().
+  Re-enable strict: true before connecting an LLM.
+
+• Projection accuracy: with only 2–3 terms of history (realistic
+  for newer courses), the linear regression slope is noisy.
+  Courses with 1 term default to "stable" trend and project
+  at the last known price.
+
+• No shared ScheduleBundle type: Tracks 3 and 4 need to agree
+  on a shared TypeScript interface. This should live in
+  tools/1/src/types.ts (shared across all tracks in Tool 1).

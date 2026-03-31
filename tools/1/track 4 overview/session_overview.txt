@@ -1,0 +1,88 @@
+Session Overview — Tool 1, Track 4: Bidding Guidance
+=====================================================
+
+WHAT WAS BUILT
+--------------
+A historical clearing price ingestion and bid guidance module scaffolded in tools/1/src/track4/:
+
+  types.ts      — Shared types: ClearingPriceRecord, BidGuidance, enums
+  sanitize.ts   — Field-level validation and sanitization of raw xlsx data
+  parseXlsx.ts  — SheetJS xlsx parser with flexible column name aliasing
+  store.ts      — Multi-term in-memory store keyed by courseId::section
+  bidEngine.ts  — Linear regression trend + volatility -> safe/competitive/reach tiers
+  ingest.ts     — Orchestrator: parse -> sanitize -> store
+  index.ts      — Public API surface
+
+Also added xlsx (SheetJS) to tools/1/package.json and pushed everything to the tool1-track4test branch.
+
+
+KEY DECISIONS AND TRADEOFFS
+----------------------------
+
+Prompt injection defense — sanitize at the boundary
+  All xlsx data is treated as untrusted external input. String fields are run through a character
+  allowlist ([A-Za-z0-9 .,'\-()&/]+) and length-capped before anything downstream touches them.
+  The rule for LLM usage: only pass structured/numeric fields (courseId, clearingPrice) into
+  prompts — never raw strings like title or instructor.
+
+  Tradeoff: the allowlist will reject legitimate course names with unusual characters (e.g.
+  accented letters, colons). May need to be widened once real data is seen.
+
+Multi-term keyed store over single-snapshot
+  Chose Map<courseId::section, ClearingPriceRecord[]> so the bid engine can compute trends and
+  variance across terms rather than just reporting a single price. This is what makes
+  safe/competitive/reach tiers meaningful.
+
+  Tradeoff: the store is in-memory, so it resets on server restart. Fine for now, but will need
+  persistence (database) before production.
+
+Server-side ingestion, no student file uploads
+  The xlsx files get piped in server-side from MBA Inside rather than uploaded by students.
+  Simpler, more controlled, avoids dealing with malformed uploads.
+
+  Tradeoff: someone on the team needs to own the pipeline that fetches and feeds new xlsx files
+  when Wharton publishes them each term.
+
+SheetJS for xlsx parsing
+  Standard choice, handles Excel time serial numbers and various xlsx formats. The parser
+  normalizes column name variants (e.g. "Clearing Price", "clearingprice", "price") to a
+  canonical form so it's resilient to minor format changes in the MBA Inside files.
+
+  Tradeoff: SheetJS's free tier (xlsx package) hasn't had a major release in a while. If the
+  xlsx format ever uses newer Excel features, there could be compatibility issues.
+
+Linear regression for trend detection
+  Used a simple slope calculation over historical prices rather than a moving average or more
+  complex model. Threshold is set at >2% of mean per term to distinguish signal from noise.
+
+  Tradeoff: with only 2-3 terms of data (realistic for a new course), the trend will default to
+  "stable". That's conservative and safe, but means guidance is less differentiated for newer
+  courses.
+
+
+NEXT STEPS
+----------
+
+Immediate (before this branch is useful):
+  1. Run pnpm install once Node/pnpm is fully set up — resolves pre-existing @penntools/core
+     type errors
+  2. Confirm the real MBA Inside xlsx column names match the aliases in parseXlsx.ts — get a
+     sample file and test against it
+  3. Wire ingestClearingPrices() into the tool's execution flow in Tool1.ts
+
+Track 4 P0 features remaining:
+  - Bid recommendation output — connect getBidGuidance() to the LLM API so it can explain the
+    tiers in natural language to the student
+  - Expose bid guidance via the frontend in apps/web/src/app/tools/1/
+
+Track 4 P3 (future):
+  - Similarity rules for courses with thin history (e.g. "this course clears similarly to
+    MGMT 612")
+  - Persist the store to a database so history survives server restarts
+  - Replace the in-memory store with a proper query layer once the Platform team exposes a DB API
+
+Cross-track coordination needed:
+  - Track 2 will produce a list of student-preferred courses — Track 4 needs to accept that list
+    and return bid guidance for each
+  - Track 3's schedule bundles will need bid guidance per course — align on the interface between
+    the two tracks
