@@ -73,6 +73,30 @@ function addDays(n: number): string {
   return d.toISOString().split("T")[0];
 }
 
+/** Extract readable text from a PDF using pdfjs-dist (handles compressed/encoded PDFs). */
+async function extractTextFromPDF(file: File): Promise<string> {
+  const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+  // Use CDN worker — avoids Next.js/webpack bundling complexity
+  GlobalWorkerOptions.workerSrc =
+    "https://unpkg.com/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs";
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await getDocument({ data: arrayBuffer }).promise;
+
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page    = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((item: any) => ("str" in item ? item.str : ""))
+      .join(" ");
+    text += pageText + "\n";
+  }
+
+  return text.trim().slice(0, 12000);
+}
+
 function getMockAssignments(rigor: number): Assignment[] {
   const m = RIGOR_MULTIPLIERS[rigor];
   const r = (type: AssignmentType) =>
@@ -319,22 +343,127 @@ function TypeBadge({ type }: { type: AssignmentType }) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function PennPlannerPage() {
-  const [step,        setStep]        = useState<Step>("setup");
-  const [rigor,       setRigor]       = useState(2);
-  const [pacePrefs,   setPacePrefs]   = useState<string[]>([]);
-  const [fileName,    setFileName]    = useState<string | null>(null);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [blocks,      setBlocks]      = useState<CalendarBlock[]>([]);
+  const [step,         setStep]         = useState<Step>("setup");
+  const [rigor,        setRigor]        = useState(2);
+  const [pacePrefs,    setPacePrefs]    = useState<string[]>([]);
+  const [fileName,     setFileName]     = useState<string | null>(null);
+  const [syllabusFile, setSyllabusFile] = useState<File | null>(null);
+  const [assignments,  setAssignments]  = useState<Assignment[]>([]);
+  const [blocks,       setBlocks]       = useState<CalendarBlock[]>([]);
+  const [error,        setError]        = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // ── Always use mock data ───────────────────────────────────────────────────────
+  // ── Generate plan: real LLM if PDF uploaded, mock otherwise ──────────────────
 
   async function handleGenerate() {
+    setError(null);
     setStep("generating");
-    await new Promise(r => setTimeout(r, 800)); // brief loading feel
-    const mockAssignments = getMockAssignments(rigor);
-    setAssignments(mockAssignments);
-    setStep("review");
+
+    // No PDF → use mock directly
+    if (!syllabusFile) {
+      await new Promise(r => setTimeout(r, 600));
+      setAssignments(getMockAssignments(rigor));
+      setStep("review");
+      return;
+    }
+
+    try {
+      const text  = await extractTextFromPDF(syllabusFile);
+      const today = new Date().toISOString().split("T")[0];
+      const multiplier = RIGOR_MULTIPLIERS[rigor];
+      const paceDesc   = pacePrefs.length ? pacePrefs.join("; ") : "no specific pace preferences";
+
+      // ── Step 1: Parse deliverables ───────────────────────────────────────────
+      const parsePrompt = `You are a syllabus parser for a Penn MBA/graduate student.
+
+Your ONLY job: extract graded deliverables the student must submit.
+These include: assignments, quizzes, exams, projects, case writeups, problem sets, papers, reflections, homeworks.
+
+Critical rules:
+- ONLY extract items that are explicit graded submissions
+- Look in columns/sections labelled "Deliverables", "Assignments", "Due", "Homework", "Submit"
+- DO NOT include readings (textbook chapters, articles, or cases listed only for reading)
+- DO NOT include lecture topics, class sessions, guest speakers, or "No class" rows
+- If a due date is embedded in the deliverable name (e.g. "Project 2 - 3/8 by 11:59pm"), use THAT date, not the class session date
+- If the syllabus is a table with a "Deliverables" column, only rows where that column is non-empty count
+- Syllabi vary in format (tables, bullets, paragraphs) — adapt accordingly
+
+Syllabus text:
+${text}
+
+Today is ${today}.
+Return ONLY a valid JSON array — no markdown, no explanation:
+[{"id":"a1","name":"exact deliverable name","course":"course name or number","type":"case|essay|problem-set|reading|presentation|exam|reflection|group-project|quiz|other","dueDate":"YYYY-MM-DD"}]`;
+
+      const parseRes = await fetch("/api/llm/complete", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: parsePrompt }),
+      });
+
+      if (!parseRes.ok) throw new Error("llm_unavailable");
+      const parseData = await parseRes.json() as { content: string };
+      const parseMatch = parseData.content.match(/\[[\s\S]*\]/);
+      const parsed: Omit<Assignment, "estimatedHours" | "confidence" | "reasoning">[] =
+        JSON.parse(parseMatch ? parseMatch[0] : parseData.content);
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("empty_parse");
+
+      // ── Step 2: Estimate effort ──────────────────────────────────────────────
+      const refLines = Object.entries(MBA_REFERENCE)
+        .map(([k, v]) => `  ${k}: ${v.baseHours}h baseline`).join("\n");
+
+      const estimatePrompt = `You are an effort estimation engine for Penn MBA students.
+
+Student profile:
+- Rigor mode: ${RIGOR_LABELS[rigor]} (${Math.round(multiplier * 100)}% of baseline)
+- Pace preferences: ${paceDesc}
+
+MBA average hours by type (at 1.0× rigor):
+${refLines}
+
+Apply the rigor multiplier and pace adjustments. Return a JSON array:
+[{"id":"same as input","estimatedHours":number,"confidence":"high|medium|low","reasoning":"one sentence"}]
+
+Assignments:
+${JSON.stringify(parsed, null, 2)}
+
+Return ONLY valid JSON array. No markdown.`;
+
+      const estRes = await fetch("/api/llm/complete", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: estimatePrompt }),
+      });
+
+      if (!estRes.ok) throw new Error("llm_unavailable");
+      const estData  = await estRes.json() as { content: string };
+      const estMatch = estData.content.match(/\[[\s\S]*\]/);
+      const estimates: { id: string; estimatedHours: number; confidence: "high"|"medium"|"low"; reasoning: string }[] =
+        JSON.parse(estMatch ? estMatch[0] : estData.content);
+
+      const estMap = Object.fromEntries(estimates.map(e => [e.id, e]));
+      const final: Assignment[] = parsed.map(a => {
+        const safeType = (a.type in MBA_REFERENCE ? a.type : "other") as AssignmentType;
+        return {
+          ...a, type: safeType,
+          estimatedHours: estMap[a.id]?.estimatedHours ?? MBA_REFERENCE[safeType].baseHours,
+          confidence:     estMap[a.id]?.confidence     ?? "medium",
+          reasoning:      estMap[a.id]?.reasoning      ?? "",
+        };
+      });
+
+      setAssignments(final);
+      setStep("review");
+    } catch (err) {
+      const msg = String(err);
+      // LLM unavailable or parsing failed → fall back to mock with a notice
+      if (msg.includes("llm_unavailable") || msg.includes("empty_parse") || msg.includes("JSON")) {
+        setError("LLM API unavailable — showing sample data. Connect to PennTools platform for real parsing.");
+        setAssignments(getMockAssignments(rigor));
+        setStep("review");
+      } else {
+        setError(`Error: ${msg}`);
+        setStep("setup");
+      }
+    }
   }
 
   function handleBuildCalendar() {
@@ -432,6 +561,13 @@ export default function PennPlannerPage() {
         ))}
       </div>
 
+      {/* Error */}
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 16, color: C.red, fontSize: 14 }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       {/* ══════════ STEP 1 — SETUP ══════════ */}
       {(step === "setup" || step === "generating") && (
         <>
@@ -439,12 +575,16 @@ export default function PennPlannerPage() {
           <div style={card}>
             <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>Upload Syllabus</h2>
             <p style={{ color: C.gray, fontSize: 13, margin: "0 0 16px" }}>
-              Optional for v1 — demo uses sample Wharton MBA assignments
+              Upload your course syllabus PDF — or skip to use sample Wharton MBA data
             </p>
             <div
               onClick={() => fileRef.current?.click()}
               onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setFileName(f.name); }}
+              onDrop={e => {
+                e.preventDefault();
+                const f = e.dataTransfer.files[0];
+                if (f) { setFileName(f.name); setSyllabusFile(f); }
+              }}
               style={{
                 border: `2px dashed ${fileName ? C.blue : C.border}`,
                 borderRadius: 8, padding: "24px", textAlign: "center",
@@ -461,12 +601,15 @@ export default function PennPlannerPage() {
                 <>
                   <div style={{ fontSize: 28, marginBottom: 8 }}>📤</div>
                   <div style={{ fontWeight: 600 }}>Drop PDF here or click to upload</div>
-                  <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>PDF files only</div>
+                  <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>PDF files only · drag &amp; drop supported</div>
                 </>
               )}
             </div>
             <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) setFileName(f.name); }} />
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) { setFileName(f.name); setSyllabusFile(f); }
+              }} />
           </div>
 
           {/* Rigor */}
