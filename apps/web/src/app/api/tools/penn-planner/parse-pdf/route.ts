@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { createRequire } from "module";
 
-// Server-side PDF text extraction — avoids pdfjs-dist worker issues in the browser.
-// pdfjs-dist runs cleanly in Node.js without a web worker.
+// Point the worker at the actual file on disk — required even in Node.js for pdfjs v5
+const require = createRequire(import.meta.url);
+const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+GlobalWorkerOptions.workerSrc = workerPath;
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,14 +14,7 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
     const arrayBuffer = await file.arrayBuffer();
-    const buffer      = Buffer.from(arrayBuffer);
-
-    // Dynamically import pdfjs-dist legacy build (Node.js compatible, no worker needed)
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as string);
-    // Disable worker on server — not needed for Node.js text extraction
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-
-    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+    const pdf = await getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
     let text = "";
     for (let i = 1; i <= pdf.numPages; i++) {
@@ -30,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ text: text.trim().slice(0, 12000) });
   } catch (err) {
-    console.error("PDF parse error:", err);
+    console.error("[penn-planner] PDF parse error:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
