@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // ── MBA Reference Dataset ──────────────────────────────────────────────────────
 
@@ -382,10 +382,14 @@ export default function PennPlannerPage() {
   const [error,        setError]        = useState<string | null>(null);
   const [apiKeyInput,  setApiKeyInput]  = useState("");
   const [showApiKey,   setShowApiKey]   = useState(false);
+  const [storedApiKey, setStoredApiKey] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Read stored API key (client-side only)
-  const storedApiKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+  // Read localStorage after mount to avoid hydration mismatch
+  useEffect(() => {
+    setStoredApiKey(localStorage.getItem("penntools_api_key") ?? "");
+  }, []);
+
   const llmHeaders = (key: string) => ({
     "Content-Type": "application/json",
     ...(key ? { "X-Api-Key": key } : {}),
@@ -728,7 +732,7 @@ Return ONLY valid JSON array. No markdown.`;
                 <input type="password" placeholder="sk-... or sk-ant-..." value={apiKeyInput}
                   onChange={e => setApiKeyInput(e.target.value)}
                   style={{ flex: 1, padding: "7px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
-                <button onClick={() => { if (apiKeyInput) { localStorage.setItem("penntools_api_key", apiKeyInput); setApiKeyInput(""); setShowApiKey(false); } }}
+                <button onClick={() => { if (apiKeyInput) { localStorage.setItem("penntools_api_key", apiKeyInput); setStoredApiKey(apiKeyInput); setApiKeyInput(""); setShowApiKey(false); } }}
                   style={{ ...btn(true, true) }}>
                   Save
                 </button>
