@@ -2,7 +2,7 @@ import type { BidGuidance, ClearingPriceRecord } from "@penntools/tool-1/track4"
 import { computeBidGuidance, SEED_RECORDS } from "@penntools/tool-1/track4";
 import { BidGuidanceSection } from "./BidGuidanceSection";
 import { loadPersistedRecords, getStoredTerms } from "./persistence";
-import { buildGuidance } from "./actions";
+import { buildGuidance } from "./guidance";
 
 function buildSeedGuidance(): BidGuidance[] {
   const groups = new Map<string, ClearingPriceRecord[]>();
