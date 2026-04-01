@@ -3,6 +3,7 @@ import { fetchIcsFeed } from "./fetchFeed.js";
 import { parseIcsFeed } from "./parseFeed.js";
 import { upsertEvents } from "./upsertEvents.js";
 
+
 export interface IngestionOptions {
   /** Full URL of the CampusGroups ICS feed. Typically from COMPASS_ICS_FEED_URL. */
   feedUrl: string;

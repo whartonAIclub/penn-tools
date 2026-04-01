@@ -31,3 +31,5 @@ CREATE INDEX IF NOT EXISTS events_start_time_idx
 -- Optional composite index for range queries (start_time, end_time)
 CREATE INDEX IF NOT EXISTS events_start_end_time_idx
   ON events (start_time, end_time);
+
+

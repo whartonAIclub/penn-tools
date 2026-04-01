@@ -27,11 +27,31 @@ export async function upsertEvents(
   let updated = 0;
   const now = new Date();
 
-  // Upsert one row at a time — simple and reliable with the postgres package
-  for (const event of events) {
-    const result = await sql<Array<{ is_insert: boolean }>>`
+  // Process in batches of 100 to stay well within parameter limits
+  const BATCH_SIZE = 100;
+  for (let i = 0; i < events.length; i += BATCH_SIZE) {
+    const batch = events.slice(i, i + BATCH_SIZE);
+    const batchPayload = batch as unknown as Parameters<typeof sql.json>[0];
+
+    const rows = await sql<Array<{ is_insert: boolean }>>`
+      WITH incoming AS (
+        SELECT *
+        FROM jsonb_to_recordset(${sql.json(batchPayload)}) AS src(
+          external_event_id text,
+          calendar_title text,
+          title text,
+          description text,
+          organizer text,
+          start_time timestamptz,
+          end_time timestamptz,
+          location text,
+          registration_url text,
+          source_feed text
+        )
+      )
       INSERT INTO events (
         external_event_id,
+        calendar_title,
         title,
         description,
         organizer,
@@ -43,21 +63,24 @@ export async function upsertEvents(
         last_synced_at,
         created_at,
         updated_at
-      ) VALUES (
-        ${event.external_event_id},
-        ${event.title},
-        ${event.description},
-        ${event.organizer},
-        ${event.start_time},
-        ${event.end_time},
-        ${event.location},
-        ${event.registration_url},
-        ${event.source_feed},
+      )
+      SELECT
+        external_event_id,
+        calendar_title,
+        title,
+        description,
+        organizer,
+        start_time,
+        end_time,
+        location,
+        registration_url,
+        source_feed,
         ${now},
         ${now},
         ${now}
-      )
+      FROM incoming
       ON CONFLICT (external_event_id) DO UPDATE SET
+        calendar_title   = EXCLUDED.calendar_title,
         title            = EXCLUDED.title,
         description      = EXCLUDED.description,
         organizer        = EXCLUDED.organizer,
@@ -71,8 +94,10 @@ export async function upsertEvents(
       RETURNING (xmax = 0) AS is_insert
     `;
 
-    if (result[0]?.is_insert) inserted++;
-    else updated++;
+    for (const row of rows) {
+      if (row.is_insert) inserted++;
+      else updated++;
+    }
   }
 
   return { inserted, updated };
