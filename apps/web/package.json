@@ -24,7 +24,8 @@
     "@penntools/tool-7": "workspace:*",
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-18": "workspace:*",
-    "@penntools/tool-ai-compass": "workspace:*"
+    "@penntools/tool-ai-compass": "workspace:*",
+    "@penntools/tool-19": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
