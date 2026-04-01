@@ -380,7 +380,16 @@ export default function PennPlannerPage() {
   const [assignments,  setAssignments]  = useState<Assignment[]>([]);
   const [blocks,       setBlocks]       = useState<CalendarBlock[]>([]);
   const [error,        setError]        = useState<string | null>(null);
+  const [apiKeyInput,  setApiKeyInput]  = useState("");
+  const [showApiKey,   setShowApiKey]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Read stored API key (client-side only)
+  const storedApiKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+  const llmHeaders = (key: string) => ({
+    "Content-Type": "application/json",
+    ...(key ? { "X-Api-Key": key } : {}),
+  });
 
   // ── Generate plan: real LLM if PDF uploaded, mock otherwise ──────────────────
 
@@ -424,8 +433,9 @@ Today is ${today}.
 Return ONLY a valid JSON array — no markdown, no explanation:
 [{"id":"a1","name":"exact deliverable name","course":"course name or number","type":"case|essay|problem-set|reading|presentation|exam|reflection|group-project|quiz|other","dueDate":"YYYY-MM-DD"}]`;
 
+      const currentKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
       const parseRes = await fetch("/api/llm/complete", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: llmHeaders(currentKey),
         body: JSON.stringify({ prompt: parsePrompt }),
       });
 
@@ -458,7 +468,7 @@ ${JSON.stringify(parsed, null, 2)}
 Return ONLY valid JSON array. No markdown.`;
 
       const estRes = await fetch("/api/llm/complete", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: llmHeaders(currentKey),
         body: JSON.stringify({ prompt: estimatePrompt }),
       });
 
@@ -697,6 +707,33 @@ Return ONLY valid JSON array. No markdown.`;
                 <span style={{ fontSize: 14 }}>{pref}</span>
               </label>
             ))}
+          </div>
+
+          {/* API key input */}
+          <div style={{ ...card, padding: "14px 16px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showApiKey ? 10 : 0 }}>
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>LLM API Key</span>
+                <span style={{ fontSize: 12, color: C.gray, marginLeft: 8 }}>
+                  {storedApiKey ? "✓ Key saved" : "Required for real AI parsing"}
+                </span>
+              </div>
+              <button onClick={() => setShowApiKey(v => !v)}
+                style={{ fontSize: 12, color: C.blue, background: "none", border: `1px solid ${C.border}`, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>
+                {showApiKey ? "Hide" : storedApiKey ? "Change" : "Add key"}
+              </button>
+            </div>
+            {showApiKey && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="password" placeholder="sk-... or sk-ant-..." value={apiKeyInput}
+                  onChange={e => setApiKeyInput(e.target.value)}
+                  style={{ flex: 1, padding: "7px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
+                <button onClick={() => { if (apiKeyInput) { localStorage.setItem("penntools_api_key", apiKeyInput); setApiKeyInput(""); setShowApiKey(false); } }}
+                  style={{ ...btn(true, true) }}>
+                  Save
+                </button>
+              </div>
+            )}
           </div>
 
           <button onClick={handleGenerate} disabled={step === "generating"}
