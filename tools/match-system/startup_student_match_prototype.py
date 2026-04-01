@@ -412,18 +412,17 @@ if "students" not in st.session_state:
 # -----------------------------
 # Sidebar
 # -----------------------------
-st.sidebar.title("Founder x Student Match")
-st.sidebar.markdown("A lightweight AI prototype for matching startups with students.")
+st.sidebar.title("Match Platform")
+st.sidebar.markdown("Startup ↔ Student Matching System")
 page = st.sidebar.radio(
     "Navigate",
     [
-        "Overview",
-        "Add Startup",
-        "Add Student",
-        "Profiles",
-        "Pair Scores",
-        "Stable Match Results",
-        "How to Make This Truly AI-Native",
+    "Overview",
+    "Add Startup",
+    "Add Student",
+    "Profiles",
+    "Match Insights",
+    "Final Matches",
     ]
 )
 
@@ -431,34 +430,45 @@ page = st.sidebar.radio(
 # Pages
 # -----------------------------
 if page == "Overview":
-    st.title("Founder x Student Match Prototype")
+    st.title("Startup Talent Match Platform")
+
     st.markdown(
         """
-        This prototype works like a simplified startup-student **match system**:
-
-        1. startups submit profiles and role needs  
-        2. students submit skills, interests, and preferences  
-        3. the system scores both sides  
-        4. it builds ranked preferences  
-        5. it runs a stable matching algorithm  
-        6. it explains *why* each match happened
-        """
+        <h4 style='color: gray;'>Connecting high-potential students with early-stage startups — fast.</h4>
+        """,
+    unsafe_allow_html=True
     )
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Startups", len(st.session_state.startups))
     c2.metric("Students", len(st.session_state.students))
-    c3.metric("Potential Pairings", len(st.session_state.startups) * len(st.session_state.students))
+    c3.metric("Matches Evaluated", len(st.session_state.startups) * len(st.session_state.students))
 
-    st.subheader("What makes it AI-like right now?")
-    st.write(
-        "The current version uses an interpretable matching model based on profile similarity, preferences, work style, commitment, pay alignment, and mission fit. "
-        "That makes it reliable for a prototype and easy to demo."
+    st.divider()
+
+    st.subheader("How it works")
+
+    st.markdown(
+        """
+        1. **Startups** define roles, skills, and team needs  
+        2. **Students** submit experience, interests, and preferences  
+        3. The system evaluates compatibility across multiple dimensions  
+        4. A stable matching algorithm assigns optimal pairings  
+        5. Each match includes a clear explanation of fit  
+        """
     )
 
-    st.subheader("What would make it more truly AI later?")
-    st.write(
-        "You can swap in embeddings for semantic profile understanding, an LLM for application summaries, and learned ranking models trained on accepted / rejected matches."
+    st.divider()
+
+    st.subheader("Why this matters")
+
+    st.markdown(
+        """
+        Early-stage startups need the right people — fast.  
+        Students want meaningful, high-impact experiences.  
+
+        This system helps both sides find strong matches efficiently and transparently.
+        """
     )
 
 elif page == "Add Startup":
@@ -549,7 +559,7 @@ elif page == "Profiles":
             with st.expander(f"{student['name']} · {student['school']}"):
                 st.json(student)
 
-elif page == "Pair Scores":
+elif page == "Match Insights":
     st.title("Pairwise Match Scores")
     startup_pref, student_pref, scores_df = build_preference_rankings(
         st.session_state.startups,
@@ -570,7 +580,7 @@ elif page == "Pair Scores":
     st.markdown(f"**Mutual score:** {row['mutual_score']}")
     st.write(row["explanation"])
 
-elif page == "Stable Match Results":
+elif page == "Final Matches":
     st.title("Stable Match Results")
     startup_pref, student_pref, scores_df = build_preference_rankings(
         st.session_state.startups,
@@ -611,56 +621,3 @@ elif page == "Stable Match Results":
                 st.divider()
     else:
         st.info("No stable matches found yet.")
-
-elif page == "How to Make This Truly AI-Native":
-    st.title("How to Make This Truly AI-Native")
-    st.markdown(
-        """
-        ### 1) Use embeddings instead of plain keyword overlap
-        Turn every founder profile and student profile into embeddings, then compute semantic similarity.
-        That helps with cases like:
-        - "growth" matching to "user acquisition"
-        - "product intuition" matching to "customer empathy"
-        - "health access" matching to "care delivery"
-
-        ### 2) Add LLM-generated profile summaries
-        Use an LLM to convert long founder applications and student resumes into structured summaries:
-        - top skills
-        - role preferences
-        - startup stage fit
-        - mission alignment
-        - risk flags
-
-        ### 3) Train a ranking model later
-        Once you have real outcomes, train on:
-        - interviews accepted
-        - offers made
-        - offers accepted
-        - retention / project success
-
-        ### 4) Add true match constraints
-        For a real system you would likely add:
-        - multiple seats per startup
-        - hard constraints like visa, location, or compensation
-        - anti-bias checks
-        - fairness-aware re-ranking
-        - founder review + student review workflows
-
-        ### 5) Store data in a backend
-        Replace in-memory session state with:
-        - FastAPI backend
-        - Postgres database
-        - auth for founders and students
-        - resume upload parsing
-        - application status tracking
-        """
-    )
-
-    st.code(
-        '''# Example future scoring hook
-# founder_embedding = embed(founder_profile_text)
-# student_embedding = embed(student_profile_text)
-# semantic_score = cosine_similarity(founder_embedding, student_embedding)
-# final_score = 0.6 * semantic_score + 0.4 * rules_based_score''',
-        language="python"
-    )
