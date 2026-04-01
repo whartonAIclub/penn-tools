@@ -38,6 +38,20 @@ type EventsFailure = {
   error: string;
 };
 
+async function parseApiJson<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.toLowerCase().includes("application/json")) {
+    return (await response.json()) as T;
+  }
+
+  const text = await response.text();
+  const snippet = text.slice(0, 120).replace(/\s+/g, " ").trim();
+  throw new Error(
+    `API returned non-JSON response (status ${response.status}). ${snippet || "Empty response."}`
+  );
+}
+
 export default function CompassPage() {
   const adminHeaderValue = process.env.NEXT_PUBLIC_TOOL19_ADMIN_KEY || "";
 
@@ -74,7 +88,7 @@ export default function CompassPage() {
         requestInit.headers = { "x-tool-admin-key": adminHeaderValue };
       }
       const res = await fetch("/tools/19/api/events?limit=100", requestInit);
-      const body = (await res.json()) as EventsSuccess | EventsFailure;
+      const body = await parseApiJson<EventsSuccess | EventsFailure>(res);
 
       if (!res.ok) {
         const message =
@@ -183,7 +197,7 @@ export default function CompassPage() {
         requestInit.headers = { "x-tool-admin-key": adminHeaderValue };
       }
       const res = await fetch("/tools/19/api/sync", requestInit);
-      const body = (await res.json()) as SyncSuccess | SyncFailure;
+      const body = await parseApiJson<SyncSuccess | SyncFailure>(res);
 
       if (!res.ok) {
         const errorMessage =
