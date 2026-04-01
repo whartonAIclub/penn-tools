@@ -46,7 +46,7 @@ interface CalendarBlock {
   included: boolean;
 }
 
-type Step = "setup" | "generating" | "review" | "calendar";
+type Step = "setup" | "generating" | "review" | "calendar" | "how-it-works";
 
 // ── Palette (minimal — one blue accent, otherwise grays) ──────────────────────
 
@@ -558,15 +558,32 @@ Return ONLY valid JSON array. No markdown.`;
     <div style={wrap}>
 
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 6px" }}>Penn Planner</h1>
-        <p style={{ color: C.gray, margin: 0, fontSize: 15 }}>
-          Upload your syllabus → AI effort estimates → block your study time
-        </p>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 6px" }}>Penn Planner</h1>
+          <p style={{ color: C.gray, margin: 0, fontSize: 15 }}>
+            Upload your syllabus → AI effort estimates → block your study time
+          </p>
+        </div>
+        <button
+          onClick={() => setStep(step === "how-it-works" ? "setup" : "how-it-works")}
+          style={{
+            background: step === "how-it-works" ? C.blue : C.white,
+            color: step === "how-it-works" ? C.white : C.textMid,
+            border: `1px solid ${step === "how-it-works" ? C.blue : C.border}`,
+            borderRadius: 8, padding: "8px 16px",
+            fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+          }}
+        >
+          How It Works
+        </button>
       </div>
 
+      {/* How It Works view */}
+      {step === "how-it-works" && <HowItWorksView onBack={() => setStep("setup")} />}
+
       {/* Progress */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 32 }}>
+      {step !== "how-it-works" && <div style={{ display: "flex", alignItems: "center", marginBottom: 32 }}>
         {STEPS.map((s, i) => (
           <div key={s} style={{ display: "flex", alignItems: "center" }}>
             <div style={{
@@ -588,7 +605,7 @@ Return ONLY valid JSON array. No markdown.`;
             )}
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Error */}
       {error && (
@@ -865,6 +882,93 @@ Return ONLY valid JSON array. No markdown.`;
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── How It Works View ───────────────────────────────────────────────────────────
+
+function HowItWorksView({ onBack }: { onBack: () => void }) {
+  const PENN_BLUE = "#011F5B";
+
+  const steps = [
+    {
+      num: "01", title: "Canvas Sync", icon: "📚",
+      desc: "Penn Planner reads your Canvas courses and pulls all upcoming assignments — titles, types, deadlines, and course context — automatically.",
+      color: C.blueSoft, border: "#bfdbfe", text: "#1e40af",
+    },
+    {
+      num: "02", title: "AI Effort Estimation", icon: "✦",
+      desc: "Our LLM analyzes each assignment by type (problem set vs. reading), course difficulty, and your rigor level to estimate realistic hours.",
+      color: "#fdf4ff", border: "#e9d5ff", text: "#7e22ce",
+    },
+    {
+      num: "03", title: "Smart Scheduling", icon: "📅",
+      desc: "Penn Planner finds open blocks in your calendar and inserts study sessions ahead of each deadline — starting with the most urgent work first.",
+      color: "#f0fdf4", border: "#bbf7d0", text: "#166534",
+    },
+    {
+      num: "04", title: "Learns Over Time", icon: "📈",
+      desc: "Log your actual time spent after each assignment. Penn Planner adjusts future estimates based on how accurate its predictions were.",
+      color: "#fffbeb", border: "#fde68a", text: "#92400e",
+    },
+  ];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", color: PENN_BLUE, textTransform: "uppercase" as const, marginBottom: 8 }}>
+          Penn Planner · AI-PMT Team 2
+        </div>
+        <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 10px", color: C.text }}>
+          Effort-based planning for Penn students
+        </h2>
+        <p style={{ fontSize: 14, color: C.gray, margin: 0, maxWidth: 520, lineHeight: 1.7 }}>
+          Most students plan around deadlines. Penn Planner shifts you to planning around <em>effort</em> — so you stop cramming and start finishing work before the night it's due.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 32 }}>
+        {steps.map((s) => (
+          <div key={s.num} style={{ background: s.color, border: `1px solid ${s.border}`, borderRadius: 12, padding: "20px 22px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 18 }}>{s.icon}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: s.text, letterSpacing: "0.08em", textTransform: "uppercase" as const }}>
+                Step {s.num}
+              </span>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>{s.title}</div>
+            <p style={{ fontSize: 13, color: C.textMid, margin: 0, lineHeight: 1.65 }}>{s.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: C.gray, marginBottom: 14 }}>
+          Team 2 — Time Management Org
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const }}>
+          {[
+            { name: "Sam Lazarus",    role: "PM · Engineer", track: "Track 2 + 3" },
+            { name: "Krishna Vadera", role: "PM · Engineer", track: "Track 2 + 3" },
+            { name: "Anthony Dodd",   role: "PM",            track: "Track 1" },
+            { name: "Arkan Kausar",   role: "Engineer",      track: "Track 1" },
+          ].map((m) => (
+            <div key={m.name} style={{ background: C.grayLight, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", minWidth: 148 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{m.name}</div>
+              <div style={{ fontSize: 12, color: C.gray }}>{m.role}</div>
+              <div style={{ fontSize: 11, color: C.gray, marginTop: 1 }}>{m.track}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button onClick={onBack} style={{
+        background: PENN_BLUE, color: "#fff", border: "none",
+        borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+      }}>
+        ← Start Planning
+      </button>
     </div>
   );
 }
