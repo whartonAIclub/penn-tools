@@ -11,9 +11,39 @@ A historical clearing price ingestion and bid guidance module scaffolded in tool
   store.ts      — Multi-term in-memory store keyed by courseId::section
   bidEngine.ts  — Linear regression trend + volatility -> safe/competitive/reach tiers
   ingest.ts     — Orchestrator: parse -> sanitize -> store
+  seedData.ts   — 5 courses x 4 terms of sample data for development
   index.ts      — Public API surface
 
+Unit tests (43 total) in tools/1/src/track4/__tests__/:
+  bidEngine.test.ts   — 13 tests: tier table, threshold math, edge cases
+  sanitize.test.ts    — 16 tests: valid input, injection protection, field validation
+  store.test.ts       — 14 tests: upsert, sort order, getSectionsForCourse, clearTerm
+
 Also added xlsx (SheetJS) to tools/1/package.json and pushed everything to the tool1-track4test branch.
+
+
+FRONTEND — WHAT WAS BUILT
+--------------------------
+A working frontend for Track 4 lives in apps/web/src/app/tools/1/:
+
+  page.tsx              — Server component; loads persisted records from disk on startup,
+                          falls back to seed data if none exist
+  BidGuidanceSection.tsx — Client component; file upload form + bid guidance cards,
+                           loaded-term pills, seed data warning banner
+  actions.ts            — Server action for file upload: parse xlsx, persist records,
+                          return full guidance + storedTerms to client
+  persistence.ts        — Reads/writes clearing-prices.json in tools/1/data/;
+                          merges on courseId::section::term key
+  guidance.ts           — Pure utility: groups ClearingPriceRecord[] by course/section
+                          and calls computeBidGuidance() for each group
+
+UI features:
+  - Upload form: accepts xlsx file + term label (e.g. "Spring2025")
+  - Bid guidance cards: one per course/section, showing tier, thresholds, trend, volatility
+  - Loaded-term pills: shows which terms are currently reflected in the recommendations
+  - Seed data banner: yellow warning displayed when real data has not yet been uploaded
+  - Data persistence: uploading once stores data for all users across server restarts;
+    old terms are preserved when new ones are uploaded
 
 
 KEY DECISIONS AND TRADEOFFS
@@ -28,61 +58,59 @@ Prompt injection defense — sanitize at the boundary
   Tradeoff: the allowlist will reject legitimate course names with unusual characters (e.g.
   accented letters, colons). May need to be widened once real data is seen.
 
+  Current status: strict mode is disabled ({ strict: false }) while LLM integration is not
+  active. Re-enable before connecting an LLM.
+
 Multi-term keyed store over single-snapshot
   Chose Map<courseId::section, ClearingPriceRecord[]> so the bid engine can compute trends and
   variance across terms rather than just reporting a single price. This is what makes
   safe/competitive/reach tiers meaningful.
 
-  Tradeoff: the store is in-memory, so it resets on server restart. Fine for now, but will need
-  persistence (database) before production.
+  Tradeoff: the in-memory store resets on server restart. The JSON persistence layer solves this
+  for the frontend, but the store used by Track 2/3 API functions still needs to be re-populated
+  on startup for production.
 
-Server-side ingestion, no student file uploads
-  The xlsx files get piped in server-side from MBA Inside rather than uploaded by students.
-  Simpler, more controlled, avoids dealing with malformed uploads.
+JSON file persistence (local dev solution)
+  Uploaded records are merged into tools/1/data/clearing-prices.json using a
+  courseId::section::term key. Old terms are never overwritten — only the matching term is
+  replaced when re-uploading. File is read on every page load (server component).
 
-  Tradeoff: someone on the team needs to own the pipeline that fetches and feeds new xlsx files
-  when Wharton publishes them each term.
+  Tradeoff: this is a local/single-server solution. For production, the Platform team needs to
+  expose a shared database API via ToolContext.
 
-SheetJS for xlsx parsing
-  Standard choice, handles Excel time serial numbers and various xlsx formats. The parser
-  normalizes column name variants (e.g. "Clearing Price", "clearingprice", "price") to a
-  canonical form so it's resilient to minor format changes in the MBA Inside files.
+Server action for file upload (no new API routes)
+  Used Next.js Server Actions to handle xlsx upload, staying within the tool team's scope.
+  Tool teams are not permitted to add new API routes under apps/web/src/app/api/.
 
-  Tradeoff: SheetJS's free tier (xlsx package) hasn't had a major release in a while. If the
-  xlsx format ever uses newer Excel features, there could be compatibility issues.
+buildGuidance as a plain utility (guidance.ts)
+  Next.js requires all exports from "use server" files to be async functions. buildGuidance is
+  a pure synchronous utility, so it was moved to guidance.ts (not a server file) and imported
+  by both actions.ts and page.tsx.
 
-Linear regression for trend detection
-  Used a simple slope calculation over historical prices rather than a moving average or more
-  complex model. Threshold is set at >2% of mean per term to distinguish signal from noise.
-
-  Tradeoff: with only 2-3 terms of data (realistic for a new course), the trend will default to
-  "stable". That's conservative and safe, but means guidance is less differentiated for newer
-  courses.
+parseXlsx exported from track4 public API
+  The web app's server action needs to call parseXlsx directly (to get the raw records before
+  persisting them). parseXlsx was added to tools/1/src/track4/index.ts exports.
 
 
 NEXT STEPS
 ----------
 
-Immediate (before this branch is useful):
-  1. Run pnpm install once Node/pnpm is fully set up — resolves pre-existing @penntools/core
-     type errors
-  2. Confirm the real MBA Inside xlsx column names match the aliases in parseXlsx.ts — get a
+Immediate:
+  1. Confirm the real MBA Inside xlsx column names match the aliases in parseXlsx.ts — get a
      sample file and test against it
-  3. Wire ingestClearingPrices() into the tool's execution flow in Tool1.ts
+  2. Re-enable strict mode (strict: true) in actions.ts before connecting an LLM
+  3. On server startup, re-populate the in-memory store from clearing-prices.json so that
+     Track 2/3 API functions (getBidGuidance, getBidGuidanceForBundle) work after restart
 
-Track 4 P0 features remaining:
-  - Bid recommendation output — connect getBidGuidance() to the LLM API so it can explain the
-    tiers in natural language to the student
-  - Expose bid guidance via the frontend in apps/web/src/app/tools/1/
-
-Track 4 P3 (future):
-  - Similarity rules for courses with thin history (e.g. "this course clears similarly to
-    MGMT 612")
-  - Persist the store to a database so history survives server restarts
-  - Replace the in-memory store with a proper query layer once the Platform team exposes a DB API
+Track 4 remaining features:
+  - LLM integration: pass bid guidance to the LLM API so it can explain tiers in natural
+    language to the student
+  - Production persistence: replace clearing-prices.json with a Platform database API
+    once the Platform team exposes one
 
 Cross-track coordination needed:
-  - Track 2 will produce a list of student-preferred courses — Track 4 needs to accept that list
-    and return bid guidance for each
-  - Track 3's schedule bundles will need bid guidance per course — align on the interface between
-    the two tracks
+  - Track 2: call getSectionsForCourse() + getBidGuidance() per recommended course
+  - Track 3: call getBidGuidanceForBundle() once a schedule bundle is generated; attach
+    BidGuidance[] to the bundle before surfacing it to the student
+  - Shared ScheduleBundle type: Tracks 3 and 4 need to agree on a TypeScript interface;
+    should live in tools/1/src/types.ts
