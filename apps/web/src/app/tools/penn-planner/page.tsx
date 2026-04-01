@@ -73,28 +73,17 @@ function addDays(n: number): string {
   return d.toISOString().split("T")[0];
 }
 
-/** Extract readable text from a PDF using pdfjs-dist (handles compressed/encoded PDFs). */
+/** Extract readable text from a PDF via the server-side API route (avoids browser worker issues). */
 async function extractTextFromPDF(file: File): Promise<string> {
-  const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
-  // Use CDN worker — avoids Next.js/webpack bundling complexity
-  GlobalWorkerOptions.workerSrc =
-    "https://unpkg.com/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs";
-
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await getDocument({ data: arrayBuffer }).promise;
-
-  let text = "";
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page    = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((item: any) => ("str" in item ? item.str : ""))
-      .join(" ");
-    text += pageText + "\n";
-  }
-
-  return text.trim().slice(0, 12000);
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/api/tools/penn-planner/parse-pdf", {
+    method: "POST", body: formData,
+  });
+  if (!res.ok) throw new Error(`PDF parse failed: ${res.status}`);
+  const data = await res.json() as { text?: string; error?: string };
+  if (data.error) throw new Error(data.error);
+  return data.text ?? "";
 }
 
 function getMockAssignments(rigor: number): Assignment[] {
@@ -198,39 +187,78 @@ function fmtHour(h: number) {
 
 // ── Weekly calendar grid ───────────────────────────────────────────────────────
 
+// Block color by assignment category
+function blockColor(type: AssignmentType): { bg: string; border: string; text: string } {
+  if (type === "quiz")                                    return { bg: "#fefce8", border: "#eab308", text: "#854d0e" };
+  if (type === "exam")                                    return { bg: "#fef2f2", border: "#ef4444", text: "#991b1b" };
+  if (type === "group-project" || type === "presentation") return { bg: "#f0fdf4", border: "#22c55e", text: "#166534" };
+  return { bg: C.blueSoft, border: C.blue, text: "#1e40af" }; // assignment / essay / problem-set / etc.
+}
+
 function WeeklyCalendar({
-  blocks, onToggle,
+  blocks, assignments, onToggle,
 }: {
   blocks: CalendarBlock[];
+  assignments: Assignment[];
   onToggle: (id: string) => void;
 }) {
-  const today = new Date();
-  // Start from Sunday of the week containing the first included block (or today)
-  const firstBlock = blocks.find(b => b.included);
-  const anchor     = firstBlock ? new Date(firstBlock.date + "T12:00:00") : today;
-  const sun        = new Date(anchor);
-  sun.setDate(anchor.getDate() - anchor.getDay());
-
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(sun);
-    d.setDate(sun.getDate() + i);
-    return d;
-  });
-
+  const [weekOffset, setWeekOffset] = useState(0);
+  const today    = new Date();
   const todayStr = today.toISOString().split("T")[0];
   const DAY_ABBR = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-  const weekLabel = (() => {
-    const s = days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const e = days[6].toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    return `${s} – ${e}`;
-  })();
+  // Base: Sunday of the week containing the first block (or today)
+  const firstBlock = blocks.find(b => b.included);
+  const anchor     = firstBlock ? new Date(firstBlock.date + "T12:00:00") : today;
+  const baseSun    = new Date(anchor);
+  baseSun.setDate(anchor.getDate() - anchor.getDay());
+
+  // Apply week offset
+  const sun = new Date(baseSun);
+  sun.setDate(baseSun.getDate() + weekOffset * 7);
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(sun); d.setDate(sun.getDate() + i); return d;
+  });
+
+  const weekLabel = `${days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
+  // Build a lookup: blockId → assignment type
+  const typeByAssignment = Object.fromEntries(assignments.map(a => [a.id, a.type]));
 
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: C.gray, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 12 }}>
-        Week of {weekLabel}
+      {/* Week navigation */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <button onClick={() => setWeekOffset(o => o - 1)}
+          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 13 }}>
+          ← Prev
+        </button>
+        <span style={{ fontSize: 12, fontWeight: 600, color: C.gray, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          {weekLabel}
+        </span>
+        <button onClick={() => setWeekOffset(o => o + 1)}
+          style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 13 }}>
+          Next →
+        </button>
       </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+        {[
+          { label: "Assignment", bg: C.blueSoft, border: C.blue },
+          { label: "Quiz",       bg: "#fefce8",  border: "#eab308" },
+          { label: "Exam",       bg: "#fef2f2",  border: "#ef4444" },
+          { label: "Project",    bg: "#f0fdf4",  border: "#22c55e" },
+        ].map(({ label, bg, border }) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: bg, border: `1.5px solid ${border}` }} />
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
         {days.map((day, i) => {
           const dayStr    = day.toISOString().split("T")[0];
@@ -239,7 +267,6 @@ function WeeklyCalendar({
 
           return (
             <div key={i}>
-              {/* Day header */}
               <div style={{ textAlign: "center", marginBottom: 6 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: C.gray, letterSpacing: "0.05em" }}>
                   {DAY_ABBR[i]}
@@ -255,39 +282,41 @@ function WeeklyCalendar({
                 </div>
               </div>
 
-              {/* Blocks */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {dayBlocks.map(b => (
-                  <div
-                    key={b.id}
-                    onClick={() => onToggle(b.id)}
-                    title={`${b.assignmentName} — click to toggle`}
-                    style={{
-                      borderRadius: 5,
-                      padding: "5px 6px",
-                      background:  b.included ? C.blueSoft : C.grayLight,
-                      borderLeft:  `3px solid ${b.included ? C.blue : C.border}`,
-                      cursor:      "pointer",
-                      opacity:     b.included ? 1 : 0.5,
-                      transition:  "all 0.1s",
-                    }}
-                  >
-                    <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? C.blue : C.gray }}>
-                      {fmtHour(b.startHour)}
+                {dayBlocks.map(b => {
+                  const aType  = typeByAssignment[b.assignmentId] ?? "other";
+                  const colors = blockColor(aType);
+                  return (
+                    <div key={b.id} onClick={() => onToggle(b.id)}
+                      title={`${b.assignmentName} — click to toggle`}
+                      style={{
+                        borderRadius: 5, padding: "5px 6px", cursor: "pointer",
+                        background:  b.included ? colors.bg   : C.grayLight,
+                        borderLeft:  `3px solid ${b.included ? colors.border : C.border}`,
+                        opacity:     b.included ? 1 : 0.45,
+                        transition:  "all 0.1s",
+                      }}
+                    >
+                      <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? colors.text : C.gray }}>
+                        {fmtHour(b.startHour)}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.textMid, lineHeight: 1.3, marginTop: 1, wordBreak: "break-word" }}>
+                        {b.course}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.gray, marginTop: 1 }}>
+                        {fmtHour(b.startHour + Math.ceil(b.hours))}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10, color: C.textMid, lineHeight: 1.3, marginTop: 1, wordBreak: "break-word" }}>
-                      {b.course}
-                    </div>
-                    <div style={{ fontSize: 10, color: C.gray, marginTop: 1 }}>
-                      {fmtHour(b.startHour + Math.ceil(b.hours))}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
         })}
       </div>
+      <p style={{ fontSize: 11, color: C.gray, margin: "10px 0 0", textAlign: "center" }}>
+        Click a block to toggle it on/off
+      </p>
     </div>
   );
 }
@@ -793,7 +822,7 @@ Return ONLY valid JSON array. No markdown.`;
             {/* Right — Weekly calendar + actions */}
             <div>
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-                <WeeklyCalendar blocks={blocks} onToggle={toggleBlock} />
+                <WeeklyCalendar blocks={blocks} assignments={assignments} onToggle={toggleBlock} />
                 <p style={{ fontSize: 11, color: C.gray, margin: "12px 0 0", textAlign: "center" }}>
                   Click a block to toggle it on/off
                 </p>
