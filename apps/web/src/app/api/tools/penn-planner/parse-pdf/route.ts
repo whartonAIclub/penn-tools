@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { createRequire } from "module";
 
-// Point the worker at the actual file on disk — required even in Node.js for pdfjs v5
-const require = createRequire(import.meta.url);
-const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
-GlobalWorkerOptions.workerSrc = workerPath;
+// Disable the worker for server-side Node.js — pdfjs falls back to a FakeWorker
+GlobalWorkerOptions.workerSrc = "";
 
 export async function POST(req: NextRequest) {
   try {
