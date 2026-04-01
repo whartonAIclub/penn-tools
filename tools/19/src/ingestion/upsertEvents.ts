@@ -31,10 +31,27 @@ export async function upsertEvents(
   const BATCH_SIZE = 100;
   for (let i = 0; i < events.length; i += BATCH_SIZE) {
     const batch = events.slice(i, i + BATCH_SIZE);
+    const batchPayload = batch as unknown as Parameters<typeof sql.json>[0];
 
     const rows = await sql<Array<{ is_insert: boolean }>>`
+      WITH incoming AS (
+        SELECT *
+        FROM jsonb_to_recordset(${sql.json(batchPayload)}) AS src(
+          external_event_id text,
+          calendar_title text,
+          title text,
+          description text,
+          organizer text,
+          start_time timestamptz,
+          end_time timestamptz,
+          location text,
+          registration_url text,
+          source_feed text
+        )
+      )
       INSERT INTO events (
         external_event_id,
+        calendar_title,
         title,
         description,
         organizer,
@@ -48,35 +65,22 @@ export async function upsertEvents(
         updated_at
       )
       SELECT
-        e.external_event_id,
-        e.title,
-        e.description,
-        e.organizer,
-        e.start_time,
-        e.end_time,
-        e.location,
-        e.registration_url,
-        e.source_feed,
-        ${now} AS last_synced_at,
-        ${now} AS created_at,
-        ${now} AS updated_at
-      FROM ${sql(
-        batch.map((e) => ({
-          external_event_id: e.external_event_id,
-          title: e.title,
-          description: e.description,
-          organizer: e.organizer,
-          start_time: e.start_time,
-          end_time: e.end_time,
-          location: e.location,
-          registration_url: e.registration_url,
-          source_feed: e.source_feed,
-        }))
-      )} AS e (
-        external_event_id, title, description, organizer,
-        start_time, end_time, location, registration_url, source_feed
-      )
+        external_event_id,
+        calendar_title,
+        title,
+        description,
+        organizer,
+        start_time,
+        end_time,
+        location,
+        registration_url,
+        source_feed,
+        ${now},
+        ${now},
+        ${now}
+      FROM incoming
       ON CONFLICT (external_event_id) DO UPDATE SET
+        calendar_title   = EXCLUDED.calendar_title,
         title            = EXCLUDED.title,
         description      = EXCLUDED.description,
         organizer        = EXCLUDED.organizer,

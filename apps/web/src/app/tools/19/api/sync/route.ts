@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { runIngestion } from "@penntools/tool-19";
+import { isTool19Authorized, makeErrorId } from "../_guard";
 
 /**
  * POST /tools/19/api/sync
@@ -14,7 +15,14 @@ import { runIngestion } from "@penntools/tool-19";
  * Example:
  *   curl -X POST http://localhost:3000/tools/19/api/sync
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  if (!isTool19Authorized(request)) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   const feedUrl = process.env["COMPASS_ICS_FEED_URL"];
   const databaseUrl = process.env["DATABASE_URL"];
 
@@ -32,11 +40,22 @@ export async function POST() {
     );
   }
 
-  const result = await runIngestion({ feedUrl, databaseUrl });
+  const result = await runIngestion({ feedUrl, databaseUrl }).catch((error) => {
+    const errorId = makeErrorId();
+    console.error(`[tool-19/sync] ${errorId}`, error);
+    return {
+      success: false,
+      inserted: 0,
+      updated: 0,
+      total: 0,
+      durationMs: 0,
+      error: `Ingestion failed (${errorId})`,
+    };
+  });
 
   if (!result.success) {
     return NextResponse.json(
-      { error: result.error, durationMs: result.durationMs },
+      { error: "Ingestion failed", durationMs: result.durationMs },
       { status: 500 }
     );
   }

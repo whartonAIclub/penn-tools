@@ -5,6 +5,7 @@
 export interface Event {
   id: string;
   external_event_id: string;
+  calendar_title: string | null;
   title: string;
   description: string | null;
   organizer: string | null;
@@ -24,6 +25,7 @@ export interface Event {
  */
 export interface ParsedEvent {
   external_event_id: string;
+  calendar_title: string | null;
   title: string;
   description: string | null;
   organizer: string | null;

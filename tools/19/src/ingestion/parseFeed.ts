@@ -1,6 +1,27 @@
 import ical from "node-ical";
 import type { ParsedEvent } from "../db/schema.js";
 
+type VEventLike = {
+  type: "VEVENT";
+  uid?: unknown;
+  start?: unknown;
+  summary?: unknown;
+  description?: unknown;
+  end?: unknown;
+  location?: unknown;
+  url?: unknown;
+  organizer?: unknown;
+};
+
+type IcsTextFieldObject = {
+  val?: unknown;
+};
+
+function isVEventComponent(component: unknown): component is VEventLike {
+  if (typeof component !== "object" || component === null) return false;
+  return (component as { type?: unknown }).type === "VEVENT";
+}
+
 /**
  * Parses raw ICS text into an array of ParsedEvent records.
  *
@@ -22,46 +43,38 @@ export function parseIcsFeed(
   sourceFeed: string
 ): ParsedEvent[] {
   const data = ical.sync.parseICS(icsText);
+  const calendarTitle = extractCalendarTitle(icsText);
   const events: ParsedEvent[] = [];
 
   for (const key of Object.keys(data)) {
     const component = data[key];
-    if (component.type !== "VEVENT") continue;
+    if (!isVEventComponent(component)) continue;
 
-    const uid = component.uid;
+    const uid =
+      typeof component.uid === "string" ? component.uid.trim() : "";
     if (!uid) continue;
 
-    const startTime = component.start;
+    const startTime = component.start instanceof Date ? component.start : null;
     if (!startTime) continue;
 
-    const title =
-      typeof component.summary === "string" && component.summary.trim()
-        ? component.summary.trim()
-        : "(no title)";
+    const summaryText = extractTextField(component.summary);
+    const title = summaryText || "(no title)";
 
-    const description =
-      typeof component.description === "string" && component.description.trim()
-        ? component.description.trim()
-        : null;
+    const description = extractTextField(component.description);
 
     const endTime =
       component.end instanceof Date ? component.end : null;
 
-    const location =
-      typeof component.location === "string" && component.location.trim()
-        ? component.location.trim()
-        : null;
+    const location = extractTextField(component.location);
 
     // URL field maps directly to registration_url
-    const registrationUrl =
-      typeof component.url === "string" && component.url.trim()
-        ? component.url.trim()
-        : null;
+    const registrationUrl = extractTextField(component.url);
 
     const organizer = extractOrganizer(component.organizer);
 
     events.push({
       external_event_id: uid,
+      calendar_title: calendarTitle,
       title,
       description,
       organizer,
@@ -74,6 +87,31 @@ export function parseIcsFeed(
   }
 
   return events;
+}
+
+function extractCalendarTitle(icsText: string): string | null {
+  const match = icsText.match(/^X-WR-CALNAME:(.+)$/m);
+  if (!match || typeof match[1] !== "string") return null;
+
+  const value = match[1].trim();
+  return value || null;
+}
+
+function extractTextField(raw: unknown): string | null {
+  if (typeof raw === "string") {
+    const value = raw.trim();
+    return value || null;
+  }
+
+  if (typeof raw === "object" && raw !== null) {
+    const val = (raw as IcsTextFieldObject).val;
+    if (typeof val === "string") {
+      const value = val.trim();
+      return value || null;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -101,7 +139,8 @@ function extractOrganizer(raw: unknown): string | null {
   // String shape: "CN=Jane Doe:mailto:jane@example.com"
   if (typeof raw === "string") {
     const cnMatch = raw.match(/CN=([^;:]+)/);
-    if (cnMatch) return cnMatch[1].trim() || null;
+    const cn = cnMatch?.[1]?.trim();
+    if (cn) return cn;
     return null;
   }
 
