@@ -1,9 +1,10 @@
-import { computeBidGuidance, SEED_RECORDS } from "@penntools/tool-1/track4";
 import type { BidGuidance, ClearingPriceRecord } from "@penntools/tool-1/track4";
+import { computeBidGuidance, SEED_RECORDS } from "@penntools/tool-1/track4";
 import { BidGuidanceSection } from "./BidGuidanceSection";
+import { loadPersistedRecords, getStoredTerms } from "./persistence";
+import { buildGuidance } from "./actions";
 
-// Group seed records by courseId::section, compute guidance for each
-function buildGuidance(): BidGuidance[] {
+function buildSeedGuidance(): BidGuidance[] {
   const groups = new Map<string, ClearingPriceRecord[]>();
   for (const r of SEED_RECORDS) {
     const key = `${r.courseId}::${r.section}`;
@@ -13,7 +14,7 @@ function buildGuidance(): BidGuidance[] {
   }
   return Array.from(groups.entries())
     .map(([key, records]) => {
-      const sep     = key.indexOf("::");
+      const sep      = key.indexOf("::");
       const courseId = key.slice(0, sep);
       const section  = key.slice(sep + 2);
       return computeBidGuidance(courseId, section, records);
@@ -28,7 +29,10 @@ const steps = [
 ];
 
 export default function Tool1Page() {
-  const guidance = buildGuidance();
+  const persisted = loadPersistedRecords();
+  const isUsingRealData = persisted.length > 0;
+  const guidance    = isUsingRealData ? buildGuidance(persisted) : buildSeedGuidance();
+  const storedTerms = isUsingRealData ? getStoredTerms() : [];
 
   return (
     <div style={{ minHeight: "100vh", fontFamily: "sans-serif" }}>
@@ -57,7 +61,11 @@ export default function Tool1Page() {
       </section>
 
       {/* Bid Guidance */}
-      <BidGuidanceSection guidance={guidance} />
+      <BidGuidanceSection
+        defaultGuidance={guidance}
+        defaultStoredTerms={storedTerms}
+        isUsingSeedData={!isUsingRealData}
+      />
 
       {/* How It Works */}
       <section style={{ background: "#f5f7fa", padding: "60px 24px", textAlign: "center" }}>

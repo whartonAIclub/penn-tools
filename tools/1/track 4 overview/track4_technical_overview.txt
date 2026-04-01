@@ -10,18 +10,18 @@ Last updated: March 2026
 
 MBA Inside XLSX file
        │
-       ▼
-  ingestClearingPrices(buffer, term, options?)       [ingest.ts]
+       ▼ (user uploads via frontend form)
+  processUploadedFile(formData)          [actions.ts — server action]
        │
        ▼
-  parseXlsx()                                        [parseXlsx.ts]
+  parseXlsx(buffer, term, options?)      [parseXlsx.ts]
   • Reads workbook with SheetJS
   • Normalises column names (handles variants like
     "Clearing Price", "clearingprice", "price", etc.)
   • Validates required columns are present
        │
        ▼
-  sanitizeRecord()   (per row)                       [sanitize.ts]
+  sanitizeRecord()   (per row)           [sanitize.ts]
   • Field-level validation and type coercion
   • Strict mode (default): blocks prompt-injection via
     character allowlist — disable with { strict: false }
@@ -30,19 +30,44 @@ MBA Inside XLSX file
     not silently dropped
        │
        ▼
-  upsertRecords()                                    [store.ts]
-  • Stored in-memory Map keyed by "courseId::section"
+  persistRecords(records)                [persistence.ts]
+  • Merges incoming records into tools/1/data/clearing-prices.json
+  • Merge key: courseId::section::term
+    — same term re-uploaded → replaces that term's records
+    — different term → appended (old terms preserved)
+  • Survives server restarts; shared across all users
+       │
+       ▼
+  loadPersistedRecords()                 [persistence.ts]
+  • Reads the full accumulated dataset (all terms) from disk
+       │
+       ▼
+  buildGuidance(allRecords)              [actions.ts]
+  • Groups records by courseId::section
+  • Sorts each group oldest → newest
+  • Calls computeBidGuidance() for each group
+       │
+       ▼
+  computeBidGuidance()                   [bidEngine.ts]
+  • Pure function — accepts history array directly
+  • Outputs BidGuidance with thresholds, trend, volatility
+       │
+       ▼
+  BidGuidanceSection (frontend)          [BidGuidanceSection.tsx]
+  • Displays bid guidance cards
+  • Shows loaded terms as pills (e.g. "Spring2025" "Fall2025")
+  • Shows seed data warning if no real data has been uploaded
+  • On first page load: falls back to SEED_RECORDS if
+    clearing-prices.json is empty or absent
+
+
+In-memory store (store.ts) — used by Track 2 / Track 3 integrations
+       │
+  upsertRecords()
+  • Map keyed by "courseId::section"
   • Multiple terms accumulated per course/section
   • Same term re-ingested → replaces existing record
   • Always sorted oldest → newest
-       │
-       ▼
-  computeBidGuidance() / getBidGuidance()            [bidEngine.ts]
-  • Reads history from store (or accepts array directly)
-  • Outputs BidGuidance with thresholds
-       │
-       ▼
-  Frontend / Other Tracks consume BidGuidance
 
 
 ════════════════════════════════════════════════════════════════
@@ -139,7 +164,36 @@ projected price and the standard deviation as a buffer:
 
 
 ════════════════════════════════════════════════════════════════
-3. PUBLIC API — WHAT OTHER TRACKS IMPORT
+3. FILE LAYOUT
+════════════════════════════════════════════════════════════════
+
+  tools/1/src/track4/
+  ├── types.ts          — ClearingPriceRecord, BidGuidance, etc.
+  ├── bidEngine.ts      — OLS math + tier/threshold logic
+  ├── sanitize.ts       — per-row validation, injection protection
+  ├── parseXlsx.ts      — SheetJS parser with column aliasing
+  ├── store.ts          — in-memory Map (Track 2/3 integration)
+  ├── ingest.ts         — ingestClearingPrices() orchestrator
+  ├── seedData.ts       — 5 courses × 4 terms, dev fallback
+  ├── index.ts          — public API exports
+  └── __tests__/
+      ├── bidEngine.test.ts   (13 tests)
+      ├── sanitize.test.ts    (16 tests)
+      └── store.test.ts       (14 tests)
+
+  apps/web/src/app/tools/1/
+  ├── page.tsx              — server component; loads persisted data
+  ├── BidGuidanceSection.tsx — client component; upload + cards
+  ├── actions.ts            — server action: parse, persist, return guidance
+  └── persistence.ts        — read/write clearing-prices.json
+
+  tools/1/data/
+  └── clearing-prices.json  — accumulated clearing price records
+                              (gitignored; written at runtime)
+
+
+════════════════════════════════════════════════════════════════
+4. PUBLIC API — WHAT OTHER TRACKS IMPORT
 ════════════════════════════════════════════════════════════════
 
   import { ... } from "@penntools/tool-1/track4";
@@ -194,7 +248,7 @@ projected price and the standard deviation as a buffer:
 
 
 ════════════════════════════════════════════════════════════════
-4. CROSS-TRACK INTERFACES
+5. CROSS-TRACK INTERFACES
 ════════════════════════════════════════════════════════════════
 
 ── TRACK 2 → TRACK 4 ───────────────────────────────────────────
@@ -267,16 +321,54 @@ already completed.
 
 
 ════════════════════════════════════════════════════════════════
-5. CURRENT LIMITATIONS & KNOWN GAPS
+6. DATA PERSISTENCE
 ════════════════════════════════════════════════════════════════
 
-• In-memory store: clears on server restart. Bid guidance will
-  not be available until ingestClearingPrices() is called again.
-  Needs a persistent database before production.
+Clearing price records are accumulated across terms in a JSON
+file at tools/1/data/clearing-prices.json.
 
-• Strict mode off by default during development: the prompt-
-  injection character allowlist is bypassed when
-  { strict: false } is passed to ingestClearingPrices().
+  • Uploading Spring2026 does NOT erase Fall2025 data.
+  • Re-uploading Spring2026 replaces only Spring2026 records.
+  • All terms are available for trend/projection analysis.
+  • File is written on every successful upload and read on
+    every page load — no server restart needed.
+
+Merge key: courseId::section::term
+  If a record with the same key already exists, it is replaced.
+  If it is new, it is appended.
+
+On page load (page.tsx):
+  • If clearing-prices.json has records → use real data
+  • If empty or absent → fall back to SEED_RECORDS (dev mode)
+
+In the frontend, the loaded terms are shown as colored pills
+above the bid guidance cards so users know which terms are
+reflected in the recommendations.
+
+NOTE: This is a local-dev solution. For production, the
+Platform team should expose a ToolDataRepository API via
+ToolContext so records can be stored in the shared Prisma
+database instead of the filesystem.
+
+
+════════════════════════════════════════════════════════════════
+7. CURRENT LIMITATIONS & KNOWN GAPS
+════════════════════════════════════════════════════════════════
+
+• JSON file persistence (local dev only): clearing-prices.json
+  is written to the repo filesystem. Works for local dev and
+  single-server deploys. For multi-server / production, the
+  Platform team needs to provide a shared database API.
+
+• In-memory store (store.ts) still used for Track 2/3 API:
+  The getBidGuidance / getBidGuidanceForBundle functions read
+  from an in-memory Map that clears on restart. For production,
+  ingestClearingPrices() must be called on server startup to
+  re-populate it from the persistent store.
+
+• Strict mode off during development: the prompt-injection
+  character allowlist is bypassed when { strict: false } is
+  passed to ingestClearingPrices() / parseXlsx().
   Re-enable strict: true before connecting an LLM.
 
 • Projection accuracy: with only 2–3 terms of history (realistic
