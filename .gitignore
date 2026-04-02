@@ -11,3 +11,4 @@ build/
 coverage/
 *.tsbuildinfo
 .DS_Store
+pnpm-lock.yaml
