@@ -19,6 +19,8 @@
     "@penntools/tool-18": "workspace:*",
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
+    "@penntools/tool-ai-compass": "workspace:*",
+    "@penntools/tool-pitch-coach": "workspace:*",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
     "jszip": "^3.10.1",
