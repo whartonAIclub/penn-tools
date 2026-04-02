@@ -13,11 +13,16 @@
     "@penntools/core": "workspace:*",
     "@penntools/platform": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
+    "@penntools/tool-1": "workspace:*",
+    "@penntools/tool-3": "workspace:*",
+    "@penntools/tool-8": "workspace:*",
+    "@penntools/tool-7": "workspace:*",
+    "@penntools/tool-penn-planner": "workspace:*",
+    "@penntools/tool-18": "workspace:*",
+    "@penntools/tool-ai-compass": "workspace:*"
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "@penntools/tool-8": "workspace:*",
-    "@penntools/tool-penn-planner": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

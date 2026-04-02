@@ -1,0 +1,10 @@
+{
+  "name": "Climate Scribe",
+  "description": "ClimateScribe is an AI-powered copilot that helps students plan low-carbon events and trips by analyzing itineraries, receipts, and catering menus to estimate carbon footprints and suggest greener alternatives.",
+  "category": "Sustainability",
+  "builders": ["Karthick Ravikumar", "Anvee Naik", "Sade Bamimore", "Charu Shah"],
+  "mentor": "Nicole Lin",
+  "version": "0.0.1",
+  "inceptionDate": "2026-03-23",
+  "latestReleaseDate": "2026-03-23"
+}
