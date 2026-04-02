@@ -56,7 +56,10 @@ import { Tool1 } from "@penntools/tool-1";
 toolRegistry.register(new Tool1());
 import { Tool18 } from "@penntools/tool-18";
 toolRegistry.register(new Tool18());
-
+import { AiCompassTool } from "@penntools/tool-ai-compass";
+toolRegistry.register(new AiCompassTool());
+import { PitchCoachTool } from "@penntools/tool-pitch-coach";
+toolRegistry.register(new PitchCoachTool());
 // ── Resource seeding (fire-and-forget) ────────────────────────────────────────
 // Imported lazily to avoid a circular reference with the logger defined below.
 import { seedResources } from "./seedResources";

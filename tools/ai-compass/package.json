@@ -1,16 +1,12 @@
 {
-  "name": "@penntools/tool-1",
-  "version": "0.0.1",
+  "name": "@penntools/tool-ai-compass",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./track4": {
-      "types": "./dist/track4/index.d.ts",
-      "import": "./dist/track4/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -23,8 +19,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@penntools/core": "workspace:*",
-    "xlsx": "^0.18.5"
+    "@penntools/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
