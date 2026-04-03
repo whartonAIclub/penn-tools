@@ -11,6 +11,9 @@
     "typecheck": "turbo typecheck",
     "clean": "turbo clean && rm -rf node_modules"
   },
+  "pnpm": {
+    "neverBuiltDependencies": ["canvas"]
+  },
   "devDependencies": {
     "turbo": "^2.0.0",
     "typescript": "^5.4.0",
