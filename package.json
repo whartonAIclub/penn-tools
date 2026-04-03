@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "turbo dev",
+    "postinstall": "pnpm --filter @penntools/platform db:generate",
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
