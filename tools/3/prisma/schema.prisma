@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id               String   @id @default(cuid())
+  title            String
+  description      String?
+  source           String   // "canvas" | "careerpath" | "manual"
+  type             String   // "assignment" | "quiz" | "exam" | "case_prep" | "interview" | "networking" | "application" | "other"
+  dueDate          DateTime
+  estimatedMinutes Int?
+  priority         Int      @default(0)
+  priorityScore    Float    @default(0)
+  status           String   @default("pending") // "pending" | "in_progress" | "completed"
+  course           String?
+  company          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model NudgeLog {
+  id        String   @id @default(cuid())
+  message   String
+  type      String   // "deadline_stack" | "daily_summary" | "risk_alert"
+  taskIds   String
+  sentAt    DateTime @default(now())
+}
