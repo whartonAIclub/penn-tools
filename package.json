@@ -5,11 +5,15 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "turbo dev",
+    "postinstall": "pnpm --filter @penntools/platform db:generate",
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "clean": "turbo clean && rm -rf node_modules"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": ["canvas"]
   },
   "devDependencies": {
     "turbo": "^2.0.0",
