@@ -6,7 +6,9 @@ const config = {
     "@penntools/tool-course-finder",
   ],
   // Ensures server-only modules (Prisma, env vars) never leak to the client bundle.
-  serverExternalPackages: ["@prisma/client", "prisma"],
+  experimental: {
+    serverComponentsExternalPackages: ["@prisma/client", "prisma"],
+  },
 };
 
 export default config;
