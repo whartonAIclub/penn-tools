@@ -1,0 +1,139 @@
+Track 4 Changelog
+=================
+CourseMatch Companion Tool (Tool 1)
+Branch: tool1-track4test
+
+
+────────────────────────────────────────────────────────────────
+[2026-03-31] Build fixes — "use server" and missing exports
+────────────────────────────────────────────────────────────────
+
+Commits: 20ad9e1
+
+PROBLEM
+  pnpm build failed with three errors:
+  1. Next.js: "Server actions must be async functions" — buildGuidance was a
+     synchronous export inside a "use server" file (actions.ts).
+  2. Next.js: "'buildGuidance' is not exported from './actions'" — page.tsx
+     was still importing buildGuidance from actions.ts after the fix.
+  3. TypeScript: "'parseXlsx' is not exported from '@penntools/tool-1/track4'"
+     — parseXlsx was not in the track4 public index.
+
+CHANGES
+  apps/web/src/app/tools/1/guidance.ts   [NEW]
+    Extracted buildGuidance() into its own non-server module. Groups
+    ClearingPriceRecord[] by courseId::section, sorts oldest→newest, and
+    calls computeBidGuidance() for each group.
+
+  apps/web/src/app/tools/1/actions.ts    [MODIFIED]
+    Removed buildGuidance function. Now imports it from ./guidance instead.
+
+  apps/web/src/app/tools/1/page.tsx      [MODIFIED]
+    Updated import of buildGuidance from ./actions → ./guidance.
+
+  tools/1/src/track4/index.ts            [MODIFIED]
+    Added export of parseXlsx so the web app's server action can call it
+    directly to obtain the raw ClearingPriceRecord[] before persisting them.
+
+RULE LEARNED
+  In Next.js App Router, every export from a "use server" file must be an
+  async function. Synchronous utilities must live in separate plain modules.
+
+
+────────────────────────────────────────────────────────────────
+[2026-03-31] Persistent multi-term storage + frontend UI
+────────────────────────────────────────────────────────────────
+
+Commits: 8c34d48
+
+WHAT WAS ADDED
+
+  apps/web/src/app/tools/1/persistence.ts   [NEW]
+    Reads and writes clearing-prices.json in tools/1/data/.
+    Merge key: courseId::section::term
+    — uploading a new term appends it; re-uploading the same term replaces it.
+    — getStoredTerms() returns a sorted list of all term labels present.
+
+  apps/web/src/app/tools/1/actions.ts       [NEW]
+    Server action processUploadedFile(formData):
+    — validates file and term format (Spring/Fall/Summer + 4-digit year)
+    — calls parseXlsx to get ClearingPriceRecord[]
+    — calls persistRecords() to merge into JSON store
+    — loads full accumulated dataset and returns BidGuidance[] + storedTerms
+
+  apps/web/src/app/tools/1/page.tsx         [MODIFIED]
+    Server component now:
+    — calls loadPersistedRecords() on startup
+    — falls back to SEED_RECORDS if no real data exists
+    — passes defaultStoredTerms and isUsingSeedData props to BidGuidanceSection
+
+  apps/web/src/app/tools/1/BidGuidanceSection.tsx   [MODIFIED]
+    Updated Props interface to accept defaultStoredTerms and isUsingSeedData.
+    New UI elements:
+    — Loaded-term pills: colored badges showing which terms are loaded
+      (e.g. "Spring2025", "Fall2025")
+    — Seed data banner: yellow warning shown when no real data has been
+      uploaded yet ("Showing sample data — upload a CourseMatch clearing
+      price file to see real guidance.")
+    After a successful upload, storedTerms state updates immediately and
+    the seed data banner is cleared without a page reload.
+
+  tools/1/track 4 overview/track4_technical_overview.txt   [MODIFIED]
+    Added sections: File Layout, Data Persistence.
+    Updated pipeline diagram to include persistence.ts layer.
+
+
+────────────────────────────────────────────────────────────────
+[2026-03-31] Initial Track 4 implementation
+────────────────────────────────────────────────────────────────
+
+Commits: 112242f
+
+WHAT WAS BUILT
+
+  tools/1/src/track4/
+    types.ts      — ClearingPriceRecord, BidGuidance, BidTier, Trend,
+                    Volatility, BidThresholds, IngestionResult
+    sanitize.ts   — Per-row field validation; strict mode blocks prompt
+                    injection via character allowlist
+    parseXlsx.ts  — SheetJS parser with column name aliasing (handles
+                    "Clearing Price", "clearingprice", "price", etc.)
+    store.ts      — In-memory Map keyed by courseId::section; accumulates
+                    multiple terms per course, always sorted oldest→newest
+    bidEngine.ts  — OLS linear regression → projected price → thresholds;
+                    tier table based on trend × volatility matrix
+    ingest.ts     — Orchestrator: parseXlsx → sanitizeRecord → upsertRecords
+    seedData.ts   — 5 courses × 4 terms of sample data for dev/demo
+    index.ts      — Public API exports
+
+  tools/1/src/track4/__tests__/
+    bidEngine.test.ts   — 13 tests
+    sanitize.test.ts    — 16 tests
+    store.test.ts       — 14 tests
+
+  tools/1/package.json
+    Added xlsx: ^0.18.5 dependency and ./track4 subpath export
+
+  tools/1/vitest.config.ts
+    Minimal vitest config for running track4 tests
+
+  apps/web/src/app/tools/1/page.tsx   [MODIFIED]
+    Added hero section, upload zone placeholder, "How It Works" steps,
+    footer, and BidGuidanceSection component
+
+  apps/web/src/app/tools/1/BidGuidanceSection.tsx   [NEW]
+    Client component with:
+    — xlsx file upload form with term input
+    — bid guidance cards (tier badge, thresholds, trend, volatility,
+      historical price sparkline text)
+    — search/filter by course name or ID
+    — loading state during upload
+
+NOTABLE BUG FIXES DURING DEVELOPMENT
+  parseDays("MWF"): tok.length > 2 guard was treating "MWF" as a single
+    unknown token. Fixed by trying token as-is in the day map first, then
+    falling back to char-by-char split.
+  noUncheckedIndexedAccess errors: added ! non-null assertions on
+    known-safe array accesses and ?? 0 fallbacks throughout track4 modules.
+  strict variable unused in sanitize.ts: threaded strict parameter through
+    to sanitizeText() helper.
