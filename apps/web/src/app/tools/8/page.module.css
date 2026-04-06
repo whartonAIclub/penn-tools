@@ -1,0 +1,210 @@
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+.shell {
+  background: #f7f3ed;
+}
+
+/* ── Header / Navbar ───────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 56px 18px 120px;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.navButton {
+  color: #2a2725;
+  font-size: 15px;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.navButton:hover {
+  opacity: 0.72;
+}
+
+.navDot {
+  color: #7e7874;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ── Main hero grid ────────────────────────────────────────────────────── */
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  align-items: center;
+  gap: 52px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px 56px 48px;
+}
+
+.copy {
+  max-width: 560px;
+  padding: 24px 0 0;
+}
+
+.headline {
+  font-size: 74px;
+}
+
+.subCopy {
+  font-size: 20px;
+}
+
+.ctaPrimary {
+  font-size: 18px;
+}
+
+.ctaSecondary {
+  font-size: 18px;
+}
+
+.socialProof {
+  font-size: 15px;
+  margin: 0;
+}
+
+/* ── Visual / watercolor side ──────────────────────────────────────────── */
+.visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.visualInner {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  padding-bottom: 60px;
+}
+
+/* ── Badges ────────────────────────────────────────────────────────────── */
+.badge {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid #d9d2c8;
+  background: rgba(246, 241, 232, 0.96);
+  box-shadow: 0 8px 18px rgba(74, 56, 43, 0.08);
+  color: #403b37;
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.badgeTop {
+  top: 20%;
+  left: 8%;
+}
+
+.badgeBottom {
+  bottom: 8%;
+  right: 2%;
+}
+
+.badgeDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+/* ── Footer bar ────────────────────────────────────────────────────────── */
+.footerBar {
+  position: relative;
+  margin-top: 10px;
+  border-top: 1px solid #ece7de;
+  background: #ede9e2;
+  padding: 18px 80px;
+  text-align: center;
+  color: #514c48;
+  font-size: 18px;
+}
+
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .header {
+    padding: 18px 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .main {
+    grid-template-columns: 1fr;
+    padding: 20px 20px 0;
+    gap: 24px;
+  }
+
+  .copy {
+    max-width: 100%;
+    padding: 12px 0 0;
+  }
+
+  .headline {
+    font-size: 44px;
+  }
+
+  .subCopy {
+    font-size: 16px;
+  }
+
+  .ctaPrimary {
+    font-size: 15px;
+  }
+
+  .ctaSecondary {
+    font-size: 14px;
+  }
+
+  .socialProof {
+    font-size: 12px;
+  }
+
+  .visualInner {
+    max-width: 100%;
+  }
+
+  .badgeTop {
+    top: 8%;
+    left: 2%;
+  }
+
+  .badgeBottom {
+    top: unset;
+    bottom: 10%;
+    left: unset;
+    right: 2%;
+  }
+
+  .badge {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .footerBar {
+    padding: 14px 20px;
+    font-size: 13px;
+  }
+
+}
