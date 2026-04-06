@@ -70,7 +70,7 @@ const C = {
 function addDays(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() + n);
-  return d.toISOString().split("T")[0];
+  return d.toISOString().split("T")[0]!;
 }
 
 /** Extract readable text from a PDF via the server-side API route (avoids browser worker issues). */
@@ -87,7 +87,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
 }
 
 function getMockAssignments(rigor: number): Assignment[] {
-  const m = RIGOR_MULTIPLIERS[rigor];
+  const m = RIGOR_MULTIPLIERS[rigor]!;
   const r = (type: AssignmentType) =>
     Math.round(MBA_REFERENCE[type].baseHours * m * 2) / 2;
 
@@ -153,7 +153,7 @@ function generateCalendarBlocks(assignments: Assignment[]): CalendarBlock[] {
         assignmentId:   a.id,
         assignmentName: a.name,
         course:         a.course,
-        date:           d.toISOString().split("T")[0],
+        date:           d.toISOString().split("T")[0]!,
         startHour:      s % 2 === 0 ? 9 : 19,
         hours:          hrs,
         included:       true,
@@ -221,7 +221,7 @@ function WeeklyCalendar({
     const d = new Date(sun); d.setDate(sun.getDate() + i); return d;
   });
 
-  const weekLabel = `${days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  const weekLabel = `${days[0]!.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${days[6]!.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 
   // Build a lookup: blockId → assignment type
   const typeByAssignment = Object.fromEntries(assignments.map(a => [a.id, a.type]));
@@ -457,7 +457,7 @@ Return ONLY a valid JSON array — no markdown, no explanation:
       const estimatePrompt = `You are an effort estimation engine for Penn MBA students.
 
 Student profile:
-- Rigor mode: ${RIGOR_LABELS[rigor]} (${Math.round(multiplier * 100)}% of baseline)
+- Rigor mode: ${RIGOR_LABELS[rigor]} (${Math.round(multiplier! * 100)}% of baseline)
 - Pace preferences: ${paceDesc}
 
 MBA average hours by type (at 1.0× rigor):
@@ -688,7 +688,7 @@ Return ONLY valid JSON array. No markdown.`;
               ))}
             </div>
             <div style={{ padding: "8px 12px", background: C.blueSoft, borderRadius: 6, fontSize: 13, color: C.blue, fontWeight: 500 }}>
-              <strong>{RIGOR_LABELS[rigor]}</strong> — estimates at <strong>{Math.round(RIGOR_MULTIPLIERS[rigor] * 100)}%</strong> of MBA average
+              <strong>{RIGOR_LABELS[rigor]}</strong> — estimates at <strong>{Math.round(RIGOR_MULTIPLIERS[rigor]! * 100)}%</strong> of MBA average
             </div>
           </div>
 
@@ -896,7 +896,7 @@ Return ONLY valid JSON array. No markdown.`;
                 <p style={{ fontSize: 13, color: C.textMid, margin: 0, lineHeight: 1.6 }}>
                   Your <strong>{assignments.find(a => a.type === "exam")?.name ?? "exam"}</strong> has the highest prep time.
                   Sessions are spread across mornings and evenings to avoid last-minute cramming.
-                  {pacePrefs.length > 0 && ` Adjusted for: ${pacePrefs[0].toLowerCase()}.`}
+                  {pacePrefs.length > 0 && ` Adjusted for: ${pacePrefs[0]!.toLowerCase()}.`}
                 </p>
               </div>
 
