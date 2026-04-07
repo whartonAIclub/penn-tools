@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
   const limitParam = request.nextUrl.searchParams.get("limit");
   const parsedLimit = limitParam ? Number(limitParam) : undefined;
+  const timeParam = request.nextUrl.searchParams.get("time");
 
   const limit =
     typeof parsedLimit === "number" &&
@@ -34,8 +35,12 @@ export async function GET(request: NextRequest) {
       ? Math.min(parsedLimit, 500)
       : undefined;
 
+  const upcomingOnly = timeParam === "upcoming";
+
   const listOptions =
-    typeof limit === "number" ? { databaseUrl, limit } : { databaseUrl };
+    typeof limit === "number"
+      ? { databaseUrl, limit, upcomingOnly }
+      : { databaseUrl, upcomingOnly };
 
   const result = await listEvents(listOptions).catch((error) => {
     const errorId = makeErrorId();
@@ -44,7 +49,7 @@ export async function GET(request: NextRequest) {
   });
 
   if ("error" in result) {
-    return NextResponse.json({ error: "Failed to load events" }, { status: 500 });
+    return NextResponse.json(result, { status: 500 });
   }
 
   return NextResponse.json({ events: result });

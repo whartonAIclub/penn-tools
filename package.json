@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "turbo dev --concurrency=13",
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",

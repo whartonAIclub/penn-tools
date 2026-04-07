@@ -54,10 +54,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (!result.success) {
-    return NextResponse.json(
-      { error: "Ingestion failed", durationMs: result.durationMs },
-      { status: 500 }
-    );
+    return NextResponse.json(result, { status: 500 });
   }
 
   return NextResponse.json(result);

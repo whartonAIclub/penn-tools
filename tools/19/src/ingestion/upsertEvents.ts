@@ -38,7 +38,6 @@ export async function upsertEvents(
         SELECT *
         FROM jsonb_to_recordset(${sql.json(batchPayload)}) AS src(
           external_event_id text,
-          calendar_title text,
           title text,
           description text,
           organizer text,
@@ -51,7 +50,6 @@ export async function upsertEvents(
       )
       INSERT INTO events (
         external_event_id,
-        calendar_title,
         title,
         description,
         organizer,
@@ -66,7 +64,6 @@ export async function upsertEvents(
       )
       SELECT
         external_event_id,
-        calendar_title,
         title,
         description,
         organizer,
@@ -80,7 +77,6 @@ export async function upsertEvents(
         ${now}
       FROM incoming
       ON CONFLICT (external_event_id) DO UPDATE SET
-        calendar_title   = EXCLUDED.calendar_title,
         title            = EXCLUDED.title,
         description      = EXCLUDED.description,
         organizer        = EXCLUDED.organizer,
