@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Full Monorepo (Turbo)",
+      "description": "Starts the Next.js web app + all TypeScript watchers concurrently via Turborepo. Use this for active development across multiple packages.",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev", "--concurrency=15"],
+      "port": 3000,
+      "cwd": "."
+    },
+    {
+      "name": "Web App only (Next.js)",
+      "description": "Starts only the Next.js web app on port 3000. Faster to boot — use this when you only need the frontend running.",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@penntools/web", "dev"],
+      "port": 3000,
+      "autoPort": true,
+      "cwd": "."
+    }
+  ]
+}
