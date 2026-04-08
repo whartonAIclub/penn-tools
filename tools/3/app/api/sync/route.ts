@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fetchAllIntegrationTasks } from "@/lib/integrations";
+import { getGoogleAccessToken } from "@/lib/auth";
 
 export async function POST() {
   try {
-    const allExternal = await fetchAllIntegrationTasks();
+    const googleAccessToken = await getGoogleAccessToken();
+    const allExternal = await fetchAllIntegrationTasks({ googleAccessToken });
 
     let created = 0;
     let skipped = 0;

@@ -19,12 +19,24 @@ const COLOR_LEGEND = [
 export default function Settings() {
   const [order, setOrder] = useState<string[]>(["career", "academic", "calendar", "other"]);
   const [saved, setSaved] = useState(false);
+  const [googleConfigured, setGoogleConfigured] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem("penn-priorities-order");
       if (stored) setOrder(JSON.parse(stored));
     } catch {}
+    fetch("/api/auth/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setGoogleConfigured(Boolean(data?.google?.configured));
+        setGoogleConnected(Boolean(data?.google?.connected));
+      })
+      .catch(() => {
+        setGoogleConfigured(false);
+        setGoogleConnected(false);
+      });
   }, []);
 
   function moveUp(idx: number) {
@@ -47,6 +59,15 @@ export default function Settings() {
     localStorage.setItem("penn-priorities-order", JSON.stringify(order));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  function connectGoogle() {
+    window.location.href = "/api/auth/google/start?returnTo=/settings";
+  }
+
+  async function disconnectGoogle() {
+    await fetch("/api/auth/disconnect", { method: "POST" });
+    setGoogleConnected(false);
   }
 
   return (
@@ -211,7 +232,19 @@ export default function Settings() {
           {[
             { name: "Canvas (Penn LMS)",    status: "Connected",   color: "#1d4ed8" },
             { name: "CareerPath",           status: "Connected",   color: "#6d28d9" },
-            { name: "Google Calendar",      status: "Connected", color: "#047857" },
+            {
+              name: "Google Calendar",
+              status: googleConnected
+                ? "Connected"
+                : googleConfigured
+                  ? "Not connected"
+                  : "OAuth not configured",
+              color: googleConnected
+                ? "#047857"
+                : googleConfigured
+                  ? "#9b9b9b"
+                  : "#b45309",
+            },
             { name: "iCalendar",            status: "Connected", color: "#7c3aed" },
           ].map(({ name, status, color }) => (
             <div key={name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F8F8F8" }}>
@@ -219,6 +252,42 @@ export default function Settings() {
               <span style={{ fontSize: "12px", color, fontWeight: 600 }}>{status}</span>
             </div>
           ))}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px", gap: "8px" }}>
+            {!googleConnected ? (
+              <button
+                onClick={connectGoogle}
+                disabled={!googleConfigured}
+                style={{
+                  fontSize: "12px",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: googleConfigured ? "#047857" : "#9CA3AF",
+                  color: "#fff",
+                  cursor: googleConfigured ? "pointer" : "not-allowed",
+                  fontWeight: 600,
+                }}
+              >
+                Connect Google
+              </button>
+            ) : (
+              <button
+                onClick={disconnectGoogle}
+                style={{
+                  fontSize: "12px",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #E5E7EB",
+                  background: "#fff",
+                  color: "#374151",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Disconnect Google
+              </button>
+            )}
+          </div>
         </div>
       </section>
     </div>

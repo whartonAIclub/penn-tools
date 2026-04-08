@@ -78,6 +78,8 @@ function groupTasks(tasks: Task[]) {
 
 export default function Dashboard() {
   const [enteredApp, setEnteredApp] = useState(false);
+  const [googleConfigured, setGoogleConfigured] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const [tasks, setTasks]               = useState<Task[]>([]);
   const [nudges, setNudges]             = useState<Nudge[]>([]);
   const [summary, setSummary]           = useState<string>("");
@@ -103,6 +105,16 @@ export default function Dashboard() {
   useEffect(() => {
     const alreadyEntered = localStorage.getItem("penn-priorities-entered");
     if (alreadyEntered === "1") setEnteredApp(true);
+    fetch("/api/auth/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setGoogleConfigured(Boolean(data?.google?.configured));
+        setGoogleConnected(Boolean(data?.google?.connected));
+      })
+      .catch(() => {
+        setGoogleConfigured(false);
+        setGoogleConnected(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -176,6 +188,10 @@ export default function Dashboard() {
     setEnteredApp(true);
   }
 
+  function connectGoogle() {
+    window.location.href = "/api/auth/google/start?returnTo=/settings";
+  }
+
   if (!enteredApp) {
     return (
       <div style={{ padding: "36px 28px", maxWidth: "980px" }}>
@@ -240,6 +256,35 @@ export default function Dashboard() {
           >
             View Integrations
           </button>
+          {googleConnected ? (
+            <span
+              style={{
+                alignSelf: "center",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#047857",
+              }}
+            >
+              Google connected
+            </span>
+          ) : (
+            <button
+              onClick={connectGoogle}
+              disabled={!googleConfigured}
+              style={{
+                background: googleConfigured ? "#047857" : "#9CA3AF",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                padding: "10px 16px",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: googleConfigured ? "pointer" : "not-allowed",
+              }}
+            >
+              {googleConfigured ? "Connect Google" : "Google OAuth not configured"}
+            </button>
+          )}
         </div>
       </div>
     );
