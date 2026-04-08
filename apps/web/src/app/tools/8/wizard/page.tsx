@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { buildMonolithicPromptForHttpApi } from "@penntools/tool-8";
-import type { Tool8Input } from "@penntools/tool-8";
+import {
+  actionBuildPrompt,
+  actionSaveWizardAnswers,
+  actionLoadWizardAnswers,
+  actionSaveRoadmap,
+  actionLoadLatestRoadmap,
+} from "../actions";
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const navy = "#0F1D3A";
@@ -193,7 +198,7 @@ function ResultsView({ markdown, onRestart }: { markdown: string; onRestart: () 
   );
 }
 
-interface CCProfile { name: string; email: string; }
+interface CCProfile { id: string; name: string; email: string; }
 
 // ── Main wizard page ───────────────────────────────────────────────────────
 export default function WizardPage() {
@@ -203,12 +208,38 @@ export default function WizardPage() {
   const [step, setStep] = useState<WizardStep>(1);
   const [plan, setPlan] = useState<PlanState>({ status: "idle" });
 
-  // Load profile passed from landing page
+  // Load profile + restore saved answers and roadmap from DB
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("cc_profile");
-      if (raw) setProfile(JSON.parse(raw) as CCProfile);
-    } catch { /* ignore */ }
+    async function init() {
+      try {
+        const raw = sessionStorage.getItem("cc_profile");
+        if (!raw) return;
+        const p = JSON.parse(raw) as CCProfile;
+        setProfile(p);
+
+        // Restore wizard answers
+        const saved = await actionLoadWizardAnswers(p.id);
+        if (saved) {
+          setSchool(saved.school);
+          setMajor(saved.major);
+          setYear(saved.year);
+          setCoursework(saved.coursework);
+          setInterests(saved.interests);
+          setResumeText(saved.resumeText);
+          setLinkedinText(saved.linkedinText);
+          setTargetRoles(saved.targetRoles);
+          setScenarioNotes(saved.scenarioNotes);
+        }
+
+        // Restore last roadmap if exists
+        const lastRoadmap = await actionLoadLatestRoadmap(p.id);
+        if (lastRoadmap) {
+          setPlan({ status: "ok", markdown: lastRoadmap.markdown });
+          setStep("results");
+        }
+      } catch { /* ignore */ }
+    }
+    init();
   }, []);
 
   // Step 1 — pre-fill Penn since we know they have a Penn email
@@ -240,8 +271,22 @@ export default function WizardPage() {
     }
   }
 
+  async function saveAnswers() {
+    if (!profile) return;
+    try {
+      await actionSaveWizardAnswers(profile.id, {
+        school, major, year, coursework,
+        interests, resumeText, linkedinText,
+        targetRoles, scenarioNotes,
+      });
+    } catch { /* non-blocking */ }
+  }
+
   async function generatePlan() {
-    const input: Tool8Input = {
+    // Save answers before generating
+    await saveAnswers();
+
+    const prompt = await actionBuildPrompt({
       academicBackground: [
         school     && `School: ${school}`,
         major      && `Major: ${major}`,
@@ -252,9 +297,7 @@ export default function WizardPage() {
       resumeSummary: [resumeText, linkedinText].filter(Boolean).join("\n\n"),
       targetRoles,
       scenarioNotes,
-    };
-
-    const prompt = buildMonolithicPromptForHttpApi(input);
+    });
     setPlan({ status: "loading" });
 
     try {
@@ -266,6 +309,10 @@ export default function WizardPage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { content: string };
+      // Save roadmap to DB
+      if (profile) {
+        try { await actionSaveRoadmap(profile.id, data.content); } catch { /* non-blocking */ }
+      }
       setPlan({ status: "ok", markdown: data.content });
       setStep("results");
     } catch (e) {
@@ -357,7 +404,7 @@ export default function WizardPage() {
                 placeholder="e.g. Intro to CS, Linear Algebra, Microeconomics…"
                 value={coursework} onChange={(e) => setCoursework(e.target.value)} />
             </Field>
-            <WizardNav onNext={() => setStep(2)} onSkip={() => setStep(2)} />
+            <WizardNav onNext={() => { saveAnswers(); setStep(2); }} onSkip={() => setStep(2)} />
           </WizardCard>
         )}
 
@@ -370,7 +417,7 @@ export default function WizardPage() {
                 placeholder="e.g. I love problem-solving and data, enjoy working in teams, interested in healthcare tech. Limited time due to part-time job. Open to study abroad."
                 value={interests} onChange={(e) => setInterests(e.target.value)} />
             </Field>
-            <WizardNav onBack={() => setStep(1)} onNext={() => setStep(3)} onSkip={() => setStep(3)} />
+            <WizardNav onBack={() => setStep(1)} onNext={() => { saveAnswers(); setStep(3); }} onSkip={() => setStep(3)} />
           </WizardCard>
         )}
 
@@ -408,7 +455,7 @@ export default function WizardPage() {
                 To export LinkedIn: Me → Settings → Data privacy → Get a copy of your data
               </p>
             </Field>
-            <WizardNav onBack={() => setStep(2)} onNext={() => setStep(4)} onSkip={() => setStep(4)} />
+            <WizardNav onBack={() => setStep(2)} onNext={() => { saveAnswers(); setStep(4); }} onSkip={() => setStep(4)} />
           </WizardCard>
         )}
 

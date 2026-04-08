@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
+import { actionUpsertUser, actionFindUser } from "./actions";
 
 const displaySerif = '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif';
 const navy = "#062A78";
@@ -10,6 +11,7 @@ const navy = "#062A78";
 const PROFILE_KEY = "cc_profile";
 
 interface CCProfile {
+  id: string;
   name: string;
   email: string;
 }
@@ -56,16 +58,33 @@ function AuthModal({
     }
   }, []);
 
-  function handleContinueProfile() {
-    onProfile(existingProfile!);
+  async function handleContinueProfile() {
+    // Fetch from DB to get the latest id
+    const dbUser = await actionFindUser(existingProfile!.email);
+    if (dbUser) {
+      const p: CCProfile = { id: dbUser.id, name: dbUser.name, email: dbUser.email };
+      saveProfile(p);
+      onProfile(p);
+    } else {
+      // Profile exists locally but not in DB — re-create it
+      const dbUser2 = await actionUpsertUser(existingProfile!.name, existingProfile!.email);
+      const p: CCProfile = { id: dbUser2.id, name: dbUser2.name, email: dbUser2.email };
+      saveProfile(p);
+      onProfile(p);
+    }
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!name.trim()) { setError("Please enter your name."); return; }
     if (!email.trim() || !/^[^\s@]+@(?:[a-z0-9-]+\.)*upenn\.edu$/i.test(email.trim())) { setError("Please enter a valid Penn email ending in upenn.edu."); return; }
-    const p: CCProfile = { name: name.trim(), email: email.trim() };
-    saveProfile(p);
-    onProfile(p);
+    try {
+      const dbUser = await actionUpsertUser(name.trim(), email.trim());
+      const p: CCProfile = { id: dbUser.id, name: dbUser.name, email: dbUser.email };
+      saveProfile(p);
+      onProfile(p);
+    } catch {
+      setError("Could not save profile. Please try again.");
+    }
   }
 
   return (
