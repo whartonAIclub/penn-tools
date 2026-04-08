@@ -114,10 +114,10 @@ function getMockAssignments(rigor: number, syllabusIndex = 0): Assignment[] {
     Math.round(MBA_REFERENCE[type].baseHours * m * 2) / 2;
   const today = new Date().toISOString().split("T")[0]!;
 
-  return [
+  return ([
     {
       id: "a1", name: "Case Analysis: Wharton Retail Strategy",
-      course: "MGMT 611", type: "case", dueDate: addDays(5),
+      course: "MGMT 611", type: "case" as AssignmentType, dueDate: addDays(5),
       estimatedHours: r("case"), confidence: "high",
       reasoning: "Standard Wharton case; rigor multiplier applied.",
       syllabusIndex,
@@ -157,7 +157,7 @@ function getMockAssignments(rigor: number, syllabusIndex = 0): Assignment[] {
       reasoning: "Short reflection paper; low variance.",
       syllabusIndex,
     },
-  ].filter(a => a.dueDate >= today);
+  ] as Assignment[]).filter(a => a.dueDate >= today);
 }
 
 function generateCalendarBlocks(assignments: Assignment[]): CalendarBlock[] {
@@ -245,9 +245,6 @@ function WeeklyCalendar({
 
   const weekLabel = `${days[0]!.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${days[6]!.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 
-  // Build a lookup: blockId → assignment type
-  const typeByAssignment = Object.fromEntries(assignments.map(a => [a.id, a.type]));
-
   return (
     <div>
       {/* Week navigation */}
@@ -265,19 +262,17 @@ function WeeklyCalendar({
         </button>
       </div>
 
-      {/* Legend */}
+      {/* Legend — one entry per syllabus */}
       <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-        {[
-          { label: "Assignment", bg: C.blueSoft, border: C.blue },
-          { label: "Quiz",       bg: "#fefce8",  border: "#eab308" },
-          { label: "Exam",       bg: "#fef2f2",  border: "#ef4444" },
-          { label: "Project",    bg: "#f0fdf4",  border: "#22c55e" },
-        ].map(({ label, bg, border }) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: bg, border: `1.5px solid ${border}` }} />
-            {label}
-          </div>
-        ))}
+        {syllabusNames.map((name, i) => {
+          const sc = syllabusColor(i);
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: sc.bg, border: `1.5px solid ${sc.border}` }} />
+              {name}
+            </div>
+          );
+        })}
       </div>
 
       {/* Grid */}
@@ -306,20 +301,19 @@ function WeeklyCalendar({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {dayBlocks.map(b => {
-                  const aType  = typeByAssignment[b.assignmentId] ?? "other";
-                  const colors = blockColor(aType);
+                  const sc = syllabusColor(b.syllabusIndex);
                   return (
                     <div key={b.id} onClick={() => onToggle(b.id)}
                       title={`${b.assignmentName} — click to toggle`}
                       style={{
                         borderRadius: 5, padding: "5px 6px", cursor: "pointer",
-                        background:  b.included ? colors.bg   : C.grayLight,
-                        borderLeft:  `3px solid ${b.included ? colors.border : C.border}`,
+                        background:  b.included ? sc.bg   : C.grayLight,
+                        borderLeft:  `3px solid ${b.included ? sc.border : C.border}`,
                         opacity:     b.included ? 1 : 0.45,
                         transition:  "all 0.1s",
                       }}
                     >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? colors.text : C.gray }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? sc.text : C.gray }}>
                         {fmtHour(b.startHour)}
                       </div>
                       <div style={{ fontSize: 10, color: C.textMid, lineHeight: 1.3, marginTop: 1, wordBreak: "break-word" }}>
@@ -394,17 +388,16 @@ function TypeBadge({ type }: { type: AssignmentType }) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function PennPlannerPage() {
-  const [step,         setStep]         = useState<Step>("setup");
-  const [rigor,        setRigor]        = useState(2);
-  const [pacePrefs,    setPacePrefs]    = useState<string[]>([]);
-  const [fileName,     setFileName]     = useState<string | null>(null);
-  const [syllabusFile, setSyllabusFile] = useState<File | null>(null);
-  const [assignments,  setAssignments]  = useState<Assignment[]>([]);
-  const [blocks,       setBlocks]       = useState<CalendarBlock[]>([]);
-  const [error,        setError]        = useState<string | null>(null);
-  const [apiKeyInput,  setApiKeyInput]  = useState("");
-  const [showApiKey,   setShowApiKey]   = useState(false);
-  const [storedApiKey, setStoredApiKey] = useState("");
+  const [step,          setStep]          = useState<Step>("setup");
+  const [rigor,         setRigor]         = useState(2);
+  const [pacePrefs,     setPacePrefs]     = useState<string[]>([]);
+  const [syllabusFiles, setSyllabusFiles] = useState<SyllabusFile[]>([]);
+  const [assignments,   setAssignments]   = useState<Assignment[]>([]);
+  const [blocks,        setBlocks]        = useState<CalendarBlock[]>([]);
+  const [error,         setError]         = useState<string | null>(null);
+  const [apiKeyInput,   setApiKeyInput]   = useState("");
+  const [showApiKey,    setShowApiKey]    = useState(false);
+  const [storedApiKey,  setStoredApiKey]  = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Read localStorage after mount to avoid hydration mismatch
@@ -420,28 +413,37 @@ export default function PennPlannerPage() {
   const llmModel = (key: string) =>
     key.startsWith("sk-ant-") ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
 
-  // ── Generate plan: real LLM if PDF uploaded, mock otherwise ──────────────────
+  // ── Generate plan: real LLM if PDFs uploaded, mock otherwise ────────────────
 
   async function handleGenerate() {
     setError(null);
     setStep("generating");
 
-    // No PDF → use mock directly
-    if (!syllabusFile) {
+    const today = new Date().toISOString().split("T")[0]!;
+
+    // No PDFs → use mock directly
+    if (syllabusFiles.length === 0) {
       await new Promise(r => setTimeout(r, 600));
-      setAssignments(getMockAssignments(rigor));
+      setAssignments(getMockAssignments(rigor, 0));
       setStep("review");
       return;
     }
 
     try {
-      const text  = await extractTextFromPDF(syllabusFile);
-      const today = new Date().toISOString().split("T")[0];
+      const currentKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
       const multiplier = RIGOR_MULTIPLIERS[rigor];
       const paceDesc   = pacePrefs.length ? pacePrefs.join("; ") : "no specific pace preferences";
+      const refLines   = Object.entries(MBA_REFERENCE)
+        .map(([k, v]) => `  ${k}: ${v.baseHours}h baseline`).join("\n");
 
-      // ── Step 1: Parse deliverables ───────────────────────────────────────────
-      const parsePrompt = `You are a syllabus parser for a Penn MBA/graduate student.
+      const allAssignments: Assignment[] = [];
+
+      for (let syllabusIndex = 0; syllabusIndex < syllabusFiles.length; syllabusIndex++) {
+        const { file } = syllabusFiles[syllabusIndex]!;
+        const text = await extractTextFromPDF(file);
+
+        // ── Step 1: Parse deliverables ───────────────────────────────────────
+        const parsePrompt = `You are a syllabus parser for a Penn MBA/graduate student.
 
 Your ONLY job: extract graded deliverables the student must submit.
 These include: assignments, quizzes, exams, projects, case writeups, problem sets, papers, reflections, homeworks.
@@ -454,32 +456,29 @@ Critical rules:
 - If a due date is embedded in the deliverable name (e.g. "Project 2 - 3/8 by 11:59pm"), use THAT date, not the class session date
 - If the syllabus is a table with a "Deliverables" column, only rows where that column is non-empty count
 - Syllabi vary in format (tables, bullets, paragraphs) — adapt accordingly
+- ONLY include assignments with due dates on or after today (${today})
 
 Syllabus text:
 ${text}
 
 Today is ${today}.
 Return ONLY a valid JSON array — no markdown, no explanation:
-[{"id":"a1","name":"exact deliverable name","course":"course name or number","type":"case|essay|problem-set|reading|presentation|exam|reflection|group-project|quiz|other","dueDate":"YYYY-MM-DD"}]`;
+[{"id":"s${syllabusIndex}_a1","name":"exact deliverable name","course":"course name or number","type":"case|essay|problem-set|reading|presentation|exam|reflection|group-project|quiz|other","dueDate":"YYYY-MM-DD"}]`;
 
-      const currentKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
-      const parseRes = await fetch("/api/llm/complete", {
-        method: "POST", headers: llmHeaders(currentKey),
-        body: JSON.stringify({ prompt: parsePrompt, model: llmModel(currentKey) }),
-      });
+        const parseRes = await fetch("/api/llm/complete", {
+          method: "POST", headers: llmHeaders(currentKey),
+          body: JSON.stringify({ prompt: parsePrompt, model: llmModel(currentKey) }),
+        });
 
-      if (!parseRes.ok) throw new Error("llm_unavailable");
-      const parseData = await parseRes.json() as { content: string };
-      const parseMatch = parseData.content.match(/\[[\s\S]*\]/);
-      const parsed: Omit<Assignment, "estimatedHours" | "confidence" | "reasoning">[] =
-        JSON.parse(parseMatch ? parseMatch[0] : parseData.content);
-      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("empty_parse");
+        if (!parseRes.ok) throw new Error("llm_unavailable");
+        const parseData = await parseRes.json() as { content: string };
+        const parseMatch = parseData.content.match(/\[[\s\S]*\]/);
+        const parsed: Omit<Assignment, "estimatedHours" | "confidence" | "reasoning" | "syllabusIndex">[] =
+          JSON.parse(parseMatch ? parseMatch[0] : parseData.content);
+        if (!Array.isArray(parsed) || parsed.length === 0) continue;
 
-      // ── Step 2: Estimate effort ──────────────────────────────────────────────
-      const refLines = Object.entries(MBA_REFERENCE)
-        .map(([k, v]) => `  ${k}: ${v.baseHours}h baseline`).join("\n");
-
-      const estimatePrompt = `You are an effort estimation engine for Penn MBA students.
+        // ── Step 2: Estimate effort ──────────────────────────────────────────
+        const estimatePrompt = `You are an effort estimation engine for Penn MBA students.
 
 Student profile:
 - Rigor mode: ${RIGOR_LABELS[rigor]} (${Math.round(multiplier! * 100)}% of baseline)
@@ -496,36 +495,42 @@ ${JSON.stringify(parsed, null, 2)}
 
 Return ONLY valid JSON array. No markdown.`;
 
-      const estRes = await fetch("/api/llm/complete", {
-        method: "POST", headers: llmHeaders(currentKey),
-        body: JSON.stringify({ prompt: estimatePrompt, model: llmModel(currentKey) }),
-      });
+        const estRes = await fetch("/api/llm/complete", {
+          method: "POST", headers: llmHeaders(currentKey),
+          body: JSON.stringify({ prompt: estimatePrompt, model: llmModel(currentKey) }),
+        });
 
-      if (!estRes.ok) throw new Error("llm_unavailable");
-      const estData  = await estRes.json() as { content: string };
-      const estMatch = estData.content.match(/\[[\s\S]*\]/);
-      const estimates: { id: string; estimatedHours: number; confidence: "high"|"medium"|"low"; reasoning: string }[] =
-        JSON.parse(estMatch ? estMatch[0] : estData.content);
+        if (!estRes.ok) throw new Error("llm_unavailable");
+        const estData  = await estRes.json() as { content: string };
+        const estMatch = estData.content.match(/\[[\s\S]*\]/);
+        const estimates: { id: string; estimatedHours: number; confidence: "high"|"medium"|"low"; reasoning: string }[] =
+          JSON.parse(estMatch ? estMatch[0] : estData.content);
 
-      const estMap = Object.fromEntries(estimates.map(e => [e.id, e]));
-      const final: Assignment[] = parsed.map(a => {
-        const safeType = (a.type in MBA_REFERENCE ? a.type : "other") as AssignmentType;
-        return {
-          ...a, type: safeType,
-          estimatedHours: estMap[a.id]?.estimatedHours ?? MBA_REFERENCE[safeType].baseHours,
-          confidence:     estMap[a.id]?.confidence     ?? "medium",
-          reasoning:      estMap[a.id]?.reasoning      ?? "",
-        };
-      });
+        const estMap = Object.fromEntries(estimates.map(e => [e.id, e]));
+        const syllabusAssignments: Assignment[] = parsed
+          .filter(a => a.dueDate >= today)
+          .map(a => {
+            const safeType = (a.type in MBA_REFERENCE ? a.type : "other") as AssignmentType;
+            return {
+              ...a, type: safeType,
+              estimatedHours: estMap[a.id]?.estimatedHours ?? MBA_REFERENCE[safeType].baseHours,
+              confidence:     estMap[a.id]?.confidence     ?? "medium",
+              reasoning:      estMap[a.id]?.reasoning      ?? "",
+              syllabusIndex,
+            };
+          });
 
-      setAssignments(final);
+        allAssignments.push(...syllabusAssignments);
+      }
+
+      if (allAssignments.length === 0) throw new Error("empty_parse");
+      setAssignments(allAssignments);
       setStep("review");
     } catch (err) {
       const msg = String(err);
-      // LLM unavailable or parsing failed → fall back to mock with a notice
       if (msg.includes("llm_unavailable") || msg.includes("empty_parse") || msg.includes("JSON")) {
         setError("LLM API unavailable — showing sample data. Connect to PennTools platform for real parsing.");
-        setAssignments(getMockAssignments(rigor));
+        setAssignments(getMockAssignments(rigor, 0));
         setStep("review");
       } else {
         setError(`Error: ${msg}`);
@@ -662,38 +667,46 @@ Return ONLY valid JSON array. No markdown.`;
             <p style={{ color: C.gray, fontSize: 13, margin: "0 0 16px" }}>
               Upload your course syllabus PDF — or skip to use sample Wharton MBA data
             </p>
+            {/* Uploaded syllabi list */}
+            {syllabusFiles.length > 0 && (
+              <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                {syllabusFiles.map((sf, i) => {
+                  const sc = syllabusColor(i);
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: sc.dot, flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: sc.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sf.name}</span>
+                      <button onClick={() => setSyllabusFiles(prev => prev.filter((_, j) => j !== i))}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: C.gray, fontSize: 16, lineHeight: 1, padding: "0 4px" }}>×</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div
               onClick={() => fileRef.current?.click()}
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
                 e.preventDefault();
                 const f = e.dataTransfer.files[0];
-                if (f) { setFileName(f.name); setSyllabusFile(f); }
+                if (f) setSyllabusFiles(prev => [...prev, { file: f, name: f.name }]);
               }}
               style={{
-                border: `2px dashed ${fileName ? C.blue : C.border}`,
-                borderRadius: 8, padding: "24px", textAlign: "center",
-                cursor: "pointer", background: fileName ? C.blueSoft : C.grayLight,
+                border: `2px dashed ${syllabusFiles.length > 0 ? C.blue : C.border}`,
+                borderRadius: 8, padding: "20px 24px", textAlign: "center",
+                cursor: "pointer", background: syllabusFiles.length > 0 ? C.blueSoft : C.grayLight,
               }}
             >
-              {fileName ? (
-                <>
-                  <div style={{ fontSize: 24, marginBottom: 4 }}>📄</div>
-                  <div style={{ fontWeight: 600, color: C.blue }}>{fileName}</div>
-                  <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>Click to replace</div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>📤</div>
-                  <div style={{ fontWeight: 600 }}>Drop PDF here or click to upload</div>
-                  <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>PDF files only · drag &amp; drop supported</div>
-                </>
-              )}
+              <div style={{ fontSize: 24, marginBottom: 6 }}>📤</div>
+              <div style={{ fontWeight: 600 }}>
+                {syllabusFiles.length > 0 ? "Add another syllabus" : "Drop PDF here or click to upload"}
+              </div>
+              <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>PDF files only · each syllabus gets its own color</div>
             </div>
             <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
               onChange={e => {
                 const f = e.target.files?.[0];
-                if (f) { setFileName(f.name); setSyllabusFile(f); }
+                if (f) { setSyllabusFiles(prev => [...prev, { file: f, name: f.name }]); e.target.value = ""; }
               }} />
           </div>
 
@@ -905,7 +918,11 @@ Return ONLY valid JSON array. No markdown.`;
             {/* Right — Weekly calendar + actions */}
             <div>
               <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-                <WeeklyCalendar blocks={blocks} assignments={assignments} onToggle={toggleBlock} />
+                <WeeklyCalendar
+                  blocks={blocks}
+                  syllabusNames={syllabusFiles.length > 0 ? syllabusFiles.map(sf => sf.name.replace(/\.pdf$/i, "")) : ["Sample Data"]}
+                  onToggle={toggleBlock}
+                />
                 <p style={{ fontSize: 11, color: C.gray, margin: "12px 0 0", textAlign: "center" }}>
                   Click a block to toggle it on/off
                 </p>
