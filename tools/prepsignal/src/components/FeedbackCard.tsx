@@ -50,9 +50,32 @@ export default function FeedbackCard({ result, onReset }: Props) {
         marginBottom: "24px",
       }}>
         {DIMENSIONS.map(({ key, label }) => {
-          const { score, quote, rationale } = scores[key];
-          const pct = (score / 5) * 100;
+          const dim = scores[key];
           const isPriority = key === priority.dimension;
+
+          if (dim.notApplicable) {
+            return (
+              <div key={key} style={{
+                border: "1px solid #e8e8e8",
+                borderRadius: "4px",
+                padding: "14px",
+                background: "#fafafa",
+              }}>
+                <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", color: "#bbb", fontWeight: 600, marginBottom: "6px" }}>
+                  {label}
+                </div>
+                <div style={{ fontSize: "20px", fontWeight: 700, fontFamily: "monospace", color: "#ccc", letterSpacing: "-1px", lineHeight: 1, marginBottom: "8px" }}>
+                  N/A
+                </div>
+                <div style={{ fontSize: "11px", color: "#bbb", lineHeight: 1.4 }}>
+                  No evidence found in your notes for this dimension.
+                </div>
+              </div>
+            );
+          }
+
+          const { score, quote, rationale } = dim;
+          const pct = (score / 5) * 100;
 
           return (
             <div key={key} style={{

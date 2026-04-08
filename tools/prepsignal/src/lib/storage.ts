@@ -1,8 +1,10 @@
-import type { Dimension, SessionResult } from "./types";
+import type { Dimension, SessionResult, DrillPlan } from "./types";
 
 export interface StoredSession {
   id: string;
   createdAt: string; // ISO string
+  caseType: string;
+  industry: string;
   scores: SessionResult["scores"];
   priority: SessionResult["priority"];
 }
@@ -18,10 +20,12 @@ export function loadSessions(): StoredSession[] {
   }
 }
 
-export function saveSession(result: SessionResult): StoredSession {
+export function saveSession(result: SessionResult, caseType: string, industry: string): StoredSession {
   const session: StoredSession = {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
+    caseType,
+    industry,
     scores: result.scores,
     priority: result.priority,
   };
@@ -29,6 +33,26 @@ export function saveSession(result: SessionResult): StoredSession {
   sessions.unshift(session); // newest first
   localStorage.setItem(KEY, JSON.stringify(sessions));
   return session;
+}
+
+const DRILL_KEY = "prepsignal_drills";
+
+export function loadDrillPlan(): DrillPlan | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(DRILL_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveDrillPlan(plan: DrillPlan): void {
+  localStorage.setItem(DRILL_KEY, JSON.stringify(plan));
+}
+
+export function clearDrillPlan(): void {
+  localStorage.removeItem(DRILL_KEY);
 }
 
 // Returns data shaped for the Recharts progression chart
