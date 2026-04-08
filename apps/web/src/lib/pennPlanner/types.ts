@@ -1,9 +1,4 @@
-export type TaskSource =
-  | "canvas"
-  | "careerpath"
-  | "google_calendar"
-  | "icalendar"
-  | "manual";
+export type TaskSource = "canvas" | "careerpath" | "manual";
 
 export interface PennPlannerTask {
   id: string;
@@ -33,7 +28,7 @@ export interface ExternalTask {
   externalId: string;
   title: string;
   description?: string;
-  source: "canvas" | "careerpath" | "google_calendar" | "icalendar";
+  source: "canvas" | "careerpath";
   type: string;
   dueDate: string;
   course?: string;

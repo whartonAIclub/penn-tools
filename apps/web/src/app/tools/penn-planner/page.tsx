@@ -1,148 +1,239 @@
-import Link from "next/link";
+"use client";
 
-const FEATURES = [
-  {
-    title: "Unified Priorities",
-    description:
-      "Bring deadlines, interviews, and calendar commitments into one ranked action list.",
-  },
-  {
-    title: "Smart Nudges",
-    description:
-      "Get alerts for deadline stacking, overdue work, and upcoming high-stakes events.",
-  },
-  {
-    title: "AI Daily Briefing",
-    description:
-      "Generate a concise summary of what to focus on first with an actionable next step.",
-  },
-];
+import { useCallback, useEffect, useState } from "react";
+import { AddTaskModal } from "./_components/AddTaskModal";
+import { TaskCard } from "./_components/TaskCard";
+import type { PrioritizedTask } from "@/lib/pennPlanner/types";
 
-const INTEGRATIONS = [
-  "Canvas",
-  "CareerPath",
-  "Google Calendar",
-  "iCalendar",
-];
+interface Nudge {
+  type: string;
+  message: string;
+  taskIds: string[];
+}
 
-export default function PennPlannerLandingPage() {
+function categoryWeight(source: string, userOrder: string[]): number {
+  const idx = userOrder.indexOf(
+    source === "canvas" ? "academic" : source === "careerpath" ? "career" : "other"
+  );
+  return idx === -1 ? 99 : idx;
+}
+
+function sortTasks(tasks: PrioritizedTask[], userOrder: string[]): PrioritizedTask[] {
+  return [...tasks].sort((a, b) => {
+    const dateDiff = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return categoryWeight(a.source, userOrder) - categoryWeight(b.source, userOrder);
+  });
+}
+
+function groupTasks(tasks: PrioritizedTask[]) {
+  const now = new Date();
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+  const endOfDay2 = new Date(now);
+  endOfDay2.setDate(now.getDate() + 2);
+  endOfDay2.setHours(23, 59, 59, 999);
+
+  const overdue: PrioritizedTask[] = [];
+  const today: PrioritizedTask[] = [];
+  const next2: PrioritizedTask[] = [];
+  const upcoming: PrioritizedTask[] = [];
+
+  for (const t of tasks) {
+    if (t.status === "completed") continue;
+    const due = new Date(t.dueDate);
+    if (due < now) overdue.push(t);
+    else if (due <= endOfToday) today.push(t);
+    else if (due <= endOfDay2) next2.push(t);
+    else upcoming.push(t);
+  }
+
+  return { overdue, today, next2, upcoming };
+}
+
+export default function PennPlannerPage() {
+  const [tasks, setTasks] = useState<PrioritizedTask[]>([]);
+  const [nudges, setNudges] = useState<Nudge[]>([]);
+  const [summary, setSummary] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
+  const [userOrder, setUserOrder] = useState<string[]>(["career", "academic", "other"]);
+
+  const fetchTasks = useCallback(async () => {
+    const res = await fetch("/api/tools/penn-planner/tasks");
+    const data = await res.json();
+    setTasks(Array.isArray(data) ? data : []);
+  }, []);
+
+  const fetchNudges = useCallback(async () => {
+    const res = await fetch("/api/tools/penn-planner/nudges");
+    const data = await res.json();
+    setNudges(data.nudges ?? []);
+  }, []);
+
+  useEffect(() => {
+    async function init() {
+      setLoading(true);
+      await fetchTasks();
+      await fetchNudges();
+      setLoading(false);
+      try {
+        const saved = localStorage.getItem("penn-priorities-order");
+        if (saved) setUserOrder(JSON.parse(saved));
+      } catch {
+        // no-op
+      }
+    }
+    init();
+  }, [fetchTasks, fetchNudges]);
+
+  async function handleSync() {
+    setSyncing(true);
+    await fetch("/api/tools/penn-planner/sync", { method: "POST" });
+    await fetchTasks();
+    await fetchNudges();
+    setSyncing(false);
+  }
+
+  async function handleGetSummary() {
+    setLoadingSummary(true);
+    const res = await fetch("/api/tools/penn-planner/summary");
+    const data = await res.json();
+    setSummary(data.summary ?? "");
+    setLoadingSummary(false);
+  }
+
+  async function handleStatusChange(id: string, status: string) {
+    await fetch(`/api/tools/penn-planner/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    await fetchTasks();
+    await fetchNudges();
+  }
+
+  async function handleDelete(id: string) {
+    await fetch(`/api/tools/penn-planner/tasks/${id}`, { method: "DELETE" });
+    await fetchTasks();
+    await fetchNudges();
+  }
+
+  async function handleAdd(formData: Record<string, string>) {
+    await fetch("/api/tools/penn-planner/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+    await fetchTasks();
+    await fetchNudges();
+  }
+
+  const sorted = sortTasks(tasks, userOrder);
+  const { overdue, today, next2, upcoming } = groupTasks(sorted);
+  const completedCount = tasks.filter((t) => t.status === "completed").length;
+  const visibleNudges = nudges.filter((n) => !dismissedNudges.has(n.message));
+
   return (
-    <div style={{ maxWidth: "980px", margin: "0 auto", padding: "48px 24px 64px" }}>
-      <p
-        style={{
-          fontSize: "12px",
-          fontWeight: 700,
-          letterSpacing: "0.08em",
-          color: "#4f46e5",
-          textTransform: "uppercase",
-          marginBottom: "10px",
-        }}
-      >
-        Team 3 Tool
-      </p>
-      <h1
-        style={{
-          margin: 0,
-          fontSize: "38px",
-          lineHeight: 1.15,
-          letterSpacing: "-0.03em",
-          color: "#0f172a",
-        }}
-      >
-        Penn Planner
-      </h1>
-      <p
-        style={{
-          marginTop: "14px",
-          maxWidth: "760px",
-          fontSize: "16px",
-          color: "#475569",
-          lineHeight: 1.65,
-        }}
-      >
-        Plan your week with a single, AI-prioritized dashboard that blends your
-        Canvas tasks, recruiting deadlines from CareerPath, and commitments from
-        Google Calendar and iCalendar.
-      </p>
-
-      <div style={{ display: "flex", gap: "10px", marginTop: "22px", flexWrap: "wrap" }}>
-        {INTEGRATIONS.map((name) => (
-          <span
-            key={name}
-            style={{
-              border: "1px solid #dbe4ff",
-              background: "#eef2ff",
-              color: "#3730a3",
-              borderRadius: "999px",
-              padding: "6px 12px",
-              fontSize: "12px",
-              fontWeight: 700,
-            }}
+    <div style={{ padding: "24px", maxWidth: "860px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "20px", gap: "12px" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 700, color: "#011F5B" }}>My Priorities</h1>
+          <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b6b6b" }}>{new Date().toLocaleDateString()}</p>
+        </div>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            style={{ fontSize: "13px", padding: "7px 14px", border: "1px solid #d1d1d1", borderRadius: "6px", background: "#fff", cursor: syncing ? "not-allowed" : "pointer", fontWeight: 500 }}
           >
-            {name}
-          </span>
-        ))}
+            {syncing ? "Syncing..." : "Sync"}
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{ fontSize: "13px", padding: "7px 16px", borderRadius: "6px", background: "#011F5B", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
+          >
+            + Add Task
+          </button>
+        </div>
       </div>
 
-      <div style={{ marginTop: "28px", display: "flex", gap: "12px", flexWrap: "wrap" }}>
-        <Link
-          href="/tools/penn-planner/dashboard"
-          style={{
-            background: "#0f172a",
-            color: "#fff",
-            borderRadius: "8px",
-            padding: "10px 16px",
-            textDecoration: "none",
-            fontSize: "14px",
-            fontWeight: 700,
-          }}
-        >
-          Enter App
-        </Link>
-        <Link
-          href="/tools/penn-planner/settings"
-          style={{
-            background: "#fff",
-            color: "#0f172a",
-            borderRadius: "8px",
-            padding: "10px 16px",
-            textDecoration: "none",
-            fontSize: "14px",
-            fontWeight: 700,
-            border: "1px solid #d9dfea",
-          }}
-        >
-          View Integrations
-        </Link>
-      </div>
-
-      <div
-        style={{
-          marginTop: "36px",
-          display: "grid",
-          gap: "14px",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-        }}
-      >
-        {FEATURES.map((feature) => (
-          <div
-            key={feature.title}
-            style={{
-              background: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "12px",
-              padding: "16px",
-            }}
-          >
-            <h2 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0f172a" }}>
-              {feature.title}
-            </h2>
-            <p style={{ margin: 0, color: "#64748b", fontSize: "13px", lineHeight: 1.6 }}>
-              {feature.description}
-            </p>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
+        {[
+          { label: "Due Today", value: today.length },
+          { label: "In Progress", value: tasks.filter((t) => t.status === "in_progress").length },
+          { label: "Completed", value: completedCount },
+          { label: "Overdue", value: overdue.length },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: "#fff", border: "1px solid #eee", borderRadius: "8px", padding: "12px 20px", minWidth: "110px" }}>
+            <div style={{ fontSize: "22px", fontWeight: 700 }}>{value}</div>
+            <div style={{ fontSize: "11px", color: "#555", marginTop: "3px", fontWeight: 600 }}>{label}</div>
           </div>
         ))}
       </div>
+
+      {visibleNudges.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
+          {visibleNudges.map((nudge) => (
+            <div key={nudge.message} style={{ background: "#FFFDE7", border: "1px solid #FFE082", borderRadius: "6px", padding: "10px 14px", display: "flex", justifyContent: "space-between", gap: "12px" }}>
+              <p style={{ fontSize: "13px", fontWeight: 500, color: "#1a1a1a", margin: 0 }}>{nudge.message}</p>
+              <button
+                onClick={() => setDismissedNudges((d) => new Set([...d, nudge.message]))}
+                style={{ color: "#9b9b9b", background: "none", border: "none", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: 0 }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: "8px", padding: "16px 20px", marginBottom: "24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "16px" }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, color: "#011F5B", textTransform: "uppercase", marginBottom: "6px" }}>AI Daily Briefing</p>
+            <p style={{ fontSize: "14px", color: summary ? "#333" : "#9b9b9b", margin: 0 }}>
+              {summary || 'Click "Get Briefing" for your AI-powered daily summary.'}
+            </p>
+          </div>
+          <button
+            onClick={handleGetSummary}
+            disabled={loadingSummary}
+            style={{ flexShrink: 0, fontSize: "12px", padding: "6px 14px", borderRadius: "4px", background: "#011F5B", color: "#fff", border: "none", cursor: loadingSummary ? "not-allowed" : "pointer", fontWeight: 600 }}
+          >
+            {loadingSummary ? "Thinking..." : "Get Briefing"}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <p style={{ color: "#9b9b9b" }}>Loading your tasks...</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {[
+            { title: "Overdue", tasks: overdue },
+            { title: "Due Today", tasks: today },
+            { title: "Next 2 Days", tasks: next2 },
+            { title: "Upcoming", tasks: upcoming },
+          ].map((section) => (
+            <div key={section.title}>
+              <h2 style={{ margin: "0 0 10px", fontSize: "12px", fontWeight: 700, color: "#555", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                {section.title} ({section.tasks.length})
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {section.tasks.map((task) => (
+                  <TaskCard key={task.id} task={task} onStatusChange={handleStatusChange} onDelete={handleDelete} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAddModal && <AddTaskModal onClose={() => setShowAddModal(false)} onAdd={handleAdd} />}
     </div>
   );
 }

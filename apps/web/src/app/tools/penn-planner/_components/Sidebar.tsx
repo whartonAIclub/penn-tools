@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/tools/penn-planner/dashboard", icon: "⊞", label: "Dashboard" },
+  { href: "/tools/penn-planner", icon: "⊞", label: "Dashboard" },
   { href: "/tools/penn-planner/settings", icon: "⚙", label: "Settings" },
 ];
 
