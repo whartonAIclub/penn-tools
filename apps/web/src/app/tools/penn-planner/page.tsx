@@ -398,11 +398,25 @@ export default function PennPlannerPage() {
   const [apiKeyInput,   setApiKeyInput]   = useState("");
   const [showApiKey,    setShowApiKey]    = useState(false);
   const [storedApiKey,  setStoredApiKey]  = useState("");
+  const [showAddForm,   setShowAddForm]   = useState(false);
+  const [newA,          setNewA]          = useState<{
+    name: string; course: string; type: AssignmentType;
+    dueDate: string; estimatedHours: number; syllabusIndex: number;
+  }>({ name: "", course: "", type: "other", dueDate: "", estimatedHours: 2, syllabusIndex: 0 });
+  const [windowWidth,   setWindowWidth]   = useState(1200);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Read localStorage after mount to avoid hydration mismatch
   useEffect(() => {
     setStoredApiKey(localStorage.getItem("penntools_api_key") ?? "");
+  }, []);
+
+  // Responsive layout
+  useEffect(() => {
+    setWindowWidth(window.innerWidth);
+    const handler = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
   }, []);
 
   const llmHeaders = (key: string) => ({
@@ -558,6 +572,22 @@ Return ONLY valid JSON array. No markdown.`;
     setBlocks(prev => prev.map(b => b.id === id ? { ...b, included: !b.included } : b));
   }
 
+  function deleteAssignment(id: string) {
+    setAssignments(prev => prev.filter(a => a.id !== id));
+  }
+
+  function addAssignment() {
+    if (!newA.name || !newA.dueDate) return;
+    setAssignments(prev => [...prev, {
+      ...newA,
+      id: `manual-${Date.now()}`,
+      confidence: "medium" as const,
+      reasoning: "Manually added",
+    }]);
+    setShowAddForm(false);
+    setNewA({ name: "", course: "", type: "other", dueDate: "", estimatedHours: 2, syllabusIndex: 0 });
+  }
+
   // ── Shared styles ─────────────────────────────────────────────────────────────
 
   const wrap: React.CSSProperties = {
@@ -595,6 +625,7 @@ Return ONLY valid JSON array. No markdown.`;
   const includedBlocks = blocks.filter(b => b.included);
   const totalHours     = assignments.reduce((s, a) => s + a.estimatedHours, 0);
   const earliestDue    = assignments.slice().sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  const isNarrow       = windowWidth < 768;
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -624,7 +655,7 @@ Return ONLY valid JSON array. No markdown.`;
       </div>
 
       {/* How It Works view */}
-      {step === "how-it-works" && <HowItWorksView onBack={() => setStep("setup")} />}
+      {step === "how-it-works" && <HowItWorksView onBack={() => setStep("setup")} isNarrow={isNarrow} />}
 
       {/* Progress */}
       {step !== "how-it-works" && <div style={{ display: "flex", alignItems: "center", marginBottom: 32 }}>
@@ -795,19 +826,73 @@ Return ONLY valid JSON array. No markdown.`;
                 {assignments.length} found · adjust hours if needed
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button onClick={() => setStep("setup")} style={btn(false)}>← Back</button>
+              <button onClick={() => setShowAddForm(v => !v)} style={btn(false)}>+ Add</button>
               <button onClick={handleBuildCalendar} style={btn()}>Build My Plan →</button>
             </div>
           </div>
 
-          {assignments.map(a => (
-            <div key={a.id} style={{ ...card, padding: "16px 20px" }}>
+          {/* Add assignment form */}
+          {showAddForm && (
+            <div style={{ ...card, borderLeft: `3px solid ${C.blue}`, padding: "16px 20px", marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Add Assignment</div>
+              <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <input placeholder="Assignment name *" value={newA.name}
+                  onChange={e => setNewA(v => ({ ...v, name: e.target.value }))}
+                  style={{ padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
+                <input placeholder="Course (e.g. MGMT 611)" value={newA.course}
+                  onChange={e => setNewA(v => ({ ...v, course: e.target.value }))}
+                  style={{ padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
+                <input type="date" value={newA.dueDate}
+                  onChange={e => setNewA(v => ({ ...v, dueDate: e.target.value }))}
+                  style={{ padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
+                <select value={newA.type}
+                  onChange={e => setNewA(v => ({ ...v, type: e.target.value as AssignmentType }))}
+                  style={{ padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none", background: C.white }}>
+                  {Object.entries(MBA_REFERENCE).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, color: C.gray, whiteSpace: "nowrap" }}>Hours:</span>
+                  <button onClick={() => setNewA(v => ({ ...v, estimatedHours: Math.max(0.5, Math.round((v.estimatedHours - 0.5) * 10) / 10) }))}
+                    style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                  <span style={{ fontWeight: 700, fontSize: 16, minWidth: 32, textAlign: "center" }}>{newA.estimatedHours}</span>
+                  <button onClick={() => setNewA(v => ({ ...v, estimatedHours: Math.round((v.estimatedHours + 0.5) * 10) / 10 }))}
+                    style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                </div>
+                {syllabusFiles.length > 1 && (
+                  <select value={newA.syllabusIndex}
+                    onChange={e => setNewA(v => ({ ...v, syllabusIndex: Number(e.target.value) }))}
+                    style={{ padding: "8px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none", background: C.white }}>
+                    {syllabusFiles.map((sf, i) => (
+                      <option key={i} value={i}>{sf.name.replace(/\.pdf$/i, "")}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={addAssignment} style={btn(true, true)}>Add Assignment</button>
+                <button onClick={() => setShowAddForm(false)} style={btn(false, true)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {assignments.map(a => {
+            const sc = syllabusColor(a.syllabusIndex);
+            return (
+            <div key={a.id} style={{ ...card, padding: "16px 20px", borderLeft: `3px solid ${sc.border}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
                     <TypeBadge type={a.type} />
                     <span style={{ fontSize: 12, color: C.gray }}>{a.course}</span>
+                    {syllabusFiles.length > 1 && (
+                      <span style={{ fontSize: 11, fontWeight: 600, color: sc.text, background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 99, padding: "1px 7px" }}>
+                        {(syllabusFiles[a.syllabusIndex]?.name ?? "").replace(/\.pdf$/i, "")}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{a.name}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -816,18 +901,24 @@ Return ONLY valid JSON array. No markdown.`;
                   </div>
                   <div style={{ fontSize: 12, color: C.gray, marginTop: 4, fontStyle: "italic" }}>{a.reasoning}</div>
                 </div>
-                {/* Stepper */}
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, color: C.gray, marginBottom: 4 }}>Est. hours</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <button onClick={() => updateHours(a.id, -0.5)} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                    <span style={{ fontWeight: 700, fontSize: 20, minWidth: 36, textAlign: "center" }}>{a.estimatedHours}</span>
-                    <button onClick={() => updateHours(a.id, 0.5)} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                {/* Stepper + delete */}
+                <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                  <button onClick={() => deleteAssignment(a.id)}
+                    title="Remove assignment"
+                    style={{ background: "none", border: "none", cursor: "pointer", color: C.gray, fontSize: 16, lineHeight: 1, padding: "0 2px" }}>×</button>
+                  <div>
+                    <div style={{ fontSize: 12, color: C.gray, marginBottom: 4 }}>Est. hours</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <button onClick={() => updateHours(a.id, -0.5)} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                      <span style={{ fontWeight: 700, fontSize: 20, minWidth: 36, textAlign: "center" }}>{a.estimatedHours}</span>
+                      <button onClick={() => updateHours(a.id, 0.5)} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           <div style={{ ...card, background: C.grayLight, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
@@ -874,7 +965,7 @@ Return ONLY valid JSON array. No markdown.`;
           </div>
 
           {/* Two-column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 16, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr" : "1fr 1.5fr", gap: 16, alignItems: "start" }}>
 
             {/* Left — Assignment list */}
             <div>
@@ -884,11 +975,12 @@ Return ONLY valid JSON array. No markdown.`;
               {assignments.map(a => {
                 const aBlocks   = blocks.filter(b => b.assignmentId === a.id && b.included);
                 const isOverdue = new Date(a.dueDate + "T23:59:59") < new Date();
+                const sc        = syllabusColor(a.syllabusIndex);
                 return (
                   <div key={a.id} style={{
                     background: C.white, border: `1px solid ${C.border}`,
                     borderRadius: 10, padding: "14px 16px", marginBottom: 10,
-                    borderLeft: isOverdue ? `3px solid ${C.red}` : `3px solid transparent`,
+                    borderLeft: isOverdue ? `3px solid ${C.red}` : `3px solid ${sc.border}`,
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -971,7 +1063,7 @@ Return ONLY valid JSON array. No markdown.`;
 
 // ── How It Works View ───────────────────────────────────────────────────────────
 
-function HowItWorksView({ onBack }: { onBack: () => void }) {
+function HowItWorksView({ onBack, isNarrow }: { onBack: () => void; isNarrow: boolean }) {
   const PENN_BLUE = "#011F5B";
 
   const steps = [
@@ -1011,7 +1103,7 @@ function HowItWorksView({ onBack }: { onBack: () => void }) {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 32 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 32 }}>
         {steps.map((s) => (
           <div key={s.num} style={{ background: s.color, border: `1px solid ${s.border}`, borderRadius: 12, padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
