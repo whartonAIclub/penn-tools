@@ -69,7 +69,8 @@ export function Sidebar() {
         {[
           { label: "Canvas",      color: "#1d4ed8", status: "Connected" },
           { label: "CareerPath",  color: "#6d28d9", status: "Connected" },
-          { label: "Google Cal",  color: "#059669", status: "Coming soon" },
+          { label: "Google Cal",  color: "#059669", status: "Connected" },
+          { label: "iCalendar",   color: "#7c3aed", status: "Connected" },
         ].map(({ label, color, status }) => (
           <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "13px", color: "#444" }}>{label}</span>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 const CATEGORIES = [
   { key: "career",   label: "Career",   icon: "🎯", desc: "CareerPath tasks — interviews, applications, networking" },
   { key: "academic", label: "Academic", icon: "📚", desc: "Canvas tasks — assignments, exams, quizzes" },
+  { key: "calendar", label: "Calendar", icon: "📅", desc: "Google Calendar and iCalendar commitments" },
   { key: "other",    label: "Other",    icon: "📌", desc: "Manually added tasks and reminders" },
 ];
 
@@ -16,7 +17,7 @@ const COLOR_LEGEND = [
 ];
 
 export default function Settings() {
-  const [order, setOrder] = useState<string[]>(["career", "academic", "other"]);
+  const [order, setOrder] = useState<string[]>(["career", "academic", "calendar", "other"]);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -89,7 +90,7 @@ export default function Settings() {
                     height: "24px",
                     borderRadius: "50%",
                     background: idx === 0 ? "#011F5B" : idx === 1 ? "#3B82F6" : "#E0E0E0",
-                    color: idx === 2 ? "#555" : "#fff",
+                    color: idx >= 2 ? "#555" : "#fff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -210,8 +211,8 @@ export default function Settings() {
           {[
             { name: "Canvas (Penn LMS)",    status: "Connected",   color: "#1d4ed8" },
             { name: "CareerPath",           status: "Connected",   color: "#6d28d9" },
-            { name: "Google Calendar",      status: "Coming soon", color: "#9b9b9b" },
-            { name: "iCalendar",            status: "Coming soon", color: "#9b9b9b" },
+            { name: "Google Calendar",      status: "Connected", color: "#047857" },
+            { name: "iCalendar",            status: "Connected", color: "#7c3aed" },
           ].map(({ name, status, color }) => (
             <div key={name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F8F8F8" }}>
               <span style={{ fontSize: "13px", color: "#333", fontWeight: 500 }}>{name}</span>

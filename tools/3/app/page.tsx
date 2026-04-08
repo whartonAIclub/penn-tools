@@ -29,24 +29,27 @@ interface Nudge {
   taskIds: string[];
 }
 
-// Source → category mapping
-const SOURCE_CATEGORY: Record<string, number> = {
-  careerpath: 0, // career first
-  canvas:     1, // academic second
-  manual:     2, // other last
-};
+const INTEGRATIONS = ["Canvas", "CareerPath", "Google Calendar", "iCalendar"];
 
 function categoryWeight(source: string, userOrder: string[]): number {
-  const idx = userOrder.indexOf(source === "canvas" ? "academic" : source === "careerpath" ? "career" : "other");
+  const category =
+    source === "canvas"
+      ? "academic"
+      : source === "careerpath"
+        ? "career"
+        : source === "google_calendar" || source === "icalendar"
+          ? "calendar"
+          : "other";
+  const idx = userOrder.indexOf(category);
   return idx === -1 ? 99 : idx;
 }
 
 function sortTasks(tasks: Task[], userOrder: string[]): Task[] {
   return [...tasks].sort((a, b) => {
-    // 1. Due date first
+    const scoreDiff = b.priorityScore - a.priorityScore;
+    if (scoreDiff !== 0) return scoreDiff;
     const dateDiff = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     if (dateDiff !== 0) return dateDiff;
-    // 2. User-defined category priority
     return categoryWeight(a.source, userOrder) - categoryWeight(b.source, userOrder);
   });
 }
@@ -74,6 +77,7 @@ function groupTasks(tasks: Task[]) {
 }
 
 export default function Dashboard() {
+  const [enteredApp, setEnteredApp] = useState(false);
   const [tasks, setTasks]               = useState<Task[]>([]);
   const [nudges, setNudges]             = useState<Nudge[]>([]);
   const [summary, setSummary]           = useState<string>("");
@@ -82,7 +86,7 @@ export default function Dashboard() {
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
-  const [userOrder, setUserOrder]       = useState<string[]>(["career", "academic", "other"]);
+  const [userOrder, setUserOrder]       = useState<string[]>(["career", "academic", "calendar", "other"]);
 
   const fetchTasks = useCallback(async () => {
     const res = await fetch("/api/tasks");
@@ -97,19 +101,24 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const alreadyEntered = localStorage.getItem("penn-priorities-entered");
+    if (alreadyEntered === "1") setEnteredApp(true);
+  }, []);
+
+  useEffect(() => {
+    if (!enteredApp) return;
     async function init() {
       setLoading(true);
       await fetchTasks();
       await fetchNudges();
       setLoading(false);
-      // Load saved priority order
       try {
         const saved = localStorage.getItem("penn-priorities-order");
         if (saved) setUserOrder(JSON.parse(saved));
       } catch {}
     }
     init();
-  }, [fetchTasks, fetchNudges]);
+  }, [enteredApp, fetchTasks, fetchNudges]);
 
   async function handleSync() {
     setSyncing(true);
@@ -162,6 +171,80 @@ export default function Dashboard() {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
   });
 
+  function enterApp() {
+    localStorage.setItem("penn-priorities-entered", "1");
+    setEnteredApp(true);
+  }
+
+  if (!enteredApp) {
+    return (
+      <div style={{ padding: "36px 28px", maxWidth: "980px" }}>
+        <p style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#4f46e5", marginBottom: "10px" }}>
+          Team 3 Tool
+        </p>
+        <h1 style={{ margin: 0, fontSize: "38px", lineHeight: 1.15, letterSpacing: "-0.03em", color: "#0f172a" }}>
+          Penn-priorities
+        </h1>
+        <p style={{ marginTop: "14px", maxWidth: "760px", fontSize: "16px", color: "#475569", lineHeight: 1.65 }}>
+          Merge tasks from Canvas, CareerPath, Google Calendar, and iCalendar into one ranked
+          priority list so you always know what to do next.
+        </p>
+
+        <div style={{ display: "flex", gap: "10px", marginTop: "22px", flexWrap: "wrap" }}>
+          {INTEGRATIONS.map((name) => (
+            <span
+              key={name}
+              style={{
+                border: "1px solid #dbe4ff",
+                background: "#eef2ff",
+                color: "#3730a3",
+                borderRadius: "999px",
+                padding: "6px 12px",
+                fontSize: "12px",
+                fontWeight: 700,
+              }}
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ marginTop: "24px", display: "flex", gap: "10px" }}>
+          <button
+            onClick={enterApp}
+            style={{
+              background: "#011F5B",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "10px 16px",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Enter App
+          </button>
+          <button
+            onClick={() => (window.location.href = "/settings")}
+            style={{
+              background: "#fff",
+              color: "#0f172a",
+              border: "1px solid #d9dfea",
+              borderRadius: "8px",
+              padding: "10px 16px",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            View Integrations
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   function Section({ title, tasks, color, dot }: { title: string; tasks: Task[]; color: string; dot: string }) {
     if (tasks.length === 0) return null;
     return (
@@ -204,7 +287,7 @@ export default function Dashboard() {
               transition: "background 0.15s",
             }}
           >
-            {syncing ? "Syncing…" : "⟳ Sync"}
+            {syncing ? "Syncing…" : "⟳ Sync All"}
           </button>
           <button
             onClick={() => setShowAddModal(true)}
@@ -323,7 +406,7 @@ export default function Dashboard() {
         <div style={{ textAlign: "center", padding: "64px 0", color: "#9b9b9b" }}>
           <div style={{ fontSize: "28px", marginBottom: "12px" }}>{tasks.length === 0 ? "📥" : "✅"}</div>
           <p style={{ fontSize: "15px", fontWeight: 500, color: "#555" }}>
-            {tasks.length === 0 ? "No tasks yet — sync Canvas & CareerPath to get started" : "All caught up! No pending tasks."}
+            {tasks.length === 0 ? "No tasks yet — sync Canvas, CareerPath, and Calendar to get started" : "All caught up! No pending tasks."}
           </p>
           {tasks.length === 0 && (
             <button

@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getMockCanvasTasks, getMockCareerPathTasks } from "@/lib/mock-data";
+import { fetchAllIntegrationTasks } from "@/lib/integrations";
 
 export async function POST() {
   try {
-    const canvasTasks = getMockCanvasTasks();
-    const careerPathTasks = getMockCareerPathTasks();
-    const allExternal = [...canvasTasks, ...careerPathTasks];
+    const allExternal = await fetchAllIntegrationTasks();
 
     let created = 0;
     let skipped = 0;
 
     for (const ext of allExternal) {
-      // Check if already synced (by title + source to avoid duplicates)
       const existing = await prisma.task.findFirst({
         where: { title: ext.title, source: ext.source },
       });

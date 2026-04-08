@@ -5,7 +5,7 @@ export interface ExternalTask {
   externalId: string;
   title: string;
   description?: string;
-  source: "canvas" | "careerpath";
+  source: "canvas" | "careerpath" | "google_calendar" | "icalendar";
   type: string;
   dueDate: Date;
   course?: string;
@@ -234,6 +234,53 @@ export function getMockCareerPathTasks(): ExternalTask[] {
       dueDate: daysFromNow(10),
       company: "Multiple",
       estimatedMinutes: 60,
+    },
+  ];
+}
+
+export function getMockGoogleCalendarTasks(): ExternalTask[] {
+  return [
+    {
+      externalId: "gcal-001",
+      title: "Coffee chat prep block",
+      description: "Review contact profile and prepare 3 focused questions",
+      source: "google_calendar",
+      type: "networking",
+      dueDate: daysFromNow(0, 10),
+      company: "Bain & Company",
+      estimatedMinutes: 30,
+    },
+    {
+      externalId: "gcal-002",
+      title: "Case practice session",
+      description: "Live practice with peer and debrief",
+      source: "google_calendar",
+      type: "case_prep",
+      dueDate: daysFromNow(2, 18),
+      estimatedMinutes: 60,
+    },
+  ];
+}
+
+export function getMockICalendarTasks(): ExternalTask[] {
+  return [
+    {
+      externalId: "ical-001",
+      title: "Interview logistics review",
+      description: "Confirm schedule, travel, and recruiter details",
+      source: "icalendar",
+      type: "interview",
+      dueDate: daysFromNow(1, 8),
+      estimatedMinutes: 25,
+    },
+    {
+      externalId: "ical-002",
+      title: "Weekly planning review",
+      description: "Rebalance priorities for next 7 days",
+      source: "icalendar",
+      type: "other",
+      dueDate: daysFromNow(3, 20),
+      estimatedMinutes: 40,
     },
   ];
 }

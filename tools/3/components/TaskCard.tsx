@@ -31,6 +31,8 @@ interface TaskCardProps {
 const SOURCE_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   canvas:     { bg: "#EFF6FF", color: "#1d4ed8", border: "#BFDBFE" },
   careerpath: { bg: "#F5F3FF", color: "#6d28d9", border: "#DDD6FE" },
+  google_calendar: { bg: "#ECFDF5", color: "#047857", border: "#A7F3D0" },
+  icalendar: { bg: "#F5F3FF", color: "#7C3AED", border: "#DDD6FE" },
   manual:     { bg: "#F5F5F5", color: "#555",    border: "#E0E0E0" },
 };
 
@@ -172,7 +174,15 @@ export function TaskCard({ task, onStatusChange, onDelete }: TaskCardProps) {
                   letterSpacing: "0.02em",
                 }}
               >
-                {task.source === "canvas" ? "Canvas" : task.source === "careerpath" ? "CareerPath" : "Manual"}
+                {task.source === "canvas"
+                  ? "Canvas"
+                  : task.source === "careerpath"
+                    ? "CareerPath"
+                    : task.source === "google_calendar"
+                      ? "Google Calendar"
+                      : task.source === "icalendar"
+                        ? "iCalendar"
+                        : "Manual"}
               </span>
               {task.course && (
                 <span style={{ fontSize: "12px", color: "#6b6b6b" }}>{task.course}</span>
