@@ -635,7 +635,7 @@ Return ONLY valid JSON array. No markdown.`;
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 6px" }}>Penn Planner</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 6px" }}>Penn Planner_v2</h1>
           <p style={{ color: C.gray, margin: 0, fontSize: 15 }}>
             Upload your syllabus → AI effort estimates → block your study time
           </p>
