@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveIdentity } from "@/lib/resolveIdentity";
 import { repositories } from "@/lib/container";
-import { getMockCanvasTasks, getMockCareerPathTasks } from "@/lib/pennPlanner/mockData";
+import { fetchAllIntegrationTasks } from "@/lib/pennPlanner/integrations";
 import { getPlannerTasks, savePlannerTasks } from "@/lib/pennPlanner/state";
 import type { PennPlannerTask } from "@/lib/pennPlanner/types";
 
@@ -21,7 +21,7 @@ function withIdentityCookie(
 export async function POST(): Promise<NextResponse> {
   const { userId, setCookie } = await resolveIdentity();
   const existingTasks = await getPlannerTasks(repositories.toolData, userId);
-  const allExternal = [...getMockCanvasTasks(), ...getMockCareerPathTasks()];
+  const allExternal = await fetchAllIntegrationTasks();
 
   let created = 0;
   let skipped = 0;

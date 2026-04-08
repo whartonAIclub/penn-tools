@@ -54,6 +54,9 @@ function buildReason(task: PennPlannerTask, daysUntil: number, typeWeight: numbe
 
   if (task.source === "careerpath") parts.push("recruiting deadline");
   if (task.source === "canvas") parts.push("coursework deadline");
+  if (task.source === "google_calendar" || task.source === "icalendar") {
+    parts.push("calendar commitment");
+  }
 
   return parts.join(", ");
 }
