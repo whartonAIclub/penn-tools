@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./track3": {
+      "types": "./dist/track3/index.d.ts",
+      "import": "./dist/track3/index.js"
+    },
     "./track4": {
       "types": "./dist/track4/index.d.ts",
       "import": "./dist/track4/index.js"
