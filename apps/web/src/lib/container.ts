@@ -44,8 +44,6 @@ import type { UserId, User } from "@penntools/core/types";
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
 import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
-import { Tool3 } from "@penntools/tool-3";
-toolRegistry.register(new Tool3());
 import { Tool7 } from "@penntools/tool-7";
 toolRegistry.register(new Tool7());
 import { Tool8 } from "@penntools/tool-8";

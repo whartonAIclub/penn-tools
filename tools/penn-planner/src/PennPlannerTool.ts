@@ -7,10 +7,10 @@ export class PennPlannerTool extends Tool<PennPlannerInput, PennPlannerOutput> {
   readonly manifest: ToolManifest = {
     id: "penn-planner",
     title: "Penn Planner",
-    description: "AI-powered time-planning assistant that integrates with Canvas and your calendar to estimate effort and suggest study blocks.",
+    description: "The planning tool centralizes a Wharton student's deadlines and commitments across academics and recruiting into a single prioritized to-do list.",
     image: "/tools/penn-planner/icon.png",
-    contributors: ["Sam Lazarus", "Ana Akra", "Krishna Vadera", "Shreya Khetan"],
-    mentor: "Alex Sulimanov",
+    contributors: ["Alec Roslin", "Nyla Thompson", "Travon Martin", "Nikunj Agrawal"],
+    mentor: "Steven Adelberg",
     version: "0.1.0",
     inceptionDate: "2026-03-18",
     latestReleaseDate: "2026-03-18",
