@@ -33,6 +33,7 @@ interface Assignment {
   estimatedHours: number;
   confidence: "high" | "medium" | "low";
   reasoning: string;
+  syllabusIndex: number;
 }
 
 interface CalendarBlock {
@@ -44,9 +45,30 @@ interface CalendarBlock {
   startHour: number;
   hours: number;
   included: boolean;
+  syllabusIndex: number;
+}
+
+interface SyllabusFile {
+  file: File;
+  name: string;
 }
 
 type Step = "setup" | "generating" | "review" | "calendar" | "how-it-works";
+
+// ── Per-syllabus color palette ─────────────────────────────────────────────────
+
+const SYLLABUS_COLORS: { bg: string; border: string; text: string; dot: string }[] = [
+  { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" }, // blue
+  { bg: "#fef2f2", border: "#dc2626", text: "#991b1b", dot: "#dc2626" }, // red
+  { bg: "#f0fdf4", border: "#16a34a", text: "#166534", dot: "#16a34a" }, // green
+  { bg: "#fefce8", border: "#ca8a04", text: "#854d0e", dot: "#ca8a04" }, // amber
+  { bg: "#faf5ff", border: "#9333ea", text: "#6b21a8", dot: "#9333ea" }, // purple
+  { bg: "#fff7ed", border: "#ea580c", text: "#9a3412", dot: "#ea580c" }, // orange
+];
+
+function syllabusColor(idx: number) {
+  return SYLLABUS_COLORS[idx % SYLLABUS_COLORS.length]!;
+}
 
 // ── Palette (minimal — one blue accent, otherwise grays) ──────────────────────
 
@@ -86,10 +108,11 @@ async function extractTextFromPDF(file: File): Promise<string> {
   return data.text ?? "";
 }
 
-function getMockAssignments(rigor: number): Assignment[] {
+function getMockAssignments(rigor: number, syllabusIndex = 0): Assignment[] {
   const m = RIGOR_MULTIPLIERS[rigor]!;
   const r = (type: AssignmentType) =>
     Math.round(MBA_REFERENCE[type].baseHours * m * 2) / 2;
+  const today = new Date().toISOString().split("T")[0]!;
 
   return [
     {
@@ -97,38 +120,44 @@ function getMockAssignments(rigor: number): Assignment[] {
       course: "MGMT 611", type: "case", dueDate: addDays(5),
       estimatedHours: r("case"), confidence: "high",
       reasoning: "Standard Wharton case; rigor multiplier applied.",
+      syllabusIndex,
     },
     {
       id: "a2", name: "Financial Modeling Problem Set 1",
       course: "FNCE 601", type: "problem-set", dueDate: addDays(8),
       estimatedHours: r("problem-set"), confidence: "high",
       reasoning: "Quantitative problem set; adjusted for rigor.",
+      syllabusIndex,
     },
     {
       id: "a3", name: "Weekly Reading — Chapters 4–6",
       course: "MGMT 611", type: "reading", dueDate: addDays(3),
       estimatedHours: r("reading"), confidence: "medium",
       reasoning: "Three chapters; estimate based on average reading speed.",
+      syllabusIndex,
     },
     {
       id: "a4", name: "Group Project: Market Entry Plan",
       course: "MKTG 621", type: "group-project", dueDate: addDays(18),
       estimatedHours: r("group-project"), confidence: "medium",
       reasoning: "Group project complexity varies; using baseline.",
+      syllabusIndex,
     },
     {
       id: "a5", name: "Midterm Exam",
       course: "FNCE 601", type: "exam", dueDate: addDays(14),
       estimatedHours: r("exam"), confidence: "high",
       reasoning: "Full exam prep block; rigor multiplier applied.",
+      syllabusIndex,
     },
     {
       id: "a6", name: "Reflection Paper — Leadership Module",
       course: "MGMT 611", type: "reflection", dueDate: addDays(10),
       estimatedHours: r("reflection"), confidence: "high",
       reasoning: "Short reflection paper; low variance.",
+      syllabusIndex,
     },
-  ];
+  ].filter(a => a.dueDate >= today);
 }
 
 function generateCalendarBlocks(assignments: Assignment[]): CalendarBlock[] {
@@ -157,6 +186,7 @@ function generateCalendarBlocks(assignments: Assignment[]): CalendarBlock[] {
         startHour:      s % 2 === 0 ? 9 : 19,
         hours:          hrs,
         included:       true,
+        syllabusIndex:  a.syllabusIndex,
       });
     }
   }
@@ -187,24 +217,16 @@ function fmtHour(h: number) {
 
 // ── Weekly calendar grid ───────────────────────────────────────────────────────
 
-// Block color by assignment category
-function blockColor(type: AssignmentType): { bg: string; border: string; text: string } {
-  if (type === "quiz")                                    return { bg: "#fefce8", border: "#eab308", text: "#854d0e" };
-  if (type === "exam")                                    return { bg: "#fef2f2", border: "#ef4444", text: "#991b1b" };
-  if (type === "group-project" || type === "presentation") return { bg: "#f0fdf4", border: "#22c55e", text: "#166534" };
-  return { bg: C.blueSoft, border: C.blue, text: "#1e40af" }; // assignment / essay / problem-set / etc.
-}
-
 function WeeklyCalendar({
-  blocks, assignments, onToggle,
+  blocks, syllabusNames, onToggle,
 }: {
   blocks: CalendarBlock[];
-  assignments: Assignment[];
+  syllabusNames: string[];
   onToggle: (id: string) => void;
 }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const today    = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = today.toISOString().split("T")[0]!;
   const DAY_ABBR = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
   // Base: Sunday of the week containing the first block (or today)
@@ -395,6 +417,9 @@ export default function PennPlannerPage() {
     ...(key ? { "X-Api-Key": key } : {}),
   });
 
+  const llmModel = (key: string) =>
+    key.startsWith("sk-ant-") ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
+
   // ── Generate plan: real LLM if PDF uploaded, mock otherwise ──────────────────
 
   async function handleGenerate() {
@@ -440,7 +465,7 @@ Return ONLY a valid JSON array — no markdown, no explanation:
       const currentKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
       const parseRes = await fetch("/api/llm/complete", {
         method: "POST", headers: llmHeaders(currentKey),
-        body: JSON.stringify({ prompt: parsePrompt }),
+        body: JSON.stringify({ prompt: parsePrompt, model: llmModel(currentKey) }),
       });
 
       if (!parseRes.ok) throw new Error("llm_unavailable");
@@ -473,7 +498,7 @@ Return ONLY valid JSON array. No markdown.`;
 
       const estRes = await fetch("/api/llm/complete", {
         method: "POST", headers: llmHeaders(currentKey),
-        body: JSON.stringify({ prompt: estimatePrompt }),
+        body: JSON.stringify({ prompt: estimatePrompt, model: llmModel(currentKey) }),
       });
 
       if (!estRes.ok) throw new Error("llm_unavailable");
