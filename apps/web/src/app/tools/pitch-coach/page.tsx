@@ -2,6 +2,43 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
+// ── Sanitize LLM JSON (fix unescaped newlines/quotes inside string values) ────
+function sanitizeLLMJson(raw: string): string {
+  let result = "";
+  let inString = false;
+  let escape = false;
+  let i = 0;
+  while (i < raw.length) {
+    const ch = raw[i];
+    if (escape) { result += ch; escape = false; i++; continue; }
+    if (ch === "\\" && inString) { result += ch; escape = true; i++; continue; }
+    if (ch === '"') {
+      if (!inString) {
+        inString = true;
+        result += ch;
+      } else {
+        // Peek ahead: if next non-space char is a JSON delimiter, this closes the string
+        let j = i + 1;
+        while (j < raw.length && (raw[j] === " " || raw[j] === "\t" || raw[j] === "\n" || raw[j] === "\r")) j++;
+        const next = raw[j];
+        if (next === "," || next === "}" || next === "]" || next === ":" || j >= raw.length) {
+          inString = false;
+          result += ch;
+        } else {
+          // Unescaped quote inside string value — escape it
+          result += '\\"';
+        }
+      }
+      i++; continue;
+    }
+    if (inString && ch === "\n") { result += "\\n"; i++; continue; }
+    if (inString && ch === "\r") { result += "\\r"; i++; continue; }
+    result += ch;
+    i++;
+  }
+  return result;
+}
+
 // ── Web Speech API types (not universally in lib.dom.d.ts) ────────────────────
 type SpeechRecognitionResultItem = { transcript: string };
 type SpeechRecognitionResult = { isFinal: boolean; [index: number]: SpeechRecognitionResultItem };
@@ -308,6 +345,8 @@ export default function PitchCoachPage() {
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
   const [metrics, setMetrics] = useState<DeliveryMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rewriteLoading, setRewriteLoading] = useState(false);
+  const lastPromptRef = useRef<string>("");
   const [browserSupported, setBrowserSupported] = useState(true);
   const [activeTab, setActiveTab] = useState<"feedback" | "transcript" | "rewrite">("feedback");
 
@@ -421,6 +460,8 @@ export default function PitchCoachPage() {
         jobDescription,
       });
 
+      lastPromptRef.current = prompt;
+
       const res = await fetch("/api/llm/complete", {
         method: "POST",
         headers: {
@@ -436,7 +477,7 @@ export default function PitchCoachPage() {
       // Extract JSON from response
       const jsonMatch = data.content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("Could not parse feedback JSON");
-      const parsed: FeedbackData = JSON.parse(jsonMatch[0]);
+      const parsed: FeedbackData = { ...JSON.parse(sanitizeLLMJson(jsonMatch[0])), improvedTranscript: "" };
       setFeedback(parsed);
       setMode("feedback");
     } catch (err) {
@@ -497,26 +538,27 @@ DELIVERY METRICS (already computed — incorporate into your feedback):
 ${contextBlock ? `CANDIDATE CONTEXT:\n${contextBlock}\n\n` : ""}TRANSCRIPT:
 "${transcript}"
 
-Evaluate this response and return ONLY a valid JSON object in this exact format — no extra text:
+Evaluate this response and return ONLY a valid JSON object — no extra text, no markdown fences, no explanation.
+CRITICAL JSON RULES: (1) No literal newlines inside string values — use a single space instead. (2) No double-quote characters inside string values — rephrase to avoid them entirely. (3) No trailing commas.
+
 {
   "star": {
-    "situation": { "score": <1-10>, "present": <true|false>, "feedback": "<specific, actionable feedback>" },
-    "task": { "score": <1-10>, "present": <true|false>, "feedback": "<specific, actionable feedback>" },
-    "action": { "score": <1-10>, "present": <true|false>, "feedback": "<specific, actionable feedback>" },
-    "result": { "score": <1-10>, "present": <true|false>, "feedback": "<specific, actionable feedback>" }
+    "situation": { "score": <1-10>, "present": <true|false>, "feedback": "<max 15 words>" },
+    "task": { "score": <1-10>, "present": <true|false>, "feedback": "<max 15 words>" },
+    "action": { "score": <1-10>, "present": <true|false>, "feedback": "<max 15 words>" },
+    "result": { "score": <1-10>, "present": <true|false>, "feedback": "<max 15 words>" }
   },
   "content": {
-    "clarity": { "score": <1-10>, "feedback": "<specific feedback>" },
-    "specificity": { "score": <1-10>, "feedback": "<specific feedback>" },
-    "relevance": { "score": <1-10>, "feedback": "<specific feedback>" },
-    "impact": { "score": <1-10>, "feedback": "<specific feedback>" },
-    "conciseness": { "score": <1-10>, "feedback": "<specific feedback>" }
+    "clarity": { "score": <1-10>, "feedback": "<max 15 words>" },
+    "specificity": { "score": <1-10>, "feedback": "<max 15 words>" },
+    "relevance": { "score": <1-10>, "feedback": "<max 15 words>" },
+    "impact": { "score": <1-10>, "feedback": "<max 15 words>" },
+    "conciseness": { "score": <1-10>, "feedback": "<max 15 words>" }
   },
-  "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
-  "improvements": ["<top improvement 1>", "<top improvement 2>", "<top improvement 3>"],
-  "improvedTranscript": "<rewritten version that is clear, concise, STAR-structured, and delivery-ready>",
+  "strengths": ["<10 words max>", "<10 words max>", "<10 words max>"],
+  "improvements": ["<15 words max>", "<15 words max>", "<15 words max>"],
   "overallScore": <1-10>,
-  "summary": "<2-3 sentence overall coaching summary>"
+  "summary": "<max 30 words>"
 }
 
 ${questionType !== "behavioral" ? 'Note: This is not a behavioral question — do not penalize for lack of STAR structure. Focus on clarity, confidence, and relevance instead. Set all STAR scores to reflect this context.' : 'Evaluate strictly against STAR framework. Flag any missing components clearly.'}`;
@@ -530,6 +572,32 @@ ${questionType !== "behavioral" ? 'Note: This is not a behavioral question — d
     setError(null);
     setRecordDuration(0);
     setActiveTab("feedback");
+    setRewriteLoading(false);
+    lastPromptRef.current = "";
+  }
+
+  async function loadRewrite() {
+    if (!feedback || feedback.improvedTranscript || rewriteLoading) return;
+    setRewriteLoading(true);
+    try {
+      const storedKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+      const rewritePrompt = `${lastPromptRef.current}\n\nNow provide ONLY the improved transcript as plain text (no JSON, no labels, no extra commentary). Rewrite the response to be clear, concise, STAR-structured, and delivery-ready for a 90-120 second spoken answer.`;
+      const res = await fetch("/api/llm/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(storedKey ? { "X-Api-Key": storedKey } : {}),
+        },
+        body: JSON.stringify({ prompt: rewritePrompt }),
+      });
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      const data: { content: string } = await res.json();
+      setFeedback((prev) => prev ? { ...prev, improvedTranscript: data.content.trim() } : prev);
+    } catch {
+      setFeedback((prev) => prev ? { ...prev, improvedTranscript: "Could not load rewrite. Please try again." } : prev);
+    } finally {
+      setRewriteLoading(false);
+    }
   }
 
   const formatTime = (secs: number) => {
@@ -701,6 +769,8 @@ ${questionType !== "behavioral" ? 'Note: This is not a behavioral question — d
               setError(null);
             }}
             onRecord={startRecording}
+            onLoadRewrite={loadRewrite}
+            rewriteLoading={rewriteLoading}
           />
         )}
       </div>
@@ -1336,6 +1406,8 @@ function FeedbackView({
   setActiveTab,
   onRetry,
   onRecord,
+  onLoadRewrite,
+  rewriteLoading,
 }: {
   question: string;
   transcript: string;
@@ -1346,6 +1418,8 @@ function FeedbackView({
   setActiveTab: (t: "feedback" | "transcript" | "rewrite") => void;
   onRetry: () => void;
   onRecord: () => void;
+  onLoadRewrite: () => void;
+  rewriteLoading: boolean;
 }) {
   const avgStarScore = Math.round(
     (feedback.star.situation.score +
@@ -1433,7 +1507,7 @@ function FeedbackView({
           return (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => { setActiveTab(tab); if (tab === "rewrite") onLoadRewrite(); }}
               style={{
                 padding: "12px 20px",
                 border: "none",
@@ -1494,7 +1568,7 @@ function FeedbackView({
           <TranscriptTab transcript={transcript} question={question} />
         )}
         {activeTab === "rewrite" && (
-          <RewriteTab improved={feedback.improvedTranscript} original={transcript} />
+          <RewriteTab improved={feedback.improvedTranscript} original={transcript} loading={rewriteLoading} />
         )}
       </div>
     </div>
@@ -1769,11 +1843,15 @@ function TranscriptTab({
 function RewriteTab({
   improved,
   original,
+  loading,
 }: {
   improved: string;
   original: string;
+  loading: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  if (loading) return <div style={{ padding: "40px 0", textAlign: "center", color: "#6b7280", fontSize: 14 }}>Generating improved version…</div>;
+  if (!improved) return <div style={{ padding: "40px 0", textAlign: "center", color: "#6b7280", fontSize: 14 }}>Could not load improved version.</div>;
 
   function handleCopy() {
     navigator.clipboard.writeText(improved).then(() => {
