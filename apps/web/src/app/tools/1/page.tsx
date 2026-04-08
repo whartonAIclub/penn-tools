@@ -1,3 +1,28 @@
+import type { BidGuidance, ClearingPriceRecord } from "@penntools/tool-1/track4";
+import { computeBidGuidance, SEED_RECORDS } from "@penntools/tool-1/track4";
+import { BidGuidanceSection } from "./BidGuidanceSection";
+import { SchedulerSection } from "./SchedulerSection";
+import { loadPersistedRecords, getStoredTerms } from "./persistence";
+import { buildGuidance } from "./guidance";
+
+function buildSeedGuidance(): BidGuidance[] {
+  const groups = new Map<string, ClearingPriceRecord[]>();
+  for (const r of SEED_RECORDS) {
+    const key = `${r.courseId}::${r.section}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(r);
+    groups.set(key, arr);
+  }
+  return Array.from(groups.entries())
+    .map(([key, records]) => {
+      const sep      = key.indexOf("::");
+      const courseId = key.slice(0, sep);
+      const section  = key.slice(sep + 2);
+      return computeBidGuidance(courseId, section, records);
+    })
+    .filter((g): g is BidGuidance => g !== null);
+}
+
 const steps = [
   { title: "Upload", description: "Submit your academic transcript in PDF or CSV format." },
   { title: "Match", description: "Maps your courses to the best schedule." },
@@ -5,6 +30,11 @@ const steps = [
 ];
 
 export default function Tool1Page() {
+  const persisted = loadPersistedRecords();
+  const isUsingRealData = persisted.length > 0;
+  const guidance    = isUsingRealData ? buildGuidance(persisted) : buildSeedGuidance();
+  const storedTerms = isUsingRealData ? getStoredTerms() : [];
+
   return (
     <div style={{ minHeight: "100vh", fontFamily: "sans-serif" }}>
       {/* Hero */}
@@ -30,6 +60,16 @@ export default function Tool1Page() {
           </div>
         </div>
       </section>
+
+      {/* Schedule Builder — finds non-conflicting schedules and shows bid guidance per course */}
+      <SchedulerSection guidance={guidance} />
+
+      {/* Bid Guidance — upload clearing price files to improve recommendations */}
+      <BidGuidanceSection
+        defaultGuidance={guidance}
+        defaultStoredTerms={storedTerms}
+        isUsingSeedData={!isUsingRealData}
+      />
 
       {/* How It Works */}
       <section style={{ background: "#f5f7fa", padding: "60px 24px", textAlign: "center" }}>
