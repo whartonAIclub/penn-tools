@@ -6,9 +6,7 @@ const config = {
     "@penntools/tool-course-finder",
   ],
   // Ensures server-only modules (Prisma, env vars) never leak to the client bundle.
-  experimental: {
-    serverComponentsExternalPackages: ["@prisma/client", "prisma"],
-  },
+  serverExternalPackages: ["@prisma/client", "prisma", "pdf-parse"],
   // pdfjs-dist optionally requires 'canvas' for Node.js SSR; stub it out in the
   // browser bundle so tool 7's PDF parser compiles without the native binary.
   webpack: (config) => {
