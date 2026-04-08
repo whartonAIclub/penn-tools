@@ -1,6 +1,7 @@
 import type { BidGuidance, ClearingPriceRecord } from "@penntools/tool-1/track4";
 import { computeBidGuidance, SEED_RECORDS } from "@penntools/tool-1/track4";
 import { BidGuidanceSection } from "./BidGuidanceSection";
+import { SchedulerSection } from "./SchedulerSection";
 import { loadPersistedRecords, getStoredTerms } from "./persistence";
 import { buildGuidance } from "./guidance";
 
@@ -60,7 +61,10 @@ export default function Tool1Page() {
         </div>
       </section>
 
-      {/* Bid Guidance */}
+      {/* Schedule Builder — finds non-conflicting schedules and shows bid guidance per course */}
+      <SchedulerSection guidance={guidance} />
+
+      {/* Bid Guidance — upload clearing price files to improve recommendations */}
       <BidGuidanceSection
         defaultGuidance={guidance}
         defaultStoredTerms={storedTerms}
