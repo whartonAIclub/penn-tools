@@ -1,435 +1,333 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  buildMonolithicPromptForHttpApi,
-  type Tool8Input,
-} from "@penntools/tool-8";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import styles from "./page.module.css";
+import { actionUpsertUser, actionFindUser } from "./actions";
 
-const pennBlue = "#011F5B";
-const border = "#e5e7eb";
-const muted = "#6b7280";
+const displaySerif = '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif';
+const navy = "#062A78";
 
-type MeState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "ok"; name: string | null }
-  | { status: "err"; message: string };
+const PROFILE_KEY = "cc_profile";
 
-type PlanState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "ok"; markdown: string }
-  | { status: "err"; message: string };
+interface CCProfile {
+  id: string;
+  name: string;
+  email: string;
+}
 
-const fieldStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: `1px solid ${border}`,
-  fontSize: 14,
-  fontFamily: "inherit",
-  boxSizing: "border-box",
-};
+function loadProfile(): CCProfile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? (JSON.parse(raw) as CCProfile) : null;
+  } catch {
+    return null;
+  }
+}
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 13,
-  fontWeight: 600,
-  marginBottom: 6,
-  color: "#111827",
-};
+function saveProfile(p: CCProfile) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+}
 
-export default function Tool8Page() {
-  const [me, setMe] = useState<MeState>({ status: "idle" });
-  const [plan, setPlan] = useState<PlanState>({ status: "idle" });
+// ── Auth modal ─────────────────────────────────────────────────────────────
+// mode "full"         → shown by "Find my path." — guest option visible
+// mode "profile-only" → shown by "My Profile"   — profile only, no guest
+function AuthModal({
+  mode,
+  onClose,
+  onGuest,
+  onProfile,
+}: {
+  mode: "full" | "profile-only";
+  onClose: () => void;
+  onGuest: () => void;
+  onProfile: (p: CCProfile) => void;
+}) {
+  const [existingProfile, setExistingProfile] = useState<CCProfile | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName]   = useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
 
-  const [resumeSummary, setResumeSummary] = useState("");
-  const [academicBackground, setAcademicBackground] = useState("");
-  const [interests, setInterests] = useState("");
-  const [targetRoles, setTargetRoles] = useState("");
-  const [scenarioNotes, setScenarioNotes] = useState("");
-  const [advancedPrompt, setAdvancedPrompt] = useState("");
+  useEffect(() => {
+    const p = loadProfile();
+    if (p) {
+      setExistingProfile(p);
+    } else {
+      setShowForm(true);
+    }
+  }, []);
 
-  const inputPayload: Tool8Input = useMemo(() => {
-    const o: Tool8Input = {};
-    const p = advancedPrompt.trim();
-    if (p) o.prompt = p;
-    const r = resumeSummary.trim();
-    if (r) o.resumeSummary = r;
-    const a = academicBackground.trim();
-    if (a) o.academicBackground = a;
-    const i = interests.trim();
-    if (i) o.interests = i;
-    const t = targetRoles.trim();
-    if (t) o.targetRoles = t;
-    const s = scenarioNotes.trim();
-    if (s) o.scenarioNotes = s;
-    return o;
-  }, [
-    resumeSummary,
-    academicBackground,
-    interests,
-    targetRoles,
-    scenarioNotes,
-    advancedPrompt,
-  ]);
-
-  async function loadMe() {
-    setMe({ status: "loading" });
-    try {
-      const res = await fetch("/api/me");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { name: string | null };
-      setMe({ status: "ok", name: data.name });
-    } catch (e) {
-      setMe({ status: "err", message: String(e) });
+  async function handleContinueProfile() {
+    // Fetch from DB to get the latest id
+    const dbUser = await actionFindUser(existingProfile!.email);
+    if (dbUser) {
+      const p: CCProfile = { id: dbUser.id, name: dbUser.name, email: dbUser.email };
+      saveProfile(p);
+      onProfile(p);
+    } else {
+      // Profile exists locally but not in DB — re-create it
+      const dbUser2 = await actionUpsertUser(existingProfile!.name, existingProfile!.email);
+      const p: CCProfile = { id: dbUser2.id, name: dbUser2.name, email: dbUser2.email };
+      saveProfile(p);
+      onProfile(p);
     }
   }
 
-  async function generatePlan() {
-    const prompt = buildMonolithicPromptForHttpApi(inputPayload);
-    if (!prompt.trim()) {
-      setPlan({
-        status: "err",
-        message:
-          "Add a target role, resume summary, academic background, or an advanced prompt first.",
-      });
-      return;
-    }
-
-    setPlan({ status: "loading" });
+  async function handleCreate() {
+    if (!name.trim()) { setError("Please enter your name."); return; }
+    if (!email.trim() || !/^[^\s@]+@(?:[a-z0-9-]+\.)*upenn\.edu$/i.test(email.trim())) { setError("Please enter a valid Penn email ending in upenn.edu."); return; }
     try {
-      const storedKey =
-        typeof window !== "undefined"
-          ? (localStorage.getItem("penntools_api_key") ?? "")
-          : "";
-      const res = await fetch("/api/llm/complete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(storedKey ? { "X-Api-Key": storedKey } : {}),
-        },
-        body: JSON.stringify({ prompt }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { content: string };
-      setPlan({ status: "ok", markdown: data.content });
-    } catch (e) {
-      setPlan({ status: "err", message: String(e) });
+      const dbUser = await actionUpsertUser(name.trim(), email.trim());
+      const p: CCProfile = { id: dbUser.id, name: dbUser.name, email: dbUser.email };
+      saveProfile(p);
+      onProfile(p);
+    } catch {
+      setError("Could not save profile. Please try again.");
     }
   }
 
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#fafafa",
-        padding: "32px 20px 56px",
-        fontFamily:
-          'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        position: "fixed", inset: 0, zIndex: 50,
+        background: "rgba(15,29,58,0.35)",
+        backdropFilter: "blur(3px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
       }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ maxWidth: 880, margin: "0 auto" }}>
-        <header style={{ marginBottom: 28 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.12em",
-              color: pennBlue,
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
-            Tool 8 · Career Canvas
-          </div>
-          <h1
-            style={{
-              fontSize: 32,
-              fontWeight: 700,
-              color: "#0d0d0d",
-              margin: "0 0 12px",
-              lineHeight: 1.15,
-            }}
-          >
-            Course, major &amp; career planner
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 16,
-              lineHeight: 1.6,
-              color: "#374151",
-              maxWidth: 720,
-            }}
-          >
-            Upload context below (resume summary, academics, interests, target
-            roles). Career Canvas maps gaps to courses, projects, and
-            extracurriculars—plus optional &quot;what-if&quot; paths. Outputs are
-            guidance only; verify all course decisions in the official catalog.
-          </p>
-        </header>
-
-        <section
-          style={{
-            background: "#fff",
-            borderRadius: 12,
-            border: `1px solid ${border}`,
-            padding: 20,
-            marginBottom: 16,
-            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 18,
-                fontWeight: 700,
-                color: "#111827",
-              }}
-            >
-              Who you are (optional)
-            </h2>
-            <button
-              type="button"
-              onClick={loadMe}
-              disabled={me.status === "loading"}
-              style={{
-                padding: "8px 14px",
-                borderRadius: 8,
-                border: `1px solid ${pennBlue}`,
-                backgroundColor: "#fff",
-                color: pennBlue,
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: me.status === "loading" ? "wait" : "pointer",
-              }}
-            >
-              {me.status === "loading" ? "Loading…" : "Load my PennTools profile"}
-            </button>
-          </div>
-          <p style={{ margin: "0 0 8px", fontSize: 14, color: muted }}>
-            Uses the platform User API (<code>/api/me</code>) like the Platform
-            Playground.
-          </p>
-          {me.status === "ok" && (
-            <p style={{ margin: 0, fontSize: 14, color: "#111827" }}>
-              Signed in as:{" "}
-              <strong>{me.name ?? "Anonymous user (no display name)"}</strong>
-            </p>
-          )}
-          {me.status === "err" && (
-            <p style={{ margin: 0, fontSize: 14, color: "#b45309" }}>
-              Could not load profile: {me.message}
-            </p>
-          )}
-        </section>
-
-        <section
-          style={{
-            background: "#fff",
-            borderRadius: 12,
-            border: `1px solid ${border}`,
-            padding: 20,
-            marginBottom: 16,
-            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          }}
-        >
-          <h2
-            style={{
-              margin: "0 0 6px",
-              fontSize: 18,
-              fontWeight: 700,
-              color: "#111827",
-            }}
-          >
-            Your profile
-          </h2>
-          <p style={{ margin: "0 0 20px", fontSize: 14, color: muted }}>
-            More detail yields better recommendations. Paste-only is fine for
-            MVP—file upload can come later.
-          </p>
-
-          <div style={{ display: "grid", gap: 18 }}>
-            <div>
-              <label style={labelStyle}>Target roles / industries</label>
-              <textarea
-                style={{ ...fieldStyle, minHeight: 88, resize: "vertical" }}
-                placeholder="e.g. ML engineer, PM at a fintech, consulting, quant research…"
-                value={targetRoles}
-                onChange={(e) => setTargetRoles(e.target.value)}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Resume or experience summary</label>
-              <textarea
-                style={{ ...fieldStyle, minHeight: 120, resize: "vertical" }}
-                placeholder="Internships, research, projects, languages, tools…"
-                value={resumeSummary}
-                onChange={(e) => setResumeSummary(e.target.value)}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Academic history</label>
-              <textarea
-                style={{ ...fieldStyle, minHeight: 88, resize: "vertical" }}
-                placeholder="Major/minor, relevant coursework, GPA band if you want, year…"
-                value={academicBackground}
-                onChange={(e) => setAcademicBackground(e.target.value)}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Interests &amp; constraints</label>
-              <textarea
-                style={{ ...fieldStyle, minHeight: 72, resize: "vertical" }}
-                placeholder="Topics you enjoy, time budget, study abroad, preferences…"
-                value={interests}
-                onChange={(e) => setInterests(e.target.value)}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>
-                What-if / alternate path (optional)
-              </label>
-              <textarea
-                style={{ ...fieldStyle, minHeight: 72, resize: "vertical" }}
-                placeholder="e.g. If I switched from X to Y, how would recruiting readiness change?"
-                value={scenarioNotes}
-                onChange={(e) => setScenarioNotes(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <details style={{ marginTop: 20 }}>
-            <summary
-              style={{
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: 14,
-                color: pennBlue,
-              }}
-            >
-              Advanced: single prompt (overrides structured fields if non-empty)
-            </summary>
-            <textarea
-              style={{
-                ...fieldStyle,
-                minHeight: 100,
-                resize: "vertical",
-                marginTop: 10,
-              }}
-              placeholder="Freeform instructions to the model…"
-              value={advancedPrompt}
-              onChange={(e) => setAdvancedPrompt(e.target.value)}
-            />
-          </details>
-
-          <div
-            style={{
-              marginTop: 24,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 12,
-              alignItems: "center",
-            }}
-          >
-            <button
-              type="button"
-              onClick={generatePlan}
-              disabled={plan.status === "loading"}
-              style={{
-                padding: "12px 22px",
-                borderRadius: 8,
-                border: "none",
-                background: pennBlue,
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: plan.status === "loading" ? "wait" : "pointer",
-              }}
-            >
-              {plan.status === "loading" ? "Generating…" : "Generate roadmap"}
-            </button>
-            <span style={{ fontSize: 13, color: muted }}>
-              Optional API key: set{" "}
-              <code style={{ fontSize: 12 }}>penntools_api_key</code> in
-              localStorage (see Platform Playground).
+      <div style={{
+        background: "#FDFCF9",
+        borderRadius: 20,
+        border: "1px solid #E8E2D8",
+        boxShadow: "0 24px 64px rgba(15,29,58,0.14)",
+        padding: "40px 44px",
+        width: "100%",
+        maxWidth: 420,
+      }}>
+        {/* Header */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{ fontFamily: displaySerif, fontSize: 20, color: "#171412" }}>
+              <strong>Career </strong>
+              <em style={{ fontWeight: 400, color: "#8E6E67" }}>Canvas</em>
             </span>
+            <button type="button" onClick={onClose}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#9A918A", fontSize: 20, lineHeight: 1, padding: "2px 4px" }}
+              aria-label="Close">
+              ✕
+            </button>
+          </div>
+          <h2 style={{ margin: "12px 0 6px", fontSize: 22, fontWeight: 700, color: "#171412", fontFamily: displaySerif, letterSpacing: "-0.03em" }}>
+            {existingProfile && !showForm ? `Welcome back, ${existingProfile.name.split(" ")[0]}.` : "Create your profile"}
+          </h2>
+          <p style={{ margin: 0, fontSize: 14, color: "#77716B", lineHeight: 1.5 }}>
+            {existingProfile && !showForm
+              ? "Pick up where you left off, or start fresh."
+              : "Save your roadmap and return any semester."}
+          </p>
+        </div>
+
+        {/* Returning user */}
+        {existingProfile && !showForm && (
+          <div>
+            <div style={{
+              padding: "14px 18px", borderRadius: 12,
+              background: "#F0EDE7", border: "1px solid #DDD8CF",
+              marginBottom: 20, fontSize: 14, color: "#3A3530",
+            }}>
+              <div style={{ fontWeight: 600 }}>{existingProfile.name}</div>
+              <div style={{ color: "#77716B", marginTop: 2 }}>{existingProfile.email}</div>
+            </div>
+            <button type="button" onClick={handleContinueProfile} style={primaryBtn}>
+              Continue as {existingProfile.name.split(" ")[0]} →
+            </button>
+            <button type="button" onClick={() => { setExistingProfile(null); setShowForm(true); }}
+              style={{ ...ghostBtn, marginTop: 10 }}>
+              Use a different profile
+            </button>
+          </div>
+        )}
+
+        {/* Create profile form */}
+        {showForm && (
+          <div>
+            {error && (
+              <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 13 }}>
+                {error}
+              </div>
+            )}
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Your name</label>
+              <input
+                style={inputStyle}
+                placeholder="e.g. Alex Chen"
+                value={name}
+                onChange={(e) => { setName(e.target.value); setError(""); }}
+              />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Penn email</label>
+              <input
+                type="email"
+                style={inputStyle}
+                placeholder="yourname@upenn.edu"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+              />
+            </div>
+            <button type="button" onClick={handleCreate} style={primaryBtn}>
+              Save &amp; continue →
+            </button>
+          </div>
+        )}
+
+        {/* Guest option — only in "full" mode */}
+        {mode === "full" && (
+          <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid #EAE5DC", textAlign: "center" }}>
+            <button type="button" onClick={onGuest}
+              style={{ background: "none", border: "none", color: "#9A918A", fontSize: 14, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>
+              Continue as guest
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Shared button styles ───────────────────────────────────────────────────
+const primaryBtn: React.CSSProperties = {
+  width: "100%", padding: "13px 0", borderRadius: 999,
+  background: navy, color: "#fff", fontWeight: 600,
+  fontSize: 15, border: "none", cursor: "pointer",
+};
+
+const ghostBtn: React.CSSProperties = {
+  width: "100%", padding: "11px 0", borderRadius: 999,
+  background: "none", color: "#3A3530", fontWeight: 500,
+  fontSize: 14, border: "1px solid #DDD8CF", cursor: "pointer",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: 13, fontWeight: 600,
+  marginBottom: 6, color: "#3A3530",
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "11px 14px", borderRadius: 10,
+  border: "1px solid #DDD8CF", fontSize: 14,
+  fontFamily: "inherit", boxSizing: "border-box",
+  background: "#fff", color: "#1a1a1a", outline: "none",
+};
+
+// ── Watercolor image ───────────────────────────────────────────────────────
+function WatercolorCanvas() {
+  return (
+    <img
+      src="/tools/8/watercolor.png"
+      alt=""
+      aria-hidden="true"
+      style={{ width: "100%", height: "auto", display: "block", mixBlendMode: "multiply" }}
+    />
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────
+export default function CareerCanvasPage() {
+  const router = useRouter();
+  const [modal, setModal] = useState<"full" | "profile-only" | null>(null);
+
+  function goWizard(profile?: CCProfile) {
+    if (profile) {
+      sessionStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    } else {
+      sessionStorage.removeItem(PROFILE_KEY);
+    }
+    router.push("/tools/8/wizard");
+  }
+
+  return (
+    <div className={styles.shell}>
+
+      {modal && (
+        <AuthModal
+          mode={modal}
+          onClose={() => setModal(null)}
+          onGuest={() => goWizard()}
+          onProfile={(p) => goWizard(p)}
+        />
+      )}
+
+      <header className={styles.header}>
+        <span style={{ fontSize: 26, lineHeight: 1, letterSpacing: "-0.03em", color: "#171412", fontFamily: displaySerif }}>
+          <span style={{ fontWeight: 700 }}>Career </span>
+          <em style={{ fontStyle: "italic", fontWeight: 400, color: "#8E6E67" }}>Canvas</em>
+        </span>
+        <nav className={styles.nav} aria-label="Career Canvas">
+          {["How it works", "Features", "For Universities"].map((label, index) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <button type="button" className={styles.navButton} onClick={() => setModal("full")}>{label}</button>
+              {index < 2 && <span className={styles.navDot}>·</span>}
+            </div>
+          ))}
+        </nav>
+        <button type="button" onClick={() => setModal("profile-only")}
+          style={{ borderRadius: 999, background: navy, padding: "14px 30px", color: "#fff", fontSize: 15, fontWeight: 600, boxShadow: "0 8px 18px rgba(6,42,120,0.12)", border: "none", cursor: "pointer" }}>
+          My Profile
+        </button>
+      </header>
+
+      <main className={styles.main}>
+        <section className={styles.copy}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, fontSize: 14, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em", color: "#9E7D75" }}>
+            <span style={{ width: 40, height: 1, background: "#C9B8B2", display: "inline-block" }} />
+            <span>For every student. Every major. Every dream.</span>
+          </div>
+          <h1 style={{ maxWidth: 520, margin: 0, color: "#171412", fontFamily: displaySerif, lineHeight: 0.95, letterSpacing: "-0.05em", fontWeight: 700 }} className={styles.headline}>
+            Your future is<br />
+            a blank{" "}
+            <em style={{ fontStyle: "italic", fontWeight: 400, color: "#9A6E67" }}>canvas.</em>
+          </h1>
+          <p style={{ margin: "28px 0 0", fontSize: 20, lineHeight: 1.45, color: "#3F3B39" }} className={styles.subCopy}>
+            Tell us where you want to go — we&apos;ll help you<br />
+            figure out how to get there.<br />
+            <span style={{ color: "#77716B" }}>Any school. Any year. Any starting point.</span>
+          </p>
+          <div style={{ marginTop: 40, display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap" }}>
+            <button type="button" onClick={() => setModal("full")}
+              style={{ borderRadius: 999, background: navy, padding: "16px 32px", color: "#fff", fontWeight: 600, boxShadow: "0 8px 18px rgba(6,42,120,0.12)", border: "none", cursor: "pointer" }}
+              className={styles.ctaPrimary}>
+              Find my path.
+            </button>
+            <button type="button" onClick={() => setModal("full")}
+              style={{ background: "none", border: "none", color: "#4E4A47", fontWeight: 500, cursor: "pointer" }}
+              className={styles.ctaSecondary}>
+              See how it works →
+            </button>
           </div>
         </section>
 
-        <section
-          style={{
-            background: "#fff",
-            borderRadius: 12,
-            border: `1px solid ${border}`,
-            padding: 20,
-            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          }}
-        >
-          <h2
-            style={{
-              margin: "0 0 12px",
-              fontSize: 18,
-              fontWeight: 700,
-              color: "#111827",
-            }}
-          >
-            Your plan
-          </h2>
-          {plan.status === "idle" && (
-            <p style={{ margin: 0, fontSize: 14, color: muted }}>
-              Run <strong>Generate roadmap</strong> to see skill gaps, course
-              ideas, extracurriculars, and next steps.
-            </p>
-          )}
-          {plan.status === "err" && (
-            <p style={{ margin: 0, fontSize: 14, color: "#b91c1c" }}>
-              {plan.message}
-            </p>
-          )}
-          {plan.status === "ok" && (
-            <pre
-              style={{
-                margin: 0,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                fontSize: 14,
-                lineHeight: 1.65,
-                color: "#1f2937",
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              }}
-            >
-              {plan.markdown}
-            </pre>
-          )}
+        <section className={styles.visual}>
+          <div className={styles.visualInner}>
+            <WatercolorCanvas />
+            <div className={`${styles.badge} ${styles.badgeTop}`}>
+              <span className={styles.badgeDot} style={{ background: "#91A785" }} />
+              <span>3 paths explored.</span>
+            </div>
+            <div className={`${styles.badge} ${styles.badgeBottom}`}>
+              <span className={styles.badgeDot} style={{ background: "#B56F67" }} />
+              <span>Your story is taking shape.</span>
+            </div>
+          </div>
         </section>
+      </main>
 
-        <section style={{ marginTop: 20, fontSize: 13, color: muted }}>
-          <p style={{ margin: "0 0 8px" }}>
-            <strong>KPIs (product):</strong> track accuracy of course
-            suggestions, whether users change major/course/EC plans, time on
-            page, and NPS-style “would you recommend” in a post-session survey.
-          </p>
-          <p style={{ margin: 0 }}>
-            <strong>Data note:</strong> richer course fit may need structured
-            catalog data; Penn Course Review–style detail is often behind SSO—
-            public snippets or licensed datasets are typical workarounds until
-            the platform exposes course APIs.
-          </p>
-        </section>
-      </div>
+      <footer className={styles.footerBar}>
+        Empowering Penn students to turn academic choices into career momentum.
+      </footer>
     </div>
   );
 }

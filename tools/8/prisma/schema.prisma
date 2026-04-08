@@ -1,0 +1,59 @@
+// Career Canvas — standalone Prisma schema
+// Independent of the platform schema; scoped to tool 8 only.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CC_DATABASE_URL")
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────
+model CCUser {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wizardAnswers CCWizardAnswers?
+  roadmaps      CCRoadmap[]
+
+  @@map("cc_users")
+}
+
+// ── Wizard answers ────────────────────────────────────────────────────────
+model CCWizardAnswers {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  school       String   @default("")
+  major        String   @default("")
+  year         String   @default("")
+  coursework   String   @default("")
+  interests    String   @default("")
+  resumeText   String   @default("") @map("resume_text")
+  linkedinText String   @default("") @map("linkedin_text")
+  targetRoles  String   @default("") @map("target_roles")
+  scenarioNotes String  @default("") @map("scenario_notes")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user CCUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("cc_wizard_answers")
+}
+
+// ── Roadmaps ──────────────────────────────────────────────────────────────
+model CCRoadmap {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  markdown    String   @db.Text
+  generatedAt DateTime @default(now()) @map("generated_at")
+
+  user CCUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("cc_roadmaps")
+}
