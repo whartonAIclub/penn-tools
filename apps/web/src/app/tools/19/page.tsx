@@ -1,641 +1,251 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { DM_Sans } from "next/font/google";
+import { C } from "./lib/tokens";
+import { matchesTags } from "./lib/tags";
+import { getWeekKey, getAvailableWeeks } from "./lib/weeks";
+import { CompassHeader } from "./components/CompassHeader";
+import { DashboardHero } from "./components/DashboardHero";
+import { FiltersBar } from "./components/FiltersBar";
+import { DiscoverDeck } from "./components/DiscoverDeck";
+import { EventList } from "./components/EventList";
+import { ReflectionModal } from "./components/ReflectionModal";
+import { SavedEventsModule } from "./components/SavedEventsModule";
+import { useAnonymousIdentity } from "./hooks/useAnonymousIdentity";
+import { useCompassEvents } from "./hooks/useCompassEvents";
+import { useSavedEvents } from "./hooks/useSavedEvents";
+import { useReflections } from "./hooks/useReflections";
+import type { TimeFilter } from "./lib/types";
 
-// ── Font ─────────────────────────────────────────────────────────────────────
-const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600"] });
+const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
-// ── Design tokens (used as Tailwind arbitrary values throughout) ──────────────
-// bg:        #FAF8F4  warm off-white
-// primary:   #7A9E7E  sage green
-// secondary: #C4704F  terracotta
-// neutral:   #B5A898  warm taupe
-// text:      #2C1A0E  dark warm brown
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-type SyncSuccess = {
-  success: true;
-  inserted: number;
-  updated: number;
-  total: number;
-  durationMs: number;
-};
-
-type SyncFailure = {
-  error: string;
-  durationMs?: number;
-};
-
-type EventItem = {
-  id: string;
-  external_event_id: string;
-  calendar_title: string | null;
-  title: string;
-  description: string | null;
-  organizer: string | null;
-  start_time: string;
-  end_time: string | null;
-  location: string | null;
-  registration_url: string | null;
-  source_feed: string;
-  last_synced_at: string;
-};
-
-type EventsSuccess = { events: EventItem[] };
-type EventsFailure = { error: string };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-async function parseApiJson<T>(response: Response): Promise<T> {
-  const contentType = response.headers.get("content-type") || "";
-  if (contentType.toLowerCase().includes("application/json")) {
-    return (await response.json()) as T;
-  }
-  const text = await response.text();
-  const snippet = text.slice(0, 120).replace(/\s+/g, " ").trim();
-  throw new Error(
-    `API returned non-JSON (status ${response.status}). ${snippet || "Empty response."}`
-  );
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: number;
-  icon: string;
-}) {
-  return (
-    <article className="flex items-center gap-4 rounded-2xl bg-white/70 p-5 shadow-sm ring-1 ring-[#B5A898]/20">
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#7A9E7E]/10 text-xl">
-        {icon}
-      </span>
-      <div>
-        <p className="text-2xl font-semibold text-[#2C1A0E]">{value}</p>
-        <p className="text-xs font-medium uppercase tracking-wide text-[#B5A898]">
-          {label}
-        </p>
-      </div>
-    </article>
-  );
-}
-
-function EventCard({ event }: { event: EventItem }) {
-  const start = new Date(event.start_time);
-  const end = event.end_time ? new Date(event.end_time) : null;
-  const isPast = start.getTime() < Date.now();
-
-  return (
-    <li className="group relative flex gap-0 overflow-hidden rounded-2xl bg-white/70 shadow-sm ring-1 ring-[#B5A898]/20 transition-shadow hover:shadow-md">
-      {/* Left accent bar */}
-      <div className="w-1 shrink-0 rounded-l-2xl bg-[#7A9E7E]" />
-
-      <div className="flex flex-1 flex-col gap-3 p-5">
-        {/* Date badge + title row */}
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#7A9E7E]">
-              {formatDate(event.start_time)} · {formatTime(event.start_time)}
-              {end ? ` – ${formatTime(event.end_time!)}` : ""}
-            </span>
-            <h3 className="mt-1 text-base font-semibold leading-snug text-[#2C1A0E]">
-              {event.title}
-            </h3>
-          </div>
-
-          {/* Bookmark icon placeholder */}
-          <button
-            type="button"
-            aria-label="Save event"
-            className="text-[#B5A898] transition-colors hover:text-[#7A9E7E]"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.8}
-              className="h-5 w-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5 3h14a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {/* Description */}
-        {event.description && (
-          <p className="line-clamp-2 text-sm leading-relaxed text-[#2C1A0E]/60">
-            {event.description}
-          </p>
-        )}
-
-        {/* Meta row */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#B5A898]">
-          {event.organizer && (
-            <span className="flex items-center gap-1">
-              <span>👤</span> {event.organizer}
-            </span>
-          )}
-          {event.location && (
-            <span className="flex items-center gap-1">
-              <span>📍</span> {event.location}
-            </span>
-          )}
-          {event.calendar_title && (
-            <span className="flex items-center gap-1">
-              <span>📅</span> {event.calendar_title}
-            </span>
-          )}
-          {isPast && (
-            <span className="rounded-full bg-[#B5A898]/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#B5A898]">
-              Past
-            </span>
-          )}
-        </div>
-
-        {/* Register link */}
-        {event.registration_url && (
-          <a
-            href={event.registration_url}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 inline-flex w-fit items-center gap-1 text-sm font-medium text-[#C4704F] no-underline transition-opacity hover:opacity-75"
-          >
-            Register →
-          </a>
-        )}
-      </div>
-    </li>
-  );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function CompassPage() {
   const adminHeaderValue = process.env.NEXT_PUBLIC_TOOL19_ADMIN_KEY || "";
+  const { userId: anonUserId } = useAnonymousIdentity();
+  const anonRequestHeaders = useMemo<Record<string, string> | undefined>(() => {
+    if (!anonUserId) return undefined;
+    return { "x-tool-anon-id": anonUserId };
+  }, [anonUserId]);
 
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
-  const [lastRunAt, setLastRunAt] = useState<string | null>(null);
-  const [syncSuccess, setSyncSuccess] = useState<SyncSuccess | null>(null);
-  const [syncFailure, setSyncFailure] = useState<SyncFailure | null>(null);
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [eventsError, setEventsError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [organizerFilter, setOrganizerFilter] = useState("all");
-  const [timeFilter, setTimeFilter] = useState<"upcoming" | "all">("upcoming");
-  const [sortBy, setSortBy] = useState<"soonest" | "latest">("soonest");
+  // ── Filter state ──────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab]               = useState<"discover" | "saved">("discover");
+  const [query, setQuery]                       = useState("");
+  const [timeFilter, setTimeFilter]             = useState<TimeFilter>("upcoming");
+  const [organizerFilter, setOrganizerFilter]   = useState("all");
+  const [sortBy, setSortBy]                     = useState<"soonest" | "latest">("soonest");
+  const [selectedTags, setSelectedTags]         = useState<string[]>([]);
+  const [dismissedEventIds, setDismissedEventIds] = useState<Set<string>>(new Set());
 
-  // ── Data fetching (unchanged logic) ────────────────────────────────────────
-  const loadEvents = useCallback(async () => {
-    setIsLoadingEvents(true);
-    setEventsError(null);
-    try {
-      const requestInit: RequestInit = { method: "GET" };
-      if (adminHeaderValue) {
-        requestInit.headers = { "x-tool-admin-key": adminHeaderValue };
-      }
-      const res = await fetch("/tools/19/api/events?limit=100", requestInit);
-      const body = await parseApiJson<EventsSuccess | EventsFailure>(res);
-      if (!res.ok) {
-        setEvents([]);
-        setEventsError(
-          "error" in body && body.error
-            ? body.error
-            : "Failed to load events."
-        );
-        return;
-      }
-      if (!("events" in body) || !Array.isArray(body.events)) {
-        setEvents([]);
-        setEventsError("Events response was not in expected format.");
-        return;
-      }
-      setEvents(body.events);
-    } catch (error) {
-      setEvents([]);
-      setEventsError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsLoadingEvents(false);
-    }
-  }, [adminHeaderValue]);
+  // ── Data hooks ────────────────────────────────────────────────────────────
+  const { events, eventsError, isLoadingEvents, isSyncing, syncSuccess, syncFailure, lastRunAt, handleSync } =
+    useCompassEvents({ adminHeaderValue, timeFilter });
 
-  useEffect(() => { void loadEvents(); }, [loadEvents]);
+  const { savedEvents, savedEventsError, isLoadingSavedEvents, savingEventId, handleToggleSave, savedEventIds } =
+    useSavedEvents({ anonRequestHeaders, adminHeaderValue, events });
 
-  async function handleSync() {
-    setIsSyncing(true);
-    setSyncFailure(null);
-    try {
-      const requestInit: RequestInit = { method: "POST" };
-      if (adminHeaderValue) {
-        requestInit.headers = { "x-tool-admin-key": adminHeaderValue };
-      }
-      const res = await fetch("/tools/19/api/sync", requestInit);
-      const body = await parseApiJson<SyncSuccess | SyncFailure>(res);
-      if (!res.ok) {
-        const errorMessage =
-          "error" in body && body.error ? body.error : "Sync failed.";
-        const durationMs =
-          "durationMs" in body && typeof body.durationMs === "number"
-            ? body.durationMs
-            : undefined;
-        setSyncSuccess(null);
-        setSyncFailure(
-          typeof durationMs === "number"
-            ? { error: errorMessage, durationMs }
-            : { error: errorMessage }
-        );
-        return;
-      }
-      if ("success" in body && body.success) {
-        setSyncSuccess(body);
-        setLastRunAt(new Date().toLocaleString());
-        await loadEvents();
-      } else {
-        setSyncSuccess(null);
-        setSyncFailure({ error: "Sync response was not in expected format." });
-      }
-    } catch (error) {
-      setSyncSuccess(null);
-      setSyncFailure({
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  }
+  const {
+    reflectionsByEventId, reflectionsError,
+    editingReflectionEventId, reflectionDrafts, savingReflectionEventId,
+    handleStartReflectionEdit, handleReflectionDraftChange,
+    handleCancelReflectionEdit, handleSaveReflection, handleDeleteReflection,
+    editingEvent,
+  } = useReflections({ anonRequestHeaders, events, savedEvents });
 
-  // ── Derived data (unchanged logic) ─────────────────────────────────────────
+  // ── Derived data ──────────────────────────────────────────────────────────
   const organizerOptions = useMemo(() => {
-    const values = new Set<string>();
-    for (const event of events) {
-      const organizer = event.organizer?.trim();
-      if (organizer) values.add(organizer);
-    }
-    return Array.from(values).sort((a, b) => a.localeCompare(b));
+    const vals = new Set<string>();
+    for (const e of events) { if (e.organizer?.trim()) vals.add(e.organizer.trim()); }
+    return Array.from(vals).sort((a, b) => a.localeCompare(b));
   }, [events]);
 
+  // "You May Like" deck: upcoming, not dismissed, not already saved.
+  // When tags selected → filter by tags. When no tags → show recent upcoming.
+  const deckEvents = useMemo(() => {
+    const now = Date.now();
+    const base = events
+      .filter(e => new Date(e.start_time).getTime() >= now)
+      .filter(e => !dismissedEventIds.has(e.id))
+      .filter(e => !savedEventIds.has(e.id))
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+    const matched = selectedTags.length > 0
+      ? base.filter(e => matchesTags(e, selectedTags))
+      : base;
+
+    return matched.slice(0, 10);
+  }, [events, dismissedEventIds, savedEventIds, selectedTags]);
+
+  // Browse list: standard search/filter/sort
   const filteredEvents = useMemo(() => {
     const now = Date.now();
     const term = query.trim().toLowerCase();
-    const filtered = events.filter((event) => {
-      const startMs = new Date(event.start_time).getTime();
-      if (timeFilter === "upcoming" && startMs < now) return false;
-      if (organizerFilter !== "all") {
-        if ((event.organizer?.trim() || "") !== organizerFilter) return false;
+    const list = events.filter(e => {
+      if (timeFilter === "upcoming" && new Date(e.start_time).getTime() < now) return false;
+      if (organizerFilter !== "all" && (e.organizer?.trim() ?? "") !== organizerFilter) return false;
+      if (term) {
+        const hay = [e.title, e.description ?? "", e.organizer ?? "", e.location ?? ""].join(" ").toLowerCase();
+        if (!hay.includes(term)) return false;
       }
-      if (!term) return true;
-      const haystack = [
-        event.title,
-        event.description || "",
-        event.organizer || "",
-        event.location || "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
+      return true;
     });
-    filtered.sort((a, b) => {
-      const aStart = new Date(a.start_time).getTime();
-      const bStart = new Date(b.start_time).getTime();
-      return sortBy === "soonest" ? aStart - bStart : bStart - aStart;
+    list.sort((a, b) => {
+      const diff = new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+      return sortBy === "soonest" ? diff : -diff;
     });
-    return filtered;
-  }, [events, organizerFilter, query, sortBy, timeFilter]);
+    return list;
+  }, [events, timeFilter, organizerFilter, query, sortBy]);
 
-  const upcomingCount = useMemo(
-    () =>
-      events.filter((e) => new Date(e.start_time).getTime() >= Date.now())
-        .length,
-    [events]
-  );
-  const registrationCount = useMemo(
-    () => events.filter((e) => Boolean(e.registration_url)).length,
-    [events]
-  );
-  const recommendedEvents = useMemo(
-    () => filteredEvents.filter((e) => Boolean(e.registration_url)).slice(0, 3),
-    [filteredEvents]
-  );
+  const displayedEvents = activeTab === "saved" ? savedEvents : filteredEvents;
 
-  const runSummary = useMemo(() => {
-    if (!syncSuccess) return null;
-    return `${syncSuccess.inserted} inserted · ${syncSuccess.updated} updated · ${syncSuccess.total} parsed · ${syncSuccess.durationMs} ms`;
-  }, [syncSuccess]);
+  const upcomingCount   = useMemo(() => events.filter(e => new Date(e.start_time).getTime() >= Date.now()).length, [events]);
+  const savedCount      = savedEvents.length;
+  const reflectionCount = Object.keys(reflectionsByEventId).length;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const handleTagToggle  = (tag: string) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  const handleClearTags  = () => setSelectedTags([]);
+  const handleDismiss    = (id: string) => setDismissedEventIds(prev => new Set([...prev, id]));
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div
-      className={`${dmSans.className} min-h-screen bg-[#FAF8F4] text-[#2C1A0E]`}
-    >
-      {/* ── Top nav bar ──────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-10 border-b border-[#B5A898]/20 bg-[#FAF8F4]/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🧭</span>
-            <span className="text-lg font-semibold text-[#2C1A0E]">
-              Compass
-            </span>
-          </div>
-          <span className="rounded-full bg-[#7A9E7E]/10 px-3 py-1 text-xs font-medium text-[#7A9E7E]">
-            Wharton MBA
-          </span>
-        </div>
-      </nav>
+    <div style={{ minHeight: "100vh", background: C.pageBg, color: C.text, fontFamily: dmSans.style.fontFamily }}>
+      <CompassHeader isSyncing={isSyncing} onSync={handleSync} />
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-10">
+      <main style={{ maxWidth: 1152, margin: "0 auto", padding: "28px 24px 80px" }}>
 
-        {/* ── Hero header ──────────────────────────────────────────────────── */}
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#B5A898]">
-            Event Dashboard
-          </p>
-          <h1 className="text-3xl font-semibold text-[#2C1A0E]">
-            What's happening at Penn
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-[#2C1A0E]/60">
-            Discover Penn and Wharton events aligned with your goals. Browse
-            upcoming options, filter by organizer, and jump straight to
-            registration links.
-          </p>
-        </header>
+        <DashboardHero />
 
-        {/* ── Stat cards ───────────────────────────────────────────────────── */}
-        <section className="grid gap-4 sm:grid-cols-3">
-          <StatCard label="Total Loaded" value={events.length} icon="📋" />
-          <StatCard label="Upcoming" value={upcomingCount} icon="📆" />
-          <StatCard label="With Registration" value={registrationCount} icon="🎟️" />
+        {/* Stats */}
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 32 }}>
+          {([
+            { emoji: "📅", value: upcomingCount,   label: "Upcoming",    color: C.sage,      bg: C.sageLight  },
+            { emoji: "🔖", value: savedCount,       label: "Saved",       color: C.terra,     bg: C.terraLight },
+            { emoji: "✨", value: reflectionCount,  label: "Reflections", color: C.textLight, bg: "rgba(138,123,109,0.10)" },
+          ] as const).map(({ emoji, value, label, color, bg }) => (
+            <article key={label} style={{
+              display: "flex", alignItems: "center", gap: 14,
+              padding: "14px 18px", borderRadius: 14,
+              border: `1px solid ${C.border}`, background: C.surface,
+              boxShadow: "0 1px 3px rgba(44,26,14,0.06)",
+            }}>
+              <div style={{ width: 38, height: 38, borderRadius: 9, background: bg, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>{emoji}</div>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color }}>{value}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: C.taupe, marginTop: 2 }}>{label}</div>
+              </div>
+            </article>
+          ))}
         </section>
 
-        {/* ── Main layout ──────────────────────────────────────────────────── */}
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        {/* Sync banners */}
+        {syncSuccess && (
+          <div style={{ marginBottom: 16, padding: "10px 16px", borderRadius: 10, border: `1px solid ${C.sageBorder}`, background: C.sageLight, fontSize: 12, color: C.sageDark }}>
+            Sync complete: {syncSuccess.inserted} inserted, {syncSuccess.updated} updated ({syncSuccess.durationMs}ms)
+            {lastRunAt && <span style={{ marginLeft: 8, color: C.textLight }}>Last synced: {lastRunAt}</span>}
+          </div>
+        )}
+        {syncFailure && (
+          <div style={{ marginBottom: 16, padding: "10px 16px", borderRadius: 10, border: `1px solid ${C.terraBorder}`, background: C.terraLight, fontSize: 12, color: C.terraDark }}>
+            Sync error: {syncFailure.error}
+          </div>
+        )}
 
-          {/* ── Events list ──────────────────────────────────────────────── */}
-          <section className="space-y-5">
+        {/* Saved Events module */}
+        <SavedEventsModule
+          savedEvents={savedEvents}
+          reflectionsByEventId={reflectionsByEventId}
+          onStartReflection={handleStartReflectionEdit}
+          onViewAll={() => setActiveTab("saved")}
+        />
 
-            {/* Filter bar */}
-            <div className="rounded-2xl bg-white/70 p-5 shadow-sm ring-1 ring-[#B5A898]/20">
-              <div className="flex flex-wrap gap-4">
-                {/* Search */}
-                <div className="min-w-[200px] flex-1">
-                  <label
-                    className="text-xs font-semibold uppercase tracking-wide text-[#B5A898]"
-                    htmlFor="search-events"
-                  >
-                    Search
-                  </label>
-                  <input
-                    id="search-events"
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Title, organizer, location…"
-                    className="mt-1.5 w-full rounded-xl border border-[#B5A898]/30 bg-[#FAF8F4] px-4 py-2.5 text-sm text-[#2C1A0E] placeholder-[#B5A898] outline-none transition focus:border-[#7A9E7E] focus:ring-2 focus:ring-[#7A9E7E]/20"
-                  />
-                </div>
-
-                {/* Organizer */}
-                <div>
-                  <label
-                    className="text-xs font-semibold uppercase tracking-wide text-[#B5A898]"
-                    htmlFor="organizer-filter"
-                  >
-                    Organizer
-                  </label>
-                  <select
-                    id="organizer-filter"
-                    value={organizerFilter}
-                    onChange={(e) => setOrganizerFilter(e.target.value)}
-                    className="mt-1.5 min-w-[160px] rounded-xl border border-[#B5A898]/30 bg-[#FAF8F4] px-4 py-2.5 text-sm text-[#2C1A0E] outline-none focus:border-[#7A9E7E]"
-                  >
-                    <option value="all">All organizers</option>
-                    {organizerOptions.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Time */}
-                <div>
-                  <label
-                    className="text-xs font-semibold uppercase tracking-wide text-[#B5A898]"
-                    htmlFor="time-filter"
-                  >
-                    Time
-                  </label>
-                  <select
-                    id="time-filter"
-                    value={timeFilter}
-                    onChange={(e) =>
-                      setTimeFilter(
-                        e.target.value === "all" ? "all" : "upcoming"
-                      )
-                    }
-                    className="mt-1.5 min-w-[140px] rounded-xl border border-[#B5A898]/30 bg-[#FAF8F4] px-4 py-2.5 text-sm text-[#2C1A0E] outline-none focus:border-[#7A9E7E]"
-                  >
-                    <option value="upcoming">Upcoming only</option>
-                    <option value="all">All events</option>
-                  </select>
-                </div>
-
-                {/* Sort */}
-                <div>
-                  <label
-                    className="text-xs font-semibold uppercase tracking-wide text-[#B5A898]"
-                    htmlFor="sort-by"
-                  >
-                    Sort
-                  </label>
-                  <select
-                    id="sort-by"
-                    value={sortBy}
-                    onChange={(e) =>
-                      setSortBy(
-                        e.target.value === "latest" ? "latest" : "soonest"
-                      )
-                    }
-                    className="mt-1.5 min-w-[140px] rounded-xl border border-[#B5A898]/30 bg-[#FAF8F4] px-4 py-2.5 text-sm text-[#2C1A0E] outline-none focus:border-[#7A9E7E]"
-                  >
-                    <option value="soonest">Soonest first</option>
-                    <option value="latest">Latest first</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Result count + refresh */}
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-[#2C1A0E]/50">
-                  Showing{" "}
-                  <span className="font-semibold text-[#2C1A0E]">
-                    {filteredEvents.length}
-                  </span>{" "}
-                  event{filteredEvents.length !== 1 ? "s" : ""}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { void loadEvents(); }}
-                  disabled={isLoadingEvents}
-                  className="rounded-full border border-[#B5A898]/40 px-4 py-1.5 text-xs font-medium text-[#2C1A0E]/70 transition hover:border-[#7A9E7E] hover:text-[#7A9E7E] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isLoadingEvents ? "Refreshing…" : "↻ Refresh"}
-                </button>
-              </div>
+        {/* ── "You May Like" section ────────────────────────────────────── */}
+        <section style={{ marginBottom: 40 }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.text }}>You May Like</h2>
+              <p style={{ margin: "3px 0 0", fontSize: 12, color: C.textLight }}>
+                {selectedTags.length > 0
+                  ? `Filtered by: ${selectedTags.join(", ")} — set interests below to refine`
+                  : "Showing upcoming events — set interests below to personalize"}
+              </p>
             </div>
-
-            {/* Error state */}
-            {eventsError && (
-              <div className="rounded-2xl border border-[#C4704F]/20 bg-[#C4704F]/5 px-5 py-4 text-sm text-[#C4704F]">
-                ⚠️ {eventsError}
-              </div>
+            {dismissedEventIds.size > 0 && (
+              <button type="button" onClick={() => setDismissedEventIds(new Set())} style={{
+                border: "none", background: "none", fontSize: 11, color: C.terra, cursor: "pointer",
+              }}>
+                Reset deck
+              </button>
             )}
+          </div>
 
-            {/* Loading state */}
-            {isLoadingEvents && !eventsError && (
-              <div className="flex items-center justify-center py-12 text-sm text-[#B5A898]">
-                Loading events…
-              </div>
-            )}
+          <DiscoverDeck
+            events={deckEvents}
+            savedEventIds={savedEventIds}
+            savingEventId={savingEventId}
+            onSave={handleToggleSave}
+            onDismiss={handleDismiss}
+            totalFiltered={deckEvents.length}
+          />
+        </section>
 
-            {/* Empty state */}
-            {!isLoadingEvents && !eventsError && filteredEvents.length === 0 && (
-              <div className="flex flex-col items-center gap-2 rounded-2xl bg-white/50 py-14 text-center shadow-sm ring-1 ring-[#B5A898]/20">
-                <span className="text-3xl">🔍</span>
-                <p className="text-sm font-medium text-[#2C1A0E]">
-                  No events match your filters
-                </p>
-                <p className="text-xs text-[#B5A898]">
-                  Try broadening your search or switching to "All events"
-                </p>
-              </div>
-            )}
-
-            {/* Event cards */}
-            {filteredEvents.length > 0 && (
-              <ul className="space-y-4">
-                {filteredEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* ── Sidebar ──────────────────────────────────────────────────── */}
-          <aside className="space-y-5">
-
-            {/* Recommended */}
-            <section className="rounded-2xl bg-[#FDF6EC] p-5 shadow-sm ring-1 ring-[#B5A898]/20">
-              <h2 className="text-sm font-semibold text-[#2C1A0E]">
-                ✨ Recommended Right Now
-              </h2>
-              <p className="mt-1 text-xs text-[#2C1A0E]/50">
-                Early MVP — goal-based ranking coming soon.
-              </p>
-
-              {recommendedEvents.length > 0 ? (
-                <ul className="mt-4 space-y-3">
-                  {recommendedEvents.map((event) => (
-                    <li
-                      key={`rec-${event.id}`}
-                      className="rounded-xl border border-[#B5A898]/20 bg-white/60 p-3"
-                    >
-                      <p className="text-sm font-medium leading-snug text-[#2C1A0E]">
-                        {event.title}
-                      </p>
-                      <p className="mt-0.5 text-xs text-[#B5A898]">
-                        {formatDate(event.start_time)}
-                      </p>
-                      {event.registration_url && (
-                        <a
-                          href={event.registration_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1.5 inline-block text-xs font-medium text-[#C4704F] no-underline hover:opacity-75"
-                        >
-                          Register →
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-4 text-sm text-[#B5A898]">
-                  No recommendations yet.
-                </p>
-              )}
-            </section>
-
-            {/* Data Operations */}
-            <section className="rounded-2xl bg-white/70 p-5 shadow-sm ring-1 ring-[#B5A898]/20">
-              <h2 className="text-sm font-semibold text-[#2C1A0E]">
-                🔄 Data Sync
-              </h2>
-              <p className="mt-1 text-xs leading-relaxed text-[#2C1A0E]/50">
-                Manually pull from the CampusGroups ICS feed for development
-                and testing.
-              </p>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className="rounded-full bg-[#7A9E7E] px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#6a8e6e] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSyncing ? "Syncing…" : "Run Sync"}
-                </button>
-                {lastRunAt && (
-                  <span className="text-xs text-[#B5A898]">
-                    Last run: {lastRunAt}
-                  </span>
-                )}
-              </div>
-
-              {runSummary && (
-                <div className="mt-4 rounded-xl border border-[#7A9E7E]/20 bg-[#7A9E7E]/5 px-4 py-3 text-xs text-[#2C1A0E]/70">
-                  ✅ {runSummary}
-                </div>
-              )}
-
-              {syncFailure && (
-                <div className="mt-4 rounded-xl border border-[#C4704F]/20 bg-[#C4704F]/5 px-4 py-3 text-xs text-[#C4704F]">
-                  ⚠️ {syncFailure.error}
-                  {typeof syncFailure.durationMs === "number" && (
-                    <span className="ml-1 text-[#B5A898]">
-                      ({syncFailure.durationMs} ms)
-                    </span>
-                  )}
-                </div>
-              )}
-            </section>
-
-          </aside>
+        {/* ── Browse section ─────────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <span style={{ flex: 1, height: 1, background: C.border }} />
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: C.taupe }}>
+            {activeTab === "saved" ? "Your saved events" : "Browse all events"}
+          </span>
+          <span style={{ flex: 1, height: 1, background: C.border }} />
         </div>
+
+        <FiltersBar
+          activeTab={activeTab}
+          savedCount={savedCount}
+          onTabChange={setActiveTab}
+          query={query}
+          onQueryChange={setQuery}
+          timeFilter={timeFilter}
+          onTimeFilterChange={setTimeFilter}
+          organizerFilter={organizerFilter}
+          organizerOptions={organizerOptions}
+          onOrganizerFilterChange={setOrganizerFilter}
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          selectedTags={selectedTags}
+          onTagToggle={handleTagToggle}
+          onClearTags={handleClearTags}
+        />
+
+        {(eventsError || savedEventsError || reflectionsError) && (
+          <div style={{ marginBottom: 16, padding: "10px 16px", borderRadius: 10, border: `1px solid ${C.terraBorder}`, background: C.terraLight, fontSize: 12, color: C.terraDark }}>
+            {eventsError || savedEventsError || reflectionsError}
+          </div>
+        )}
+
+        <EventList
+          isLoadingEvents={isLoadingEvents}
+          isLoadingSavedEvents={isLoadingSavedEvents}
+          displayedEvents={displayedEvents}
+          activeTab={activeTab}
+          savedEventIds={savedEventIds}
+          savingEventId={savingEventId}
+          reflectionsByEventId={reflectionsByEventId}
+          onToggleSave={handleToggleSave}
+          onStartReflection={handleStartReflectionEdit}
+        />
       </main>
+
+      {editingEvent && editingReflectionEventId && (
+        <ReflectionModal
+          event={editingEvent}
+          existingReflection={reflectionsByEventId[editingReflectionEventId]}
+          draft={reflectionDrafts[editingReflectionEventId] || ""}
+          onDraftChange={v => handleReflectionDraftChange(editingReflectionEventId, v)}
+          onSave={() => handleSaveReflection(editingReflectionEventId)}
+          onDelete={() => handleDeleteReflection(editingReflectionEventId)}
+          onClose={handleCancelReflectionEdit}
+          isSaving={savingReflectionEventId === editingReflectionEventId}
+        />
+      )}
     </div>
   );
 }

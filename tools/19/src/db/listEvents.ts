@@ -1,11 +1,16 @@
 import postgres from "postgres";
+import {
+  parseEventPresentation,
+  type EventPresentationFields,
+} from "./eventPresentation.js";
 
 export interface ListEventsOptions {
   databaseUrl: string;
+  upcomingOnly?: boolean;
   limit?: number;
 }
 
-export interface EventListItem {
+export interface EventListItem extends EventPresentationFields {
   id: string;
   external_event_id: string;
   calendar_title: string | null;
@@ -31,10 +36,10 @@ export async function listEvents(options: ListEventsOptions): Promise<EventListI
   try {
     const safeLimit =
       typeof options.limit === "number" && options.limit > 0
-        ? Math.min(Math.trunc(options.limit), 200)
-        : 100;
+        ? Math.min(Math.trunc(options.limit), 500)
+        : null;
 
-    const rows = await sql<EventListItem[]>`
+    const rows = await sql<Array<Omit<EventListItem, keyof EventPresentationFields>>>`
       SELECT
         id,
         external_event_id,
@@ -49,11 +54,15 @@ export async function listEvents(options: ListEventsOptions): Promise<EventListI
         source_feed,
         last_synced_at
       FROM events
+      ${options.upcomingOnly ? sql`WHERE start_time >= NOW()` : sql``}
       ORDER BY start_time ASC
-      LIMIT ${safeLimit}
+      ${safeLimit !== null ? sql`LIMIT ${safeLimit}` : sql``}
     `;
 
-    return rows;
+    return rows.map((row) => ({
+      ...row,
+      ...parseEventPresentation(row.description, row.registration_url),
+    }));
   } finally {
     await sql.end();
   }

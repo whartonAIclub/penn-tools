@@ -1,6 +1,6 @@
 {
   "name": "Compass",
-  "description": "AI-first web app helping Wharton MBA students discover Penn/Wharton events, reflect on attendance, and get AI insights on goal alignment.",
+  "description": "Compass MVP backend for ingesting Penn/Wharton ICS events and serving a read-only events API.",
   "category": "Wellness",
   "builders": ["Pak Kanjanakosit", "Iris Liu"],
   "mentor": "Manas Sharma",

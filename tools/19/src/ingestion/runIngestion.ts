@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { fetchIcsFeed } from "./fetchFeed.js";
 import { parseIcsFeed } from "./parseFeed.js";
@@ -37,7 +38,7 @@ export async function runIngestion(
   const { feedUrl, databaseUrl } = options;
   const startedAt = Date.now();
   const sql = postgres(databaseUrl, { max: 5 });
-  const runId = crypto.randomUUID();
+  const runId = randomUUID();
 
   try {
     await sql`

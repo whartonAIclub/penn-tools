@@ -43,7 +43,6 @@ export function parseIcsFeed(
   sourceFeed: string
 ): ParsedEvent[] {
   const data = ical.sync.parseICS(icsText);
-  const calendarTitle = extractCalendarTitle(icsText);
   const events: ParsedEvent[] = [];
 
   for (const key of Object.keys(data)) {
@@ -54,7 +53,7 @@ export function parseIcsFeed(
       typeof component.uid === "string" ? component.uid.trim() : "";
     if (!uid) continue;
 
-    const startTime = component.start instanceof Date ? component.start : null;
+    const startTime = coerceDate(component.start);
     if (!startTime) continue;
 
     const summaryText = extractTextField(component.summary);
@@ -62,8 +61,7 @@ export function parseIcsFeed(
 
     const description = extractTextField(component.description);
 
-    const endTime =
-      component.end instanceof Date ? component.end : null;
+    const endTime = coerceDate(component.end);
 
     const location = extractTextField(component.location);
 
@@ -74,7 +72,6 @@ export function parseIcsFeed(
 
     events.push({
       external_event_id: uid,
-      calendar_title: calendarTitle,
       title,
       description,
       organizer,
@@ -89,12 +86,19 @@ export function parseIcsFeed(
   return events;
 }
 
-function extractCalendarTitle(icsText: string): string | null {
-  const match = icsText.match(/^X-WR-CALNAME:(.+)$/m);
-  if (!match || typeof match[1] !== "string") return null;
+function coerceDate(raw: unknown): Date | null {
+  if (raw instanceof Date && !Number.isNaN(raw.valueOf())) {
+    return raw;
+  }
 
-  const value = match[1].trim();
-  return value || null;
+  if (typeof raw === "string" || typeof raw === "number") {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.valueOf())) {
+      return parsed;
+    }
+  }
+
+  return null;
 }
 
 function extractTextField(raw: unknown): string | null {

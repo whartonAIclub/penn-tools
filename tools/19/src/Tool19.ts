@@ -8,7 +8,7 @@ export class Tool19 extends Tool<Tool19Input, Tool19Output> {
     id: "19",
     title: "Compass",
     description:
-      "AI-first web app helping Wharton MBA students discover Penn/Wharton events, reflect on attendance, and get AI insights on goal alignment.",
+      "Compass MVP backend for ingesting Penn/Wharton ICS events and serving a read-only events API.",
     image: "/tools/19/icon.png",
     contributors: ["Pak Kanjanakosit", "Iris Liu"],
     mentor: "Manas Sharma",
