@@ -1,28 +1,31 @@
 {
-  "name": "@penntools/tool-3",
-  "version": "0.0.1",
+  "name": "penn-planner",
+  "version": "0.1.0",
   "private": true,
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "clean": "rm -rf dist"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
   },
   "dependencies": {
-    "@penntools/core": "workspace:*"
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@prisma/client": "^6.19.2",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^1.0.1",
+    "next": "16.2.1",
+    "prisma": "^6.19.2",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "vitest": "^1.6.0"
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
