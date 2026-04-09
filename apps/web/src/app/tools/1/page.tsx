@@ -1,5 +1,7 @@
 "use client";
-import { useState, useRef, useCallback, type ChangeEvent, type DragEvent } from "react";
+import { useState, useRef, useCallback, useTransition, type ChangeEvent, type DragEvent } from "react";
+import { useRouter } from "next/navigation";
+import { saveTranscript } from "./transcriptActions";
 // pdfjs-dist is loaded from CDN at runtime — see loadPdfJs()
 import { CATALOG_BY_ID, COURSE_CATALOG } from "./courseCatalog";
 import type { CatalogCourse } from "./courseCatalog";
@@ -65,6 +67,19 @@ async function extractTextFromPDF(file: File): Promise<string> {
     pageTexts.push(text);
   }
   return pageTexts.join("\n");
+}
+
+// ── Declared major extraction ─────────────────────────────────────────────────
+
+function extractDeclaredMajor(text: string): string | null {
+  // Matches "Major: Wharton MBA Program-Undeclared Level:" or "Major: Finance Level:"
+  const match = text.match(/Major:\s*(.+?)(?=\s+Level:|\n|$)/i);
+  if (!match || !match[1]) return null;
+  const raw = match[1].trim();
+  // Normalize "Wharton MBA Program-Undeclared" → "Undeclared"
+  if (/undeclared/i.test(raw)) return "Undeclared";
+  // Strip common prefix
+  return raw.replace(/^Wharton MBA Program[-–]?/i, "").trim() || raw;
 }
 
 // ── LLM transcript parsing ─────────────────────────────────────────────────────
@@ -151,7 +166,10 @@ export default function Tool1Page() {
   const [isDragging, setIsDragging] = useState(false);
   const [fixingIndex, setFixingIndex] = useState<number | null>(null);
   const [fixSearch, setFixSearch] = useState("");
+  const [isSaving, startSaving] = useTransition();
+  const [declaredMajor, setDeclaredMajor] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.endsWith(".pdf")) {
@@ -162,6 +180,7 @@ export default function Tool1Page() {
     setView("processing");
     try {
       const text = await extractTextFromPDF(file);
+      setDeclaredMajor(extractDeclaredMajor(text));
       const parsed = await parseTranscript(text);
       setCourses(parsed);
       setView("review");
@@ -432,8 +451,30 @@ export default function Tool1Page() {
               <button style={{ fontSize: 13, color: "#6b7280", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }} onClick={() => setView("upload")}>
                 ← Re-upload transcript
               </button>
-              <button style={btnPrimary} onClick={() => setView("confirm")}>
-                Looks right →
+              <button
+                style={{ ...btnPrimary, opacity: isSaving ? 0.6 : 1 }}
+                disabled={isSaving}
+                onClick={() =>
+                  startSaving(async () => {
+                    await saveTranscript(
+                      courses.map((c) => ({
+                        courseId: c.courseId,
+                        title: c.title,
+                        credits: c.credits,
+                        grade: c.grade,
+                        term: c.term,
+                        crossListedAs: c.crossListedAs,
+                        officialTitle: c.officialTitle,
+                        officialCredits: c.officialCredits,
+                        department: c.department,
+                      })),
+                      { declaredMajor }
+                    );
+                    setView("confirm");
+                  })
+                }
+              >
+                {isSaving ? "Saving…" : "Looks right →"}
               </button>
             </div>
           </div>
@@ -462,13 +503,21 @@ export default function Tool1Page() {
 
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", marginBottom: 24 }}>
               <div style={{ background: "#f9fafb", padding: "10px 16px", fontSize: 11, fontWeight: 700, color: "#9ca3af", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: "1px solid #e5e7eb" }}>
-                Coming next
+                What's next
               </div>
-              {[
-                "Degree & major requirement mapping",
-                "Schedule builder & conflict detection",
-                "Bidding guidance & clearing price history",
-              ].map((item) => (
+              {/* Active: Graduation requirements */}
+              <button
+                onClick={() => router.push("/tools/1/waivers")}
+                style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "14px 16px", background: "none", border: "none", borderBottom: "1px solid #f3f4f6", cursor: "pointer", textAlign: "left" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f4ff"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#011F5B", flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#011F5B" }}>Degree &amp; major requirement mapping</span>
+                <span style={{ marginLeft: "auto", fontSize: 12, color: "#011F5B", fontWeight: 700 }}>View →</span>
+              </button>
+              {/* Coming soon items */}
+              {["Schedule builder & conflict detection", "Bidding guidance & clearing price history"].map((item) => (
                 <div key={item} style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #f3f4f6", opacity: 0.45 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#d1d5db", flexShrink: 0 }} />
                   <span style={{ fontSize: 13, color: "#374151" }}>{item}</span>
