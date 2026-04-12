@@ -1,5 +1,9 @@
 // Career Canvas — standalone Prisma schema
 // Independent of the platform schema; scoped to tool 8 only.
+//
+// Note: cc_course_embeddings table uses pgvector (vector type) which Prisma
+// does not support natively. It is created via raw SQL in Supabase and
+// queried via $queryRaw in db.ts.
 
 generator client {
   provider = "prisma-client-js"

@@ -1,117 +1,61 @@
-import { COURSE_CATALOG } from "./catalogData.js";
+import { PrismaClient } from "../src/generated/client/index.js";
 
-// ── Major → likely department codes ───────────────────────────────────────
-const MAJOR_TO_DEPTS: Record<string, string[]> = {
-  // Engineering & CS
-  "computer science":       ["CIS", "NETS", "ESE", "MCIT", "LGIC"],
-  "cis":                    ["CIS", "NETS", "ESE"],
-  "data science":           ["CIS", "STAT", "MATH", "ESE", "NETS"],
-  "electrical engineering": ["ESE", "CIS", "PHYS"],
-  "mechanical engineering": ["MEAM", "ESE", "PHYS"],
-  "chemical engineering":   ["CBE", "CHEM", "BIOL"],
-  "bioengineering":         ["BE", "BIOL", "CHEM", "CBE"],
-  "systems engineering":    ["ESE", "OIDD", "CIS"],
-  "computer engineering":   ["CIS", "ESE"],
-  "nets":                   ["NETS", "CIS", "ESE"],
+const MODEL = "text-embedding-3-small";
 
-  // Wharton
-  "finance":                ["FNCE", "ACCT", "BEPP", "REAL"],
-  "accounting":             ["ACCT", "BEPP", "FNCE"],
-  "marketing":              ["MKTG", "OIDD", "MGMT"],
-  "management":             ["MGMT", "OIDD", "HCMG"],
-  "operations":             ["OIDD", "STAT", "MGMT"],
-  "real estate":            ["REAL", "FNCE", "BEPP"],
-  "statistics":             ["STAT", "MATH", "CIS"],
-  "business economics":     ["BEPP", "ECON", "FNCE"],
-  "business analytics":     ["STAT", "OIDD", "CIS"],
-  "healthcare management":  ["HCMG", "MGMT", "NURS"],
+// ── Singleton Prisma client ────────────────────────────────────────────────
+const globalForPrisma = globalThis as unknown as { ccSearchPrisma?: PrismaClient };
+const prisma =
+  globalForPrisma.ccSearchPrisma ??
+  new PrismaClient({ datasources: { db: { url: process.env.CC_DATABASE_URL ?? "" } } });
+if (process.env.NODE_ENV !== "production") globalForPrisma.ccSearchPrisma = prisma;
 
-  // SAS — Social Sciences
-  "economics":              ["ECON", "BEPP", "FNCE", "MATH"],
-  "political science":      ["PSCI", "HSOC", "LGST"],
-  "sociology":              ["SOCI", "CRIM", "HSOC"],
-  "psychology":             ["PSYC", "BIBB", "NRSC"],
-  "history":                ["HIST", "SOCI", "AFRC"],
-  "philosophy":             ["PHIL", "LGIC", "RELS"],
-  "international relations":["PSCI", "HIST", "ECON"],
-  "communication":          ["COMM", "STSC", "SOCI"],
-  "criminology":            ["CRIM", "SOCI", "PSYC"],
-  "urban studies":          ["URBS", "SOCI", "HSOC"],
-  "gender studies":         ["GSWS", "SOCI", "AFRC"],
-  "african american studies":["AFRC", "HIST", "SOCI"],
-
-  // SAS — Humanities
-  "english":                ["ENGL", "COML", "WRIT"],
-  "linguistics":            ["LING", "COML", "PSYC"],
-  "mathematics":            ["MATH", "AMCS", "STAT"],
-  "physics":                ["PHYS", "ASTR", "MATH"],
-  "chemistry":              ["CHEM", "BIOL", "BIOC"],
-  "biology":                ["BIOL", "BIBB", "BCHE"],
-  "biochemistry":           ["BCHE", "CHEM", "BIOL"],
-  "neuroscience":           ["NRSC", "BIBB", "PSYC", "BIOL"],
-  "cognitive science":      ["COGS", "PSYC", "LING", "PHIL"],
-  "environmental science":  ["ENVS", "EART", "BIOL"],
-  "earth science":          ["EART", "ENVS", "PHYS"],
-
-  // Penn Nursing / Social Policy / Education
-  "nursing":                ["NURS", "BIOL", "HCMG"],
-  "social work":            ["SWRK", "SOCI", "PSYC"],
-  "education":              ["EDUC", "PSYC", "SOCI"],
-  "health care":            ["HCMG", "NURS", "BIOL"],
-  "public policy":          ["PPOL", "BEPP", "ECON"],
-};
-
-// ── Keyword scoring ────────────────────────────────────────────────────────
-function tokenise(text: string): string[] {
-  return text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+// ── Embed a query string via OpenAI ───────────────────────────────────────
+async function embedQuery(text: string): Promise<number[]> {
+  const apiKey = process.env.OPENAI_API_KEY ?? "";
+  const res = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model: MODEL, input: text }),
+  });
+  if (!res.ok) throw new Error(`Embedding API error: ${res.status}`);
+  const data = (await res.json()) as { data: { embedding: number[] }[] };
+  const first = data.data[0];
+  if (!first) throw new Error("No embedding returned");
+  return first.embedding;
 }
 
-function score(course: { dept: string; name: string }, keywords: string[]): number {
-  let s = 0;
-  const name = course.name.toLowerCase();
-  const dept = course.dept.toLowerCase();
-  for (const kw of keywords) {
-    if (dept === kw) s += 4;
-    else if (name.includes(kw)) s += 2;
-  }
-  return s;
-}
-
-// ── Main filter function ───────────────────────────────────────────────────
-export function filterCourses(
+// ── Semantic course search ─────────────────────────────────────────────────
+export async function filterCourses(
   major: string,
   interests: string,
   targetRoles: string,
   maxResults = 20,
-): string {
-  // 1. Collect dept codes from major mapping
-  const majorKey = major.toLowerCase().trim();
-  const deptCodes = new Set<string>();
-  for (const [key, depts] of Object.entries(MAJOR_TO_DEPTS)) {
-    if (majorKey.includes(key) || key.includes(majorKey)) {
-      depts.forEach((d) => deptCodes.add(d));
-    }
+): Promise<string> {
+  // Combine all student context into one query
+  const query = [major, interests, targetRoles].filter(Boolean).join(". ");
+  if (!query.trim()) return "";
+
+  try {
+    const embedding = await embedQuery(query);
+    const vectorStr = `[${embedding.join(",")}]`;
+
+    // Cosine similarity search via pgvector
+    const results = await prisma.$queryRaw<{ code: string; name: string }[]>`
+      SELECT code, name
+      FROM cc_course_embeddings
+      ORDER BY embedding <=> ${vectorStr}::vector
+      LIMIT ${maxResults}
+    `;
+
+    if (results.length === 0) return "";
+
+    const lines = results.map((r) => `- ${r.code}: ${r.name}`).join("\n");
+    return `### Relevant Penn courses (from 2025–26 catalog)\n${lines}\n\nNote: verify availability and prerequisites at https://catalog.upenn.edu/courses/`;
+  } catch (e) {
+    console.warn("[CareerCanvas] Semantic course search failed, skipping:", e);
+    return "";
   }
-
-  // 2. Extract keywords from interests + target roles
-  const keywords = [
-    ...tokenise(interests),
-    ...tokenise(targetRoles),
-    ...tokenise(major),
-  ].filter((w) => w.length > 3); // skip short stop words
-
-  // 3. Score every course
-  const scored = COURSE_CATALOG.map((c) => ({
-    ...c,
-    score: (deptCodes.has(c.dept) ? 6 : 0) + score(c, keywords),
-  })).filter((c) => c.score > 0);
-
-  // 4. Sort and take top N
-  scored.sort((a, b) => b.score - a.score);
-  const top = scored.slice(0, maxResults);
-
-  if (top.length === 0) return "";
-
-  const lines = top.map((c) => `- ${c.code}: ${c.name}`).join("\n");
-  return `### Relevant Penn courses (from 2025–26 catalog)\n${lines}\n\nNote: verify availability and prerequisites at https://catalog.upenn.edu/courses/`;
 }
