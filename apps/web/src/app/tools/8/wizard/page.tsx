@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  actionBuildPrompt,
+  actionGenerateRoadmap,
   actionSaveWizardAnswers,
   actionLoadWizardAnswers,
   actionSaveRoadmap,
@@ -283,37 +283,26 @@ export default function WizardPage() {
   }
 
   async function generatePlan() {
-    // Save answers before generating
     await saveAnswers();
-
-    const prompt = await actionBuildPrompt({
-      academicBackground: [
-        school     && `School: ${school}`,
-        major      && `Major: ${major}`,
-        year       && `Year: ${year}`,
-        coursework && `Coursework: ${coursework}`,
-      ].filter(Boolean).join("\n"),
-      interests,
-      resumeSummary: [resumeText, linkedinText].filter(Boolean).join("\n\n"),
-      targetRoles,
-      scenarioNotes,
-    });
     setPlan({ status: "loading" });
 
     try {
-      const storedKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
-      const res = await fetch("/api/llm/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(storedKey ? { "X-Api-Key": storedKey } : {}) },
-        body: JSON.stringify({ prompt }),
+      const markdown = await actionGenerateRoadmap({
+        academicBackground: [
+          school     && `School: ${school}`,
+          major      && `Major: ${major}`,
+          year       && `Year: ${year}`,
+          coursework && `Coursework: ${coursework}`,
+        ].filter(Boolean).join("\n"),
+        interests,
+        resumeSummary: [resumeText, linkedinText].filter(Boolean).join("\n\n"),
+        targetRoles,
+        scenarioNotes,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { content: string };
-      // Save roadmap to DB
       if (profile) {
-        try { await actionSaveRoadmap(profile.id, data.content); } catch { /* non-blocking */ }
+        try { await actionSaveRoadmap(profile.id, markdown); } catch { /* non-blocking */ }
       }
-      setPlan({ status: "ok", markdown: data.content });
+      setPlan({ status: "ok", markdown });
       setStep("results");
     } catch (e) {
       setPlan({ status: "err", message: String(e) });
