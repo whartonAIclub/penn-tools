@@ -6,14 +6,13 @@ const SPIN_CSS = `@keyframes el-spin { to { transform: rotate(360deg); } }`;
 
 type EventListProps = {
   isLoadingEvents: boolean;
-  isLoadingSavedEvents: boolean;
   displayedEvents: EventItem[];
-  activeTab: "discover" | "saved";
   savedEventIds: Set<string>;
   savingEventId: string | null;
   reflectionsByEventId: Record<string, ReflectionItem>;
   onToggleSave: (eventId: string) => void;
   onStartReflection: (eventId: string) => void;
+  onViewDetails: (eventId: string) => void;
 };
 
 function CalendarEmptyIcon() {
@@ -28,11 +27,11 @@ function CalendarEmptyIcon() {
 }
 
 export function EventList({
-  isLoadingEvents, isLoadingSavedEvents, displayedEvents,
-  activeTab, savedEventIds, savingEventId, reflectionsByEventId,
-  onToggleSave, onStartReflection,
+  isLoadingEvents, displayedEvents,
+  savedEventIds, savingEventId, reflectionsByEventId,
+  onToggleSave, onStartReflection, onViewDetails,
 }: EventListProps) {
-  if (isLoadingEvents || isLoadingSavedEvents) {
+  if (isLoadingEvents) {
     return (
       <>
         <style>{SPIN_CSS}</style>
@@ -69,12 +68,10 @@ export function EventList({
             <CalendarEmptyIcon />
           </div>
           <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 600, color: C.text }}>
-            {activeTab === "saved" ? "No saved events yet" : "No events found"}
+            No events found
           </h3>
           <p style={{ margin: 0, fontSize: 13, color: C.textLight, maxWidth: 300, marginInline: "auto" }}>
-            {activeTab === "saved"
-              ? "Save events you're interested in to see them here."
-              : "Try adjusting your filters or search query."}
+            Try adjusting your filters or search query.
           </p>
         </li>
       ) : (
@@ -85,8 +82,9 @@ export function EventList({
             isSaved={savedEventIds.has(event.id)}
             isSaving={savingEventId === event.id}
             onToggleSave={onToggleSave}
-            reflection={reflectionsByEventId[event.id]}
+            {...(reflectionsByEventId[event.id] ? { reflection: reflectionsByEventId[event.id] } : {})}
             onStartReflection={onStartReflection}
+            onViewDetails={onViewDetails}
           />
         ))
       )}
