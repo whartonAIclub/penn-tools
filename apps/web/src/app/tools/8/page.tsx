@@ -26,7 +26,11 @@ function loadProfile(): CCProfile | null {
 }
 
 function saveProfile(p: CCProfile) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  } catch {
+    // localStorage unavailable (e.g. Safari private mode) — profile won't persist, but session continues
+  }
 }
 
 // ── Auth modal ─────────────────────────────────────────────────────────────
@@ -48,6 +52,7 @@ function AuthModal({
   const [name, setName]   = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const p = loadProfile();
@@ -59,31 +64,41 @@ function AuthModal({
   }, []);
 
   async function handleContinueProfile() {
-    // Fetch from DB to get the latest id
-    const dbUser = await actionFindUser(existingProfile!.email);
-    if (dbUser) {
-      const p: CCProfile = { id: dbUser.id, name: dbUser.name, email: dbUser.email };
-      saveProfile(p);
-      onProfile(p);
-    } else {
-      // Profile exists locally but not in DB — re-create it
-      const dbUser2 = await actionUpsertUser(existingProfile!.name, existingProfile!.email);
-      const p: CCProfile = { id: dbUser2.id, name: dbUser2.name, email: dbUser2.email };
-      saveProfile(p);
-      onProfile(p);
+    setLoading(true);
+    setError("");
+    try {
+      const dbUser = await actionFindUser(existingProfile!.email);
+      if (dbUser) {
+        const p: CCProfile = { id: dbUser.id, name: dbUser.name, email: dbUser.email };
+        saveProfile(p);
+        onProfile(p);
+      } else {
+        const dbUser2 = await actionUpsertUser(existingProfile!.name, existingProfile!.email);
+        const p: CCProfile = { id: dbUser2.id, name: dbUser2.name, email: dbUser2.email };
+        saveProfile(p);
+        onProfile(p);
+      }
+    } catch {
+      setError("Could not load your profile. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleCreate() {
     if (!name.trim()) { setError("Please enter your name."); return; }
     if (!email.trim() || !/^[^\s@]+@(?:[a-z0-9-]+\.)*upenn\.edu$/i.test(email.trim())) { setError("Please enter a valid Penn email ending in upenn.edu."); return; }
+    setLoading(true);
+    setError("");
     try {
       const dbUser = await actionUpsertUser(name.trim(), email.trim());
       const p: CCProfile = { id: dbUser.id, name: dbUser.name, email: dbUser.email };
       saveProfile(p);
       onProfile(p);
     } catch {
-      setError("Could not save profile. Please try again.");
+      setError("Could not save profile. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -96,7 +111,7 @@ function AuthModal({
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 20,
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (!loading && e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
         background: "#FDFCF9",
@@ -130,6 +145,13 @@ function AuthModal({
           </p>
         </div>
 
+        {/* Error banner — shown for both returning-user and create-profile flows */}
+        {error && (
+          <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+
         {/* Returning user */}
         {existingProfile && !showForm && (
           <div>
@@ -141,11 +163,12 @@ function AuthModal({
               <div style={{ fontWeight: 600 }}>{existingProfile.name}</div>
               <div style={{ color: "#77716B", marginTop: 2 }}>{existingProfile.email}</div>
             </div>
-            <button type="button" onClick={handleContinueProfile} style={primaryBtn}>
-              Continue as {existingProfile.name.split(" ")[0]} →
+            <button type="button" onClick={handleContinueProfile} disabled={loading} style={{ ...primaryBtn, opacity: loading ? 0.65 : 1 }}>
+              {loading ? "Loading…" : `Continue as ${existingProfile.name.split(" ")[0]} →`}
             </button>
             <button type="button" onClick={() => { setExistingProfile(null); setShowForm(true); }}
-              style={{ ...ghostBtn, marginTop: 10 }}>
+              disabled={loading}
+              style={{ ...ghostBtn, marginTop: 10, opacity: loading ? 0.5 : 1 }}>
               Use a different profile
             </button>
           </div>
@@ -154,11 +177,6 @@ function AuthModal({
         {/* Create profile form */}
         {showForm && (
           <div>
-            {error && (
-              <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 13 }}>
-                {error}
-              </div>
-            )}
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>Your name</label>
               <input
@@ -178,8 +196,8 @@ function AuthModal({
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
               />
             </div>
-            <button type="button" onClick={handleCreate} style={primaryBtn}>
-              Save &amp; continue →
+            <button type="button" onClick={handleCreate} disabled={loading} style={{ ...primaryBtn, opacity: loading ? 0.65 : 1 }}>
+              {loading ? "Saving…" : "Save & continue →"}
             </button>
           </div>
         )}

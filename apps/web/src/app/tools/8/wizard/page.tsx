@@ -220,7 +220,7 @@ export default function WizardPage() {
         // Restore wizard answers
         const saved = await actionLoadWizardAnswers(p.id);
         if (saved) {
-          setSchool(saved.school);
+          setSchool(saved.school || "University of Pennsylvania");
           setMajor(saved.major);
           setYear(saved.year);
           setCoursework(saved.coursework);
@@ -304,14 +304,14 @@ export default function WizardPage() {
       }
       setPlan({ status: "ok", markdown });
       setStep("results");
-    } catch (e) {
-      setPlan({ status: "err", message: String(e) });
+    } catch {
+      setPlan({ status: "err", message: "Something went wrong generating your roadmap. Please try again." });
     }
   }
 
   function restart() {
     setStep(1); setPlan({ status: "idle" });
-    setSchool(""); setMajor(""); setYear(""); setCoursework("");
+    setSchool("University of Pennsylvania"); setMajor(""); setYear(""); setCoursework("");
     setInterests("");
     setResumeText(""); setLinkedinText("");
     setTargetRoles(""); setScenarioNotes("");
@@ -464,7 +464,7 @@ export default function WizardPage() {
                 value={scenarioNotes} onChange={(e) => setScenarioNotes(e.target.value)} />
             </Field>
             <WizardNav
-              onBack={() => setStep(3)}
+              onBack={() => { setPlan({ status: "idle" }); setStep(3); }}
               onNext={generatePlan}
               onSkip={generatePlan}
               nextLabel="Generate my roadmap →"
