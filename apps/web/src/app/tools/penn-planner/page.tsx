@@ -424,9 +424,6 @@ export default function PennPlannerPage() {
   const [assignments,   setAssignments]   = useState<Assignment[]>([]);
   const [blocks,        setBlocks]        = useState<CalendarBlock[]>([]);
   const [error,         setError]         = useState<string | null>(null);
-  const [apiKeyInput,   setApiKeyInput]   = useState("");
-  const [showApiKey,    setShowApiKey]    = useState(false);
-  const [storedApiKey,  setStoredApiKey]  = useState("");
   const [showAddForm,   setShowAddForm]   = useState(false);
   const [newA,          setNewA]          = useState<{
     name: string; course: string; type: AssignmentType;
@@ -436,23 +433,14 @@ export default function PennPlannerPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setStoredApiKey(localStorage.getItem("penntools_api_key") ?? "");
-  }, []);
-
-  useEffect(() => {
     setWindowWidth(window.innerWidth);
     const handler = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, []);
 
-  const llmHeaders = (key: string) => ({
-    "Content-Type": "application/json",
-    ...(key ? { "X-Api-Key": key } : {}),
-  });
-
-  const llmModel = (key: string) =>
-    key.startsWith("sk-ant-") ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
+  const llmHeaders = () => ({ "Content-Type": "application/json" });
+  const llmModel   = () => "gpt-4o-mini";
 
   const includeModePrompt: Record<IncludeMode, string> = {
     core:     "ONLY extract explicitly graded deliverables: assignments, problem sets, case analyses, quizzes, projects, and exams. Skip readings, lecture notes, and guest speakers.",
@@ -476,7 +464,6 @@ export default function PennPlannerPage() {
     }
 
     try {
-      const currentKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
       const multiplier = RIGOR_MULTIPLIERS[rigor];
       const refLines   = Object.entries(MBA_REFERENCE)
         .map(([k, v]) => `  ${k}: ${v.baseHours}h baseline`).join("\n");
@@ -504,8 +491,8 @@ Return ONLY a valid JSON array — no markdown, no explanation:
 [{"id":"s${syllabusIndex}_a1","name":"exact deliverable name","course":"course name or number","type":"case|essay|problem-set|reading|presentation|exam|reflection|group-project|quiz|other","dueDate":"YYYY-MM-DD"}]`;
 
         const parseRes = await fetch("/api/llm/complete", {
-          method: "POST", headers: llmHeaders(currentKey),
-          body: JSON.stringify({ prompt: parsePrompt, model: llmModel(currentKey) }),
+          method: "POST", headers: llmHeaders(),
+          body: JSON.stringify({ prompt: parsePrompt, model: llmModel() }),
         });
 
         if (!parseRes.ok) throw new Error("llm_unavailable");
@@ -532,8 +519,8 @@ ${JSON.stringify(parsed, null, 2)}
 Return ONLY valid JSON array. No markdown.`;
 
         const estRes = await fetch("/api/llm/complete", {
-          method: "POST", headers: llmHeaders(currentKey),
-          body: JSON.stringify({ prompt: estimatePrompt, model: llmModel(currentKey) }),
+          method: "POST", headers: llmHeaders(),
+          body: JSON.stringify({ prompt: estimatePrompt, model: llmModel() }),
         });
 
         if (!estRes.ok) throw new Error("llm_unavailable");
@@ -661,7 +648,12 @@ Return ONLY valid JSON array. No markdown.`;
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ background: "#f7f8fa", minHeight: "100vh" }}>
+    // Break out of the platform's max-width: 720px container
+    <div style={{
+      width: "100vw", position: "relative", left: "50%",
+      marginLeft: "-50vw", marginRight: "-50vw",
+      background: "#f7f8fa", minHeight: "100vh",
+    }}>
     <div style={wrap}>
 
       {/* Header */}
@@ -828,31 +820,6 @@ Return ONLY valid JSON array. No markdown.`;
                 </div>
               </div>
 
-              <div style={{ ...card, padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showApiKey ? 10 : 0 }}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>LLM API Key</span>
-                    <span style={{ fontSize: 12, color: C.gray, marginLeft: 8 }}>
-                      {storedApiKey ? "✓ Key saved" : "Required for real AI parsing"}
-                    </span>
-                  </div>
-                  <button onClick={() => setShowApiKey(v => !v)}
-                    style={{ fontSize: 12, color: C.gray, background: "none", border: `1px solid ${C.border}`, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>
-                    {showApiKey ? "Hide" : storedApiKey ? "Change" : "Add key"}
-                  </button>
-                </div>
-                {showApiKey && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input type="password" placeholder="sk-... or sk-ant-..." value={apiKeyInput}
-                      onChange={e => setApiKeyInput(e.target.value)}
-                      style={{ flex: 1, padding: "7px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
-                    <button onClick={() => { if (apiKeyInput) { localStorage.setItem("penntools_api_key", apiKeyInput); setStoredApiKey(apiKeyInput); setApiKeyInput(""); setShowApiKey(false); } }}
-                      style={{ ...btn(true, true) }}>
-                      Save
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 
@@ -1088,8 +1055,8 @@ function HowItWorksView({ onBack, isNarrow }: { onBack: () => void; isNarrow: bo
 
   const steps = [
     {
-      num: "01", title: "Canvas Sync", icon: "📚",
-      desc: "Penn Planner reads your Canvas courses and pulls all upcoming assignments — titles, types, deadlines, and course context — automatically.",
+      num: "01", title: "Syllabus Upload", icon: "📤",
+      desc: "Upload your course syllabus PDF. Penn Planner extracts all graded deliverables — assignments, exams, projects, and quizzes — automatically.",
       color: C.blueSoft, border: "#bfdbfe", text: "#1e40af",
     },
     {
@@ -1146,8 +1113,6 @@ function HowItWorksView({ onBack, isNarrow }: { onBack: () => void; isNarrow: bo
           {[
             { name: "Sam Lazarus",    role: "PM · Engineer", track: "Track 2 + 3" },
             { name: "Krishna Vadera", role: "PM · Engineer", track: "Track 2 + 3" },
-            { name: "Anthony Dodd",   role: "PM",            track: "Track 1" },
-            { name: "Arkan Kausar",   role: "Engineer",      track: "Track 1" },
           ].map((m) => (
             <div key={m.name} style={{ background: C.grayLight, borderRadius: 8, padding: "10px 14px", minWidth: 148 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{m.name}</div>
