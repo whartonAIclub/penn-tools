@@ -41,6 +41,7 @@ interface CalendarBlock {
   assignmentId: string;
   assignmentName: string;
   course: string;
+  type: AssignmentType;
   date: string;
   startHour: number;
   hours: number;
@@ -56,7 +57,22 @@ interface SyllabusFile {
 type Step = "setup" | "generating" | "review" | "calendar" | "how-it-works";
 type IncludeMode = "core" | "readings" | "all";
 
-// ── Per-syllabus color palette ─────────────────────────────────────────────────
+// ── Type-based color palette (used on dashboard/calendar) ─────────────────────
+
+const TYPE_COLORS: Record<AssignmentType, { bg: string; border: string; text: string; dot: string }> = {
+  "exam":          { bg: "#fef2f2", border: "#dc2626", text: "#991b1b", dot: "#dc2626" }, // red
+  "quiz":          { bg: "#fff7ed", border: "#ea580c", text: "#9a3412", dot: "#ea580c" }, // orange
+  "reading":       { bg: "#faf5ff", border: "#9333ea", text: "#6b21a8", dot: "#9333ea" }, // purple
+  "group-project": { bg: "#f0fdf4", border: "#16a34a", text: "#166534", dot: "#16a34a" }, // green
+  "presentation":  { bg: "#ecfdf5", border: "#059669", text: "#065f46", dot: "#059669" }, // teal
+  "case":          { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" }, // blue
+  "essay":         { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" }, // blue
+  "problem-set":   { bg: "#fefce8", border: "#ca8a04", text: "#854d0e", dot: "#ca8a04" }, // amber
+  "reflection":    { bg: "#f0f9ff", border: "#0284c7", text: "#0c4a6e", dot: "#0284c7" }, // sky
+  "other":         { bg: "#f9fafb", border: "#6b7280", text: "#374151", dot: "#6b7280" }, // gray
+};
+
+// ── Per-syllabus color palette (used on review step) ──────────────────────────
 
 const SYLLABUS_COLORS: { bg: string; border: string; text: string; dot: string }[] = [
   { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" },
@@ -181,6 +197,7 @@ function generateCalendarBlocks(assignments: Assignment[]): CalendarBlock[] {
         assignmentId:   a.id,
         assignmentName: a.name,
         course:         a.course,
+        type:           a.type,
         date:           d.toISOString().split("T")[0]!,
         startHour:      s % 2 === 0 ? 9 : 19,
         hours:          hrs,
@@ -313,17 +330,16 @@ function WeeklyCalendar({
         </button>
       </div>
 
-      {/* Legend — one entry per syllabus */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-        {syllabusNames.map((name, i) => {
-          const sc = syllabusColor(i);
-          return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
-              <div style={{ width: 10, height: 10, borderRadius: 2, background: sc.bg, border: `1.5px solid ${sc.border}` }} />
-              {name}
+      {/* Legend — by assignment type */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        {(Object.entries(TYPE_COLORS) as [AssignmentType, typeof TYPE_COLORS[AssignmentType]][])
+          .filter(([type]) => blocks.some(b => b.type === type && b.included))
+          .map(([type, tc]) => (
+            <div key={type} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: tc.bg, border: `1.5px solid ${tc.border}` }} />
+              {MBA_REFERENCE[type].label}
             </div>
-          );
-        })}
+          ))}
       </div>
 
       {/* Grid */}
@@ -352,19 +368,19 @@ function WeeklyCalendar({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {dayBlocks.map(b => {
-                  const sc = syllabusColor(b.syllabusIndex);
+                  const tc = TYPE_COLORS[b.type];
                   return (
                     <div key={b.id} onClick={() => onToggle(b.id)}
                       title={`${b.assignmentName} — click to toggle`}
                       style={{
                         borderRadius: 5, padding: "5px 6px", cursor: "pointer",
-                        background:  b.included ? sc.bg   : C.grayLight,
-                        borderLeft:  `3px solid ${b.included ? sc.border : C.border}`,
+                        background:  b.included ? tc.bg   : C.grayLight,
+                        borderLeft:  `3px solid ${b.included ? tc.border : C.border}`,
                         opacity:     b.included ? 1 : 0.45,
                         transition:  "all 0.1s",
                       }}
                     >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? sc.text : C.gray }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? tc.text : C.gray }}>
                         {fmtHour(b.startHour)}
                       </div>
                       <div style={{ fontSize: 10, color: C.textMid, lineHeight: 1.3, marginTop: 1, wordBreak: "break-word" }}>
@@ -672,18 +688,41 @@ Return ONLY valid JSON array. No markdown.`;
       {/* How It Works view */}
       {step === "how-it-works" && <HowItWorksView onBack={() => setStep("setup")} isNarrow={isNarrow} />}
 
-      {/* Breadcrumb progress — plain text, no circles */}
+      {/* Breadcrumb nav — clickable steps + home */}
       {step !== "how-it-works" && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 32 }}>
+          {/* Home button */}
+          <button
+            onClick={() => { setStep("setup"); setAssignments([]); setBlocks([]); setError(null); }}
+            title="Start over"
+            style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 13, cursor: "pointer", color: C.gray, marginRight: 8 }}
+          >
+            ⌂ Home
+          </button>
+
           {STEPS.map((s, i) => (
             <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{
-                fontSize:   13,
-                color:      i === activeIdx ? C.text : C.gray,
-                fontWeight: i === activeIdx ? 700 : 400,
-              }}>
+              <button
+                onClick={() => {
+                  if (i === 0) setStep("setup");
+                  else if (i === 1 && assignments.length > 0) setStep("review");
+                  else if (i === 2 && blocks.length > 0) setStep("calendar");
+                }}
+                disabled={i > activeIdx}
+                style={{
+                  background:  "none",
+                  border:      i === activeIdx ? `1px solid ${C.border}` : "none",
+                  borderRadius: 6,
+                  padding:     i === activeIdx ? "4px 10px" : "4px 6px",
+                  fontSize:    13,
+                  fontWeight:  i === activeIdx ? 700 : 400,
+                  color:       i === activeIdx ? C.text : i < activeIdx ? C.blue : C.gray,
+                  cursor:      i <= activeIdx ? "pointer" : "default",
+                  textDecoration: i < activeIdx ? "underline" : "none",
+                }}
+              >
                 {STEP_NAMES[s]}
-              </span>
+              </button>
               {i < STEPS.length - 1 && (
                 <span style={{ fontSize: 13, color: C.border }}>›</span>
               )}
@@ -993,14 +1032,14 @@ Return ONLY valid JSON array. No markdown.`;
               {assignments.map(a => {
                 const aBlocks   = blocks.filter(b => b.assignmentId === a.id && b.included);
                 const isOverdue = new Date(a.dueDate + "T23:59:59") < new Date();
-                const sc        = syllabusColor(a.syllabusIndex);
+                const tc        = TYPE_COLORS[a.type];
                 return (
                   <div key={a.id} style={{
                     display: "flex", alignItems: "center", gap: 10,
                     padding: "10px 14px",
-                    background: C.white,
+                    background: tc.bg,
                     borderRadius: 8,
-                    borderLeft: isOverdue ? `3px solid ${C.red}` : `3px solid ${sc.border}`,
+                    borderLeft: isOverdue ? `3px solid ${C.red}` : `3px solid ${tc.border}`,
                     marginBottom: 6,
                   }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
