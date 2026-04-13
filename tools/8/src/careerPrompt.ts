@@ -73,7 +73,7 @@ export function buildUserMessageForCareerCanvas(input: Tool8Input): string {
 /**
  * Single string for POST /api/llm/complete (only `prompt` is supported there).
  */
-export function buildMonolithicPromptForHttpApi(input: Tool8Input): string {
+export async function buildMonolithicPromptForHttpApi(input: Tool8Input): Promise<string> {
   const raw = input.prompt?.trim();
   if (raw) {
     return `${CAREER_CANVAS_SYSTEM_PROMPT}\n\n---\n\nStudent request:\n${raw}`;
@@ -84,7 +84,7 @@ export function buildMonolithicPromptForHttpApi(input: Tool8Input): string {
   }
 
   // Inject relevant Penn courses derived from the student's major + interests
-  const courses = filterCourses(
+  const courses = await filterCourses(
     input.academicBackground ?? "",
     input.interests ?? "",
     input.targetRoles ?? "",

@@ -14,14 +14,14 @@ import type { WizardAnswers, Tool8Input } from "@penntools/tool-8";
 // ── Prompt builder ────────────────────────────────────────────────────────
 
 export async function actionBuildPrompt(input: Tool8Input): Promise<string> {
-  return buildMonolithicPromptForHttpApi(input);
+  return await buildMonolithicPromptForHttpApi(input);
 }
 
 // ── LLM call — uses Career Canvas's own API key (CC_OPENAI_API_KEY) ───────
 // Falls back to OPENAI_API_KEY for local dev. In production, only
 // CC_OPENAI_API_KEY is used so Career Canvas credits stay isolated.
 export async function actionGenerateRoadmap(input: Tool8Input): Promise<string> {
-  const prompt = buildMonolithicPromptForHttpApi(input);
+  const prompt = await buildMonolithicPromptForHttpApi(input);
   const apiKey = process.env.CC_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
 
   if (!apiKey) throw new Error("No API key configured for Career Canvas.");

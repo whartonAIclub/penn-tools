@@ -11,7 +11,7 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.ccSearchPrisma = pris
 
 // ── Embed a query string via OpenAI ───────────────────────────────────────
 async function embedQuery(text: string): Promise<number[]> {
-  const apiKey = process.env.OPENAI_API_KEY ?? "";
+  const apiKey = process.env.CC_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
   const res = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
