@@ -669,39 +669,53 @@ Return ONLY valid JSON array. No markdown.`;
     }}>
     <div style={wrap}>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 34, fontWeight: 900, margin: "0 0 6px", letterSpacing: "-0.5px" }}>Penn Planner</h1>
-          <p style={{ color: C.gray, margin: 0, fontSize: 15 }}>
-            Upload your syllabus → AI effort estimates → block your study time
-          </p>
-        </div>
-        <button
-          onClick={() => setStep(step === "how-it-works" ? "setup" : "how-it-works")}
-          style={{ background: "none", border: "none", color: C.gray, fontSize: 13, fontWeight: 500, cursor: "pointer", padding: "8px 0" }}
-        >
-          How It Works →
-        </button>
-      </div>
-
-      {/* How It Works view */}
-      {step === "how-it-works" && <HowItWorksView onBack={() => setStep("setup")} isNarrow={isNarrow} />}
-
-      {/* Breadcrumb nav — clickable steps + home */}
-      {step !== "how-it-works" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 32 }}>
-          {/* Home button */}
+      {/* ── Top nav bar ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 28, gap: 12, flexWrap: "wrap" as const,
+      }}>
+        {/* Left: Home + Back */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
             onClick={() => { setStep("setup"); setAssignments([]); setBlocks([]); setError(null); }}
-            title="Start over"
-            style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 13, cursor: "pointer", color: C.gray, marginRight: 8 }}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: C.textMid, display: "flex", alignItems: "center", gap: 6 }}
           >
             ⌂ Home
           </button>
+          {activeIdx > 0 && step !== "how-it-works" && (
+            <button
+              onClick={() => {
+                if (activeIdx === 2) setStep("review");
+                else if (activeIdx === 1) setStep("setup");
+              }}
+              style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: C.textMid, display: "flex", alignItems: "center", gap: 6 }}
+            >
+              ← Back
+            </button>
+          )}
+        </div>
 
+        {/* Center: title */}
+        <div style={{ flex: 1, textAlign: "center" as const }}>
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, letterSpacing: "-0.5px" }}>Penn Planner</h1>
+        </div>
+
+        {/* Right: How It Works */}
+        <div style={{ display: "flex", justifyContent: "flex-end", minWidth: 120 }}>
+          <button
+            onClick={() => setStep(step === "how-it-works" ? "setup" : "how-it-works")}
+            style={{ background: "none", border: "none", color: C.gray, fontSize: 13, fontWeight: 500, cursor: "pointer", padding: "7px 0" }}
+          >
+            How It Works →
+          </button>
+        </div>
+      </div>
+
+      {/* Breadcrumb steps (no home/back — those are in top bar) */}
+      {step !== "how-it-works" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 28 }}>
           {STEPS.map((s, i) => (
-            <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div key={s} style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
                 onClick={() => {
                   if (i === 0) setStep("setup");
@@ -710,26 +724,29 @@ Return ONLY valid JSON array. No markdown.`;
                 }}
                 disabled={i > activeIdx}
                 style={{
-                  background:  "none",
-                  border:      i === activeIdx ? `1px solid ${C.border}` : "none",
-                  borderRadius: 6,
-                  padding:     i === activeIdx ? "4px 10px" : "4px 6px",
-                  fontSize:    13,
-                  fontWeight:  i === activeIdx ? 700 : 400,
-                  color:       i === activeIdx ? C.text : i < activeIdx ? C.blue : C.gray,
-                  cursor:      i <= activeIdx ? "pointer" : "default",
+                  background:     i === activeIdx ? C.white : "none",
+                  border:         i === activeIdx ? `1px solid ${C.border}` : "none",
+                  borderRadius:   6,
+                  padding:        "4px 10px",
+                  fontSize:       13,
+                  fontWeight:     i === activeIdx ? 700 : 400,
+                  color:          i === activeIdx ? C.text : i < activeIdx ? C.blue : C.gray,
+                  cursor:         i <= activeIdx ? "pointer" : "default",
                   textDecoration: i < activeIdx ? "underline" : "none",
                 }}
               >
                 {STEP_NAMES[s]}
               </button>
               {i < STEPS.length - 1 && (
-                <span style={{ fontSize: 13, color: C.border }}>›</span>
+                <span style={{ fontSize: 12, color: C.border }}>›</span>
               )}
             </div>
           ))}
         </div>
       )}
+
+      {/* How It Works view */}
+      {step === "how-it-works" && <HowItWorksView onBack={() => setStep("setup")} isNarrow={isNarrow} />}
 
       {/* Error banner */}
       {error && (
