@@ -551,14 +551,11 @@ Return ONLY valid JSON array. No markdown.`;
       setStep("review");
     } catch (err) {
       const msg = String(err);
-      if (msg.includes("llm_unavailable") || msg.includes("empty_parse") || msg.includes("JSON")) {
-        setError("LLM API unavailable — showing sample data. Connect to PennTools platform for real parsing.");
-        setAssignments(getMockAssignments(rigor, 0));
-        setStep("review");
-      } else {
-        setError(`Error: ${msg}`);
-        setStep("setup");
-      }
+      // Fall back to mock data for any PDF or LLM failure — keeps the demo working
+      setError("Could not process syllabus — showing sample Wharton data instead.");
+      setAssignments(getMockAssignments(rigor, 0));
+      setStep("review");
+      console.error("[penn-planner] generate error:", msg);
     }
   }
 
