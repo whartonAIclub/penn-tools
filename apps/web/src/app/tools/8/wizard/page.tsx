@@ -160,6 +160,52 @@ function WizardCard({ title, subtitle, children }: {
 }
 
 // ── Results view ───────────────────────────────────────────────────────────
+// ── Lightweight markdown renderer ─────────────────────────────────────────
+function renderMarkdownLine(line: string, idx: number): React.ReactNode {
+  // Parse inline **bold** and *italic*
+  function parseInline(text: string): React.ReactNode[] {
+    const parts: React.ReactNode[] = [];
+    const re = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push(text.slice(last, m.index));
+      if (m[2]) parts.push(<strong key={m.index}>{m[2]}</strong>);
+      else if (m[3]) parts.push(<em key={m.index}>{m[3]}</em>);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  }
+
+  if (line.startsWith("- ") || line.startsWith("• ")) {
+    return (
+      <div key={idx} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+        <span style={{ flexShrink: 0, marginTop: 2 }}>•</span>
+        <span>{parseInline(line.slice(2))}</span>
+      </div>
+    );
+  }
+  if (/^\d+\.\s/.test(line)) {
+    const [num, ...rest] = line.split(/\.\s(.+)/);
+    return (
+      <div key={idx} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+        <span style={{ flexShrink: 0, color: "#9A918A", minWidth: 18 }}>{num}.</span>
+        <span>{parseInline(rest[0] ?? "")}</span>
+      </div>
+    );
+  }
+  if (line === "") return <div key={idx} style={{ height: 8 }} />;
+  return <div key={idx} style={{ marginBottom: 4 }}>{parseInline(line)}</div>;
+}
+
+function MarkdownBody({ body }: { body: string }) {
+  return (
+    <div style={{ fontSize: 14, color: "#3A3530", lineHeight: 1.7 }}>
+      {body.split("\n").map((line, i) => renderMarkdownLine(line, i))}
+    </div>
+  );
+}
+
 function ResultsView({ markdown, onRestart }: { markdown: string; onRestart: () => void }) {
   const sections = parseResultSections(markdown);
   return (
@@ -189,7 +235,7 @@ function ResultsView({ markdown, onRestart }: { markdown: string; onRestart: () 
                 <span style={{ fontSize: 18, color: s.color }}>{s.icon}</span>
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#171412" }}>{s.title}</h3>
               </div>
-              <div style={{ fontSize: 14, color: "#3A3530", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{s.body}</div>
+              <MarkdownBody body={s.body} />
             </div>
           </div>
         ))}
@@ -252,23 +298,74 @@ export default function WizardPage() {
   const [interests, setInterests] = useState("");
 
   // Step 3
-  const [resumeText, setResumeText]     = useState("");
-  const [linkedinText, setLinkedinText] = useState("");
-  const [resumeMsg, setResumeMsg]       = useState("");
-  const [linkedinMsg, setLinkedinMsg]   = useState("");
+  const [resumeText, setResumeText]         = useState("");
+  const [linkedinText, setLinkedinText]     = useState("");
+  const [resumeMsg, setResumeMsg]           = useState("");
+  const [linkedinMsg, setLinkedinMsg]       = useState("");
+  const [resumeParsing, setResumeParsing]   = useState(false);
+  const [linkedinParsing, setLinkedinParsing] = useState(false);
 
   // Step 4
-  const [targetRoles, setTargetRoles]   = useState("");
+  const [targetRoles, setTargetRoles]     = useState("");
   const [scenarioNotes, setScenarioNotes] = useState("");
 
-  function handleFile(file: File, setter: (t: string) => void, msgSetter: (m: string) => void) {
+  async function parsePdf(file: File): Promise<string> {
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.js",
+      import.meta.url,
+    ).toString();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pages: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+    }
+    return pages.join("\n\n").trim();
+  }
+
+  async function handleFile(
+    file: File,
+    setter: (t: string) => void,
+    msgSetter: (m: string) => void,
+    parsingSetter: (v: boolean) => void,
+  ) {
     if (file.type === "text/plain") {
       const reader = new FileReader();
-      reader.onload = (e) => { setter(e.target?.result as string ?? ""); msgSetter(`✓ ${file.name} loaded`); };
+      reader.onload = (e) => {
+        setter(e.target?.result as string ?? "");
+        msgSetter(`✓ ${file.name} loaded`);
+      };
       reader.readAsText(file);
-    } else {
-      msgSetter("PDF detected — open it and paste the text below.");
+      return;
     }
+    if (file.type === "application/pdf") {
+      parsingSetter(true);
+      msgSetter(`Parsing ${file.name}…`);
+      try {
+        const text = await parsePdf(file);
+        if (!text) {
+          msgSetter("⚠ No text found — try a non-scanned PDF or paste manually.");
+          setter("");
+        } else {
+          setter(text);
+          msgSetter(`✓ ${file.name} parsed (${pdf_pageCount(text)} chars extracted)`);
+        }
+      } catch {
+        msgSetter("⚠ Could not parse PDF — please paste the text manually below.");
+        setter("");
+      } finally {
+        parsingSetter(false);
+      }
+      return;
+    }
+    msgSetter("Unsupported file type — please upload a .pdf or .txt file.");
+  }
+
+  function pdf_pageCount(text: string) {
+    return text.length.toLocaleString();
   }
 
   async function saveAnswers() {
@@ -432,37 +529,71 @@ export default function WizardPage() {
         {step === 3 && (
           <WizardCard title="Your experience" subtitle="Share your resume or LinkedIn export to personalise your roadmap. Both are optional.">
             <Field>
-              <Label>Resume — paste text or upload .txt</Label>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <label style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #DDD8CF", background: "#FDFCF9", fontSize: 13, color: "#3A3530", cursor: "pointer", fontWeight: 500 }}>
-                  Upload file
+              <Label>Resume — paste text or upload .pdf / .txt</Label>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                <label style={{
+                  padding: "8px 14px", borderRadius: 8, border: "1px solid #DDD8CF",
+                  background: resumeParsing ? "#F0EDE7" : "#FDFCF9",
+                  fontSize: 13, color: resumeParsing ? "#9A918A" : "#3A3530",
+                  cursor: resumeParsing ? "default" : "pointer", fontWeight: 500,
+                  pointerEvents: resumeParsing ? "none" : "auto",
+                }}>
+                  {resumeParsing ? "Parsing…" : "Upload file"}
                   <input type="file" accept=".txt,.pdf" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setResumeText, setResumeMsg); }} />
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setResumeText, setResumeMsg, setResumeParsing); }} />
                 </label>
-                {resumeMsg && <span style={{ fontSize: 13, color: "#4A7C59", alignSelf: "center" }}>{resumeMsg}</span>}
+                {resumeMsg && (
+                  <span style={{
+                    fontSize: 13, alignSelf: "center",
+                    color: resumeParsing ? "#9A918A" : resumeMsg.startsWith("⚠") ? "#B45309" : "#4A7C59",
+                  }}>
+                    {resumeMsg}
+                  </span>
+                )}
               </div>
-              <textarea style={{ ...fieldStyle, minHeight: 120, resize: "vertical" }}
+              <textarea style={{ ...fieldStyle, minHeight: 120, resize: "vertical", opacity: resumeParsing ? 0.5 : 1 }}
                 placeholder="Or paste your resume text here — internships, projects, skills, tools…"
-                value={resumeText} onChange={(e) => setResumeText(e.target.value)} />
+                value={resumeText} onChange={(e) => setResumeText(e.target.value)}
+                disabled={resumeParsing} />
             </Field>
             <Field>
-              <Label>LinkedIn export — paste text or upload .txt</Label>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <label style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #DDD8CF", background: "#FDFCF9", fontSize: 13, color: "#3A3530", cursor: "pointer", fontWeight: 500 }}>
-                  Upload file
+              <Label>LinkedIn export — paste text or upload .pdf / .txt</Label>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                <label style={{
+                  padding: "8px 14px", borderRadius: 8, border: "1px solid #DDD8CF",
+                  background: linkedinParsing ? "#F0EDE7" : "#FDFCF9",
+                  fontSize: 13, color: linkedinParsing ? "#9A918A" : "#3A3530",
+                  cursor: linkedinParsing ? "default" : "pointer", fontWeight: 500,
+                  pointerEvents: linkedinParsing ? "none" : "auto",
+                }}>
+                  {linkedinParsing ? "Parsing…" : "Upload file"}
                   <input type="file" accept=".txt,.pdf" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setLinkedinText, setLinkedinMsg); }} />
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setLinkedinText, setLinkedinMsg, setLinkedinParsing); }} />
                 </label>
-                {linkedinMsg && <span style={{ fontSize: 13, color: "#4A7C59", alignSelf: "center" }}>{linkedinMsg}</span>}
+                {linkedinMsg && (
+                  <span style={{
+                    fontSize: 13, alignSelf: "center",
+                    color: linkedinParsing ? "#9A918A" : linkedinMsg.startsWith("⚠") ? "#B45309" : "#4A7C59",
+                  }}>
+                    {linkedinMsg}
+                  </span>
+                )}
               </div>
-              <textarea style={{ ...fieldStyle, minHeight: 100, resize: "vertical" }}
+              <textarea style={{ ...fieldStyle, minHeight: 100, resize: "vertical", opacity: linkedinParsing ? 0.5 : 1 }}
                 placeholder="Or paste your LinkedIn profile / export text here…"
-                value={linkedinText} onChange={(e) => setLinkedinText(e.target.value)} />
+                value={linkedinText} onChange={(e) => setLinkedinText(e.target.value)}
+                disabled={linkedinParsing} />
               <p style={{ margin: "8px 0 0", fontSize: 12, color: "#9A918A" }}>
                 To export LinkedIn: Me → Settings → Data privacy → Get a copy of your data
               </p>
             </Field>
-            <WizardNav onBack={() => setStep(2)} onNext={() => { saveAnswers(); setStep(4); }} onSkip={() => setStep(4)} />
+            <WizardNav
+              onBack={() => setStep(2)}
+              onNext={() => { saveAnswers(); setStep(4); }}
+              onSkip={() => setStep(4)}
+              loading={resumeParsing || linkedinParsing}
+              nextLabel={resumeParsing || linkedinParsing ? "Parsing file…" : "Next →"}
+            />
           </WizardCard>
         )}
 
