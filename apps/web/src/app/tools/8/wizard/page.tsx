@@ -428,7 +428,7 @@ export default function WizardPage() {
     setStep(1); setPlan({ status: "idle" });
     setSchool("University of Pennsylvania"); setMajor(""); setYear(""); setCoursework("");
     setInterests("");
-    setResumeText(""); setLinkedinText("");
+    setResumeText(""); setLinkedinText(""); setResumeMsg(""); setLinkedinMsg("");
     setTargetRoles(""); setScenarioNotes("");
   }
 
