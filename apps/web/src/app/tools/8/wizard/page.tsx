@@ -102,9 +102,9 @@ function ProgressBar({ step }: { step: WizardStep }) {
 
 // ── Nav buttons ────────────────────────────────────────────────────────────
 function WizardNav({ onBack, onNext, onSkip, nextLabel = "Next →", loading = false }: {
-  onBack?: () => void;
+  onBack?: (() => void) | undefined;
   onNext: () => void;
-  onSkip?: () => void;
+  onSkip?: (() => void) | undefined;
   nextLabel?: string;
   loading?: boolean;
 }) {
@@ -457,7 +457,7 @@ export default function WizardPage() {
       setStep("results");
     } catch (e) {
       const msg = e instanceof Error && e.message === "NO_API_KEY"
-        ? "No API key found. Please enter your OpenAI key in the AskPenn sidebar (bottom-left) and try again."
+        ? "No API key found. Please enter your LLM API key in the AskPenn sidebar (bottom-left) and try again."
         : "Something went wrong generating your roadmap. Please try again.";
       setPlan({ status: "err", message: msg });
     }
@@ -514,8 +514,18 @@ export default function WizardPage() {
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "48px 20px 80px" }}>
 
         {plan.status === "err" && (
-          <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 14 }}>
-            {plan.message}
+          <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 14, lineHeight: 1.5 }}>
+            {plan.message === "NO_API_KEY" || plan.message.startsWith("No API key") ? (
+              <>
+                No API key found. Please{" "}
+                <a href="/" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>
+                  go to AskPenn
+                </a>
+                {" "}and enter your LLM API key in the bottom-left sidebar, then come back and try again.
+              </>
+            ) : (
+              plan.message
+            )}
           </div>
         )}
 
@@ -657,9 +667,9 @@ export default function WizardPage() {
                 value={scenarioNotes} onChange={(e) => setScenarioNotes(e.target.value)} />
             </Field>
             <WizardNav
-              onBack={() => { setPlan({ status: "idle" }); setStep(3); }}
+              onBack={plan.status === "loading" ? undefined : () => { setPlan({ status: "idle" }); setStep(3); }}
               onNext={generatePlan}
-              onSkip={generatePlan}
+              onSkip={plan.status === "loading" ? undefined : generatePlan}
               nextLabel="Generate my roadmap →"
               loading={plan.status === "loading"}
             />

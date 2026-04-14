@@ -9,15 +9,15 @@ export default function ToolsLayout({ children }: { children: React.ReactNode })
   const segment = useSelectedLayoutSegment();
   const pathname = usePathname();
   const isCareerCanvas = segment === "8";
-  const isCareerCanvasWizard = pathname === "/tools/8/wizard";
+  const isCareerCanvasLanding = pathname === "/tools/8";
+  const isCareerCanvasSubPage = isCareerCanvas && !isCareerCanvasLanding;
 
-  // On the wizard sub-page, back goes to the Career Canvas landing page
-  const backHref = isCareerCanvasWizard ? "/tools/8" : "/";
-  const backLabel = isCareerCanvasWizard ? "← Career Canvas" : "← AskPenn";
+  const backHref = "/";
+  const backLabel = "← AskPenn";
 
   return (
     <div className={styles.container}>
-      {!isCareerCanvasWizard && (
+      {!isCareerCanvasSubPage && (
         <Link
           href={backHref}
           className={isCareerCanvas ? `${styles.back} ${styles.backCareerCanvas}` : styles.back}
