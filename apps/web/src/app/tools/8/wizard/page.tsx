@@ -221,15 +221,20 @@ function ResultsView({ markdown, onRestart, hasScenario, isGuest }: { markdown: 
       {/* Print styles injected into head */}
       <style>{`
         @media print {
-          body { background: #fff !important; }
-          body > * { display: none !important; }
-          #cc-roadmap-print { display: block !important; padding: 32px; font-family: Georgia, serif; }
+          body, body * { visibility: hidden; }
+          #cc-roadmap-print, #cc-roadmap-print * { visibility: visible; }
+          #cc-roadmap-print {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 32px;
+            font-family: Georgia, serif;
+            background: #fff;
+          }
           .cc-print-hide { display: none !important; }
           .cc-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important; border: 1px solid #ccc !important; margin-bottom: 12px; }
           a { color: #062A78 !important; }
-        }
-        @media not print {
-          #cc-roadmap-print { display: block; }
         }
       `}</style>
 
