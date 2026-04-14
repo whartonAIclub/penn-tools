@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  actionGenerateRoadmap,
+  actionBuildPrompt,
   actionSaveWizardAnswers,
   actionLoadWizardAnswers,
   actionSaveRoadmap,
@@ -287,7 +287,8 @@ export default function WizardPage() {
     setPlan({ status: "loading" });
 
     try {
-      const markdown = await actionGenerateRoadmap({
+      // Build prompt server-side (includes semantic course search)
+      const prompt = await actionBuildPrompt({
         academicBackground: [
           school     && `School: ${school}`,
           major      && `Major: ${major}`,
@@ -299,6 +300,23 @@ export default function WizardPage() {
         targetRoles,
         scenarioNotes,
       });
+
+      // Call platform LLM route with the user's API key from localStorage
+      const storedKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+      const res = await fetch("/api/llm/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(storedKey ? { "X-Api-Key": storedKey } : {}),
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { content: string };
+      const markdown = data.content;
+      if (!markdown) throw new Error("Empty response from LLM.");
+
       if (profile) {
         try { await actionSaveRoadmap(profile.id, markdown); } catch { /* non-blocking */ }
       }
