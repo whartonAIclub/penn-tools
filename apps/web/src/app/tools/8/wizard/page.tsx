@@ -206,7 +206,7 @@ function MarkdownBody({ body }: { body: string }) {
   );
 }
 
-function ResultsView({ markdown, onRestart, hasScenario }: { markdown: string; onRestart: () => void; hasScenario: boolean }) {
+function ResultsView({ markdown, onRestart, hasScenario, isGuest }: { markdown: string; onRestart: () => void; hasScenario: boolean; isGuest: boolean }) {
   const sections = parseResultSections(markdown).filter((s) => {
     if (!hasScenario && s.title.toLowerCase().includes("what-if")) return false;
     return true;
@@ -234,6 +234,15 @@ function ResultsView({ markdown, onRestart, hasScenario }: { markdown: string; o
       `}</style>
 
       <div id="cc-roadmap-print">
+        {/* Guest warning */}
+        {isGuest && (
+          <div className="cc-print-hide" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", fontSize: 14, lineHeight: 1.5 }}>
+            <strong>You&apos;re in guest mode</strong> — your roadmap won&apos;t be stored online. Use <strong>Save as PDF</strong> above to keep a copy, or{" "}
+            <a href="/tools/8" style={{ color: "#92400E", fontWeight: 600, textDecoration: "underline" }}>sign in with your Penn email</a>{" "}
+            to save it to your profile and access it any time.
+          </div>
+        )}
+
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
@@ -288,6 +297,7 @@ export default function WizardPage() {
   const [isGuest, setIsGuest] = useState(false);
   const [step, setStep] = useState<WizardStep>(1);
   const [plan, setPlan] = useState<PlanState>({ status: "idle" });
+  const [stepError, setStepError] = useState("");
 
   // Load profile + restore saved answers and roadmap from DB
   useEffect(() => {
@@ -418,6 +428,9 @@ export default function WizardPage() {
     await saveAnswers();
     setPlan({ status: "loading" });
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90_000);
+
     try {
       // Build prompt server-side (includes semantic course search)
       const prompt = await actionBuildPrompt({
@@ -438,9 +451,10 @@ export default function WizardPage() {
       if (!storedKey) throw new Error("NO_API_KEY");
       const res = await fetch("/api/llm/complete", {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
-          ...(storedKey ? { "X-Api-Key": storedKey } : {}),
+          "X-Api-Key": storedKey,
         },
         body: JSON.stringify({ prompt }),
       });
@@ -456,10 +470,15 @@ export default function WizardPage() {
       setPlan({ status: "ok", markdown });
       setStep("results");
     } catch (e) {
+      const isAbort = e instanceof Error && e.name === "AbortError";
       const msg = e instanceof Error && e.message === "NO_API_KEY"
-        ? "No API key found. Please enter your LLM API key in the AskPenn sidebar (bottom-left) and try again."
+        ? "NO_API_KEY"
+        : isAbort
+        ? "Generation timed out after 90 seconds. Please try again."
         : "Something went wrong generating your roadmap. Please try again.";
       setPlan({ status: "err", message: msg });
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -531,6 +550,12 @@ export default function WizardPage() {
 
         {step !== "results" && <ProgressBar step={step} />}
 
+        {stepError && (
+          <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 13 }}>
+            {stepError}
+          </div>
+        )}
+
         {/* Step 1 */}
         {step === 1 && (
           <WizardCard
@@ -540,16 +565,20 @@ export default function WizardPage() {
             <Field>
               <Label>School / University</Label>
               <input style={fieldStyle} placeholder="e.g. University of Pennsylvania"
-                value={school} onChange={(e) => setSchool(e.target.value)} />
+                value={school} onChange={(e) => { setSchool(e.target.value); setStepError(""); }} />
             </Field>
             <Field>
               <Label>Major / intended major</Label>
               <input style={fieldStyle} placeholder="e.g. Computer Science, Economics, Undecided…"
-                value={major} onChange={(e) => setMajor(e.target.value)} />
+                value={major} onChange={(e) => { setMajor(e.target.value); setStepError(""); }} />
             </Field>
             <Field>
-              <Label>Year</Label>
-              <select style={{ ...fieldStyle, appearance: "none" }} value={year} onChange={(e) => setYear(e.target.value)}>
+              <Label>Year <span style={{ color: "#C0604A" }}>*</span></Label>
+              <select
+                style={{ ...fieldStyle, appearance: "none", borderColor: stepError && !year ? "#FECACA" : "#DDD8CF" }}
+                value={year}
+                onChange={(e) => { setYear(e.target.value); setStepError(""); }}
+              >
                 <option value="">Select year</option>
                 {["Freshman", "Sophomore", "Junior", "Senior", "Graduate"].map((y) => (
                   <option key={y} value={y}>{y}</option>
@@ -562,7 +591,15 @@ export default function WizardPage() {
                 placeholder="e.g. Intro to CS, Linear Algebra, Microeconomics…"
                 value={coursework} onChange={(e) => setCoursework(e.target.value)} />
             </Field>
-            <WizardNav onNext={() => { saveAnswers(); setStep(2); }} onSkip={() => setStep(2)} />
+            <WizardNav
+              onNext={() => {
+                if (!year) { setStepError("Please select your year before continuing."); return; }
+                setStepError("");
+                saveAnswers();
+                setStep(2);
+              }}
+              onSkip={() => { setStepError(""); setStep(2); }}
+            />
           </WizardCard>
         )}
 
@@ -575,7 +612,7 @@ export default function WizardPage() {
                 placeholder="e.g. I love problem-solving and data, enjoy working in teams, interested in healthcare tech. Limited time due to part-time job. Open to study abroad."
                 value={interests} onChange={(e) => setInterests(e.target.value)} />
             </Field>
-            <WizardNav onBack={() => setStep(1)} onNext={() => { saveAnswers(); setStep(3); }} onSkip={() => setStep(3)} />
+            <WizardNav onBack={() => { setStepError(""); setStep(1); }} onNext={() => { saveAnswers(); setStep(3); }} onSkip={() => setStep(3)} />
           </WizardCard>
         )}
 
@@ -678,7 +715,7 @@ export default function WizardPage() {
 
         {/* Results */}
         {step === "results" && plan.status === "ok" && (
-          <ResultsView markdown={plan.markdown} onRestart={restart} hasScenario={!!scenarioNotes.trim()} />
+          <ResultsView markdown={plan.markdown} onRestart={restart} hasScenario={!!scenarioNotes.trim()} isGuest={isGuest} />
         )}
       </div>
     </div>

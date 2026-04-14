@@ -43,10 +43,11 @@ export async function filterCourses(
     const vectorStr = `[${embedding.join(",")}]`;
 
     // Cosine similarity search via pgvector
+    // Use extensions.vector to handle Supabase search_path not including extensions schema
     const results = await prisma.$queryRaw<{ code: string; name: string }[]>`
       SELECT code, name
       FROM cc_course_embeddings
-      ORDER BY embedding <=> ${vectorStr}::vector
+      ORDER BY embedding <=> ${vectorStr}::extensions.vector
       LIMIT ${maxResults}
     `;
 
