@@ -206,41 +206,75 @@ function MarkdownBody({ body }: { body: string }) {
   );
 }
 
-function ResultsView({ markdown, onRestart }: { markdown: string; onRestart: () => void }) {
-  const sections = parseResultSections(markdown);
+function ResultsView({ markdown, onRestart, hasScenario }: { markdown: string; onRestart: () => void; hasScenario: boolean }) {
+  const sections = parseResultSections(markdown).filter((s) => {
+    if (!hasScenario && s.title.toLowerCase().includes("what-if")) return false;
+    return true;
+  });
+
+  function handlePrint() {
+    window.print();
+  }
+
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <h2 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 700, color: "#171412", fontFamily: displaySerif, letterSpacing: "-0.03em" }}>
-            Your career roadmap
-          </h2>
-          <p style={{ margin: 0, fontSize: 14, color: "#77716B" }}>
-            Verify course details at{" "}
-            <a href="https://catalog.upenn.edu/courses/" target="_blank" rel="noopener noreferrer"
-              style={{ color: navy, textDecoration: "underline" }}>catalog.upenn.edu</a>
-          </p>
-        </div>
-        <button type="button" onClick={onRestart}
-          style={{ padding: "10px 20px", borderRadius: 999, border: "1px solid #DDD8CF", background: "#fff", color: "#3A3530", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-          Start over
-        </button>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
-        {sections.map((s, i) => (
-          <div key={i} style={{ background: "#fff", borderRadius: 14, border: "1px solid #E8E2D8", overflow: "hidden", boxShadow: "0 2px 12px rgba(15,29,58,0.05)" }}>
-            <div style={{ height: 4, background: s.color }} />
-            <div style={{ padding: "20px 24px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 18, color: s.color }}>{s.icon}</span>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#171412" }}>{s.title}</h3>
-              </div>
-              <MarkdownBody body={s.body} />
-            </div>
+    <>
+      {/* Print styles injected into head */}
+      <style>{`
+        @media print {
+          body { background: #fff !important; }
+          body > * { display: none !important; }
+          #cc-roadmap-print { display: block !important; padding: 32px; font-family: Georgia, serif; }
+          .cc-print-hide { display: none !important; }
+          .cc-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important; border: 1px solid #ccc !important; margin-bottom: 12px; }
+          a { color: #062A78 !important; }
+        }
+        @media not print {
+          #cc-roadmap-print { display: block; }
+        }
+      `}</style>
+
+      <div id="cc-roadmap-print">
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+          <div>
+            <h2 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 700, color: "#171412", fontFamily: displaySerif, letterSpacing: "-0.03em" }}>
+              Your career roadmap
+            </h2>
+            <p style={{ margin: 0, fontSize: 14, color: "#77716B" }}>
+              Verify course details at{" "}
+              <a href="https://catalog.upenn.edu/courses/" target="_blank" rel="noopener noreferrer"
+                style={{ color: navy, textDecoration: "underline" }}>catalog.upenn.edu</a>
+            </p>
           </div>
-        ))}
+          <div className="cc-print-hide" style={{ display: "flex", gap: 10 }}>
+            <button type="button" onClick={handlePrint}
+              style={{ padding: "10px 20px", borderRadius: 999, border: "none", background: navy, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              Save as PDF ↓
+            </button>
+            <button type="button" onClick={onRestart}
+              style={{ padding: "10px 20px", borderRadius: 999, border: "1px solid #DDD8CF", background: "#fff", color: "#3A3530", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              Start over
+            </button>
+          </div>
+        </div>
+
+        {/* Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+          {sections.map((s, i) => (
+            <div key={i} className="cc-card" style={{ background: "#fff", borderRadius: 14, border: "1px solid #E8E2D8", overflow: "hidden", boxShadow: "0 2px 12px rgba(15,29,58,0.05)" }}>
+              <div style={{ height: 4, background: s.color }} />
+              <div style={{ padding: "20px 24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <span style={{ fontSize: 18, color: s.color }}>{s.icon}</span>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#171412" }}>{s.title}</h3>
+                </div>
+                <MarkdownBody body={s.body} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -251,6 +285,7 @@ export default function WizardPage() {
   const router = useRouter();
 
   const [profile, setProfile] = useState<CCProfile | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [step, setStep] = useState<WizardStep>(1);
   const [plan, setPlan] = useState<PlanState>({ status: "idle" });
 
@@ -259,7 +294,7 @@ export default function WizardPage() {
     async function init() {
       try {
         const raw = sessionStorage.getItem("cc_profile");
-        if (!raw) return;
+        if (!raw) { setIsGuest(true); return; }
         const p = JSON.parse(raw) as CCProfile;
         setProfile(p);
 
@@ -400,6 +435,7 @@ export default function WizardPage() {
 
       // Call platform LLM route with the user's API key from localStorage
       const storedKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+      if (!storedKey) throw new Error("NO_API_KEY");
       const res = await fetch("/api/llm/complete", {
         method: "POST",
         headers: {
@@ -419,8 +455,11 @@ export default function WizardPage() {
       }
       setPlan({ status: "ok", markdown });
       setStep("results");
-    } catch {
-      setPlan({ status: "err", message: "Something went wrong generating your roadmap. Please try again." });
+    } catch (e) {
+      const msg = e instanceof Error && e.message === "NO_API_KEY"
+        ? "No API key found. Please enter your OpenAI key in the AskPenn sidebar (bottom-left) and try again."
+        : "Something went wrong generating your roadmap. Please try again.";
+      setPlan({ status: "err", message: msg });
     }
   }
 
@@ -457,6 +496,11 @@ export default function WizardPage() {
           {profile && (
             <span style={{ fontSize: 13, color: "#77716B" }}>
               Hi, <strong style={{ color: "#3A3530" }}>{profile.name.split(" ")[0]}</strong>
+            </span>
+          )}
+          {isGuest && (
+            <span style={{ fontSize: 13, color: "#9A918A", padding: "4px 10px", borderRadius: 999, border: "1px solid #DDD8CF" }}>
+              Guest mode
             </span>
           )}
           <button type="button" onClick={() => router.push("/tools/8")}
@@ -624,7 +668,7 @@ export default function WizardPage() {
 
         {/* Results */}
         {step === "results" && plan.status === "ok" && (
-          <ResultsView markdown={plan.markdown} onRestart={restart} />
+          <ResultsView markdown={plan.markdown} onRestart={restart} hasScenario={!!scenarioNotes.trim()} />
         )}
       </div>
     </div>

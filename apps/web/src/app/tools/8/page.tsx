@@ -258,6 +258,8 @@ export default function CareerCanvasPage() {
   const router = useRouter();
   const [modal, setModal] = useState<"full" | "profile-only" | null>(null);
 
+  function goAbout() { router.push("/tools/8/about"); }
+
   function goWizard(profile?: CCProfile) {
     if (profile) {
       sessionStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
@@ -287,7 +289,7 @@ export default function CareerCanvasPage() {
         <nav className={styles.nav} aria-label="Career Canvas">
           {["How it works", "Features", "For Universities"].map((label, index) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <button type="button" className={styles.navButton} onClick={() => setModal("full")}>{label}</button>
+              <button type="button" className={styles.navButton} onClick={goAbout}>{label}</button>
               {index < 2 && <span className={styles.navDot}>·</span>}
             </div>
           ))}
@@ -320,7 +322,7 @@ export default function CareerCanvasPage() {
               className={styles.ctaPrimary}>
               Find my path.
             </button>
-            <button type="button" onClick={() => setModal("full")}
+            <button type="button" onClick={goAbout}
               style={{ background: "none", border: "none", color: "#4E4A47", fontWeight: 500, cursor: "pointer" }}
               className={styles.ctaSecondary}>
               See how it works →
