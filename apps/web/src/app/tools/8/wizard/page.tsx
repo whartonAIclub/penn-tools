@@ -449,6 +449,11 @@ export default function WizardPage() {
       // Call platform LLM route with the user's API key from localStorage
       const storedKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
       if (!storedKey) throw new Error("NO_API_KEY");
+
+      // Basic format check before hitting the server
+      const isValidKeyFormat = storedKey.startsWith("sk-") || storedKey.startsWith("sk-ant-");
+      if (!isValidKeyFormat) throw new Error("INVALID_KEY");
+
       const res = await fetch("/api/llm/complete", {
         method: "POST",
         signal: controller.signal,
@@ -459,6 +464,8 @@ export default function WizardPage() {
         body: JSON.stringify({ prompt }),
       });
 
+      // 401/403 = invalid or expired key; 500 could also be a bad key (platform route has no try/catch)
+      if (res.status === 401 || res.status === 403) throw new Error("INVALID_KEY");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json() as { content: string };
       const markdown = data.content;
@@ -470,12 +477,13 @@ export default function WizardPage() {
       setPlan({ status: "ok", markdown });
       setStep("results");
     } catch (e) {
-      const isAbort = e instanceof Error && e.name === "AbortError";
-      const msg = e instanceof Error && e.message === "NO_API_KEY"
-        ? "NO_API_KEY"
-        : isAbort
-        ? "Generation timed out after 90 seconds. Please try again."
-        : "Something went wrong generating your roadmap. Please try again.";
+      const errMsg = e instanceof Error ? e.message : "";
+      const msg =
+        errMsg === "NO_API_KEY"    ? "NO_API_KEY" :
+        errMsg === "INVALID_KEY"   ? "INVALID_KEY" :
+        e instanceof Error && e.name === "AbortError"
+          ? "Generation timed out after 90 seconds. Please try again."
+          : "Something went wrong generating your roadmap. Please try again.";
       setPlan({ status: "err", message: msg });
     } finally {
       clearTimeout(timeout);
@@ -534,13 +542,17 @@ export default function WizardPage() {
 
         {plan.status === "err" && (
           <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 14, lineHeight: 1.5 }}>
-            {plan.message === "NO_API_KEY" || plan.message.startsWith("No API key") ? (
+            {plan.message === "NO_API_KEY" ? (
               <>
                 No API key found. Please{" "}
-                <a href="/" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>
-                  go to AskPenn
-                </a>
+                <a href="/" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>go to AskPenn</a>
                 {" "}and enter your LLM API key in the bottom-left sidebar, then come back and try again.
+              </>
+            ) : plan.message === "INVALID_KEY" ? (
+              <>
+                Your API key appears to be invalid or expired. Please{" "}
+                <a href="/" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>go to AskPenn</a>
+                {" "}and update your LLM API key in the bottom-left sidebar.
               </>
             ) : (
               plan.message
