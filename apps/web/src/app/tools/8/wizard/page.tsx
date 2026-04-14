@@ -194,6 +194,9 @@ function renderMarkdownLine(line: string, idx: number): React.ReactNode {
       </div>
     );
   }
+  if (line.startsWith("### ")) {
+    return <div key={idx} style={{ fontWeight: 700, fontSize: 13, color: "#171412", marginTop: 10, marginBottom: 4 }}>{parseInline(line.slice(4))}</div>;
+  }
   if (line === "") return <div key={idx} style={{ height: 8 }} />;
   return <div key={idx} style={{ marginBottom: 4 }}>{parseInline(line)}</div>;
 }
@@ -233,6 +236,10 @@ function ResultsView({ markdown, onRestart, hasScenario, isGuest }: { markdown: 
             background: #fff;
           }
           .cc-print-hide { display: none !important; }
+          #cc-roadmap-print > div:last-child {
+            display: block !important;
+            grid-template-columns: 1fr !important;
+          }
           .cc-card { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important; border: 1px solid #ccc !important; margin-bottom: 12px; }
           a { color: #062A78 !important; }
         }
@@ -242,7 +249,7 @@ function ResultsView({ markdown, onRestart, hasScenario, isGuest }: { markdown: 
         {/* Guest warning */}
         {isGuest && (
           <div className="cc-print-hide" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", fontSize: 14, lineHeight: 1.5 }}>
-            <strong>You&apos;re in guest mode</strong> — your roadmap won&apos;t be stored online. Use <strong>Save as PDF</strong> above to keep a copy, or{" "}
+            <strong>You&apos;re in guest mode</strong> — your roadmap won&apos;t be stored online. Use the <strong>Save as PDF</strong> button on the right to keep a copy, or{" "}
             <a href="/tools/8" style={{ color: "#92400E", fontWeight: 600, textDecoration: "underline" }}>sign in with your Penn email</a>{" "}
             to save it to your profile and access it any time.
           </div>
@@ -496,7 +503,7 @@ export default function WizardPage() {
   }
 
   function restart() {
-    setStep(1); setPlan({ status: "idle" });
+    setStep(1); setPlan({ status: "idle" }); setStepError("");
     setSchool("University of Pennsylvania"); setMajor(""); setYear(""); setCoursework("");
     setInterests("");
     setResumeText(""); setLinkedinText(""); setResumeMsg(""); setLinkedinMsg("");
@@ -648,7 +655,7 @@ export default function WizardPage() {
                 }}>
                   {resumeParsing ? "Parsing…" : "Upload file"}
                   <input type="file" accept=".txt,.pdf" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setResumeText, setResumeMsg, setResumeParsing); }} />
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setResumeText, setResumeMsg, setResumeParsing); e.target.value = ""; }} />
                 </label>
                 {resumeMsg && (
                   <span style={{
@@ -676,7 +683,7 @@ export default function WizardPage() {
                 }}>
                   {linkedinParsing ? "Parsing…" : "Upload file"}
                   <input type="file" accept=".txt,.pdf" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setLinkedinText, setLinkedinMsg, setLinkedinParsing); }} />
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f, setLinkedinText, setLinkedinMsg, setLinkedinParsing); e.target.value = ""; }} />
                 </label>
                 {linkedinMsg && (
                   <span style={{
