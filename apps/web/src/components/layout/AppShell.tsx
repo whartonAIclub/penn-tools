@@ -66,7 +66,10 @@ export function AppShell() {
         ) : (
           /* Empty state: tagline + input centered */
           <div className={styles.emptyState}>
-            <h1 className={styles.tagline}>AskPenn</h1>
+            <div className={styles.taglineWrap}>
+              <h1 className={styles.tagline}>AskPenn</h1>
+              <span className={styles.betaSticker}>BETA</span>
+            </div>
             <ChatInput onSend={handleSend} disabled={isLoading} />
           </div>
         )}

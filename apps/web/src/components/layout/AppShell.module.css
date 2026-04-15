@@ -45,12 +45,36 @@
   padding: 0 24px 80px;
 }
 
+.taglineWrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .tagline {
   font-size: 3rem;
   font-weight: 700;
   color: var(--penn-blue);
   letter-spacing: -0.03em;
   margin: 0 0 32px;
+}
+
+.betaSticker {
+  position: absolute;
+  top: -0.35rem;
+  right: -3.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.45rem;
+  height: 1.4rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f5f3ef 0%, #ebe7df 100%);
+  color: #667a90;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 /* Active chat: input pinned to bottom */
