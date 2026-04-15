@@ -1,0 +1,9 @@
+{
+  "name": "Startup Matcher",
+  "description": "A tool matching student contributers to startup founders within a university ecosystem.",
+  "category": "Recruiting",
+  "builders": ["Anoushka Menon", "Mo Ayodele", "Camryn Grussmark"],
+  "version": "0.1.0",
+  "inceptionDate": "2026-04-15",
+  "latestReleaseDate": "2026-04-15"
+}

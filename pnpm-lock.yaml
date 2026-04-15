@@ -41,6 +41,9 @@ importers:
       '@penntools/tool-3':
         specifier: workspace:*
         version: link:../../tools/3
+      '@penntools/tool-5':
+        specifier: workspace:*
+        version: link:../../tools/5
       '@penntools/tool-7':
         specifier: workspace:*
         version: link:../../tools/7
@@ -155,6 +158,19 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.33)
 
+  tools/5:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
   tools/7:
     dependencies:
       '@penntools/core':
@@ -193,6 +209,12 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.33)
+
+  tools/match-system:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
 
   tools/penn-planner:
     dependencies:

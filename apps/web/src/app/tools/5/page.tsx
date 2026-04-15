@@ -2,7 +2,97 @@
 
 import React, { useMemo, useState } from "react";
 
-const STARTUPS = [
+type Stage = "Pre-Seed" | "Seed" | "Series A" | "Series B+";
+type StudentYear = "Freshman" | "Sophomore" | "Junior" | "Senior" | "Master's" | "MBA" | "PhD";
+type ExperienceLevel = "Beginner" | "Intermediate" | "Advanced";
+
+type Startup = {
+  startup_id: string;
+  startup_name: string;
+  founder_name: string;
+  industry: string;
+  stage: Stage;
+  location: string;
+  team_size: number;
+  role_openings: string[];
+  skills_needed: string[];
+  mission_keywords: string[];
+  work_style: string[];
+  min_commitment_hours: number;
+  paid: boolean;
+  blurb: string;
+};
+
+type Student = {
+  student_id: string;
+  name: string;
+  school: string;
+  year: StudentYear;
+  location: string;
+  preferred_roles: string[];
+  skills: string[];
+  interests: string[];
+  work_style: string[];
+  weekly_hours: number;
+  wants_paid: boolean;
+  mission_statement: string;
+  experience_level: ExperienceLevel;
+};
+
+type StartupForm = {
+  startup_name: string;
+  founder_name: string;
+  industry: string;
+  stage: Stage;
+  location: string;
+  team_size: number;
+  role_openings: string;
+  skills_needed: string;
+  mission_keywords: string;
+  work_style: string;
+  min_commitment_hours: number;
+  paid: boolean;
+  blurb: string;
+};
+
+type StudentForm = {
+  name: string;
+  school: string;
+  year: StudentYear;
+  location: string;
+  preferred_roles: string;
+  skills: string;
+  interests: string;
+  work_style: string;
+  weekly_hours: number;
+  wants_paid: boolean;
+  mission_statement: string;
+  experience_level: ExperienceLevel;
+};
+
+type ScoreComponents = Record<string, number>;
+
+type PairScoreRow = {
+  startup_id: string;
+  startup_name: string;
+  student_id: string;
+  student_name: string;
+  startup_score: number;
+  student_score: number;
+  mutual_score: number;
+  explanation: string;
+};
+
+type ResultsRow = {
+  startup?: string;
+  founder?: string;
+  student?: string;
+  school?: string;
+  mutual_score: number;
+  why: string;
+};
+
+const STARTUPS: Startup[] = [
   {
     startup_id: "S1",
     startup_name: "PulsePilot",
@@ -53,7 +143,7 @@ const STARTUPS = [
   },
 ];
 
-const STUDENTS = [
+const STUDENTS: Student[] = [
   {
     student_id: "T1",
     name: "Nina Kapoor",
@@ -116,14 +206,14 @@ const STUDENTS = [
   },
 ];
 
-function normalizeTokenList(items) {
+function normalizeTokenList(items: string[]): string[] {
   const cleaned = items
     .map((item) => item.trim().toLowerCase().replace(/\s+/g, " "))
     .filter(Boolean);
   return [...new Set(cleaned)];
 }
 
-function overlapScore(a, b) {
+function overlapScore(a: string[], b: string[]): number {
   const aSet = new Set(normalizeTokenList(a));
   const bSet = new Set(normalizeTokenList(b));
   if (!aSet.size || !bSet.size) return 0;
@@ -132,7 +222,7 @@ function overlapScore(a, b) {
   return intersection / union;
 }
 
-function containsAny(source, targets) {
+function containsAny(source: string[], targets: string[]): number {
   const s = new Set(normalizeTokenList(source));
   const t = new Set(normalizeTokenList(targets));
   if (!t.size) return 0;
@@ -140,7 +230,7 @@ function containsAny(source, targets) {
   return overlap / Math.max(t.size, 1);
 }
 
-function locationScore(studentLoc, startupLoc) {
+function locationScore(studentLoc: string, startupLoc: string): number {
   const s = studentLoc.trim().toLowerCase();
   const t = startupLoc.trim().toLowerCase();
   if (t === "remote") return 1;
@@ -149,21 +239,21 @@ function locationScore(studentLoc, startupLoc) {
   return 0.3;
 }
 
-function compensationScore(studentWantsPaid, startupPaid) {
+function compensationScore(studentWantsPaid: boolean, startupPaid: boolean): number {
   if (studentWantsPaid && startupPaid) return 1;
   if (studentWantsPaid && !startupPaid) return 0;
   if (!studentWantsPaid && startupPaid) return 0.9;
   return 0.8;
 }
 
-function commitmentScore(studentHours, startupMinHours) {
+function commitmentScore(studentHours: number, startupMinHours: number): number {
   if (studentHours >= startupMinHours) return 1;
   const gap = startupMinHours - studentHours;
   return Math.max(0, 1 - gap / Math.max(startupMinHours, 1));
 }
 
-function experienceScore(level) {
-  const mapping = {
+function experienceScore(level: ExperienceLevel): number {
+  const mapping: Record<ExperienceLevel, number> = {
     Beginner: 0.55,
     Intermediate: 0.78,
     Advanced: 1,
@@ -171,7 +261,7 @@ function experienceScore(level) {
   return mapping[level] ?? 0.7;
 }
 
-function startupToStudentScore(startup, student) {
+function startupToStudentScore(startup: Startup, student: Student): { total: number; components: ScoreComponents } {
   const components = {
     role_fit: containsAny(student.preferred_roles, startup.role_openings),
     skill_fit: containsAny(student.skills, startup.skills_needed),
@@ -183,7 +273,7 @@ function startupToStudentScore(startup, student) {
     exp_fit: experienceScore(student.experience_level),
   };
 
-  const weights = {
+  const weights: Record<keyof typeof components, number> = {
     role_fit: 0.2,
     skill_fit: 0.28,
     mission_fit: 0.13,
@@ -194,11 +284,15 @@ function startupToStudentScore(startup, student) {
     exp_fit: 0.05,
   };
 
-  const total = Object.keys(weights).reduce((sum, key) => sum + weights[key] * components[key], 0);
+  const total = (Object.keys(weights) as Array<keyof typeof weights>).reduce(
+    (sum, key) => sum + weights[key] * components[key],
+    0
+  );
+
   return { total: Number(total.toFixed(4)), components };
 }
 
-function studentToStartupScore(student, startup) {
+function studentToStartupScore(student: Student, startup: Startup): { total: number; components: ScoreComponents } {
   const components = {
     role_fit: containsAny(startup.role_openings, student.preferred_roles),
     skill_fit: containsAny(startup.skills_needed, student.skills),
@@ -210,7 +304,7 @@ function studentToStartupScore(student, startup) {
     stage_fit: ["Seed", "Series A"].includes(startup.stage) ? 1 : 0.8,
   };
 
-  const weights = {
+  const weights: Record<keyof typeof components, number> = {
     role_fit: 0.22,
     skill_fit: 0.22,
     mission_fit: 0.16,
@@ -221,17 +315,26 @@ function studentToStartupScore(student, startup) {
     stage_fit: 0.05,
   };
 
-  const total = Object.keys(weights).reduce((sum, key) => sum + weights[key] * components[key], 0);
+  const total = (Object.keys(weights) as Array<keyof typeof weights>).reduce(
+    (sum, key) => sum + weights[key] * components[key],
+    0
+  );
+
   return { total: Number(total.toFixed(4)), components };
 }
 
-function explainMatch(startup, student) {
-  const sharedSkills = normalizeTokenList(student.skills).filter((x) => normalizeTokenList(startup.skills_needed).includes(x));
-  const sharedRoles = normalizeTokenList(student.preferred_roles).filter((x) => normalizeTokenList(startup.role_openings).includes(x));
-  const sharedValues = normalizeTokenList(student.interests).filter((x) => normalizeTokenList(startup.mission_keywords).includes(x));
-  const sharedStyle = normalizeTokenList(student.work_style).filter((x) => normalizeTokenList(startup.work_style).includes(x));
+function explainMatch(startup: Startup, student: Student): string {
+  const startupSkills = normalizeTokenList(startup.skills_needed);
+  const startupRoles = normalizeTokenList(startup.role_openings);
+  const startupKeywords = normalizeTokenList(startup.mission_keywords);
+  const startupStyle = normalizeTokenList(startup.work_style);
 
-  const reasons = [];
+  const sharedSkills = normalizeTokenList(student.skills).filter((x) => startupSkills.includes(x));
+  const sharedRoles = normalizeTokenList(student.preferred_roles).filter((x) => startupRoles.includes(x));
+  const sharedValues = normalizeTokenList(student.interests).filter((x) => startupKeywords.includes(x));
+  const sharedStyle = normalizeTokenList(student.work_style).filter((x) => startupStyle.includes(x));
+
+  const reasons: string[] = [];
   if (sharedRoles.length) reasons.push(`strong role alignment: ${sharedRoles.slice(0, 3).join(", ")}`);
   if (sharedSkills.length) reasons.push(`relevant skills overlap: ${sharedSkills.slice(0, 4).join(", ")}`);
   if (sharedValues.length) reasons.push(`mission overlap around ${sharedValues.slice(0, 3).join(", ")}`);
@@ -242,19 +345,28 @@ function explainMatch(startup, student) {
     reasons.push("location setup works well");
   }
   if (!reasons.length) reasons.push("overall profile similarity is above threshold");
+
   return `${student.name} matches with ${startup.startup_name} because of ${reasons.slice(0, 5).join("; ")}.`;
 }
 
-function buildPreferenceRankings(startups, students) {
-  const startupPref = {};
-  const studentPref = {};
-  const pairScores = [];
+function buildPreferenceRankings(
+  startups: Startup[],
+  students: Student[]
+): {
+  startupPref: Record<string, string[]>;
+  studentPref: Record<string, string[]>;
+  pairScores: PairScoreRow[];
+} {
+  const startupPref: Record<string, string[]> = {};
+  const studentPref: Record<string, string[]> = {};
+  const pairScores: PairScoreRow[] = [];
 
   startups.forEach((startup) => {
-    const scoredStudents = students.map((student) => {
+    const scoredStudents: Array<[string, number]> = students.map((student) => {
       const startupScore = startupToStudentScore(startup, student).total;
       const studentScore = studentToStartupScore(student, startup).total;
       const mutualScore = Number((0.5 * startupScore + 0.5 * studentScore).toFixed(4));
+
       pairScores.push({
         startup_id: startup.startup_id,
         startup_name: startup.startup_name,
@@ -265,6 +377,7 @@ function buildPreferenceRankings(startups, students) {
         mutual_score: mutualScore,
         explanation: explainMatch(startup, student),
       });
+
       return [student.student_id, mutualScore];
     });
 
@@ -273,7 +386,7 @@ function buildPreferenceRankings(startups, students) {
   });
 
   students.forEach((student) => {
-    const scoredStartups = startups.map((startup) => {
+    const scoredStartups: Array<[string, number]> = startups.map((startup) => {
       const startupScore = startupToStudentScore(startup, student).total;
       const studentScore = studentToStartupScore(student, startup).total;
       const mutualScore = Number((0.5 * startupScore + 0.5 * studentScore).toFixed(4));
@@ -287,21 +400,27 @@ function buildPreferenceRankings(startups, students) {
   return { startupPref, studentPref, pairScores };
 }
 
-function stableMatch(startupPref, studentPref) {
+function stableMatch(startupPref: Record<string, string[]>, studentPref: Record<string, string[]>): Record<string, string> {
   const freeStartups = [...Object.keys(startupPref)];
-  const proposals = Object.fromEntries(Object.keys(startupPref).map((s) => [s, []]));
-  const studentMatch = {};
+  const proposals: Record<string, string[]> = Object.fromEntries(
+    Object.keys(startupPref).map((s) => [s, []])
+  );
+  const studentMatch: Record<string, string> = {};
 
-  const studentRank = {};
+  const studentRank: Record<string, Record<string, number>> = {};
   Object.entries(studentPref).forEach(([studentId, prefs]) => {
-    studentRank[studentId] = Object.fromEntries(prefs.map((startupId, rank) => [startupId, rank]));
+    studentRank[studentId] = Object.fromEntries(
+      prefs.map((startupId, rank) => [startupId, rank])
+    );
   });
 
   while (freeStartups.length) {
     const startup = freeStartups.shift();
-    const prefs = startupPref[startup] || [];
+    if (!startup) break;
 
-    let nextStudent = null;
+    const prefs = startupPref[startup] || [];
+    let nextStudent: string | null = null;
+
     for (const student of prefs) {
       if (!proposals[startup].includes(student)) {
         nextStudent = student;
@@ -325,17 +444,19 @@ function stableMatch(startupPref, studentPref) {
     }
   }
 
-  return Object.fromEntries(Object.entries(studentMatch).map(([studentId, startupId]) => [startupId, studentId]));
+  return Object.fromEntries(
+    Object.entries(studentMatch).map(([studentId, startupId]) => [startupId, studentId])
+  );
 }
 
-function parseCommaSeparated(value) {
+function parseCommaSeparated(value: string): string[] {
   return value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 }
 
-function InfoCard({ title, children }) {
+function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-slate-900">{title}</h3>
@@ -344,18 +465,21 @@ function InfoCard({ title, children }) {
   );
 }
 
-function Pill({ children }) {
+function Pill({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">{children}</span>;
 }
 
-export default function FounderStudentMatchPage() {
-  const [page, setPage] = useState("Overview");
-  const [startups, setStartups] = useState(STARTUPS);
-  const [students, setStudents] = useState(STUDENTS);
-  const [sortCol, setSortCol] = useState("mutual_score");
-  const [selectedPairIndex, setSelectedPairIndex] = useState(0);
+export default function Tool5Page() {
+  const [page, setPage] = useState<
+    "Overview" | "Add Startup" | "Add Student" | "Profiles" | "Match Insights" | "Final Matches"
+  >("Overview");
 
-  const [startupForm, setStartupForm] = useState({
+  const [startups, setStartups] = useState<Startup[]>(STARTUPS);
+  const [students, setStudents] = useState<Student[]>(STUDENTS);
+  const [sortCol, setSortCol] = useState<"mutual_score" | "startup_score" | "student_score">("mutual_score");
+  const [selectedPairIndex, setSelectedPairIndex] = useState<number>(0);
+
+  const [startupForm, setStartupForm] = useState<StartupForm>({
     startup_name: "",
     founder_name: "",
     industry: "",
@@ -371,7 +495,7 @@ export default function FounderStudentMatchPage() {
     blurb: "",
   });
 
-  const [studentForm, setStudentForm] = useState({
+  const [studentForm, setStudentForm] = useState<StudentForm>({
     name: "",
     school: "",
     year: "Master's",
@@ -386,7 +510,10 @@ export default function FounderStudentMatchPage() {
     experience_level: "Intermediate",
   });
 
-  const { startupPref, studentPref, pairScores } = useMemo(() => buildPreferenceRankings(startups, students), [startups, students]);
+  const { startupPref, studentPref, pairScores } = useMemo(
+    () => buildPreferenceRankings(startups, students),
+    [startups, students]
+  );
 
   const filteredScores = useMemo(() => {
     return [...pairScores].sort((a, b) => b[sortCol] - a[sortCol]);
@@ -394,15 +521,25 @@ export default function FounderStudentMatchPage() {
 
   const matches = useMemo(() => stableMatch(startupPref, studentPref), [startupPref, studentPref]);
 
-  const startupLookup = useMemo(() => Object.fromEntries(startups.map((s) => [s.startup_id, s])), [startups]);
-  const studentLookup = useMemo(() => Object.fromEntries(students.map((s) => [s.student_id, s])), [students]);
+  const startupLookup = useMemo(
+    () => Object.fromEntries(startups.map((s) => [s.startup_id, s])),
+    [startups]
+  ) as Record<string, Startup>;
 
-  const resultsRows = useMemo(() => {
+  const studentLookup = useMemo(
+    () => Object.fromEntries(students.map((s) => [s.student_id, s])),
+    [students]
+  ) as Record<string, Student>;
+
+  const resultsRows = useMemo<ResultsRow[]>(() => {
     return Object.entries(matches)
       .map(([startupId, studentId]) => {
         const startup = startupLookup[startupId];
         const student = studentLookup[studentId];
-        const scoreRow = pairScores.find((row) => row.startup_id === startupId && row.student_id === studentId);
+        const scoreRow = pairScores.find(
+          (row) => row.startup_id === startupId && row.student_id === studentId
+        );
+
         return {
           startup: startup?.startup_name,
           founder: startup?.founder_name,
@@ -415,16 +552,24 @@ export default function FounderStudentMatchPage() {
       .sort((a, b) => b.mutual_score - a.mutual_score);
   }, [matches, startupLookup, studentLookup, pairScores]);
 
-  const navItems = ["Overview", "Add Startup", "Add Student", "Profiles", "Match Insights", "Final Matches"];
+  const navItems = [
+    "Overview",
+    "Add Startup",
+    "Add Student",
+    "Profiles",
+    "Match Insights",
+    "Final Matches",
+  ] as const;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 p-6 lg:grid-cols-[240px_1fr]">
         <aside className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:h-fit">
           <div className="mb-6">
-            <div className="text-sm font-medium uppercase tracking-wide text-slate-500">Match Platform</div>
-            <h1 className="mt-1 text-xl font-semibold">Startup ↔ Student</h1>
+            <div className="text-sm font-medium uppercase tracking-wide text-slate-500">Penn Tools Demo</div>
+            <h1 className="mt-1 text-xl font-semibold">Startup Match Day</h1>
           </div>
+
           <div className="space-y-2">
             {navItems.map((item) => (
               <button
@@ -444,9 +589,13 @@ export default function FounderStudentMatchPage() {
           {page === "Overview" && (
             <>
               <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <h2 className="text-3xl font-semibold">Startup Talent Match Platform</h2>
-                <p className="mt-2 text-slate-600">
-                  Connecting high-potential students with early-stage startups — fast.
+                <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                  Founder ↔ Student Matching
+                </div>
+                <h2 className="mt-4 text-3xl font-semibold">Startup Talent Match Platform</h2>
+                <p className="mt-2 max-w-3xl text-slate-600">
+                  A matching interface for pairing startup founders with students using weighted preference scoring
+                  and a stable matching algorithm.
                 </p>
               </div>
 
@@ -457,7 +606,7 @@ export default function FounderStudentMatchPage() {
                 <InfoCard title="Students">
                   <div className="text-3xl font-semibold">{students.length}</div>
                 </InfoCard>
-                <InfoCard title="Matches Evaluated">
+                <InfoCard title="Pairs Evaluated">
                   <div className="text-3xl font-semibold">{startups.length * students.length}</div>
                 </InfoCard>
               </div>
@@ -465,17 +614,18 @@ export default function FounderStudentMatchPage() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <InfoCard title="How it works">
                   <ol className="list-decimal space-y-2 pl-5 text-slate-700">
-                    <li>Startups define roles, skills, and team needs.</li>
-                    <li>Students submit experience, interests, and preferences.</li>
-                    <li>The system evaluates compatibility across multiple dimensions.</li>
-                    <li>A stable matching algorithm assigns optimal pairings.</li>
-                    <li>Each match includes a clear explanation of fit.</li>
+                    <li>Founders define roles, skills, work style, and weekly commitment needs.</li>
+                    <li>Students add their experience, interests, preferences, and availability.</li>
+                    <li>The platform computes pairwise compatibility scores.</li>
+                    <li>Ranked preferences are converted into stable final matches.</li>
+                    <li>Each result includes a human-readable explanation of fit.</li>
                   </ol>
                 </InfoCard>
-                <InfoCard title="Why this matters">
+
+                <InfoCard title="Why this is useful">
                   <p className="text-slate-700">
-                    Early-stage startups need the right people fast, and students want meaningful, high-impact experiences.
-                    This system helps both sides find strong matches efficiently and transparently.
+                    Early-stage teams need high-agency contributors quickly, while students want meaningful roles with
+                    real ownership. This demo shows how a transparent matching system can improve both sides of that search.
                   </p>
                 </InfoCard>
               </div>
@@ -488,8 +638,10 @@ export default function FounderStudentMatchPage() {
                 <input className="rounded-xl border p-3" placeholder="Startup name" value={startupForm.startup_name} onChange={(e) => setStartupForm({ ...startupForm, startup_name: e.target.value })} />
                 <input className="rounded-xl border p-3" placeholder="Founder name" value={startupForm.founder_name} onChange={(e) => setStartupForm({ ...startupForm, founder_name: e.target.value })} />
                 <input className="rounded-xl border p-3" placeholder="Industry" value={startupForm.industry} onChange={(e) => setStartupForm({ ...startupForm, industry: e.target.value })} />
-                <select className="rounded-xl border p-3" value={startupForm.stage} onChange={(e) => setStartupForm({ ...startupForm, stage: e.target.value })}>
-                  {['Pre-Seed', 'Seed', 'Series A', 'Series B+'].map((stage) => <option key={stage}>{stage}</option>)}
+                <select className="rounded-xl border p-3" value={startupForm.stage} onChange={(e) => setStartupForm({ ...startupForm, stage: e.target.value as Stage })}>
+                  {["Pre-Seed", "Seed", "Series A", "Series B+"].map((stage) => (
+                    <option key={stage}>{stage}</option>
+                  ))}
                 </select>
                 <input className="rounded-xl border p-3" placeholder="Location" value={startupForm.location} onChange={(e) => setStartupForm({ ...startupForm, location: e.target.value })} />
                 <input className="rounded-xl border p-3" type="number" placeholder="Team size" value={startupForm.team_size} onChange={(e) => setStartupForm({ ...startupForm, team_size: Number(e.target.value) })} />
@@ -498,9 +650,14 @@ export default function FounderStudentMatchPage() {
                 <input className="rounded-xl border p-3" placeholder="Mission keywords (comma-separated)" value={startupForm.mission_keywords} onChange={(e) => setStartupForm({ ...startupForm, mission_keywords: e.target.value })} />
                 <input className="rounded-xl border p-3" placeholder="Work style (comma-separated)" value={startupForm.work_style} onChange={(e) => setStartupForm({ ...startupForm, work_style: e.target.value })} />
                 <input className="rounded-xl border p-3" type="number" placeholder="Minimum weekly hours" value={startupForm.min_commitment_hours} onChange={(e) => setStartupForm({ ...startupForm, min_commitment_hours: Number(e.target.value) })} />
-                <label className="flex items-center gap-2 rounded-xl border p-3"><input type="checkbox" checked={startupForm.paid} onChange={(e) => setStartupForm({ ...startupForm, paid: e.target.checked })} /> Paid opportunity</label>
+                <label className="flex items-center gap-2 rounded-xl border p-3">
+                  <input type="checkbox" checked={startupForm.paid} onChange={(e) => setStartupForm({ ...startupForm, paid: e.target.checked })} />
+                  Paid opportunity
+                </label>
               </div>
+
               <textarea className="mt-4 min-h-28 w-full rounded-xl border p-3" placeholder="Short startup blurb" value={startupForm.blurb} onChange={(e) => setStartupForm({ ...startupForm, blurb: e.target.value })} />
+
               <button
                 className="mt-4 rounded-2xl bg-slate-900 px-5 py-3 text-white"
                 onClick={() => {
@@ -536,8 +693,10 @@ export default function FounderStudentMatchPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <input className="rounded-xl border p-3" placeholder="Student name" value={studentForm.name} onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })} />
                 <input className="rounded-xl border p-3" placeholder="School" value={studentForm.school} onChange={(e) => setStudentForm({ ...studentForm, school: e.target.value })} />
-                <select className="rounded-xl border p-3" value={studentForm.year} onChange={(e) => setStudentForm({ ...studentForm, year: e.target.value })}>
-                  {['Freshman', 'Sophomore', 'Junior', 'Senior', "Master's", 'MBA', 'PhD'].map((year) => <option key={year}>{year}</option>)}
+                <select className="rounded-xl border p-3" value={studentForm.year} onChange={(e) => setStudentForm({ ...studentForm, year: e.target.value as StudentYear })}>
+                  {["Freshman", "Sophomore", "Junior", "Senior", "Master's", "MBA", "PhD"].map((year) => (
+                    <option key={year}>{year}</option>
+                  ))}
                 </select>
                 <input className="rounded-xl border p-3" placeholder="Location" value={studentForm.location} onChange={(e) => setStudentForm({ ...studentForm, location: e.target.value })} />
                 <input className="rounded-xl border p-3" placeholder="Preferred roles (comma-separated)" value={studentForm.preferred_roles} onChange={(e) => setStudentForm({ ...studentForm, preferred_roles: e.target.value })} />
@@ -545,12 +704,19 @@ export default function FounderStudentMatchPage() {
                 <input className="rounded-xl border p-3" placeholder="Mission / industry interests (comma-separated)" value={studentForm.interests} onChange={(e) => setStudentForm({ ...studentForm, interests: e.target.value })} />
                 <input className="rounded-xl border p-3" placeholder="Work style (comma-separated)" value={studentForm.work_style} onChange={(e) => setStudentForm({ ...studentForm, work_style: e.target.value })} />
                 <input className="rounded-xl border p-3" type="number" placeholder="Available weekly hours" value={studentForm.weekly_hours} onChange={(e) => setStudentForm({ ...studentForm, weekly_hours: Number(e.target.value) })} />
-                <select className="rounded-xl border p-3" value={studentForm.experience_level} onChange={(e) => setStudentForm({ ...studentForm, experience_level: e.target.value })}>
-                  {['Beginner', 'Intermediate', 'Advanced'].map((level) => <option key={level}>{level}</option>)}
+                <select className="rounded-xl border p-3" value={studentForm.experience_level} onChange={(e) => setStudentForm({ ...studentForm, experience_level: e.target.value as ExperienceLevel })}>
+                  {["Beginner", "Intermediate", "Advanced"].map((level) => (
+                    <option key={level}>{level}</option>
+                  ))}
                 </select>
-                <label className="flex items-center gap-2 rounded-xl border p-3"><input type="checkbox" checked={studentForm.wants_paid} onChange={(e) => setStudentForm({ ...studentForm, wants_paid: e.target.checked })} /> Needs paid opportunity</label>
+                <label className="flex items-center gap-2 rounded-xl border p-3">
+                  <input type="checkbox" checked={studentForm.wants_paid} onChange={(e) => setStudentForm({ ...studentForm, wants_paid: e.target.checked })} />
+                  Needs paid opportunity
+                </label>
               </div>
+
               <textarea className="mt-4 min-h-28 w-full rounded-xl border p-3" placeholder="Why this student wants a startup role" value={studentForm.mission_statement} onChange={(e) => setStudentForm({ ...studentForm, mission_statement: e.target.value })} />
+
               <button
                 className="mt-4 rounded-2xl bg-slate-900 px-5 py-3 text-white"
                 onClick={() => {
@@ -586,7 +752,9 @@ export default function FounderStudentMatchPage() {
                 <div className="space-y-4">
                   {startups.map((startup) => (
                     <div key={startup.startup_id} className="rounded-2xl border p-4">
-                      <div className="text-lg font-semibold">{startup.startup_name} · {startup.founder_name}</div>
+                      <div className="text-lg font-semibold">
+                        {startup.startup_name} · {startup.founder_name}
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Pill>{startup.industry}</Pill>
                         <Pill>{startup.stage}</Pill>
@@ -597,11 +765,14 @@ export default function FounderStudentMatchPage() {
                   ))}
                 </div>
               </InfoCard>
+
               <InfoCard title="Students">
                 <div className="space-y-4">
                   {students.map((student) => (
                     <div key={student.student_id} className="rounded-2xl border p-4">
-                      <div className="text-lg font-semibold">{student.name} · {student.school}</div>
+                      <div className="text-lg font-semibold">
+                        {student.name} · {student.school}
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Pill>{student.year}</Pill>
                         <Pill>{student.location}</Pill>
@@ -619,7 +790,13 @@ export default function FounderStudentMatchPage() {
             <InfoCard title="Pairwise Match Scores">
               <div className="mb-4 flex items-center gap-3">
                 <label className="text-sm text-slate-600">Sort by</label>
-                <select className="rounded-xl border p-2" value={sortCol} onChange={(e) => setSortCol(e.target.value)}>
+                <select
+                  className="rounded-xl border p-2"
+                  value={sortCol}
+                  onChange={(e) =>
+                    setSortCol(e.target.value as "mutual_score" | "startup_score" | "student_score")
+                  }
+                >
                   <option value="mutual_score">mutual_score</option>
                   <option value="startup_score">startup_score</option>
                   <option value="student_score">student_score</option>
@@ -645,7 +822,10 @@ export default function FounderStudentMatchPage() {
                         <td className="p-3">{row.startup_score}</td>
                         <td className="p-3">{row.student_score}</td>
                         <td className="p-3">
-                          <button className="rounded-lg bg-slate-900 px-3 py-1 text-white" onClick={() => setSelectedPairIndex(idx)}>
+                          <button
+                            className="rounded-lg bg-slate-900 px-3 py-1 text-white"
+                            onClick={() => setSelectedPairIndex(idx)}
+                          >
                             {row.mutual_score}
                           </button>
                         </td>
@@ -662,7 +842,9 @@ export default function FounderStudentMatchPage() {
                     {filteredScores[selectedPairIndex].startup_name} ↔ {filteredScores[selectedPairIndex].student_name}
                   </div>
                   <div className="mt-2 text-sm">Mutual score: {filteredScores[selectedPairIndex].mutual_score}</div>
-                  <p className="mt-2 text-sm text-slate-700">{filteredScores[selectedPairIndex].explanation}</p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    {filteredScores[selectedPairIndex].explanation}
+                  </p>
                 </div>
               )}
             </InfoCard>
@@ -702,7 +884,9 @@ export default function FounderStudentMatchPage() {
                   <div className="space-y-4">
                     {resultsRows.map((row) => (
                       <div key={`${row.startup}-${row.student}-narrative`} className="rounded-2xl border p-4">
-                        <h3 className="text-xl font-semibold">{row.startup} ↔ {row.student}</h3>
+                        <h3 className="text-xl font-semibold">
+                          {row.startup} ↔ {row.student}
+                        </h3>
                         <p className="mt-1 text-sm text-slate-600">
                           Founder: {row.founder} | School: {row.school} | Mutual score: {row.mutual_score}
                         </p>
