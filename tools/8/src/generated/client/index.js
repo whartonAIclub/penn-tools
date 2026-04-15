@@ -148,7 +148,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/ritikaagarwal/Documents/GitHub/penn-tools/tools/8/src/generated/client",
+      "value": "/Users/ananyachandra/code/aipmts26/penntools/tools/8/src/generated/client",
       "fromEnvVar": null
     },
     "config": {
@@ -162,12 +162,11 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/Users/ritikaagarwal/Documents/GitHub/penn-tools/tools/8/prisma/schema.prisma",
+    "sourceFilePath": "/Users/ananyachandra/code/aipmts26/penntools/tools/8/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../../../.env"
+    "rootEnvPath": null
   },
   "relativePath": "../../../prisma",
   "clientVersion": "5.22.0",
