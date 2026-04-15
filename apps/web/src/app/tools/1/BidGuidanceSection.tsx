@@ -8,6 +8,7 @@ const TIER_STYLES: Record<BidTier, { bg: string; color: string; label: string }>
   safe:        { bg: "#dcfce7", color: "#15803d", label: "Safe" },
   competitive: { bg: "#fef9c3", color: "#a16207", label: "Competitive" },
   reach:       { bg: "#fee2e2", color: "#b91c1c", label: "Reach" },
+  new:         { bg: "#f3f4f6", color: "#6b7280", label: "1 term" },
 };
 
 const TREND_ICON: Record<Trend, string> = {

@@ -1,6 +1,6 @@
 export type Day = "Mon" | "Tue" | "Wed" | "Thu" | "Fri";
 export type Quarter = "Q1" | "Q2" | "Q3" | "Q4";
-export type BidTier = "safe" | "competitive" | "reach";
+export type BidTier = "safe" | "competitive" | "reach" | "new";
 export type Trend = "rising" | "falling" | "stable";
 export type Volatility = "low" | "medium" | "high";
 

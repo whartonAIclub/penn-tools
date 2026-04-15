@@ -27,9 +27,11 @@ function newRow(): Row {
 export function WaiversEditor({
   courses,
   initial,
+  onComplete,
 }: {
   courses: CourseOption[];
   initial: WaiverEntry[];
+  onComplete?: (waivers: WaiverEntry[]) => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -59,9 +61,11 @@ export function WaiversEditor({
 
   const handleSave = () => {
     const valid = rows.filter((r) => r.courseId !== "");
+    const entries = valid.map((r) => ({ courseId: r.courseId, type: r.type }));
     startTransition(async () => {
-      await saveWaivers(valid.map((r) => ({ courseId: r.courseId, type: r.type })));
-      router.push("/tools/1/requirements");
+      await saveWaivers(entries);
+      if (onComplete) onComplete(entries);
+      else router.push("/tools/1/requirements");
     });
   };
 
