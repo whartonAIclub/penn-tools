@@ -1,0 +1,9 @@
+{
+  "name": "Penn Priorities",
+  "description": "Centralize and prioritize tasks across Career, Academic, and Social commitments for Wharton students.",
+  "category": "Productivity",
+  "builders": ["Travon Martin"],
+  "version": "0.1.0",
+  "inceptionDate": "2026-04-15",
+  "latestReleaseDate": "2026-04-15"
+}

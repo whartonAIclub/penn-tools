@@ -56,6 +56,9 @@ importers:
       '@penntools/tool-penn-planner':
         specifier: workspace:*
         version: link:../../tools/penn-planner
+      '@penntools/tool-penn-priorities':
+        specifier: workspace:*
+        version: link:../../tools/penn-priorities
       '@penntools/tool-pitch-coach':
         specifier: workspace:*
         version: link:../../tools/pitch-coach
@@ -250,6 +253,19 @@ importers:
         version: 1.6.1(@types/node@20.19.33)
 
   tools/penn-planner:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
+  tools/penn-priorities:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
