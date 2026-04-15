@@ -2043,6 +2043,9 @@ packages:
       encoding:
         optional: true
 
+  node-ical@0.19.0:
+    resolution: {integrity: sha512-WukOgHg7q44trEfA3wAYGHBvVP0LX6mR/STkI2da3Ke34F2Em0aUPIg+74SUf5qGymNraLSqUv6IpQYt2adOug==}
+
   nopt@5.0.0:
     resolution: {integrity: sha512-Tbj67rffqceeLpcRXrT7vKAN8CwfPeIBgM7E6iBkmKLV7bEMwpGgYLGv0jACUsECaa/vuxP0IjEont6umdMgtQ==}
     engines: {node: '>=6'}
@@ -4692,6 +4695,15 @@ snapshots:
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
+
+  node-ical@0.19.0:
+    dependencies:
+      axios: 1.7.7
+      moment-timezone: 0.5.48
+      rrule: 2.8.1
+      uuid: 10.0.0
+    transitivePeerDependencies:
+      - debug
 
   nopt@5.0.0:
     dependencies:
