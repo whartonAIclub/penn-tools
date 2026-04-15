@@ -9,7 +9,7 @@ export class PlatformPlaygroundTool extends Tool<PlatformPlaygroundInput, Platfo
     title: "Platform Playground",
     description: "To test Platform APIs",
     image: "/tools/platform-playground/icon.png",
-    contributors: ["Anushka Sheoran", "Harsh Mishra", "Henry Corkran", "Ronak Suchindra", "Tony Sui"],
+    contributors: ["Ananya Chandra", "Ritika Agarwal", "Raven Kao"],
     mentor: "Ananya Chandra",
     version: "0.0.1",
     inceptionDate: "2026-03-14",
