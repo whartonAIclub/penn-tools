@@ -13,3 +13,5 @@ coverage/
 .DS_Store
 tools/8/src/generated/
 /generated/prisma
+.claude/
+.vscode/
