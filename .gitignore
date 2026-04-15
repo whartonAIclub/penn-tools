@@ -11,5 +11,6 @@ build/
 coverage/
 *.tsbuildinfo
 .DS_Store
-tools/8/src/generated/client/edge.js
-tools/8/src/generated/client/index.js
+/generated/prisma
+.claude/
+.vscode/
