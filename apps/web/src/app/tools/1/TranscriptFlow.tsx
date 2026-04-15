@@ -75,8 +75,14 @@ Rules: courseId: Wharton code or null. credits: numeric CU or null. grade: lette
 Transcript:
 `;
 
+// Strip any characters outside printable ASCII (32–126) that would break HTTP headers
+function sanitizeHeaderValue(val: string): string {
+  return val.replace(/[^\x20-\x7E]/g, "").trim();
+}
+
 async function parseTranscript(transcriptText: string): Promise<ParsedCourse[]> {
-  const storedKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+  const rawKey    = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
+  const storedKey = sanitizeHeaderValue(rawKey);
   const res = await fetch("/api/llm/complete", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(storedKey ? { "X-Api-Key": storedKey } : {}) },
