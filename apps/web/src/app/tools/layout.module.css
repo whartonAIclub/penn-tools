@@ -37,3 +37,27 @@
   padding: 48px 24px;
   width: 100%;
 }
+
+.contentFullBleed {
+  max-width: none;
+  padding: 0;
+}
+
+.backCareerCanvas {
+  position: absolute;
+  top: 26px;
+  left: 16px;
+  background: transparent;
+  color: #0F1D3A;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  box-shadow: none;
+  opacity: 0.6;
+  letter-spacing: -0.01em;
+}
+.backCareerCanvas:hover {
+  background: transparent;
+  opacity: 1;
+}

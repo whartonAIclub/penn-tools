@@ -1,4 +1,5 @@
 import type { Tool8Input } from "./types.js";
+import { filterCourses } from "./courseSearch.js";
 
 /**
  * Shared instructions for Career Canvas — used by Tool8 (systemPrompt) and
@@ -72,7 +73,7 @@ export function buildUserMessageForCareerCanvas(input: Tool8Input): string {
 /**
  * Single string for POST /api/llm/complete (only `prompt` is supported there).
  */
-export function buildMonolithicPromptForHttpApi(input: Tool8Input): string {
+export async function buildMonolithicPromptForHttpApi(input: Tool8Input): Promise<string> {
   const raw = input.prompt?.trim();
   if (raw) {
     return `${CAREER_CANVAS_SYSTEM_PROMPT}\n\n---\n\nStudent request:\n${raw}`;
@@ -81,5 +82,14 @@ export function buildMonolithicPromptForHttpApi(input: Tool8Input): string {
   if (!userBlock.trim()) {
     return "";
   }
-  return `${CAREER_CANVAS_SYSTEM_PROMPT}\n\n---\n\n${userBlock}`;
+
+  // Inject relevant Penn courses derived from the student's major + interests
+  const courses = await filterCourses(
+    input.academicBackground ?? "",
+    input.interests ?? "",
+    input.targetRoles ?? "",
+  );
+  const courseBlock = courses ? `\n\n${courses}` : "";
+
+  return `${CAREER_CANVAS_SYSTEM_PROMPT}\n\n---\n\n${userBlock}${courseBlock}`;
 }
