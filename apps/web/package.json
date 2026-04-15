@@ -12,26 +12,32 @@
   "dependencies": {
     "@penntools/core": "workspace:*",
     "@penntools/platform": "workspace:*",
-"@penntools/tool-platform-playground": "workspace:*",
-    "@penntools/tool-7": "workspace:*",
-    "@penntools/tool-platform-playground": "workspace:*",
-    "next": "^14.2.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
     "@penntools/tool-1": "workspace:*",
-    "@penntools/tool-3": "workspace:*",
-    "@penntools/tool-8": "workspace:*",
-    "@penntools/tool-7": "workspace:*",
-    "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-18": "workspace:*",
+    "@penntools/tool-3": "workspace:*",
+    "@penntools/tool-7": "workspace:*",
+    "@penntools/tool-8": "workspace:*",
     "@penntools/tool-ai-compass": "workspace:*",
-    "@penntools/tool-pitch-coach": "workspace:*"
+    "@penntools/tool-penn-planner": "workspace:*",
+    "@penntools/tool-pitch-coach": "workspace:*",
+    "@penntools/tool-platform-playground": "workspace:*",
+    "@penntools/tool-19": "workspace:*",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.12.0",
+    "next": "^14.2.0",
+    "pdf-parse": "1.1.1",
+    "pdfjs-dist": "3",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
-    "typescript": "^5.4.0",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.0"
+    "eslint-config-next": "^14.2.0",
+    "typescript": "^5.4.0"
   }
 }

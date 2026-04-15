@@ -1,0 +1,381 @@
+Track 4 — Bidding Guidance: Technical Overview
+================================================
+CourseMatch Companion Tool (Tool 1)
+Last updated: March 2026
+
+
+════════════════════════════════════════════════════════════════
+1. DATA PIPELINE
+════════════════════════════════════════════════════════════════
+
+MBA Inside XLSX file
+       │
+       ▼ (user uploads via frontend form)
+  processUploadedFile(formData)          [actions.ts — server action]
+       │
+       ▼
+  parseXlsx(buffer, term, options?)      [parseXlsx.ts]
+  • Reads workbook with SheetJS
+  • Normalises column names (handles variants like
+    "Clearing Price", "clearingprice", "price", etc.)
+  • Validates required columns are present
+       │
+       ▼
+  sanitizeRecord()   (per row)           [sanitize.ts]
+  • Field-level validation and type coercion
+  • Strict mode (default): blocks prompt-injection via
+    character allowlist — disable with { strict: false }
+    while LLM integration is not active
+  • Rejected rows are logged in IngestionResult,
+    not silently dropped
+       │
+       ▼
+  persistRecords(records)                [persistence.ts]
+  • Merges incoming records into tools/1/data/clearing-prices.json
+  • Merge key: courseId::section::term
+    — same term re-uploaded → replaces that term's records
+    — different term → appended (old terms preserved)
+  • Survives server restarts; shared across all users
+       │
+       ▼
+  loadPersistedRecords()                 [persistence.ts]
+  • Reads the full accumulated dataset (all terms) from disk
+       │
+       ▼
+  buildGuidance(allRecords)              [actions.ts]
+  • Groups records by courseId::section
+  • Sorts each group oldest → newest
+  • Calls computeBidGuidance() for each group
+       │
+       ▼
+  computeBidGuidance()                   [bidEngine.ts]
+  • Pure function — accepts history array directly
+  • Outputs BidGuidance with thresholds, trend, volatility
+       │
+       ▼
+  BidGuidanceSection (frontend)          [BidGuidanceSection.tsx]
+  • Displays bid guidance cards
+  • Shows loaded terms as pills (e.g. "Spring2025" "Fall2025")
+  • Shows seed data warning if no real data has been uploaded
+  • On first page load: falls back to SEED_RECORDS if
+    clearing-prices.json is empty or absent
+
+
+In-memory store (store.ts) — used by Track 2 / Track 3 integrations
+       │
+  upsertRecords()
+  • Map keyed by "courseId::section"
+  • Multiple terms accumulated per course/section
+  • Same term re-ingested → replaces existing record
+  • Always sorted oldest → newest
+
+
+════════════════════════════════════════════════════════════════
+2. MATH: BID RECOMMENDATION ENGINE
+════════════════════════════════════════════════════════════════
+
+All calculations operate on the array of historical clearing
+prices for a given course+section, sorted oldest to newest.
+
+── 2.1 PROJECTED PRICE ─────────────────────────────────────────
+
+Uses ordinary least squares (OLS) linear regression to fit a
+slope to the price history, then projects one term forward.
+
+  slope = Σ[(i - mean_i)(price_i - mean_price)]
+          ─────────────────────────────────────
+                   Σ[(i - mean_i)²]
+
+  projected_price = last_price + slope
+
+  (If fewer than 2 terms of data, slope = 0 and
+   projected_price = last known price.)
+
+Example (FNCE611: 320, 380, 430, 490):
+  mean_i = 1.5,  mean_price = 405
+  slope  ≈ 56.7 pts/term
+  projected ≈ 490 + 56.7 ≈ 547 pts
+
+── 2.2 TREND CLASSIFICATION ────────────────────────────────────
+
+  threshold = mean_price × 0.02   (2% of average)
+
+  if slope > +threshold  → "rising"
+  if slope < -threshold  → "falling"
+  else                   → "stable"
+
+The 2% threshold filters out noise — small slopes that don't
+meaningfully change bid strategy are treated as stable.
+
+── 2.3 VOLATILITY CLASSIFICATION ───────────────────────────────
+
+Uses the coefficient of variation (CV = stdDev / mean),
+which normalises volatility relative to price level so that
+a 50pt swing on a 100pt course is treated differently than
+a 50pt swing on a 1000pt course.
+
+  stdDev = sqrt( Σ[(price_i - mean)²] / n )
+  CV     = stdDev / mean_price
+
+  if CV < 0.10  → "low"      (prices are consistent)
+  if CV < 0.25  → "medium"   (moderate swings)
+  else          → "high"     (large, unpredictable swings)
+
+── 2.4 TIER DETERMINATION ──────────────────────────────────────
+
+Tier is determined by combining trend and volatility:
+
+  Trend     Volatility   Tier
+  ────────────────────────────────────
+  rising    high         safe
+  rising    medium       safe
+  rising    low          competitive
+  stable    high         safe
+  stable    medium       competitive
+  stable    low          competitive
+  falling   high         safe
+  falling   medium       competitive
+  falling   low          reach
+
+  Logic: high volatility always warrants a safe bid regardless
+  of trend — unpredictable courses can spike without warning.
+  Only falling + low volatility (predictably declining demand)
+  justifies a reach bid.
+
+── 2.5 BID THRESHOLDS ──────────────────────────────────────────
+
+Three concrete minimum bids are output, all based on the
+projected price and the standard deviation as a buffer:
+
+  safe        = clamp(projected_price + stdDev)
+  competitive = clamp(projected_price)
+  reach       = clamp(projected_price - stdDev)
+
+  clamp() ensures all values stay within [0, 5000] pts.
+
+  Interpretation:
+  • safe:        bid AT LEAST this — very likely to clear
+  • competitive: bid AT LEAST this — likely to clear (≈50%)
+  • reach:       bid AT LEAST this — risky, may not clear
+
+  Note: in CourseMatch, the clearing price is determined by
+  aggregate demand AFTER bidding. These thresholds are
+  projections based on historical patterns, not guarantees.
+
+
+════════════════════════════════════════════════════════════════
+3. FILE LAYOUT
+════════════════════════════════════════════════════════════════
+
+  tools/1/src/track4/
+  ├── types.ts          — ClearingPriceRecord, BidGuidance, etc.
+  ├── bidEngine.ts      — OLS math + tier/threshold logic
+  ├── sanitize.ts       — per-row validation, injection protection
+  ├── parseXlsx.ts      — SheetJS parser with column aliasing
+  ├── store.ts          — in-memory Map (Track 2/3 integration)
+  ├── ingest.ts         — ingestClearingPrices() orchestrator
+  ├── seedData.ts       — 5 courses × 4 terms, dev fallback
+  ├── index.ts          — public API exports
+  └── __tests__/
+      ├── bidEngine.test.ts   (13 tests)
+      ├── sanitize.test.ts    (16 tests)
+      └── store.test.ts       (14 tests)
+
+  apps/web/src/app/tools/1/
+  ├── page.tsx              — server component; loads persisted data
+  ├── BidGuidanceSection.tsx — client component; upload + cards
+  ├── actions.ts            — server action: parse, persist, return guidance
+  └── persistence.ts        — read/write clearing-prices.json
+
+  tools/1/data/
+  └── clearing-prices.json  — accumulated clearing price records
+                              (gitignored; written at runtime)
+
+
+════════════════════════════════════════════════════════════════
+4. PUBLIC API — WHAT OTHER TRACKS IMPORT
+════════════════════════════════════════════════════════════════
+
+  import { ... } from "@penntools/tool-1/track4";
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ FUNCTION                   DESCRIPTION                  │
+  ├─────────────────────────────────────────────────────────┤
+  │ getBidGuidance(            Store-backed lookup.          │
+  │   courseId, section        Returns BidGuidance | null   │
+  │ )                          for a single section.        │
+  ├─────────────────────────────────────────────────────────┤
+  │ computeBidGuidance(        Pure function, no store.     │
+  │   courseId,                Pass your own history array. │
+  │   section,                 Returns BidGuidance | null.  │
+  │   history[]                                             │
+  │ )                                                       │
+  ├─────────────────────────────────────────────────────────┤
+  │ getBidGuidanceForBundle(   Batch lookup for a schedule  │
+  │   [{courseId, section}]    bundle. Skips courses with   │
+  │ )                          no history (no error).       │
+  ├─────────────────────────────────────────────────────────┤
+  │ getSectionsForCourse(      Returns all section IDs      │
+  │   courseId                 with history for a course.   │
+  │ )                          Useful before section is     │
+  │                            known (e.g. Track 2).        │
+  ├─────────────────────────────────────────────────────────┤
+  │ ingestClearingPrices(      Server-side ingestion.       │
+  │   buffer, term, options?   Called once per term when    │
+  │ )                          MBA Inside file arrives.     │
+  └─────────────────────────────────────────────────────────┘
+
+  BidGuidance shape (what other tracks receive):
+
+  {
+    courseId:        string
+    section:         string
+    title:           string
+    trend:           "rising" | "falling" | "stable"
+    volatility:      "low" | "medium" | "high"
+    tier:            "safe" | "competitive" | "reach"
+    projectedPrice:  number          // estimated next clearing price
+    averagePrice:    number          // mean across all historical terms
+    thresholds: {
+      safe:          number          // bid ≥ this to be very likely in
+      competitive:   number          // bid ≥ this to be likely in
+      reach:         number          // bid ≥ this — risky
+    }
+    historicalPrices: [              // sorted oldest → newest
+      { term: string, price: number }
+    ]
+  }
+
+
+════════════════════════════════════════════════════════════════
+5. CROSS-TRACK INTERFACES
+════════════════════════════════════════════════════════════════
+
+── TRACK 2 → TRACK 4 ───────────────────────────────────────────
+
+Track 2 produces a list of courses a student is interested in,
+but at the COURSE level only (e.g. "FNCE611") — it does not
+know which section the student will end up in. Track 4's store
+is keyed at the course+section level.
+
+WHAT TRACK 2 MUST DO:
+  1. For each recommended course, call:
+       getSectionsForCourse("FNCE611")
+       → returns ["001", "002", ...]
+  2. Then call getBidGuidance() for each section, or pass all
+     sections to getBidGuidanceForBundle().
+  3. Surface all section options + their bid thresholds to the
+     student so they can factor section availability into
+     their bidding strategy.
+
+WHAT TRACK 2 DOES NOT NEED TO DO:
+  • Parse or store any clearing price data — that is
+    entirely owned by Track 4.
+  • Filter out sections — return all and let the student choose.
+
+── TRACK 3 → TRACK 4 ───────────────────────────────────────────
+
+Track 3 generates schedule bundles — sets of non-conflicting
+sections with specific courseId + section for each course.
+The project spec states that schedule bundles should include
+"bid guidance per course in the bundle."
+
+WHAT TRACK 3 MUST DO:
+  1. Once a schedule bundle is generated, call:
+       getBidGuidanceForBundle([
+         { courseId: "FNCE611", section: "001" },
+         { courseId: "MGMT611", section: "001" },
+         ...
+       ])
+       → returns BidGuidance[] for all courses that have data
+  2. Attach the returned BidGuidance array to the schedule
+     bundle before passing it to the frontend or LLM layer.
+  3. Handle the case where some courses have no bid guidance
+     (getBidGuidanceForBundle silently skips unknowns — Track 3
+     should display "no data available" for those courses).
+
+WHAT TRACK 3 DOES NOT NEED TO DO:
+  • Compute any bid math — call Track 4's functions directly.
+  • Worry about ingestion — the store is pre-populated
+    server-side before any student session begins.
+
+AGREED INTERFACE (Track 3 should plan around this shape):
+
+  // Track 3 output — suggested final shape
+  interface ScheduleBundle {
+    sections:                 Array<{ courseId: string; section: string; ... }>
+    requirementCoverageScore: number
+    preferenceAlignmentScore: number
+    bidGuidance:              BidGuidance[]   // ← Track 4 fills this
+  }
+
+── TRACK 1 → TRACK 4 ───────────────────────────────────────────
+
+Track 1 (transcript parsing) has no direct integration with
+Track 4. Completed courses should not appear in bid guidance
+requests — but this filtering responsibility belongs to
+Track 2 (preference/recommendation layer), not Track 4.
+
+Track 4 does not need to know which courses a student has
+already completed.
+
+
+════════════════════════════════════════════════════════════════
+6. DATA PERSISTENCE
+════════════════════════════════════════════════════════════════
+
+Clearing price records are accumulated across terms in a JSON
+file at tools/1/data/clearing-prices.json.
+
+  • Uploading Spring2026 does NOT erase Fall2025 data.
+  • Re-uploading Spring2026 replaces only Spring2026 records.
+  • All terms are available for trend/projection analysis.
+  • File is written on every successful upload and read on
+    every page load — no server restart needed.
+
+Merge key: courseId::section::term
+  If a record with the same key already exists, it is replaced.
+  If it is new, it is appended.
+
+On page load (page.tsx):
+  • If clearing-prices.json has records → use real data
+  • If empty or absent → fall back to SEED_RECORDS (dev mode)
+
+In the frontend, the loaded terms are shown as colored pills
+above the bid guidance cards so users know which terms are
+reflected in the recommendations.
+
+NOTE: This is a local-dev solution. For production, the
+Platform team should expose a ToolDataRepository API via
+ToolContext so records can be stored in the shared Prisma
+database instead of the filesystem.
+
+
+════════════════════════════════════════════════════════════════
+7. CURRENT LIMITATIONS & KNOWN GAPS
+════════════════════════════════════════════════════════════════
+
+• JSON file persistence (local dev only): clearing-prices.json
+  is written to the repo filesystem. Works for local dev and
+  single-server deploys. For multi-server / production, the
+  Platform team needs to provide a shared database API.
+
+• In-memory store (store.ts) still used for Track 2/3 API:
+  The getBidGuidance / getBidGuidanceForBundle functions read
+  from an in-memory Map that clears on restart. For production,
+  ingestClearingPrices() must be called on server startup to
+  re-populate it from the persistent store.
+
+• Strict mode off during development: the prompt-injection
+  character allowlist is bypassed when { strict: false } is
+  passed to ingestClearingPrices() / parseXlsx().
+  Re-enable strict: true before connecting an LLM.
+
+• Projection accuracy: with only 2–3 terms of history (realistic
+  for newer courses), the linear regression slope is noisy.
+  Courses with 1 term default to "stable" trend and project
+  at the last known price.
+
+• No shared ScheduleBundle type: Tracks 3 and 4 need to agree
+  on a shared TypeScript interface. This should live in
+  tools/1/src/types.ts (shared across all tracks in Tool 1).
