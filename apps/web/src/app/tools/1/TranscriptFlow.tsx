@@ -1,6 +1,5 @@
 "use client";
-import { useState, useRef, useCallback, useTransition, type ChangeEvent, type DragEvent } from "react";
-import { saveTranscript } from "./transcriptActions";
+import { useState, useRef, useCallback, type ChangeEvent, type DragEvent } from "react";
 import { CATALOG_BY_ID, COURSE_CATALOG } from "./courseCatalog";
 import type { CatalogCourse } from "./courseCatalog";
 
@@ -121,7 +120,6 @@ export function TranscriptFlow({ onComplete }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [fixingIndex, setFixingIndex] = useState<number | null>(null);
   const [fixSearch, setFixSearch] = useState("");
-  const [isSaving, startSaving]   = useTransition();
   const [declaredMajor, setDeclaredMajor] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -266,17 +264,16 @@ export function TranscriptFlow({ onComplete }: Props) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 16, borderTop: "1px solid #f3f4f6" }}>
             <button style={{ fontSize: 13, color: "#6b7280", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }} onClick={() => setView("upload")}>← Re-upload transcript</button>
             <button
-              style={{ ...btnPrimary, opacity: isSaving ? 0.6 : 1 }}
-              disabled={isSaving}
-              onClick={() => startSaving(async () => {
-                await saveTranscript(
-                  courses.map((c) => ({ courseId: c.courseId, title: c.title, credits: c.credits, grade: c.grade, term: c.term, crossListedAs: c.crossListedAs, officialTitle: c.officialTitle, officialCredits: c.officialCredits, department: c.department })),
-                  { declaredMajor }
-                );
+              style={btnPrimary}
+              onClick={() => {
+                localStorage.setItem("wizard_transcript_courses", JSON.stringify(
+                  courses.map((c) => ({ courseId: c.courseId, title: c.title, credits: c.credits, grade: c.grade, term: c.term, crossListedAs: c.crossListedAs, officialTitle: c.officialTitle, officialCredits: c.officialCredits, department: c.department }))
+                ));
+                localStorage.setItem("wizard_transcript_meta", JSON.stringify({ declaredMajor }));
                 setView("confirm");
-              })}
+              }}
             >
-              {isSaving ? "Saving…" : "Looks right →"}
+              Looks right →
             </button>
           </div>
         </div>

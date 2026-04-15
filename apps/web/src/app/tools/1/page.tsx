@@ -1,10 +1,6 @@
 import type { BidGuidance, ClearingPriceRecord } from "@penntools/tool-1/track4";
 import { computeBidGuidance, SEED_RECORDS } from "@penntools/tool-1/track4";
 import { WizardClient } from "./WizardClient";
-import { loadSavedCourses, loadTranscriptMeta } from "./transcriptPersistence";
-import { loadWaivers } from "./waiversPersistence";
-import { loadPersistedRecords, getStoredTerms } from "./persistence";
-import { buildGuidance } from "./guidance";
 import { MAJORS } from "./majorsData";
 import { CATALOG_BY_ID } from "./courseCatalog";
 
@@ -41,24 +37,15 @@ function getAllRequirementCourses() {
 }
 
 export default function Tool1Page() {
-  const savedCourses    = loadSavedCourses();
-  const { declaredMajor } = loadTranscriptMeta();
-  const savedWaivers    = loadWaivers();
   const requirementCourses = getAllRequirementCourses();
-  const persisted       = loadPersistedRecords();
-  const isUsingRealData = persisted.length > 0;
-  const guidance        = isUsingRealData ? buildGuidance(persisted) : buildSeedGuidance();
-  const storedTerms     = isUsingRealData ? getStoredTerms() : [];
+  const guidance           = buildSeedGuidance();
 
   return (
     <WizardClient
-      initialCourses={savedCourses}
-      initialDeclaredMajor={declaredMajor}
-      initialWaivers={savedWaivers}
       requirementCourses={requirementCourses}
       defaultGuidance={guidance}
-      defaultStoredTerms={storedTerms}
-      isUsingSeedData={!isUsingRealData}
+      defaultStoredTerms={[]}
+      isUsingSeedData={true}
     />
   );
 }
