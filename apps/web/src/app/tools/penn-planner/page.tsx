@@ -49,6 +49,7 @@ interface CalendarBlock {
   assignmentId: string;
   assignmentName: string;
   course: string;
+  type: AssignmentType;
   date: string;
   startHour: number;
   hours: number;
@@ -62,31 +63,46 @@ interface SyllabusFile {
 }
 
 type Step = "setup" | "generating" | "review" | "calendar" | "how-it-works";
+type IncludeMode = "core" | "readings" | "all";
 
-// ── Per-syllabus color palette ─────────────────────────────────────────────────
+// ── Type-based color palette (used on dashboard/calendar) ─────────────────────
+
+const TYPE_COLORS: Record<AssignmentType, { bg: string; border: string; text: string; dot: string }> = {
+  "exam":          { bg: "#fef2f2", border: "#dc2626", text: "#991b1b", dot: "#dc2626" }, // red
+  "quiz":          { bg: "#fff7ed", border: "#ea580c", text: "#9a3412", dot: "#ea580c" }, // orange
+  "reading":       { bg: "#faf5ff", border: "#9333ea", text: "#6b21a8", dot: "#9333ea" }, // purple
+  "group-project": { bg: "#f0fdf4", border: "#16a34a", text: "#166534", dot: "#16a34a" }, // green
+  "presentation":  { bg: "#ecfdf5", border: "#059669", text: "#065f46", dot: "#059669" }, // teal
+  "case":          { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" }, // blue
+  "essay":         { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" }, // blue
+  "problem-set":   { bg: "#fefce8", border: "#ca8a04", text: "#854d0e", dot: "#ca8a04" }, // amber
+  "reflection":    { bg: "#f0f9ff", border: "#0284c7", text: "#0c4a6e", dot: "#0284c7" }, // sky
+  "other":         { bg: "#f9fafb", border: "#6b7280", text: "#374151", dot: "#6b7280" }, // gray
+};
+
+// ── Per-syllabus color palette (used on review step) ──────────────────────────
 
 const SYLLABUS_COLORS: { bg: string; border: string; text: string; dot: string }[] = [
-  { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" }, // blue
-  { bg: "#fef2f2", border: "#dc2626", text: "#991b1b", dot: "#dc2626" }, // red
-  { bg: "#f0fdf4", border: "#16a34a", text: "#166534", dot: "#16a34a" }, // green
-  { bg: "#fefce8", border: "#ca8a04", text: "#854d0e", dot: "#ca8a04" }, // amber
-  { bg: "#faf5ff", border: "#9333ea", text: "#6b21a8", dot: "#9333ea" }, // purple
-  { bg: "#fff7ed", border: "#ea580c", text: "#9a3412", dot: "#ea580c" }, // orange
+  { bg: "#eff6ff", border: "#2563eb", text: "#1e40af", dot: "#2563eb" },
+  { bg: "#fef2f2", border: "#dc2626", text: "#991b1b", dot: "#dc2626" },
+  { bg: "#f0fdf4", border: "#16a34a", text: "#166534", dot: "#16a34a" },
+  { bg: "#fefce8", border: "#ca8a04", text: "#854d0e", dot: "#ca8a04" },
+  { bg: "#faf5ff", border: "#9333ea", text: "#6b21a8", dot: "#9333ea" },
+  { bg: "#fff7ed", border: "#ea580c", text: "#9a3412", dot: "#ea580c" },
 ];
 
 function syllabusColor(idx: number) {
   return SYLLABUS_COLORS[idx % SYLLABUS_COLORS.length]!;
 }
 
-// ── Palette (minimal — one blue accent, otherwise grays) ──────────────────────
+// ── Palette ────────────────────────────────────────────────────────────────────
 
 const C = {
   blue:      "#2563eb",
   blueSoft:  "#eff6ff",
   red:       "#dc2626",
-  redSoft:   "#fef2f2",
   gray:      "#6b7280",
-  grayLight: "#f9fafb",
+  grayLight: "#f3f4f6",
   border:    "#e5e7eb",
   text:      "#111827",
   textMid:   "#374151",
@@ -103,7 +119,6 @@ function addDays(n: number): string {
   return d.toISOString().split("T")[0]!;
 }
 
-/** Extract readable text from a PDF via the server-side API route (avoids browser worker issues). */
 async function extractTextFromPDF(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
@@ -215,6 +230,7 @@ function generateCalendarBlocks(
         assignmentId:   a.id,
         assignmentName: a.name,
         course:         a.course,
+        type:           a.type,
         date:           dateStr,
         startHour:      chosenHour,
         hours:          hrs,
@@ -248,7 +264,58 @@ function fmtHour(h: number) {
   return h === 12 ? "12:00 PM" : h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`;
 }
 
-// ── Weekly calendar grid ───────────────────────────────────────────────────────
+// ── Semester Timeline Strip ────────────────────────────────────────────────────
+
+function SemesterStrip({
+  blocks, weekOffset, onJump,
+}: {
+  blocks: CalendarBlock[];
+  weekOffset: number;
+  onJump: (n: number) => void;
+}) {
+  const today   = new Date();
+  const baseSun = new Date(today);
+  baseSun.setDate(today.getDate() - today.getDay());
+
+  const WEEKS = 16;
+  const weeks = Array.from({ length: WEEKS }, (_, i) => {
+    const sun = new Date(baseSun);
+    sun.setDate(baseSun.getDate() + i * 7);
+    const sat = new Date(sun);
+    sat.setDate(sun.getDate() + 6);
+    const sunStr = sun.toISOString().split("T")[0]!;
+    const satStr = sat.toISOString().split("T")[0]!;
+    const hasDue = blocks.some(b => b.included && b.date >= sunStr && b.date <= satStr);
+    return { i, hasDue };
+  });
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 14 }}>
+      <span style={{ fontSize: 10, color: C.gray, marginRight: 6, whiteSpace: "nowrap" }}>Semester</span>
+      {weeks.map(w => (
+        <button
+          key={w.i}
+          onClick={() => onJump(w.i)}
+          title={`Week ${w.i + 1}`}
+          style={{
+            width:        w.i === weekOffset ? 10 : 6,
+            height:       w.i === weekOffset ? 10 : 6,
+            borderRadius: "50%",
+            background:   w.i === weekOffset ? C.blue : w.hasDue ? "#93c5fd" : C.border,
+            border:       "none",
+            cursor:       "pointer",
+            padding:      0,
+            flexShrink:   0,
+            transition:   "all 0.12s",
+          }}
+        />
+      ))}
+      <span style={{ fontSize: 10, color: C.gray, marginLeft: 4 }}>16 wks</span>
+    </div>
+  );
+}
+
+// ── Weekly Calendar Grid ───────────────────────────────────────────────────────
 
 function WeeklyCalendar({
   blocks, syllabusNames, onToggle,
@@ -257,18 +324,16 @@ function WeeklyCalendar({
   syllabusNames: string[];
   onToggle: (id: string) => void;
 }) {
+  // Default to current week (offset 0 = this week)
   const [weekOffset, setWeekOffset] = useState(0);
   const today    = new Date();
   const todayStr = today.toISOString().split("T")[0]!;
   const DAY_ABBR = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-  // Base: Sunday of the week containing the first block (or today)
-  const firstBlock = blocks.find(b => b.included);
-  const anchor     = firstBlock ? new Date(firstBlock.date + "T12:00:00") : today;
-  const baseSun    = new Date(anchor);
-  baseSun.setDate(anchor.getDate() - anchor.getDay());
+  // Always anchor to today's Sunday
+  const baseSun = new Date(today);
+  baseSun.setDate(today.getDate() - today.getDay());
 
-  // Apply week offset
   const sun = new Date(baseSun);
   sun.setDate(baseSun.getDate() + weekOffset * 7);
 
@@ -280,6 +345,9 @@ function WeeklyCalendar({
 
   return (
     <div>
+      {/* Semester strip */}
+      <SemesterStrip blocks={blocks} weekOffset={weekOffset} onJump={setWeekOffset} />
+
       {/* Week navigation */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <button onClick={() => setWeekOffset(o => o - 1)}
@@ -295,17 +363,16 @@ function WeeklyCalendar({
         </button>
       </div>
 
-      {/* Legend — one entry per syllabus */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-        {syllabusNames.map((name, i) => {
-          const sc = syllabusColor(i);
-          return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
-              <div style={{ width: 10, height: 10, borderRadius: 2, background: sc.bg, border: `1.5px solid ${sc.border}` }} />
-              {name}
+      {/* Legend — by assignment type */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        {(Object.entries(TYPE_COLORS) as [AssignmentType, typeof TYPE_COLORS[AssignmentType]][])
+          .filter(([type]) => blocks.some(b => b.type === type && b.included))
+          .map(([type, tc]) => (
+            <div key={type} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: tc.bg, border: `1.5px solid ${tc.border}` }} />
+              {MBA_REFERENCE[type].label}
             </div>
-          );
-        })}
+          ))}
       </div>
 
       {/* Grid */}
@@ -334,19 +401,19 @@ function WeeklyCalendar({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {dayBlocks.map(b => {
-                  const sc = syllabusColor(b.syllabusIndex);
+                  const tc = TYPE_COLORS[b.type];
                   return (
                     <div key={b.id} onClick={() => onToggle(b.id)}
                       title={`${b.assignmentName} — click to toggle`}
                       style={{
                         borderRadius: 5, padding: "5px 6px", cursor: "pointer",
-                        background:  b.included ? sc.bg   : C.grayLight,
-                        borderLeft:  `3px solid ${b.included ? sc.border : C.border}`,
+                        background:  b.included ? tc.bg   : C.grayLight,
+                        borderLeft:  `3px solid ${b.included ? tc.border : C.border}`,
                         opacity:     b.included ? 1 : 0.45,
                         transition:  "all 0.1s",
                       }}
                     >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? sc.text : C.gray }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: b.included ? tc.text : C.gray }}>
                         {fmtHour(b.startHour)}
                       </div>
                       <div style={{ fontSize: 10, color: C.textMid, lineHeight: 1.3, marginTop: 1, wordBreak: "break-word" }}>
@@ -370,48 +437,26 @@ function WeeklyCalendar({
   );
 }
 
-// ── Stat card ──────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, accent = false }: {
-  label: string; value: string; sub: string; accent?: boolean;
-}) {
-  return (
-    <div style={{
-      flex: 1, minWidth: 120,
-      border: `1px solid ${C.border}`, borderRadius: 10,
-      padding: "14px 16px", background: C.white,
-    }}>
-      <div style={{ fontSize: 11, color: C.gray, fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: accent ? C.blue : C.text, lineHeight: 1 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>{sub}</div>
-    </div>
-  );
-}
-
 // ── Confidence dot ─────────────────────────────────────────────────────────────
 
 function ConfidenceDot({ level }: { level: "high" | "medium" | "low" }) {
   const color = level === "high" ? C.green : level === "medium" ? C.amber : C.red;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: C.gray }}>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />
-      {level.charAt(0).toUpperCase() + level.slice(1)} confidence
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: C.gray }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, display: "inline-block" }} />
+      {level}
     </span>
   );
 }
 
-// ── Type badge (outline only, no fill) ────────────────────────────────────────
+// ── Type badge ─────────────────────────────────────────────────────────────────
 
 function TypeBadge({ type }: { type: AssignmentType }) {
   return (
     <span style={{
-      fontSize: 11, fontWeight: 600, color: C.gray,
+      fontSize: 11, fontWeight: 500, color: C.gray,
       border: `1px solid ${C.border}`, borderRadius: 99,
-      padding: "1px 8px",
+      padding: "1px 7px", whiteSpace: "nowrap" as const,
     }}>
       {MBA_REFERENCE[type].label}
     </span>
@@ -423,14 +468,11 @@ function TypeBadge({ type }: { type: AssignmentType }) {
 export default function PennPlannerPage() {
   const [step,          setStep]          = useState<Step>("setup");
   const [rigor,         setRigor]         = useState(2);
-  const [pacePrefs,     setPacePrefs]     = useState<string[]>([]);
+  const [includeMode,   setIncludeMode]   = useState<IncludeMode>("core");
   const [syllabusFiles, setSyllabusFiles] = useState<SyllabusFile[]>([]);
   const [assignments,   setAssignments]   = useState<Assignment[]>([]);
   const [blocks,        setBlocks]        = useState<CalendarBlock[]>([]);
   const [error,         setError]         = useState<string | null>(null);
-  const [apiKeyInput,   setApiKeyInput]   = useState("");
-  const [showApiKey,    setShowApiKey]    = useState(false);
-  const [storedApiKey,  setStoredApiKey]  = useState("");
   const [showAddForm,   setShowAddForm]   = useState(false);
   const [newA,          setNewA]          = useState<{
     name: string; course: string; type: AssignmentType;
@@ -446,7 +488,6 @@ export default function PennPlannerPage() {
 
   // Read localStorage after mount to avoid hydration mismatch
   useEffect(() => {
-    setStoredApiKey(localStorage.getItem("penntools_api_key") ?? "");
     const stored = getStoredAuth();
     if (stored.accessToken && isTokenValid(stored)) setGcalAuth(stored);
   }, []);
@@ -459,15 +500,16 @@ export default function PennPlannerPage() {
     return () => window.removeEventListener("resize", handler);
   }, []);
 
-  const llmHeaders = (key: string) => ({
-    "Content-Type": "application/json",
-    ...(key ? { "X-Api-Key": key } : {}),
-  });
+  const llmHeaders = () => ({ "Content-Type": "application/json" });
+  const llmModel   = () => "gpt-4o-mini";
 
-  const llmModel = (key: string) =>
-    key.startsWith("sk-ant-") ? "claude-haiku-4-5-20251001" : "gpt-4o-mini";
+  const includeModePrompt: Record<IncludeMode, string> = {
+    core:     "ONLY extract explicitly graded deliverables: assignments, problem sets, case analyses, quizzes, projects, and exams. Skip readings, lecture notes, and guest speakers.",
+    readings: "Extract graded deliverables (assignments, exams, quizzes, projects) AND required reading assignments. Skip lecture topics and guest speakers.",
+    all:      "Extract ALL academic tasks: assignments, exams, quizzes, projects, readings, reflections, and any other coursework mentioned.",
+  };
 
-  // ── Generate plan: real LLM if PDFs uploaded, mock otherwise ────────────────
+  // ── Generate plan ─────────────────────────────────────────────────────────────
 
   async function handleGenerate() {
     setError(null);
@@ -475,7 +517,6 @@ export default function PennPlannerPage() {
 
     const today = new Date().toISOString().split("T")[0]!;
 
-    // No PDFs → use mock directly
     if (syllabusFiles.length === 0) {
       await new Promise(r => setTimeout(r, 600));
       setAssignments(getMockAssignments(rigor, 0));
@@ -484,9 +525,7 @@ export default function PennPlannerPage() {
     }
 
     try {
-      const currentKey = typeof window !== "undefined" ? (localStorage.getItem("penntools_api_key") ?? "") : "";
       const multiplier = RIGOR_MULTIPLIERS[rigor];
-      const paceDesc   = pacePrefs.length ? pacePrefs.join("; ") : "no specific pace preferences";
       const refLines   = Object.entries(MBA_REFERENCE)
         .map(([k, v]) => `  ${k}: ${v.baseHours}h baseline`).join("\n");
 
@@ -496,21 +535,14 @@ export default function PennPlannerPage() {
         const { file } = syllabusFiles[syllabusIndex]!;
         const text = await extractTextFromPDF(file);
 
-        // ── Step 1: Parse deliverables ───────────────────────────────────────
         const parsePrompt = `You are a syllabus parser for a Penn MBA/graduate student.
 
-Your ONLY job: extract graded deliverables the student must submit.
-These include: assignments, quizzes, exams, projects, case writeups, problem sets, papers, reflections, homeworks.
+Scope: ${includeModePrompt[includeMode]}
 
-Critical rules:
-- ONLY extract items that are explicit graded submissions
-- Look in columns/sections labelled "Deliverables", "Assignments", "Due", "Homework", "Submit"
-- DO NOT include readings (textbook chapters, articles, or cases listed only for reading)
-- DO NOT include lecture topics, class sessions, guest speakers, or "No class" rows
-- If a due date is embedded in the deliverable name (e.g. "Project 2 - 3/8 by 11:59pm"), use THAT date, not the class session date
+Additional rules:
+- If a due date is embedded in the name (e.g. "Project 2 - 3/8 by 11:59pm"), use THAT date
 - If the syllabus is a table with a "Deliverables" column, only rows where that column is non-empty count
-- Syllabi vary in format (tables, bullets, paragraphs) — adapt accordingly
-- ONLY include assignments with due dates on or after today (${today})
+- ONLY include items with due dates on or after today (${today})
 
 Syllabus text:
 ${text}
@@ -520,28 +552,26 @@ Return ONLY a valid JSON array — no markdown, no explanation:
 [{"id":"s${syllabusIndex}_a1","name":"exact deliverable name","course":"course name or number","type":"case|essay|problem-set|reading|presentation|exam|reflection|group-project|quiz|other","dueDate":"YYYY-MM-DD"}]`;
 
         const parseRes = await fetch("/api/llm/complete", {
-          method: "POST", headers: llmHeaders(currentKey),
-          body: JSON.stringify({ prompt: parsePrompt, model: llmModel(currentKey) }),
+          method: "POST", headers: llmHeaders(),
+          body: JSON.stringify({ prompt: parsePrompt, model: llmModel() }),
         });
 
         if (!parseRes.ok) throw new Error("llm_unavailable");
-        const parseData = await parseRes.json() as { content: string };
+        const parseData  = await parseRes.json() as { content: string };
         const parseMatch = parseData.content.match(/\[[\s\S]*\]/);
         const parsed: Omit<Assignment, "estimatedHours" | "confidence" | "reasoning" | "syllabusIndex">[] =
           JSON.parse(parseMatch ? parseMatch[0] : parseData.content);
         if (!Array.isArray(parsed) || parsed.length === 0) continue;
 
-        // ── Step 2: Estimate effort ──────────────────────────────────────────
         const estimatePrompt = `You are an effort estimation engine for Penn MBA students.
 
 Student profile:
 - Rigor mode: ${RIGOR_LABELS[rigor]} (${Math.round(multiplier! * 100)}% of baseline)
-- Pace preferences: ${paceDesc}
 
 MBA average hours by type (at 1.0× rigor):
 ${refLines}
 
-Apply the rigor multiplier and pace adjustments. Return a JSON array:
+Apply the rigor multiplier. Return a JSON array:
 [{"id":"same as input","estimatedHours":number,"confidence":"high|medium|low","reasoning":"one sentence"}]
 
 Assignments:
@@ -550,8 +580,8 @@ ${JSON.stringify(parsed, null, 2)}
 Return ONLY valid JSON array. No markdown.`;
 
         const estRes = await fetch("/api/llm/complete", {
-          method: "POST", headers: llmHeaders(currentKey),
-          body: JSON.stringify({ prompt: estimatePrompt, model: llmModel(currentKey) }),
+          method: "POST", headers: llmHeaders(),
+          body: JSON.stringify({ prompt: estimatePrompt, model: llmModel() }),
         });
 
         if (!estRes.ok) throw new Error("llm_unavailable");
@@ -582,14 +612,11 @@ Return ONLY valid JSON array. No markdown.`;
       setStep("review");
     } catch (err) {
       const msg = String(err);
-      if (msg.includes("llm_unavailable") || msg.includes("empty_parse") || msg.includes("JSON")) {
-        setError("LLM API unavailable — showing sample data. Connect to PennTools platform for real parsing.");
-        setAssignments(getMockAssignments(rigor, 0));
-        setStep("review");
-      } else {
-        setError(`Error: ${msg}`);
-        setStep("setup");
-      }
+      // Fall back to mock data for any PDF or LLM failure — keeps the demo working
+      setError("Could not process syllabus — showing sample Wharton data instead.");
+      setAssignments(getMockAssignments(rigor, 0));
+      setStep("review");
+      console.error("[penn-planner] generate error:", msg);
     }
   }
 
@@ -617,11 +644,11 @@ Return ONLY valid JSON array. No markdown.`;
     setStep("calendar");
   }
 
-  function updateHours(id: string, delta: number) {
+  function setHours(id: string, newHours: number) {
     setAssignments(prev =>
       prev.map(a =>
         a.id === id
-          ? { ...a, estimatedHours: Math.max(0.5, Math.round((a.estimatedHours + delta) * 10) / 10) }
+          ? { ...a, estimatedHours: Math.max(0.5, Math.round(newHours * 10) / 10) }
           : a
       )
     );
@@ -647,19 +674,28 @@ Return ONLY valid JSON array. No markdown.`;
     setNewA({ name: "", course: "", type: "other", dueDate: "", estimatedHours: 2, syllabusIndex: 0 });
   }
 
+  function addAllToCalendar() {
+    includedBlocks.forEach((b, i) => {
+      setTimeout(() => { window.open(toGCalUrl(b), "_blank"); }, i * 200);
+    });
+  }
+
   // ── Shared styles ─────────────────────────────────────────────────────────────
 
   const wrap: React.CSSProperties = {
-    maxWidth:   1080,
+    maxWidth:   1200,
     margin:     "0 auto",
     padding:    "40px 24px 80px",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     color:      C.text,
   };
 
+  // Borderless card — whitespace + background for separation
   const card: React.CSSProperties = {
-    background: C.white, border: `1px solid ${C.border}`,
-    borderRadius: 12, padding: 24, marginBottom: 16,
+    background:   C.white,
+    borderRadius: 12,
+    padding:      24,
+    marginBottom: 16,
   };
 
   const btn = (primary = true, small = false): React.CSSProperties => ({
@@ -678,7 +714,7 @@ Return ONLY valid JSON array. No markdown.`;
   });
 
   const STEPS      = ["setup", "review", "calendar"];
-  const STEP_NAMES: Record<string, string> = { setup: "Setup", review: "Review", calendar: "My Plan" };
+  const STEP_NAMES: Record<string, string> = { setup: "Setup", review: "Review Estimates", calendar: "My Plan" };
   const activeIdx  = STEPS.indexOf(step === "generating" ? "setup" : step);
 
   const includedBlocks = blocks.filter(b => b.included);
@@ -689,59 +725,94 @@ Return ONLY valid JSON array. No markdown.`;
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
+    // Break out of the platform's max-width: 720px container
+    <div style={{
+      width: "100vw", position: "relative", left: "50%",
+      marginLeft: "-50vw", marginRight: "-50vw",
+      background: "#f7f8fa", minHeight: "100vh",
+    }}>
     <div style={wrap}>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 6px" }}>Penn Planner_v2</h1>
-          <p style={{ color: C.gray, margin: 0, fontSize: 15 }}>
-            Upload your syllabus → AI effort estimates → block your study time
-          </p>
+      {/* ── Top nav bar ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 28, gap: 12, flexWrap: "wrap" as const,
+      }}>
+        {/* Left: Home + Back */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={() => { setStep("setup"); setAssignments([]); setBlocks([]); setError(null); }}
+            style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: C.textMid, display: "flex", alignItems: "center", gap: 6 }}
+          >
+            ⌂ Home
+          </button>
+          {activeIdx > 0 && step !== "how-it-works" && (
+            <button
+              onClick={() => {
+                if (activeIdx === 2) setStep("review");
+                else if (activeIdx === 1) setStep("setup");
+              }}
+              style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: C.textMid, display: "flex", alignItems: "center", gap: 6 }}
+            >
+              ← Back
+            </button>
+          )}
         </div>
-        <button
-          onClick={() => setStep(step === "how-it-works" ? "setup" : "how-it-works")}
-          style={{
-            background: step === "how-it-works" ? C.blue : C.white,
-            color: step === "how-it-works" ? C.white : C.textMid,
-            border: `1px solid ${step === "how-it-works" ? C.blue : C.border}`,
-            borderRadius: 8, padding: "8px 16px",
-            fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0,
-          }}
-        >
-          How It Works
-        </button>
+
+        {/* Center: title */}
+        <div style={{ flex: 1, textAlign: "center" as const }}>
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, letterSpacing: "-0.5px" }}>Penn Planner</h1>
+        </div>
+
+        {/* Right: How It Works */}
+        <div style={{ display: "flex", justifyContent: "flex-end", minWidth: 120 }}>
+          <button
+            onClick={() => setStep(step === "how-it-works" ? "setup" : "how-it-works")}
+            style={{ background: "none", border: "none", color: C.gray, fontSize: 13, fontWeight: 500, cursor: "pointer", padding: "7px 0" }}
+          >
+            How It Works →
+          </button>
+        </div>
       </div>
+
+      {/* Breadcrumb steps (no home/back — those are in top bar) */}
+      {step !== "how-it-works" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 28 }}>
+          {STEPS.map((s, i) => (
+            <div key={s} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={() => {
+                  if (i === 0) setStep("setup");
+                  else if (i === 1 && assignments.length > 0) setStep("review");
+                  else if (i === 2 && blocks.length > 0) setStep("calendar");
+                }}
+                disabled={i > activeIdx}
+                style={{
+                  background:     i === activeIdx ? C.white : "none",
+                  border:         i === activeIdx ? `1px solid ${C.border}` : "none",
+                  borderRadius:   6,
+                  padding:        "4px 10px",
+                  fontSize:       13,
+                  fontWeight:     i === activeIdx ? 700 : 400,
+                  color:          i === activeIdx ? C.text : i < activeIdx ? C.blue : C.gray,
+                  cursor:         i <= activeIdx ? "pointer" : "default",
+                  textDecoration: i < activeIdx ? "underline" : "none",
+                }}
+              >
+                {STEP_NAMES[s]}
+              </button>
+              {i < STEPS.length - 1 && (
+                <span style={{ fontSize: 12, color: C.border }}>›</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* How It Works view */}
       {step === "how-it-works" && <HowItWorksView onBack={() => setStep("setup")} isNarrow={isNarrow} />}
 
-      {/* Progress */}
-      {step !== "how-it-works" && <div style={{ display: "flex", alignItems: "center", marginBottom: 32 }}>
-        {STEPS.map((s, i) => (
-          <div key={s} style={{ display: "flex", alignItems: "center" }}>
-            <div style={{
-              width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-              background: i <= activeIdx ? C.blue : C.grayLight,
-              color:      i <= activeIdx ? C.white : C.gray,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 12, fontWeight: 700,
-            }}>{i + 1}</div>
-            <span style={{
-              marginLeft: 6, fontSize: 13, whiteSpace: "nowrap",
-              color:      i === activeIdx ? C.text : C.gray,
-              fontWeight: i === activeIdx ? 600 : 400,
-            }}>
-              {STEP_NAMES[s]}
-            </span>
-            {i < STEPS.length - 1 && (
-              <div style={{ width: 28, height: 1, background: C.border, margin: "0 10px" }} />
-            )}
-          </div>
-        ))}
-      </div>}
-
-      {/* Error */}
+      {/* Error banner */}
       {error && (
         <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 16, color: C.red, fontSize: 14 }}>
           ⚠️ {error}
@@ -751,121 +822,122 @@ Return ONLY valid JSON array. No markdown.`;
       {/* ══════════ STEP 1 — SETUP ══════════ */}
       {(step === "setup" || step === "generating") && (
         <>
-          {/* Upload */}
-          <div style={card}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>Upload Syllabus</h2>
-            <p style={{ color: C.gray, fontSize: 13, margin: "0 0 16px" }}>
-              Upload your course syllabus PDF — or skip to use sample Wharton MBA data
-            </p>
-            {/* Uploaded syllabi list */}
-            {syllabusFiles.length > 0 && (
-              <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                {syllabusFiles.map((sf, i) => {
-                  const sc = syllabusColor(i);
-                  return (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 8 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: sc.dot, flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: sc.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sf.name}</span>
-                      <button onClick={() => setSyllabusFiles(prev => prev.filter((_, j) => j !== i))}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: C.gray, fontSize: 16, lineHeight: 1, padding: "0 4px" }}>×</button>
-                    </div>
-                  );
-                })}
+          {/* Two-column grid */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr",
+            gap: 16,
+            marginBottom: 16,
+          }}>
+            {/* LEFT: Upload + Rigor */}
+            <div>
+              <div style={card}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 4px" }}>Syllabus Upload</h2>
+                <p style={{ color: C.gray, fontSize: 13, margin: "0 0 16px" }}>
+                  Upload a PDF — or skip to use sample Wharton data
+                </p>
+                {syllabusFiles.length > 0 && (
+                  <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {syllabusFiles.map((sf, i) => {
+                      const sc = syllabusColor(i);
+                      return (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 8 }}>
+                          <div style={{ width: 10, height: 10, borderRadius: "50%", background: sc.dot, flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: sc.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sf.name}</span>
+                          <button onClick={() => setSyllabusFiles(prev => prev.filter((_, j) => j !== i))}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: C.gray, fontSize: 16, lineHeight: 1, padding: "0 4px" }}>×</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => {
+                    e.preventDefault();
+                    const f = e.dataTransfer.files[0];
+                    if (f) setSyllabusFiles(prev => [...prev, { file: f, name: f.name }]);
+                  }}
+                  style={{
+                    border: `2px dashed ${syllabusFiles.length > 0 ? C.blue : C.border}`,
+                    borderRadius: 8, padding: "20px 24px", textAlign: "center",
+                    cursor: "pointer", background: syllabusFiles.length > 0 ? C.blueSoft : C.grayLight,
+                  }}
+                >
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>📤</div>
+                  <div style={{ fontWeight: 600 }}>
+                    {syllabusFiles.length > 0 ? "Add another syllabus" : "Drop PDF here or click to upload"}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>PDF only · each syllabus gets its own color</div>
+                </div>
+                <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) { setSyllabusFiles(prev => [...prev, { file: f, name: f.name }]); e.target.value = ""; }
+                  }} />
               </div>
-            )}
-            <div
-              onClick={() => fileRef.current?.click()}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => {
-                e.preventDefault();
-                const f = e.dataTransfer.files[0];
-                if (f) setSyllabusFiles(prev => [...prev, { file: f, name: f.name }]);
-              }}
-              style={{
-                border: `2px dashed ${syllabusFiles.length > 0 ? C.blue : C.border}`,
-                borderRadius: 8, padding: "20px 24px", textAlign: "center",
-                cursor: "pointer", background: syllabusFiles.length > 0 ? C.blueSoft : C.grayLight,
-              }}
-            >
-              <div style={{ fontSize: 24, marginBottom: 6 }}>📤</div>
-              <div style={{ fontWeight: 600 }}>
-                {syllabusFiles.length > 0 ? "Add another syllabus" : "Drop PDF here or click to upload"}
-              </div>
-              <div style={{ fontSize: 12, color: C.gray, marginTop: 4 }}>PDF files only · each syllabus gets its own color</div>
-            </div>
-            <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
-              onChange={e => {
-                const f = e.target.files?.[0];
-                if (f) { setSyllabusFiles(prev => [...prev, { file: f, name: f.name }]); e.target.value = ""; }
-              }} />
-          </div>
 
-          {/* Rigor */}
-          <div style={card}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>Academic Rigor</h2>
-            <p style={{ color: C.gray, fontSize: 13, margin: "0 0 18px" }}>How much effort do you want to put in?</p>
-            <input type="range" min={0} max={4} step={1} value={rigor}
-              onChange={e => setRigor(Number(e.target.value))}
-              style={{ width: "100%", accentColor: C.blue, marginBottom: 8 }} />
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-              {RIGOR_LABELS.map((l, i) => (
-                <span key={l} style={{ fontSize: 11, textAlign: "center", maxWidth: 70,
-                  color: i === rigor ? C.blue : C.gray, fontWeight: i === rigor ? 700 : 400 }}>
-                  {l}
-                </span>
-              ))}
-            </div>
-            <div style={{ padding: "8px 12px", background: C.blueSoft, borderRadius: 6, fontSize: 13, color: C.blue, fontWeight: 500 }}>
-              <strong>{RIGOR_LABELS[rigor]}</strong> — estimates at <strong>{Math.round(RIGOR_MULTIPLIERS[rigor]! * 100)}%</strong> of MBA average
-            </div>
-          </div>
-
-          {/* Pace */}
-          <div style={card}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>Your Pace</h2>
-            <p style={{ color: C.gray, fontSize: 13, margin: "0 0 14px" }}>Select any that apply</p>
-            {[
-              "I read slower than average",
-              "I read faster than average",
-              "I'm fast with quantitative work",
-              "I struggle with quantitative work",
-              "I work best in short focused bursts",
-              "I need extra time for written work",
-            ].map(pref => (
-              <label key={pref} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, cursor: "pointer" }}>
-                <input type="checkbox" checked={pacePrefs.includes(pref)}
-                  onChange={e => setPacePrefs(prev => e.target.checked ? [...prev, pref] : prev.filter(p => p !== pref))}
-                  style={{ accentColor: C.blue, width: 16, height: 16, cursor: "pointer" }} />
-                <span style={{ fontSize: 14 }}>{pref}</span>
-              </label>
-            ))}
-          </div>
-
-          {/* API key input */}
-          <div style={{ ...card, padding: "14px 16px", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showApiKey ? 10 : 0 }}>
-              <div>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>LLM API Key</span>
-                <span style={{ fontSize: 12, color: C.gray, marginLeft: 8 }}>
-                  {storedApiKey ? "✓ Key saved" : "Required for real AI parsing"}
-                </span>
+              <div style={card}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 4px" }}>Academic Rigor</h2>
+                <p style={{ color: C.gray, fontSize: 13, margin: "0 0 18px" }}>How much effort do you want to put in?</p>
+                <input type="range" min={0} max={4} step={1} value={rigor}
+                  onChange={e => setRigor(Number(e.target.value))}
+                  style={{ width: "100%", accentColor: C.blue, marginBottom: 8 }} />
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                  {RIGOR_LABELS.map((l, i) => (
+                    <span key={l} style={{ fontSize: 11, textAlign: "center", maxWidth: 70,
+                      color: i === rigor ? C.blue : C.gray, fontWeight: i === rigor ? 700 : 400 }}>
+                      {l}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ padding: "8px 12px", background: C.grayLight, borderRadius: 6, fontSize: 13, color: C.textMid }}>
+                  <strong>{RIGOR_LABELS[rigor]}</strong> — estimates at <strong>{Math.round(RIGOR_MULTIPLIERS[rigor]! * 100)}%</strong> of MBA average
+                </div>
               </div>
-              <button onClick={() => setShowApiKey(v => !v)}
-                style={{ fontSize: 12, color: C.blue, background: "none", border: `1px solid ${C.border}`, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>
-                {showApiKey ? "Hide" : storedApiKey ? "Change" : "Add key"}
-              </button>
             </div>
-            {showApiKey && (
-              <div style={{ display: "flex", gap: 8 }}>
-                <input type="password" placeholder="sk-... or sk-ant-..." value={apiKeyInput}
-                  onChange={e => setApiKeyInput(e.target.value)}
-                  style={{ flex: 1, padding: "7px 10px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
-                <button onClick={() => { if (apiKeyInput) { localStorage.setItem("penntools_api_key", apiKeyInput); setStoredApiKey(apiKeyInput); setApiKeyInput(""); setShowApiKey(false); } }}
-                  style={{ ...btn(true, true) }}>
-                  Save
-                </button>
+
+            {/* RIGHT: What to Include + API Key */}
+            <div>
+              <div style={card}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 4px" }}>What to Include</h2>
+                <p style={{ color: C.gray, fontSize: 13, margin: "0 0 16px" }}>Which tasks should Penn Planner schedule for you?</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {([
+                    { value: "core"     as IncludeMode, label: "Assignments & Exams", desc: "Graded deliverables only — cases, problem sets, quizzes, exams" },
+                    { value: "readings" as IncludeMode, label: "Readings too",         desc: "Also includes required reading assignments" },
+                    { value: "all"      as IncludeMode, label: "Everything",           desc: "All coursework including reflections and misc tasks" },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setIncludeMode(opt.value)}
+                      style={{
+                        display: "flex", alignItems: "flex-start", gap: 12,
+                        padding: "12px 14px",
+                        background: includeMode === opt.value ? C.blueSoft : C.grayLight,
+                        border: `1.5px solid ${includeMode === opt.value ? C.blue : C.border}`,
+                        borderRadius: 8, cursor: "pointer", textAlign: "left",
+                      }}
+                    >
+                      <div style={{
+                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                        background: includeMode === opt.value ? C.blue : C.white,
+                        border: `2px solid ${includeMode === opt.value ? C.blue : C.border}`,
+                        marginTop: 2,
+                      }} />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: includeMode === opt.value ? C.blue : C.text, marginBottom: 2 }}>
+                          {opt.label}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.gray }}>{opt.desc}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
+
+            </div>
           </div>
 
           {/* Google Calendar connect */}
@@ -907,7 +979,7 @@ Return ONLY valid JSON array. No markdown.`;
           )}
 
           <button onClick={handleGenerate} disabled={step === "generating"}
-            style={{ ...btn(), width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 15, opacity: step === "generating" ? 0.7 : 1 }}>
+            style={{ ...btn(), width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 16, fontWeight: 700, opacity: step === "generating" ? 0.7 : 1 }}>
             {step === "generating" ? "⏳ Generating plan..." : "Generate My Plan →"}
           </button>
         </>
@@ -916,11 +988,11 @@ Return ONLY valid JSON array. No markdown.`;
       {/* ══════════ STEP 2 — REVIEW ══════════ */}
       {step === "review" && (
         <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 2px" }}>Your Assignments</h2>
+              <h2 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 2px", letterSpacing: "-0.3px" }}>Review Estimates</h2>
               <p style={{ color: C.gray, fontSize: 13, margin: 0 }}>
-                {assignments.length} found · adjust hours if needed
+                {assignments.length} assignments · {totalHours.toFixed(1)}h total — adjust hours if needed
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -952,12 +1024,10 @@ Return ONLY valid JSON array. No markdown.`;
                   ))}
                 </select>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 13, color: C.gray, whiteSpace: "nowrap" }}>Hours:</span>
-                  <button onClick={() => setNewA(v => ({ ...v, estimatedHours: Math.max(0.5, Math.round((v.estimatedHours - 0.5) * 10) / 10) }))}
-                    style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                  <span style={{ fontWeight: 700, fontSize: 16, minWidth: 32, textAlign: "center" }}>{newA.estimatedHours}</span>
-                  <button onClick={() => setNewA(v => ({ ...v, estimatedHours: Math.round((v.estimatedHours + 0.5) * 10) / 10 }))}
-                    style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                  <span style={{ fontSize: 13, color: C.gray }}>Hours:</span>
+                  <input type="number" min={0.5} step={0.5} value={newA.estimatedHours}
+                    onChange={e => setNewA(v => ({ ...v, estimatedHours: parseFloat(e.target.value) || 0.5 }))}
+                    style={{ width: 60, padding: "6px 8px", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 6, outline: "none" }} />
                 </div>
                 {syllabusFiles.length > 1 && (
                   <select value={newA.syllabusIndex}
@@ -976,53 +1046,69 @@ Return ONLY valid JSON array. No markdown.`;
             </div>
           )}
 
-          {assignments.map(a => {
-            const sc = syllabusColor(a.syllabusIndex);
-            return (
-            <div key={a.id} style={{ ...card, padding: "16px 20px", borderLeft: `3px solid ${sc.border}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-                    <TypeBadge type={a.type} />
-                    <span style={{ fontSize: 12, color: C.gray }}>{a.course}</span>
-                    {syllabusFiles.length > 1 && (
-                      <span style={{ fontSize: 11, fontWeight: 600, color: sc.text, background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 99, padding: "1px 7px" }}>
-                        {(syllabusFiles[a.syllabusIndex]?.name ?? "").replace(/\.pdf$/i, "")}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{a.name}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13, color: C.gray }}>Due {fmtDate(a.dueDate)}</span>
-                    <ConfidenceDot level={a.confidence} />
-                  </div>
-                  <div style={{ fontSize: 12, color: C.gray, marginTop: 4, fontStyle: "italic" }}>{a.reasoning}</div>
-                </div>
-                {/* Stepper + delete */}
-                <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                  <button onClick={() => deleteAssignment(a.id)}
-                    title="Remove assignment"
-                    style={{ background: "none", border: "none", cursor: "pointer", color: C.gray, fontSize: 16, lineHeight: 1, padding: "0 2px" }}>×</button>
-                  <div>
-                    <div style={{ fontSize: 12, color: C.gray, marginBottom: 4 }}>Est. hours</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button onClick={() => updateHours(a.id, -0.5)} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                      <span style={{ fontWeight: 700, fontSize: 20, minWidth: 36, textAlign: "center" }}>{a.estimatedHours}</span>
-                      <button onClick={() => updateHours(a.id, 0.5)} style={{ width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            );
-          })}
+          {/* Compressed single-row assignment list */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
+            {assignments.map(a => {
+              const sc = syllabusColor(a.syllabusIndex);
+              return (
+                <div key={a.id} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 14px",
+                  background: C.white,
+                  borderRadius: 8,
+                  borderLeft: `3px solid ${sc.border}`,
+                }}>
+                  {/* Color dot */}
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: sc.dot, flexShrink: 0 }} />
 
-          <div style={{ ...card, background: C.grayLight, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <span style={{ fontWeight: 600 }}>Total: </span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: C.blue }}>{totalHours.toFixed(1)}h</span>
-              <span style={{ color: C.gray, fontSize: 13, marginLeft: 8 }}>across {assignments.length} assignments</span>
-            </div>
+                  {/* Name + course */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{a.name}</span>
+                    <span style={{ fontSize: 12, color: C.gray, marginLeft: 8 }}>{a.course}</span>
+                  </div>
+
+                  {/* Type */}
+                  {!isNarrow && <TypeBadge type={a.type} />}
+
+                  {/* Due date */}
+                  <span style={{ fontSize: 12, color: C.gray, whiteSpace: "nowrap", flexShrink: 0 }}>
+                    {fmtDate(a.dueDate)}
+                  </span>
+
+                  {/* Hours — inline number input */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                    <input
+                      type="number" min={0.5} step={0.5}
+                      value={a.estimatedHours}
+                      onChange={e => setHours(a.id, parseFloat(e.target.value) || 0.5)}
+                      style={{
+                        width: 46, textAlign: "center", padding: "3px 4px",
+                        fontSize: 13, fontWeight: 700,
+                        border: `1px solid ${C.border}`, borderRadius: 5,
+                        outline: "none", background: C.grayLight,
+                      }}
+                    />
+                    <span style={{ fontSize: 12, color: C.gray }}>h</span>
+                  </div>
+
+                  {/* Confidence */}
+                  {!isNarrow && <ConfidenceDot level={a.confidence} />}
+
+                  {/* Delete */}
+                  <button onClick={() => deleteAssignment(a.id)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: C.gray, fontSize: 16, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: C.white, borderRadius: 8 }}>
+            <span style={{ fontSize: 14, color: C.gray }}>
+              {assignments.length} assignments · <strong style={{ color: C.text }}>{totalHours.toFixed(1)}h</strong> total
+            </span>
             <button onClick={handleBuildCalendar} style={btn()}>Build My Plan →</button>
           </div>
         </>
@@ -1031,108 +1117,85 @@ Return ONLY valid JSON array. No markdown.`;
       {/* ══════════ STEP 3 — DASHBOARD ══════════ */}
       {step === "calendar" && (
         <>
-          {/* Header row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+          {/* Dashboard header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.gray, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
-                My Planner
-              </div>
-              <p style={{ color: C.textMid, margin: 0, fontSize: 14 }}>
-                AI estimated <strong>{totalHours.toFixed(1)}h total</strong> across {assignments.length} assignments — study blocks scheduled.
+              <h2 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 8px", letterSpacing: "-0.4px" }}>My Plan</h2>
+              {/* Inline stats — single text line */}
+              <p style={{ color: C.gray, margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+                <strong style={{ color: C.text }}>{assignments.length}</strong> assignments ·{" "}
+                <strong style={{ color: C.text }}>{totalHours.toFixed(1)}h</strong> estimated ·{" "}
+                <strong style={{ color: C.text }}>{includedBlocks.length}</strong> blocks scheduled
+                {earliestDue && (
+                  <> · First due <strong style={{ color: C.text }}>{fmtDate(earliestDue.dueDate)}</strong></>
+                )}
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button onClick={() => setStep("review")} style={btn(false, true)}>← Edit</button>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.blueSoft, border: `1px solid #bfdbfe`, borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, color: C.blue }}>
-                ✓ {includedBlocks.length} blocks scheduled
-              </div>
+              {/* Primary CTA: Add all */}
+              <button onClick={addAllToCalendar} style={{ ...btn(true), whiteSpace: "nowrap" as const }}>
+                Add all to Google Calendar ({includedBlocks.length})
+              </button>
             </div>
-          </div>
-
-          {/* Stat cards */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-            <StatCard label="Assignments" value={String(assignments.length)} sub="this week" />
-            <StatCard label="Total Hours" value={`${totalHours.toFixed(1)}h`} sub="estimated" accent />
-            <StatCard label="Blocks Scheduled" value={String(includedBlocks.length)} sub="on calendar" />
-            <StatCard
-              label="Earliest Due"
-              value={earliestDue ? new Date(earliestDue.dueDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" }) : "—"}
-              sub={earliestDue?.name.slice(0, 22) ?? ""}
-            />
           </div>
 
           {/* Two-column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr" : "1fr 1.5fr", gap: 16, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isNarrow ? "1fr" : "1fr 1.6fr", gap: 20, alignItems: "start" }}>
 
-            {/* Left — Assignment list */}
+            {/* Left — compressed assignment list */}
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.gray, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.gray, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 10 }}>
                 Assignments
               </div>
               {assignments.map(a => {
                 const aBlocks   = blocks.filter(b => b.assignmentId === a.id && b.included);
                 const isOverdue = new Date(a.dueDate + "T23:59:59") < new Date();
-                const sc        = syllabusColor(a.syllabusIndex);
+                const tc        = TYPE_COLORS[a.type];
                 return (
                   <div key={a.id} style={{
-                    background: C.white, border: `1px solid ${C.border}`,
-                    borderRadius: 10, padding: "14px 16px", marginBottom: 10,
-                    borderLeft: isOverdue ? `3px solid ${C.red}` : `3px solid ${sc.border}`,
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 14px",
+                    background: tc.bg,
+                    borderRadius: 8,
+                    borderLeft: isOverdue ? `3px solid ${C.red}` : `3px solid ${tc.border}`,
+                    marginBottom: 6,
                   }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{a.name}</div>
-                        <div style={{ fontSize: 12, color: C.gray, marginBottom: 6 }}>
-                          {a.course} · Due {fmtDate(a.dueDate)}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 15, fontWeight: 700 }}>{a.estimatedHours}h</span>
-                          <span style={{ fontSize: 12, color: C.gray }}>estimated</span>
-                          <ConfidenceDot level={a.confidence} />
-                        </div>
-                      </div>
-                      <TypeBadge type={a.type} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
+                      <div style={{ fontSize: 11, color: C.gray, marginTop: 1 }}>{a.course} · Due {fmtDate(a.dueDate)}</div>
                     </div>
-                    {aBlocks.length > 0 && (
-                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, fontSize: 11, color: C.gray }}>
-                        {aBlocks.length} block{aBlocks.length !== 1 ? "s" : ""} scheduled ·{" "}
-                        {aBlocks.reduce((s, b) => s + b.hours, 0).toFixed(1)}h
-                      </div>
-                    )}
+                    <div style={{ flexShrink: 0, textAlign: "right" as const }}>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{a.estimatedHours}h</div>
+                      {aBlocks.length > 0 && (
+                        <div style={{ fontSize: 10, color: C.gray }}>{aBlocks.length} block{aBlocks.length !== 1 ? "s" : ""}</div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
-            </div>
-
-            {/* Right — Weekly calendar + actions */}
-            <div>
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
-                <WeeklyCalendar
-                  blocks={blocks}
-                  syllabusNames={syllabusFiles.length > 0 ? syllabusFiles.map(sf => sf.name.replace(/\.pdf$/i, "")) : ["Sample Data"]}
-                  onToggle={toggleBlock}
-                />
-                <p style={{ fontSize: 11, color: C.gray, margin: "12px 0 0", textAlign: "center" }}>
-                  Click a block to toggle it on/off
-                </p>
-              </div>
 
               {/* AI Insight */}
-              <div style={{
-                background: C.white, border: `1px solid ${C.border}`,
-                borderRadius: 12, padding: 16, marginBottom: 16,
-                borderLeft: `3px solid ${C.blue}`,
-              }}>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>✦ AI Insight</div>
+              <div style={{ marginTop: 16, padding: "14px 16px", background: C.grayLight, borderRadius: 8, borderLeft: `3px solid ${C.border}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.gray, marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>AI Insight</div>
                 <p style={{ fontSize: 13, color: C.textMid, margin: 0, lineHeight: 1.6 }}>
-                  Your <strong>{assignments.find(a => a.type === "exam")?.name ?? "exam"}</strong> has the highest prep time.
-                  Sessions are spread across mornings and evenings to avoid last-minute cramming.
-                  {pacePrefs.length > 0 && ` Adjusted for: ${pacePrefs[0]!.toLowerCase()}.`}
+                  Your <strong>{assignments.find(a => a.type === "exam")?.name ?? "highest-effort task"}</strong> has
+                  the most prep time. Sessions spread across mornings and evenings to avoid last-minute cramming.
+                  {includeMode !== "core" && ` Includes ${includeMode === "readings" ? "readings" : "all coursework"}.`}
                 </p>
               </div>
+            </div>
+
+            {/* Right — Calendar */}
+            <div style={{ background: C.white, borderRadius: 12, padding: 20 }}>
+              <WeeklyCalendar
+                blocks={blocks}
+                syllabusNames={syllabusFiles.length > 0 ? syllabusFiles.map(sf => sf.name.replace(/\.pdf$/i, "")) : ["Sample Data"]}
+                onToggle={toggleBlock}
+              />
 
               {/* Add to calendar */}
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginTop: 16 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
                   Add to Google Calendar
                 </div>
@@ -1237,6 +1300,8 @@ Return ONLY valid JSON array. No markdown.`;
           </div>
         </>
       )}
+
+    </div>
     </div>
   );
 }
@@ -1248,8 +1313,8 @@ function HowItWorksView({ onBack, isNarrow }: { onBack: () => void; isNarrow: bo
 
   const steps = [
     {
-      num: "01", title: "Canvas Sync", icon: "📚",
-      desc: "Penn Planner reads your Canvas courses and pulls all upcoming assignments — titles, types, deadlines, and course context — automatically.",
+      num: "01", title: "Syllabus Upload", icon: "📤",
+      desc: "Upload your course syllabus PDF. Penn Planner extracts all graded deliverables — assignments, exams, projects, and quizzes — automatically.",
       color: C.blueSoft, border: "#bfdbfe", text: "#1e40af",
     },
     {
@@ -1279,7 +1344,7 @@ function HowItWorksView({ onBack, isNarrow }: { onBack: () => void; isNarrow: bo
           Effort-based planning for Penn students
         </h2>
         <p style={{ fontSize: 14, color: C.gray, margin: 0, maxWidth: 520, lineHeight: 1.7 }}>
-          Most students plan around deadlines. Penn Planner shifts you to planning around <em>effort</em> — so you stop cramming and start finishing work before the night it's due.
+          Most students plan around deadlines. Penn Planner shifts you to planning around <em>effort</em> — so you stop cramming and start finishing work before the night it&apos;s due.
         </p>
       </div>
 
@@ -1306,10 +1371,8 @@ function HowItWorksView({ onBack, isNarrow }: { onBack: () => void; isNarrow: bo
           {[
             { name: "Sam Lazarus",    role: "PM · Engineer", track: "Track 2 + 3" },
             { name: "Krishna Vadera", role: "PM · Engineer", track: "Track 2 + 3" },
-            { name: "Anthony Dodd",   role: "PM",            track: "Track 1" },
-            { name: "Arkan Kausar",   role: "Engineer",      track: "Track 1" },
           ].map((m) => (
-            <div key={m.name} style={{ background: C.grayLight, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", minWidth: 148 }}>
+            <div key={m.name} style={{ background: C.grayLight, borderRadius: 8, padding: "10px 14px", minWidth: 148 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{m.name}</div>
               <div style={{ fontSize: 12, color: C.gray }}>{m.role}</div>
               <div style={{ fontSize: 11, color: C.gray, marginTop: 1 }}>{m.track}</div>
