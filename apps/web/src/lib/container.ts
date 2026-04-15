@@ -58,6 +58,8 @@ import { Tool18 } from "@penntools/tool-18";
 toolRegistry.register(new Tool18());
 import { AiCompassTool } from "@penntools/tool-ai-compass";
 toolRegistry.register(new AiCompassTool());
+import { PennPrioritiesTool } from "@penntools/tool-penn-priorities";
+toolRegistry.register(new PennPrioritiesTool());
 // ── Resource seeding (fire-and-forget) ────────────────────────────────────────
 // Imported lazily to avoid a circular reference with the logger defined below.
 import { seedResources } from "./seedResources";
