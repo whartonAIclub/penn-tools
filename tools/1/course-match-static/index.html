@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CourseMatch Assist</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  </head>
+  <body>
+    <div id="root">Loading Course Match...</div>
+    <script>
+      (function () {
+        function showErrorBanner(msg) {
+          console.error(String(msg));
+          var id = "cm-global-error-banner";
+          var banner = document.getElementById(id);
+          if (!banner) {
+            banner = document.createElement("div");
+            banner.id = id;
+            banner.setAttribute("role", "alert");
+            banner.style.cssText =
+              "position:fixed;top:0;left:0;right:0;z-index:2147483647;padding:12px 16px;background:#7f1d1d;color:#fff;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.2);";
+            document.body.appendChild(banner);
+          }
+          banner.textContent = String(msg);
+        }
+        window.addEventListener("error", function (e) {
+          showErrorBanner("JS error: " + (e && e.message ? e.message : e));
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          var reason = e && e.reason ? e.reason : e;
+          showErrorBanner("Promise error: " + (reason && reason.message ? reason.message : String(reason)));
+        });
+      })();
+    </script>
+    <script src="./app.js?ver=20260401_realdata"></script>
+  </body>
+</html>
