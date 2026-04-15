@@ -3,27 +3,37 @@ import type { ClearingPriceRecord, IngestionResult } from "./types.js";
 import { sanitizeRecord } from "./sanitize.js";
 import type { SanitizeOptions } from "./sanitize.js";
 
-// Known column name variants from MBA Inside xlsx files (lowercase, no spaces)
-const REQUIRED_COLUMNS = ["courseId", "section", "title", "instructor", "cu", "days", "quarter", "clearingPrice"];
+// Minimum columns required — all others are optional and default to empty/zero
+const REQUIRED_COLUMNS = ["courseId", "title", "clearingPrice"];
 
 const COLUMN_ALIASES: Record<string, string> = {
+  // Course ID variants
   "course":         "courseId",
   "courseid":       "courseId",
   "course_id":      "courseId",
+  // Combined "Section ID" like "ACCT6130001" — split into courseId + section below
+  "sectionid":      "_sectionId",
+  // Section variants
   "sect":           "section",
+  // Title variants
   "coursetitle":    "title",
   "name":           "title",
+  // Instructor variants
   "faculty":        "instructor",
+  // Credit unit variants
   "creditunits":    "cu",
   "credits":        "cu",
   "credit":         "cu",
+  // Time variants
   "starttime":      "start_time",
   "start":          "start_time",
   "endtime":        "end_time",
   "end":            "end_time",
+  // Price variants
   "clearingprice":  "clearingPrice",
   "price":          "clearingPrice",
   "tokens":         "clearingPrice",
+  // Quarter variants
   "qtr":            "quarter",
 };
 
@@ -102,6 +112,14 @@ function normalizeKeys(row: Record<string, unknown>): Record<string, unknown> {
     const normalized = key.toLowerCase().replace(/[\s_-]+/g, "");
     const canonical = COLUMN_ALIASES[normalized] ?? normalized;
     out[canonical] = val;
+  }
+  // Split combined "Section ID" (e.g. "ACCT6130001") into courseId + section.
+  // Convention: last 3 characters are the section number, everything before is the course ID.
+  if (out["_sectionId"] != null && !out["courseId"] && !out["section"]) {
+    const combined = String(out["_sectionId"]).trim().toUpperCase();
+    out["courseId"] = combined.slice(0, -3);
+    out["section"]  = combined.slice(-3);
+    delete out["_sectionId"];
   }
   return out;
 }

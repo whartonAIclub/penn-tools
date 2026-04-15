@@ -49,32 +49,28 @@ export function sanitizeRecord(
   const title = sanitizeText(raw["title"] ?? raw["course_title"] ?? raw["name"], strict);
   if (!title) return fail("missing title");
 
-  // --- instructor ---
-  const instructor = sanitizeText(raw["instructor"] ?? raw["faculty"], strict);
-  if (!instructor) return fail("missing instructor");
+  // --- instructor (optional) ---
+  const instructor = sanitizeText(raw["instructor"] ?? raw["faculty"], strict) || "";
 
-  // --- creditUnits ---
-  const creditUnits = parseFloat(String(raw["cu"] ?? raw["credit_units"] ?? raw["creditUnits"] ?? ""));
-  if (isNaN(creditUnits) || creditUnits < MIN_CREDIT_UNITS || creditUnits > MAX_CREDIT_UNITS)
+  // --- creditUnits (optional) ---
+  const creditUnitsRaw = parseFloat(String(raw["cu"] ?? raw["credit_units"] ?? raw["creditUnits"] ?? ""));
+  const creditUnits = isNaN(creditUnitsRaw) ? 0 : creditUnitsRaw;
+  if (creditUnits !== 0 && (creditUnits < MIN_CREDIT_UNITS || creditUnits > MAX_CREDIT_UNITS))
     return fail(`invalid creditUnits: ${raw["cu"]}`);
 
-  // --- days ---
+  // --- days (optional) ---
   const daysRaw = String(raw["days"] ?? "");
-  const days = parseDays(daysRaw);
-  if (days === null) return fail(`invalid days: ${daysRaw}`);
+  const days = daysRaw ? (parseDays(daysRaw) ?? []) : [];
 
-  // --- quarter ---
+  // --- quarter (optional) ---
   const quarterRaw = normalizeString(raw["quarter"] ?? raw["qtr"]);
-  if (!quarterRaw || !(VALID_QUARTERS as string[]).includes(quarterRaw))
-    return fail(`invalid quarter: ${quarterRaw}`);
-  const quarter = quarterRaw as Quarter;
+  const quarter: Quarter = (VALID_QUARTERS as string[]).includes(quarterRaw)
+    ? (quarterRaw as Quarter)
+    : "Q1";
 
-  // --- times ---
-  const startTime = parseTime(raw["start_time"] ?? raw["startTime"] ?? raw["start"]);
-  if (!startTime) return fail(`invalid startTime: ${raw["start_time"]}`);
-
-  const endTime = parseTime(raw["end_time"] ?? raw["endTime"] ?? raw["end"]);
-  if (!endTime) return fail(`invalid endTime: ${raw["end_time"]}`);
+  // --- times (optional) ---
+  const startTime = parseTime(raw["start_time"] ?? raw["startTime"] ?? raw["start"]) ?? "";
+  const endTime   = parseTime(raw["end_time"]   ?? raw["endTime"]   ?? raw["end"])   ?? "";
 
   // --- clearingPrice ---
   const clearingPrice = parseInt(String(raw["clearing_price"] ?? raw["clearingPrice"] ?? raw["price"] ?? ""), 10);
