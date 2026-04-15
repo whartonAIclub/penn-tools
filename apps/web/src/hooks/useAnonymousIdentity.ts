@@ -14,21 +14,24 @@
 //   cookie on each response to future-proof session management.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const LS_KEY = "penntools_uid";
 
 export function useAnonymousIdentity() {
-  const [userId, setUserId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [userId, setUserId] = useState<string | null>(null);
 
+  useEffect(() => {
     const stored = localStorage.getItem(LS_KEY);
-    if (stored) return stored;
+    if (stored) {
+      setUserId(stored);
+      return;
+    }
 
-    const generated = crypto.randomUUID();
-    localStorage.setItem(LS_KEY, generated);
-    return generated;
-  });
+    // No id yet — the server will create one on the first request and
+    // return it in the response body so we can cache it here.
+    // We leave userId null for now; useChat will handle the empty state.
+  }, []);
 
   function storeUserId(id: string) {
     localStorage.setItem(LS_KEY, id);
