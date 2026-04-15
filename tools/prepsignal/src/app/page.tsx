@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import FeedbackCard from "@/components/FeedbackCard";
 import Dashboard from "@/components/Dashboard";
 import DrillsPanel from "@/components/DrillsPanel";
-import { loadSessions, saveSession, deleteSession } from "@/lib/storage";
+import { loadSessions, saveSession, deleteSession, seedDemoData } from "@/lib/storage";
 import type { StoredSession } from "@/lib/storage";
 import type { SessionResult } from "@/lib/types";
 
@@ -138,6 +138,11 @@ export default function Home() {
     setSessions(loadSessions());
   }
 
+  function handleSeedDemo() {
+    seedDemoData();
+    setSessions(loadSessions());
+  }
+
   function handleReset() {
     setScoringState("input");
     setContent("");
@@ -192,13 +197,13 @@ export default function Home() {
           onClick={() => setTab("feedback")}
           disabled={!result}
         >
-          Last feedback
+          Latest Score
         </button>
         <button type="button" style={tabStyle("dashboard")} onClick={() => setTab("dashboard")}>
           My progress {sessions.length > 0 && <span style={{ fontSize: "11px", color: "#999", marginLeft: "4px" }}>({sessions.length})</span>}
         </button>
         <button type="button" style={tabStyle("drills")} onClick={() => setTab("drills")}>
-          Drills
+          Drills <span style={{ fontSize: "10px", color: "#999", fontWeight: 400 }}>(beta)</span>
         </button>
         <button
           type="button"
@@ -519,7 +524,7 @@ export default function Home() {
         {tab === "feedback" && (
           <>
             <div style={{ marginBottom: "24px" }}>
-              <h1 style={{ fontSize: "22px", fontWeight: 600, letterSpacing: "-0.4px", marginBottom: "4px" }}>Session feedback</h1>
+              <h1 style={{ fontSize: "22px", fontWeight: 600, letterSpacing: "-0.4px", marginBottom: "4px" }}>Latest Score</h1>
               <p style={{ fontSize: "14px", color: "#999" }}>Most recent session</p>
             </div>
             {result
@@ -540,7 +545,7 @@ export default function Home() {
                   : "Score your first session to start tracking"}
               </p>
             </div>
-            <Dashboard sessions={sessions} onDelete={handleDelete} />
+            <Dashboard sessions={sessions} onDelete={handleDelete} onSeedDemo={handleSeedDemo} />
           </>
         )}
 

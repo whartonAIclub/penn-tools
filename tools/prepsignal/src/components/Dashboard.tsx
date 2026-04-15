@@ -10,6 +10,7 @@ import ProgressionChart from "./ProgressionChart";
 interface Props {
   sessions: StoredSession[];
   onDelete: (id: string) => void;
+  onSeedDemo?: () => void;
 }
 
 function formatDate(iso: string): string {
@@ -115,7 +116,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-export default function Dashboard({ sessions, onDelete }: Props) {
+export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
   if (sessions.length === 0) {
     return (
       <div style={{
@@ -124,10 +125,39 @@ export default function Dashboard({ sessions, onDelete }: Props) {
         borderRadius: "4px",
         padding: "48px 20px",
         textAlign: "center",
-        color: "#999",
-        fontSize: "14px",
       }}>
-        No sessions yet — score your first session to see your dashboard.
+        <div style={{ color: "#555", fontSize: "14px", marginBottom: "8px" }}>
+          No sessions yet — score your first session to see your dashboard.
+        </div>
+        <div style={{ color: "#bbb", fontSize: "13px", marginBottom: "20px" }}>
+          Or load sample data to see what the dashboard looks like.
+        </div>
+        {onSeedDemo && (
+          <button
+            type="button"
+            onClick={onSeedDemo}
+            style={{
+              padding: "8px 18px",
+              fontSize: "13px",
+              fontWeight: 500,
+              border: "1px solid #d4d4d4",
+              borderRadius: "4px",
+              background: "#fafafa",
+              cursor: "pointer",
+              color: "#555",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f0f0f0";
+              e.currentTarget.style.borderColor = "#bbb";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#fafafa";
+              e.currentTarget.style.borderColor = "#d4d4d4";
+            }}
+          >
+            Load demo data →
+          </button>
+        )}
       </div>
     );
   }
