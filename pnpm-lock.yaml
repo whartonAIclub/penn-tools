@@ -81,7 +81,7 @@ importers:
         specifier: 1.1.1
         version: 1.1.1
       pdfjs-dist:
-        specifier: ^3.11.174
+        specifier: '3'
         version: 3.11.174
       react:
         specifier: ^18.3.0
