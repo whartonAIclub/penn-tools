@@ -44,6 +44,14 @@ import type { UserId, User } from "@penntools/core/types";
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
 import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
+import { Tool3 } from "@penntools/tool-3";
+toolRegistry.register(new Tool3());
+import { Tool7 } from "@penntools/tool-7";
+toolRegistry.register(new Tool7());
+import { Tool8 } from "@penntools/tool-8";
+toolRegistry.register(new Tool8());
+import { PennPlannerTool } from "@penntools/tool-penn-planner";
+toolRegistry.register(new PennPlannerTool());
 import { Tool1 } from "@penntools/tool-1";
 toolRegistry.register(new Tool1());
 import { Tool18 } from "@penntools/tool-18";
