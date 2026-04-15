@@ -19,12 +19,14 @@ interface Props {
 
 // Subtle grays for non-priority lines; black for priority
 const COLORS: Record<string, string> = {
+  clarifying_questions: "#888",
   structuring: "#555",
-  quantitative: "#888",
-  creativity: "#aaa",
-  synthesis: "#1a1a1a",
-  communication: "#666",
-  business_judgment: "#999",
+  pace_driving: "#aaa",
+  quantitative: "#777",
+  exhibits: "#bbb",
+  brainstorming: "#666",
+  recommendation: "#999",
+  communication: "#444",
 };
 
 export default function ProgressionChart({ data, priorityDimension }: Props) {
