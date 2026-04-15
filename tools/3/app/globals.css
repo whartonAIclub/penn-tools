@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --font-inter: "Inter", sans-serif;
+  --penn-blue: #011F5B;
+  --penn-blue-light: #EEF2FF;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  background: #f7f7f5;
+  color: #121212;
+  font-family: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+input, select, textarea, button {
+  font-family: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Thin scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
