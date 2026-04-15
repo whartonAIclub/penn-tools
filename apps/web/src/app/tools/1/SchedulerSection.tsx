@@ -361,13 +361,13 @@ const DEPARTMENTS = [...new Set(CATALOG.flatMap(g => g.departments))].sort();
 
 // ── Main component ───────────────────────────────────────────────────
 
-interface Props { guidance: BidGuidance[] }
+interface Props { guidance: BidGuidance[]; initialShortlist?: ShortlistItem[] }
 
-export function SchedulerSection({ guidance }: Props) {
+export function SchedulerSection({ guidance, initialShortlist }: Props) {
   const [step, setStep]             = useState(1);
   const [query, setQuery]           = useState("");
   const [activeDept, setActiveDept] = useState("ALL");
-  const [shortlist, setShortlist]   = useState<ShortlistItem[]>([]);
+  const [shortlist, setShortlist]   = useState<ShortlistItem[]>(initialShortlist ?? []);
   const [blocked, setBlocked]       = useState<Set<string>>(new Set());
   const [targetCu, setTargetCu]     = useState(5);
   const [dragId, setDragId]         = useState<string | null>(null);

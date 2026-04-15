@@ -86,7 +86,7 @@ function computeMajorStatus(major: MajorData, courses: SavedCourse[]): MajorStat
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function MajorSelector({ courses, declaredMajor, waivers = [] }: { courses: SavedCourse[]; declaredMajor: string | null; waivers?: WaiverEntry[] }) {
+export function MajorSelector({ courses, declaredMajor, waivers = [], onComplete }: { courses: SavedCourse[]; declaredMajor: string | null; waivers?: WaiverEntry[]; onComplete?: (majorId: string) => void }) {
   const [selectedId, setSelectedId] = useState<string>("");
 
   const selectedMajor = MAJORS.find((m) => m.id === selectedId);
@@ -239,6 +239,20 @@ export function MajorSelector({ courses, declaredMajor, waivers = [] }: { course
           <div style={{ fontSize: 13, color: "#9ca3af" }}>
             We'll map your completed courses against the requirements.
           </div>
+        </div>
+      )}
+
+      {onComplete && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
+          <button
+            onClick={() => onComplete(selectedId)}
+            style={{
+              padding: "10px 28px", background: "#011F5B", color: "#fff",
+              border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            {selectedId ? "Continue with this major →" : "Skip (no major) →"}
+          </button>
         </div>
       )}
     </div>
