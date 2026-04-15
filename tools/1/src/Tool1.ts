@@ -32,7 +32,7 @@ export class Tool1 extends Tool<Tool1Input, Tool1Output> {
     id: "1",
     title: "CourseMatch Assist",
     description: "This tool is a one-stop-shop for making the most of CourseMatch: giving you your recommended schedule based on various inputs, and even exact utilities you should put into CourseMatch",
-    image: "/tools/1/icon.png",
+    image: "Default",
     contributors: ["Ishi Tripathi", "Sanjana Wadhwa", "Brendan Holleck", "Evens Esperance"],
     mentor: "Manas Sharma",
     version: "0.0.1",
