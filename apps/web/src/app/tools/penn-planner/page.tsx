@@ -1,6 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import {
+  type GCalAuthState, type GCalEvent, type GCalTimeSlot,
+  getStoredAuth, isTokenValid, initGCalAuth, signOut,
+  fetchCalendarEvents, eventsToOccupiedSlots, pushBlocksToCalendar,
+} from "./gcal";
+
+// ── Google Calendar ───────────────────────────────────────────────────────────
+const GCAL_CLIENT_ID = process.env.NEXT_PUBLIC_GCAL_CLIENT_ID ?? "";
 
 // ── MBA Reference Dataset ──────────────────────────────────────────────────────
 
@@ -175,9 +183,22 @@ function getMockAssignments(rigor: number, syllabusIndex = 0): Assignment[] {
   ] as Assignment[]).filter(a => a.dueDate >= today);
 }
 
-function generateCalendarBlocks(assignments: Assignment[]): CalendarBlock[] {
+function generateCalendarBlocks(
+  assignments: Assignment[],
+  occupiedSlots?: GCalTimeSlot[],
+): CalendarBlock[] {
   const blocks: CalendarBlock[] = [];
   const today = new Date();
+  const selfOccupied: GCalTimeSlot[] = [];
+  const PREFERRED_HOURS = [9, 14, 19, 11, 16, 20];
+
+  function isConflict(date: string, startH: number, durationH: number): boolean {
+    const endH = startH + durationH;
+    const allSlots = [...(occupiedSlots ?? []), ...selfOccupied];
+    return allSlots.some(
+      s => s.date === date && startH < s.endHour && endH > s.startHour,
+    );
+  }
 
   for (const a of assignments) {
     const due       = new Date(a.dueDate + "T12:00:00");
@@ -192,14 +213,26 @@ function generateCalendarBlocks(assignments: Assignment[]): CalendarBlock[] {
       if (d.getDay() === 0) d.setDate(d.getDate() + 1);
       if (d.getDay() === 6) d.setDate(d.getDate() - 1);
 
+      const dateStr = d.toISOString().split("T")[0]!;
+
+      // Pick first non-conflicting preferred slot, else fall back to alternating
+      let chosenHour = s % 2 === 0 ? 9 : 19;
+      if (occupiedSlots && occupiedSlots.length > 0) {
+        for (const h of PREFERRED_HOURS) {
+          if (!isConflict(dateStr, h, hrs)) { chosenHour = h; break; }
+        }
+      }
+
+      selfOccupied.push({ date: dateStr, startHour: chosenHour, endHour: chosenHour + hrs });
+
       blocks.push({
         id:             `${a.id}-b${s}`,
         assignmentId:   a.id,
         assignmentName: a.name,
         course:         a.course,
         type:           a.type,
-        date:           d.toISOString().split("T")[0]!,
-        startHour:      s % 2 === 0 ? 9 : 19,
+        date:           dateStr,
+        startHour:      chosenHour,
         hours:          hrs,
         included:       true,
         syllabusIndex:  a.syllabusIndex,
@@ -446,8 +479,20 @@ export default function PennPlannerPage() {
     dueDate: string; estimatedHours: number; syllabusIndex: number;
   }>({ name: "", course: "", type: "other", dueDate: "", estimatedHours: 2, syllabusIndex: 0 });
   const [windowWidth,   setWindowWidth]   = useState(1200);
+  const [gcalAuth,       setGcalAuth]       = useState<GCalAuthState>({ accessToken: null, expiresAt: null, userEmail: null });
+  const [gcalEvents,     setGcalEvents]     = useState<GCalEvent[]>([]);
+  const [gcalLoading,    setGcalLoading]    = useState(false);
+  const [gcalPushStatus, setGcalPushStatus] = useState<{ created: number; failed: string[] } | null>(null);
+  const [showManualLinks, setShowManualLinks] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Read localStorage after mount to avoid hydration mismatch
+  useEffect(() => {
+    const stored = getStoredAuth();
+    if (stored.accessToken && isTokenValid(stored)) setGcalAuth(stored);
+  }, []);
+
+  // Responsive layout
   useEffect(() => {
     setWindowWidth(window.innerWidth);
     const handler = () => setWindowWidth(window.innerWidth);
@@ -575,8 +620,27 @@ Return ONLY valid JSON array. No markdown.`;
     }
   }
 
-  function handleBuildCalendar() {
-    setBlocks(generateCalendarBlocks(assignments));
+  async function handleBuildCalendar() {
+    let occupied: GCalTimeSlot[] = [];
+    if (gcalAuth.accessToken && isTokenValid(gcalAuth)) {
+      setGcalLoading(true);
+      try {
+        const dates = assignments.map(a => a.dueDate).sort();
+        const timeMin = new Date().toISOString();
+        const timeMax = new Date(dates[dates.length - 1]! + "T23:59:59").toISOString();
+        const events = await fetchCalendarEvents(gcalAuth.accessToken, timeMin, timeMax);
+        setGcalEvents(events);
+        occupied = eventsToOccupiedSlots(events);
+      } catch (err) {
+        if (String(err).includes("token_expired")) {
+          setGcalAuth({ accessToken: null, expiresAt: null, userEmail: null });
+        }
+        // Fall back to no conflict avoidance
+      }
+      setGcalLoading(false);
+    }
+    setBlocks(generateCalendarBlocks(assignments, occupied));
+    setGcalPushStatus(null);
     setStep("calendar");
   }
 
@@ -876,6 +940,44 @@ Return ONLY valid JSON array. No markdown.`;
             </div>
           </div>
 
+          {/* Google Calendar connect */}
+          {GCAL_CLIENT_ID && (
+            <div style={{ ...card, padding: "14px 16px", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>Google Calendar</span>
+                  <span style={{ fontSize: 12, color: C.gray, marginLeft: 8 }}>
+                    {gcalAuth.accessToken && isTokenValid(gcalAuth)
+                      ? `Connected as ${gcalAuth.userEmail ?? "Google user"}`
+                      : "Optional — avoids scheduling over your existing events"}
+                  </span>
+                </div>
+                {gcalAuth.accessToken && isTokenValid(gcalAuth) ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.green }} />
+                    <button onClick={() => { signOut(gcalAuth.accessToken); setGcalAuth({ accessToken: null, expiresAt: null, userEmail: null }); setGcalEvents([]); }}
+                      style={{ fontSize: 12, color: C.gray, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                      Disconnect
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const auth = await initGCalAuth(GCAL_CLIENT_ID);
+                        setGcalAuth(auth);
+                      } catch (err) {
+                        setError(`Calendar sign-in failed: ${String(err)}`);
+                      }
+                    }}
+                    style={{ fontSize: 12, color: C.blue, background: "none", border: `1px solid ${C.border}`, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>
+                    Sign in with Google
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <button onClick={handleGenerate} disabled={step === "generating"}
             style={{ ...btn(), width: "100%", justifyContent: "center", padding: "14px 20px", fontSize: 16, fontWeight: 700, opacity: step === "generating" ? 0.7 : 1 }}>
             {step === "generating" ? "⏳ Generating plan..." : "Generate My Plan →"}
@@ -1091,6 +1193,109 @@ Return ONLY valid JSON array. No markdown.`;
                 syllabusNames={syllabusFiles.length > 0 ? syllabusFiles.map(sf => sf.name.replace(/\.pdf$/i, "")) : ["Sample Data"]}
                 onToggle={toggleBlock}
               />
+
+              {/* Add to calendar */}
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginTop: 16 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
+                  Add to Google Calendar
+                </div>
+
+                {/* Push All button (when connected) */}
+                {gcalAuth.accessToken && isTokenValid(gcalAuth) ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ fontSize: 12, color: C.gray, marginBottom: 2 }}>
+                      Connected as {gcalAuth.userEmail ?? "Google user"}
+                      {gcalEvents.length > 0 && ` · ${gcalEvents.length} existing events loaded`}
+                    </div>
+
+                    {gcalPushStatus ? (
+                      <div style={{
+                        padding: "10px 14px", borderRadius: 8, fontSize: 13,
+                        background: gcalPushStatus.failed.length === 0 ? "#f0fdf4" : "#fffbeb",
+                        border: `1px solid ${gcalPushStatus.failed.length === 0 ? "#bbf7d0" : "#fde68a"}`,
+                        color: gcalPushStatus.failed.length === 0 ? "#166534" : "#92400e",
+                      }}>
+                        {gcalPushStatus.created} block{gcalPushStatus.created !== 1 ? "s" : ""} added to Google Calendar
+                        {gcalPushStatus.failed.length > 0 && ` · ${gcalPushStatus.failed.length} failed`}
+                      </div>
+                    ) : (
+                      <button
+                        disabled={gcalLoading}
+                        onClick={async () => {
+                          setGcalLoading(true);
+                          try {
+                            const result = await pushBlocksToCalendar(
+                              gcalAuth.accessToken!,
+                              includedBlocks.map(b => ({
+                                assignmentName: b.assignmentName, course: b.course,
+                                date: b.date, startHour: b.startHour, hours: b.hours,
+                              })),
+                            );
+                            setGcalPushStatus(result);
+                          } catch (err) {
+                            if (String(err).includes("token_expired")) {
+                              setGcalAuth({ accessToken: null, expiresAt: null, userEmail: null });
+                              setError("Google session expired. Please reconnect.");
+                            } else {
+                              setError(`Failed to push to calendar: ${String(err)}`);
+                            }
+                          }
+                          setGcalLoading(false);
+                        }}
+                        style={{ ...btn(), width: "100%", justifyContent: "center", opacity: gcalLoading ? 0.7 : 1 }}>
+                        {gcalLoading ? "Pushing..." : `Push ${includedBlocks.length} Blocks to Calendar`}
+                      </button>
+                    )}
+
+                    <button onClick={() => setShowManualLinks(v => !v)}
+                      style={{ fontSize: 11, color: C.gray, background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}>
+                      {showManualLinks ? "Hide individual links" : "Or export individually..."}
+                    </button>
+                    {showManualLinks && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {includedBlocks.map(b => (
+                          <a key={b.id} href={toGCalUrl(b)} target="_blank" rel="noopener noreferrer"
+                            style={{ ...btn(false, true), justifyContent: "space-between", textDecoration: "none" }}>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>
+                              {b.assignmentName}
+                            </span>
+                            <span style={{ color: C.gray, fontWeight: 400, flexShrink: 0 }}>
+                              {fmtDate(b.date)}
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Not connected — show individual links (original behavior) */
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {includedBlocks.map(b => (
+                      <a key={b.id} href={toGCalUrl(b)} target="_blank" rel="noopener noreferrer"
+                        style={{ ...btn(false, true), justifyContent: "space-between", textDecoration: "none" }}>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>
+                          {b.assignmentName}
+                        </span>
+                        <span style={{ color: C.gray, fontWeight: 400, flexShrink: 0 }}>
+                          {fmtDate(b.date)}
+                        </span>
+                      </a>
+                    ))}
+                    {GCAL_CLIENT_ID && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const auth = await initGCalAuth(GCAL_CLIENT_ID);
+                            setGcalAuth(auth);
+                          } catch { /* user cancelled */ }
+                        }}
+                        style={{ fontSize: 11, color: C.blue, background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "4px 0 0", textDecoration: "underline" }}>
+                        Connect Google Calendar for one-click export
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </>
