@@ -1,0 +1,10 @@
+{
+  "name": "Compass",
+  "description": "Compass MVP backend for ingesting Penn/Wharton ICS events and serving a read-only events API.",
+  "category": "Wellness",
+  "builders": ["Pak Kanjanakosit", "Iris Liu"],
+  "mentor": "Manas Sharma",
+  "version": "0.0.1",
+  "inceptionDate": "2026-03-31",
+  "latestReleaseDate": "2026-03-31"
+}

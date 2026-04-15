@@ -11,3 +11,6 @@ build/
 coverage/
 *.tsbuildinfo
 .DS_Store
+/generated/prisma
+.claude/
+.vscode/

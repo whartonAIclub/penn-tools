@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CourseMatch Assist — Transcript Parser Mockup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6fb;
+      color: #111827;
+      min-height: 100vh;
+    }
+
+    /* ── Top nav ── */
+    .topnav {
+      background: #011F5B;
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topnav-logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.02em;
+    }
+    .topnav-sep { color: #4a6fa5; font-size: 18px; }
+    .topnav-tool { font-size: 14px; color: #93b4e0; }
+
+    /* ── Page wrapper ── */
+    .page {
+      max-width: 780px;
+      margin: 48px auto 80px;
+      padding: 0 24px;
+    }
+
+    /* ── Step indicator ── */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 36px;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      position: relative;
+    }
+    .step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: calc(50% + 20px);
+      right: 0;
+      top: 14px;
+      height: 2px;
+      background: #e5e7eb;
+      z-index: 0;
+    }
+    .step.done:not(:last-child)::after { background: #011F5B; }
+
+    .step-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #d1d5db;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #9ca3af;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .step.active .step-circle {
+      border-color: #011F5B;
+      background: #011F5B;
+      color: #fff;
+    }
+    .step.done .step-circle {
+      border-color: #011F5B;
+      background: #011F5B;
+      color: #fff;
+    }
+    .step-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+    .step.active .step-label { color: #011F5B; }
+    .step.done .step-label { color: #374151; }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 36px 40px;
+    }
+
+    .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0d0d0d;
+      margin-bottom: 6px;
+    }
+    .card-sub {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 48px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: #fafafa;
+    }
+    .upload-zone:hover {
+      border-color: #011F5B;
+      background: #f0f4ff;
+    }
+    .upload-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 14px;
+      background: #e8edf7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .upload-zone h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+    .upload-zone p {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 16px;
+    }
+    .btn-secondary {
+      display: inline-block;
+      padding: 8px 20px;
+      border: 1.5px solid #011F5B;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #011F5B;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .btn-secondary:hover { background: #f0f4ff; }
+
+    .upload-hint {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+    }
+    .upload-hint a {
+      color: #011F5B;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .upload-hint a:hover { text-decoration: underline; }
+
+    /* ── Processing state ── */
+    .processing {
+      text-align: center;
+      padding: 48px 0;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #011F5B;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing p { font-size: 14px; color: #6b7280; }
+    .processing strong { color: #111827; }
+
+    /* ── Review table ── */
+    .review-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .review-header h2 { font-size: 18px; font-weight: 700; color: #0d0d0d; }
+    .review-meta { font-size: 13px; color: #6b7280; }
+    .review-meta strong { color: #111827; }
+
+    .table-wrap { overflow-x: auto; margin-bottom: 20px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid #f3f4f6; }
+    tbody tr:hover { background: #fafafa; }
+    tbody td { padding: 11px 12px; color: #374151; vertical-align: middle; }
+    .course-code { font-family: ui-monospace, monospace; font-weight: 600; color: #111827; }
+    .grade-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .grade-a { background: #dcfce7; color: #166534; }
+    .grade-b { background: #fef9c3; color: #854d0e; }
+
+    .cross-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      font-family: ui-monospace, monospace;
+    }
+
+    .action-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      color: #9ca3af;
+      font-size: 15px;
+      transition: color 0.12s, background 0.12s;
+    }
+    .action-btn:hover { color: #ef4444; background: #fef2f2; }
+    .action-btn.edit:hover { color: #011F5B; background: #eff6ff; }
+
+    .review-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .link-btn {
+      font-size: 13px;
+      color: #6b7280;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .link-btn:hover { color: #111827; }
+
+    /* ── Inline correction UI ── */
+    .correction-banner {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #92400e;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .correction-banner strong { color: #78350f; }
+
+    /* ── Confirm / summary ── */
+    .confirm-check {
+      width: 56px;
+      height: 56px;
+      background: #dcfce7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 26px;
+    }
+    .confirm-title {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .confirm-sub {
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 32px;
+    }
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      flex: 1;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-card .num {
+      font-size: 28px;
+      font-weight: 800;
+      color: #011F5B;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-card .lbl {
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .next-up {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .next-up-header {
+      background: #f9fafb;
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #9ca3af;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .next-up-item {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #f3f4f6;
+      opacity: 0.45;
+    }
+    .next-up-item:last-child { border-bottom: none; }
+    .next-up-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d1d5db;
+      flex-shrink: 0;
+    }
+    .next-up-item span { font-size: 13px; color: #374151; }
+    .next-up-item .badge {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+
+    .reupload-row {
+      text-align: center;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .reupload-row a {
+      color: #011F5B;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 24px;
+      background: #011F5B;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .btn-primary:hover { background: #02297a; }
+    .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* ── Mockup label ── */
+    .mockup-label {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 20px;
+    }
+
+    /* ── Step toggle (demo only) ── */
+    .demo-controls {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    .demo-btn {
+      padding: 6px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #fff;
+      cursor: pointer;
+      color: #374151;
+    }
+    .demo-btn.active {
+      background: #011F5B;
+      color: #fff;
+      border-color: #011F5B;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top nav -->
+  <div class="topnav">
+    <span class="topnav-logo">PennTools</span>
+    <span class="topnav-sep">/</span>
+    <span class="topnav-tool">CourseMatch Assist</span>
+  </div>
+
+  <div class="page">
+
+    <div class="mockup-label">Design Mockup — not functional</div>
+
+    <!-- Demo step toggle -->
+    <div class="demo-controls">
+      <button class="demo-btn active" onclick="showStep(1, this)">Step 1: Upload</button>
+      <button class="demo-btn" onclick="showStep(2, this)">Step 2: Review</button>
+      <button class="demo-btn" onclick="showStep(3, this)">Step 3: Confirm</button>
+    </div>
+
+    <!-- Step indicator -->
+    <div class="steps">
+      <div class="step active" id="si-1">
+        <div class="step-circle" id="sc-1">1</div>
+        <span class="step-label">Upload</span>
+      </div>
+      <div class="step" id="si-2">
+        <div class="step-circle" id="sc-2">2</div>
+        <span class="step-label">Review</span>
+      </div>
+      <div class="step" id="si-3">
+        <div class="step-circle" id="sc-3">3</div>
+        <span class="step-label">Confirm</span>
+      </div>
+    </div>
+
+    <!-- ── Step 1: Upload ── -->
+    <div id="step-1">
+      <div class="card">
+        <div class="card-title">Upload your transcript</div>
+        <div class="card-sub">
+          We'll extract your completed courses automatically so we can track your degree progress
+          and build your course plan. You can re-upload any time your transcript changes.
+        </div>
+
+        <div class="upload-zone" onclick="showStep(2, document.querySelectorAll('.demo-btn')[1])">
+          <div class="upload-icon">
+            <!-- PDF icon -->
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#011F5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="9" y1="13" x2="15" y2="13"/>
+              <line x1="9" y1="17" x2="13" y2="17"/>
+            </svg>
+          </div>
+          <h3>Drag & drop your transcript PDF here</h3>
+          <p>or click to browse your files</p>
+          <button class="btn-secondary">Choose file</button>
+        </div>
+
+        <div class="upload-hint">
+          PDF files only · Max 10MB &nbsp;·&nbsp;
+          Don't have your transcript yet?
+          <a href="#" onclick="return false;">Download it from Path@Penn →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Review ── -->
+    <div id="step-2" style="display:none;">
+      <div class="card">
+
+        <div class="correction-banner">
+          <span>⚠️</span>
+          <div>
+            <strong>Heads up:</strong> We couldn't confidently identify 1 course.
+            Click <strong>Fix</strong> on any row to let us re-analyze it with more context.
+          </div>
+        </div>
+
+        <div class="review-header">
+          <div>
+            <h2>Review your courses</h2>
+            <div class="review-meta" style="margin-top:3px;">
+              Found <strong>18 courses</strong> across <strong>4 terms</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Course Code</th>
+                <th>Course Name</th>
+                <th>Credits</th>
+                <th>Grade</th>
+                <th>Term</th>
+                <th>Cross-listed As</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="course-code">MGMT 6110</td>
+                <td>Foundations of Teamwork &amp; Leadership</td>
+                <td>1.0</td>
+                <td><span class="grade-pill grade-a">A</span></td>
+                <td>Fall 2024</td>
+                <td>—</td>
+                <td>
+                  <button class="action-btn edit" title="Fix with AI">✦ Fix</button>
+                  <button class="action-btn" title="Remove">✕</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="course-code">FNCE 6110</td>
+                <td>Corporate Finance</td>
+                <td>1.0</td>
+                <td><span class="grade-pill grade-a">A−</span></td>
+                <td>Fall 2024</td>
+                <td>—</td>
+                <td>
+                  <button class="action-btn edit" title="Fix with AI">✦ Fix</button>
+                  <button class="action-btn" title="Remove">✕</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="course-code">STAT 6130</td>
+                <td>Regression Analysis for Business</td>
+                <td>1.0</td>
+                <td><span class="grade-pill grade-a">B+</span></td>
+                <td>Fall 2024</td>
+                <td><span class="cross-tag">OIDD 6130</span></td>
+                <td>
+                  <button class="action-btn edit" title="Fix with AI">✦ Fix</button>
+                  <button class="action-btn" title="Remove">✕</button>
+                </td>
+              </tr>
+              <tr style="background:#fffbeb;">
+                <td class="course-code" style="color:#92400e;">MKTG ???</td>
+                <td style="color:#92400e; font-style:italic;">Could not parse — text unclear</td>
+                <td>—</td>
+                <td>—</td>
+                <td>Spring 2025</td>
+                <td>—</td>
+                <td>
+                  <button class="action-btn edit" title="Fix with AI" style="color:#d97706; background:#fef3c7;">✦ Fix</button>
+                  <button class="action-btn" title="Remove">✕</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="course-code">OIDD 6150</td>
+                <td>Enabling Technologies</td>
+                <td>1.0</td>
+                <td><span class="grade-pill grade-a">A</span></td>
+                <td>Spring 2025</td>
+                <td><span class="cross-tag">EAS 5920</span></td>
+                <td>
+                  <button class="action-btn edit" title="Fix with AI">✦ Fix</button>
+                  <button class="action-btn" title="Remove">✕</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="course-code">WHCP 6110</td>
+                <td>Communication for Leaders</td>
+                <td>0.5</td>
+                <td><span class="grade-pill grade-a">A</span></td>
+                <td>Spring 2025</td>
+                <td>—</td>
+                <td>
+                  <button class="action-btn edit" title="Fix with AI">✦ Fix</button>
+                  <button class="action-btn" title="Remove">✕</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="review-actions">
+          <button class="link-btn" onclick="showStep(1, document.querySelectorAll('.demo-btn')[0])">
+            ← Re-upload transcript
+          </button>
+          <button class="btn-primary" onclick="showStep(3, document.querySelectorAll('.demo-btn')[2])">
+            Looks right &nbsp;→
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 3: Confirm ── -->
+    <div id="step-3" style="display:none;">
+      <div class="card">
+        <div class="confirm-check">✓</div>
+        <div class="confirm-title">Transcript imported</div>
+        <div class="confirm-sub">Here's a summary of what we found.</div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="num">18</div>
+            <div class="lbl">Courses</div>
+          </div>
+          <div class="stat-card">
+            <div class="num">17.5</div>
+            <div class="lbl">Credits earned</div>
+          </div>
+          <div class="stat-card">
+            <div class="num">4</div>
+            <div class="lbl">Terms</div>
+          </div>
+          <div class="stat-card">
+            <div class="num">3</div>
+            <div class="lbl">Cross-listings</div>
+          </div>
+        </div>
+
+        <div class="next-up">
+          <div class="next-up-header">Coming next</div>
+          <div class="next-up-item">
+            <div class="next-up-dot"></div>
+            <span>Degree &amp; major requirement mapping</span>
+            <span class="badge">Coming soon</span>
+          </div>
+          <div class="next-up-item">
+            <div class="next-up-dot"></div>
+            <span>Schedule builder &amp; conflict detection</span>
+            <span class="badge">Coming soon</span>
+          </div>
+          <div class="next-up-item">
+            <div class="next-up-dot"></div>
+            <span>Bidding guidance &amp; clearing price history</span>
+            <span class="badge">Coming soon</span>
+          </div>
+        </div>
+
+        <div class="reupload-row">
+          Transcript changed? <a onclick="showStep(1, document.querySelectorAll('.demo-btn')[0])">Re-upload here</a>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+
+  <script>
+    function showStep(n, btn) {
+      // Hide all steps
+      [1,2,3].forEach(i => {
+        document.getElementById('step-' + i).style.display = 'none';
+        document.getElementById('si-' + i).className = 'step';
+        document.getElementById('sc-' + i).textContent = i;
+      });
+
+      // Mark done steps
+      for (let i = 1; i < n; i++) {
+        document.getElementById('si-' + i).className = 'step done';
+        document.getElementById('sc-' + i).textContent = '✓';
+      }
+
+      // Mark active step
+      document.getElementById('step-' + n).style.display = '';
+      document.getElementById('si-' + n).className = 'step active';
+
+      // Update demo buttons
+      document.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  </script>
+
+</body>
+</html>
