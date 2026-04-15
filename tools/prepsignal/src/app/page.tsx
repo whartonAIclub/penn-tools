@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import FeedbackCard from "@/components/FeedbackCard";
 import Dashboard from "@/components/Dashboard";
 import DrillsPanel from "@/components/DrillsPanel";
-import { loadSessions, saveSession } from "@/lib/storage";
+import { loadSessions, saveSession, deleteSession } from "@/lib/storage";
 import type { StoredSession } from "@/lib/storage";
 import type { SessionResult } from "@/lib/types";
 
@@ -78,6 +78,7 @@ export default function Home() {
   const [content, setContent] = useState("");
   const [caseType, setCaseType] = useState("");
   const [industry, setIndustry] = useState("");
+  const [sessionLabel, setSessionLabel] = useState("");
   const [scoringState, setScoringState] = useState<ScoringState>("input");
   const [missingDims, setMissingDims] = useState<string[]>([]);
   const [result, setResult] = useState<SessionResult | null>(null);
@@ -121,7 +122,7 @@ export default function Home() {
         return;
       }
 
-      const stored = saveSession(data, caseType, industry);
+      const stored = saveSession(data, caseType, industry, sessionLabel);
       setSessions(loadSessions());
       setResult(data);
       setScoringState("result");
@@ -132,9 +133,15 @@ export default function Home() {
     }
   }
 
+  function handleDelete(id: string) {
+    deleteSession(id);
+    setSessions(loadSessions());
+  }
+
   function handleReset() {
     setScoringState("input");
     setContent("");
+    setSessionLabel("");
     setResult(null);
     setErrorMsg("");
     setMissingDims([]);
@@ -367,10 +374,69 @@ export default function Home() {
                     </select>
                   </div>
                 </div>
+                <div style={{ marginBottom: "14px" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", color: "#555", marginBottom: "6px" }}>
+                    Session label <span style={{ color: "#bbb", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={sessionLabel}
+                    onChange={(e) => setSessionLabel(e.target.value)}
+                    placeholder='e.g. "Mock with Sarah" or "McKinsey M&A prep"'
+                    maxLength={80}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      fontSize: "13px",
+                      border: "1px solid #d4d4d4",
+                      borderRadius: "4px",
+                      background: "#fff",
+                      color: "#222",
+                      outline: "none",
+                      fontFamily: "inherit",
+                      boxSizing: "border-box",
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = "#555")}
+                    onBlur={(e) => (e.target.style.borderColor = "#d4d4d4")}
+                  />
+                </div>
+                <div style={{ marginBottom: "10px" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", color: "#555", marginBottom: "6px" }}>
+                    Session notes
+                  </label>
+                  <label style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "12px",
+                    color: "#555",
+                    cursor: "pointer",
+                    marginBottom: "8px",
+                    padding: "5px 10px",
+                    border: "1px solid #d4d4d4",
+                    borderRadius: "4px",
+                    background: "#fafafa",
+                  }}>
+                    ↑ Upload .txt file
+                    <input
+                      type="file"
+                      accept=".txt"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (ev) => setContent(ev.target?.result as string ?? "");
+                        reader.readAsText(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder={`Paste your case notes here…\n\nMinimum ${MIN_WORDS} words for a reliable score.`}
+                  placeholder={`Paste your case notes here, or upload a .txt file above…\n\nMinimum ${MIN_WORDS} words for a reliable score.`}
                   style={{
                     width: "100%",
                     height: "260px",
@@ -396,13 +462,19 @@ export default function Home() {
                   fontSize: "12px",
                   fontFamily: "monospace",
                   marginBottom: "16px",
-                  color: ready ? "#2d7a2d" : content.length > 0 ? "#b85c00" : "#999",
+                  color: ready ? "#2d7a2d" : content.length > 0 || caseType || industry ? "#b85c00" : "#999",
                 }}>
-                  {content.length > 0
-                    ? ready
-                      ? `${words} words — ready to score`
-                      : `${words} / ${MIN_WORDS} words — add more detail`
-                    : `Minimum ${MIN_WORDS} words`}
+                  {words < MIN_WORDS
+                    ? content.length > 0
+                      ? `${words} / ${MIN_WORDS} words — add more detail`
+                      : `Minimum ${MIN_WORDS} words`
+                    : !caseType && !industry
+                      ? `${words} words — select a case type and industry to continue`
+                      : !caseType
+                        ? `${words} words — select a case type to continue`
+                        : !industry
+                          ? `${words} words — select an industry to continue`
+                          : `${words} words — ready to score`}
                 </div>
 
                 {scoringState === "error" && errorMsg && (
@@ -451,7 +523,7 @@ export default function Home() {
               <p style={{ fontSize: "14px", color: "#999" }}>Most recent session</p>
             </div>
             {result
-              ? <FeedbackCard result={result} onReset={handleReset} />
+              ? <FeedbackCard result={result} onReset={handleReset} sessions={sessions.slice(1)} />
               : <div style={{ color: "#999", fontSize: "14px" }}>No session scored yet.</div>
             }
           </>
@@ -468,7 +540,7 @@ export default function Home() {
                   : "Score your first session to start tracking"}
               </p>
             </div>
-            <Dashboard sessions={sessions} />
+            <Dashboard sessions={sessions} onDelete={handleDelete} />
           </>
         )}
 

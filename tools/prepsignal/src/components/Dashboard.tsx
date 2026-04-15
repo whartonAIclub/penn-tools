@@ -1,7 +1,7 @@
 "use client";
 
 import { DIMENSIONS } from "@/lib/types";
-import { toChartData } from "@/lib/storage";
+import { toChartData, computeMultiSessionPriority } from "@/lib/storage";
 import type { StoredSession } from "@/lib/storage";
 import type { Dimension } from "@/lib/types";
 import SkillRadar from "./SkillRadar";
@@ -9,6 +9,7 @@ import ProgressionChart from "./ProgressionChart";
 
 interface Props {
   sessions: StoredSession[];
+  onDelete: (id: string) => void;
 }
 
 function formatDate(iso: string): string {
@@ -20,20 +21,30 @@ function formatDate(iso: string): string {
 }
 
 function avgOverallScore(sessions: StoredSession[]): string {
-  const total = sessions.reduce((sum, s) => {
-    const sessionAvg = DIMENSIONS.reduce((a, { key }) => a + s.scores[key].score, 0) / DIMENSIONS.length;
-    return sum + sessionAvg;
-  }, 0);
-  return (total / sessions.length).toFixed(1);
+  let total = 0;
+  let count = 0;
+  for (const s of sessions) {
+    for (const { key } of DIMENSIONS) {
+      const dim = s.scores[key];
+      if (dim && !dim.notApplicable) { total += dim.score; count++; }
+    }
+  }
+  return count > 0 ? (total / count).toFixed(1) : "—";
 }
 
 function bestDimension(sessions: StoredSession[]): string {
   const totals: Record<string, number> = {};
-  for (const { key } of DIMENSIONS) totals[key] = 0;
+  const counts: Record<string, number> = {};
+  for (const { key } of DIMENSIONS) { totals[key] = 0; counts[key] = 0; }
   for (const s of sessions) {
-    for (const { key } of DIMENSIONS) totals[key] += s.scores[key].score;
+    for (const { key } of DIMENSIONS) {
+      const dim = s.scores[key];
+      if (dim && !dim.notApplicable) { totals[key] += dim.score; counts[key]++; }
+    }
   }
-  const best = DIMENSIONS.reduce((a, b) => totals[a.key] > totals[b.key] ? a : b);
+  const eligible = DIMENSIONS.filter(({ key }) => counts[key] > 0);
+  if (eligible.length === 0) return "—";
+  const best = eligible.reduce((a, b) => (totals[a.key] / counts[a.key]) >= (totals[b.key] / counts[b.key]) ? a : b);
   return best.label;
 }
 
@@ -44,7 +55,10 @@ function mostImproved(sessions: StoredSession[]): string | null {
   let bestGain = -Infinity;
   let bestLabel = "";
   for (const { key, label } of DIMENSIONS) {
-    const gain = newest.scores[key].score - oldest.scores[key].score;
+    const o = oldest.scores[key];
+    const n = newest.scores[key];
+    if (!o || !n || o.notApplicable || n.notApplicable) continue;
+    const gain = n.score - o.score;
     if (gain > bestGain) { bestGain = gain; bestLabel = label; }
   }
   return bestGain > 0 ? bestLabel : null;
@@ -101,7 +115,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-export default function Dashboard({ sessions }: Props) {
+export default function Dashboard({ sessions, onDelete }: Props) {
   if (sessions.length === 0) {
     return (
       <div style={{
@@ -120,7 +134,8 @@ export default function Dashboard({ sessions }: Props) {
 
   const latest = sessions[0];
   const chartData = toChartData(sessions);
-  const priorityDimension = latest.priority.dimension;
+  const priority = sessions.length >= 2 ? computeMultiSessionPriority(sessions) : latest.priority;
+  const priorityDimension = priority.dimension;
   const improved = mostImproved(sessions);
 
   return (
@@ -132,8 +147,8 @@ export default function Dashboard({ sessions }: Props) {
         <StatCard label="Top strength" value={bestDimension(sessions)} sub="highest avg score" />
         <StatCard
           label={improved ? "Most improved" : "Current focus"}
-          value={improved ?? latest.priority.label}
-          sub={improved ? "since first session" : "needs work"}
+          value={improved ?? priority.label}
+          sub={improved ? "since first session" : sessions.length >= 2 ? "rolling avg · last 3 sessions" : "needs work"}
         />
       </div>
 
@@ -154,7 +169,7 @@ export default function Dashboard({ sessions }: Props) {
             Focus this week
           </div>
           <div style={{ fontSize: "14px", fontWeight: 500, lineHeight: 1.4 }}>
-            <strong>{latest.priority.label}</strong> — {latest.priority.advice}
+            <strong>{priority.label}</strong> — {priority.advice}
           </div>
         </div>
       </div>
@@ -200,7 +215,10 @@ export default function Dashboard({ sessions }: Props) {
         </div>
         <div>
           {sessions.map((session, i) => {
-            const sessionAvg = (DIMENSIONS.reduce((a, { key }) => a + session.scores[key].score, 0) / DIMENSIONS.length).toFixed(1);
+            const scoredDims = DIMENSIONS.filter(({ key }) => session.scores[key] && !session.scores[key].notApplicable);
+            const sessionAvg = scoredDims.length > 0
+              ? (scoredDims.reduce((a, { key }) => a + session.scores[key].score, 0) / scoredDims.length).toFixed(1)
+              : "—";
             return (
               <div key={session.id} style={{
                 display: "flex",
@@ -209,35 +227,70 @@ export default function Dashboard({ sessions }: Props) {
                 padding: "10px 0",
                 borderBottom: i < sessions.length - 1 ? "1px solid #f0f0f0" : "none",
                 fontSize: "13px",
+                gap: "12px",
               }}>
                 <div style={{ minWidth: "120px" }}>
-                  <div style={{ fontWeight: 500, marginBottom: "2px" }}>Session {sessions.length - i}</div>
-                  <div style={{ fontSize: "12px", color: "#999", fontFamily: "monospace" }}>
+                  <div style={{ fontWeight: 500, marginBottom: "2px" }}>
+                    {session.label ?? `Session ${sessions.length - i}`}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#bbb", fontFamily: "monospace" }}>
+                    {session.caseType} · {session.industry}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "#ccc", fontFamily: "monospace" }}>
                     {formatDate(session.createdAt)}
                   </div>
                 </div>
                 <div style={{ fontSize: "12px", fontFamily: "monospace", color: "#555", minWidth: "48px", textAlign: "center" }}>
                   avg {sessionAvg}
                 </div>
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  {DIMENSIONS.map(({ key, label }) => (
-                    <span
-                      key={key}
-                      title={`${label}: ${session.scores[key].score}/5`}
-                      style={{
-                        fontSize: "11px",
-                        fontFamily: "monospace",
-                        padding: "2px 6px",
-                        background: key === session.priority.dimension ? "#1a1a1a" : "#efefef",
-                        color: key === session.priority.dimension ? "#fff" : "#555",
-                        borderRadius: "2px",
-                        cursor: "default",
-                      }}
-                    >
-                      {label.slice(0, 3).toUpperCase()} {session.scores[key].score}
-                    </span>
-                  ))}
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+                  {DIMENSIONS.map(({ key, label }) => {
+                    const dim = session.scores[key];
+                    if (!dim) return null;
+                    const isNA = dim.notApplicable;
+                    const isPriority = key === session.priority.dimension;
+                    return (
+                      <span
+                        key={key}
+                        title={`${label}: ${isNA ? "N/A" : `${dim.score}/5`}`}
+                        style={{
+                          fontSize: "11px",
+                          fontFamily: "monospace",
+                          padding: "2px 6px",
+                          background: isNA ? "#f5f5f5" : isPriority ? "#1a1a1a" : "#efefef",
+                          color: isNA ? "#ccc" : isPriority ? "#fff" : "#555",
+                          borderRadius: "2px",
+                          cursor: "default",
+                        }}
+                      >
+                        {label.slice(0, 3).toUpperCase()} {isNA ? "—" : dim.score}
+                      </span>
+                    );
+                  })}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Delete Session ${sessions.length - i}? This cannot be undone.`)) {
+                      onDelete(session.id);
+                    }
+                  }}
+                  title="Delete session"
+                  style={{
+                    fontSize: "13px",
+                    color: "#ccc",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "2px 4px",
+                    lineHeight: 1,
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#b00")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#ccc")}
+                >
+                  ×
+                </button>
               </div>
             );
           })}

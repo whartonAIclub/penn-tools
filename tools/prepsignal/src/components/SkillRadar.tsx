@@ -16,12 +16,14 @@ interface Props {
 }
 
 export default function SkillRadar({ scores, priority }: Props) {
-  const data = DIMENSIONS.map(({ key, label }) => ({
-    dimension: label,
-    score: scores[key].score,
-    fullMark: 5,
-    isPriority: key === priority,
-  }));
+  const data = DIMENSIONS
+    .filter(({ key }) => scores[key] && !scores[key].notApplicable)
+    .map(({ key, label }) => ({
+      dimension: label,
+      score: scores[key].score,
+      fullMark: 5,
+      isPriority: key === priority,
+    }));
 
   return (
     <ResponsiveContainer width="100%" height={280}>
