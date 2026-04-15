@@ -22,9 +22,6 @@ import rawSections from "../../../../../../tools/1/course-match-static/_sections
 interface CourseOption { courseId: string; title: string; department: string }
 
 interface WizardProps {
-  initialCourses: SavedCourse[];
-  initialDeclaredMajor: string | null;
-  initialWaivers: WaiverEntry[];
   requirementCourses: CourseOption[];
   defaultGuidance: BidGuidance[];
   defaultStoredTerms: string[];
@@ -53,7 +50,6 @@ function toSavedCourse(c: ParsedCourse): SavedCourse {
 // ── Main wizard ────────────────────────────────────────────────────────────────
 
 export function WizardClient({
-  initialCourses, initialDeclaredMajor, initialWaivers,
   requirementCourses, defaultGuidance, defaultStoredTerms, isUsingSeedData,
 }: WizardProps) {
   // Step gating: can only reach step N if step N-1 is done
@@ -62,17 +58,30 @@ export function WizardClient({
     return parseInt(localStorage.getItem("wizard_step") ?? "1", 10) || 1;
   });
   const [maxStep, setMaxStep]         = useState<number>(() => {
-    if (typeof window === "undefined") return initialCourses.length > 0 ? 2 : 1;
-    const saved = parseInt(localStorage.getItem("wizard_max_step") ?? "1", 10) || 1;
-    return Math.max(saved, initialCourses.length > 0 ? 2 : 1);
+    if (typeof window === "undefined") return 1;
+    return parseInt(localStorage.getItem("wizard_max_step") ?? "1", 10) || 1;
   });
 
-  // Step 1 output
-  const [courses, setCourses]         = useState<SavedCourse[]>(initialCourses);
-  const [declaredMajor, setDeclaredMajor] = useState<string | null>(initialDeclaredMajor);
+  // Step 1 output — initialized from localStorage
+  const [courses, setCourses]         = useState<SavedCourse[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("wizard_transcript_courses") ?? "[]") as SavedCourse[]; }
+    catch { return []; }
+  });
+  const [declaredMajor, setDeclaredMajor] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const meta = JSON.parse(localStorage.getItem("wizard_transcript_meta") ?? "null") as { declaredMajor: string | null } | null;
+      return meta?.declaredMajor ?? null;
+    } catch { return null; }
+  });
 
-  // Step 2 output
-  const [waivers, setWaivers]         = useState<WaiverEntry[]>(initialWaivers);
+  // Step 2 output — initialized from localStorage
+  const [waivers, setWaivers]         = useState<WaiverEntry[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(localStorage.getItem("wizard_waivers") ?? "[]") as WaiverEntry[]; }
+    catch { return []; }
+  });
 
   // Step 3 output
   const [selectedMajorId, setSelectedMajorId] = useState<string>(() =>
