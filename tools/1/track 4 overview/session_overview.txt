@@ -1,0 +1,116 @@
+Session Overview — Tool 1, Track 4: Bidding Guidance
+=====================================================
+
+WHAT WAS BUILT
+--------------
+A historical clearing price ingestion and bid guidance module scaffolded in tools/1/src/track4/:
+
+  types.ts      — Shared types: ClearingPriceRecord, BidGuidance, enums
+  sanitize.ts   — Field-level validation and sanitization of raw xlsx data
+  parseXlsx.ts  — SheetJS xlsx parser with flexible column name aliasing
+  store.ts      — Multi-term in-memory store keyed by courseId::section
+  bidEngine.ts  — Linear regression trend + volatility -> safe/competitive/reach tiers
+  ingest.ts     — Orchestrator: parse -> sanitize -> store
+  seedData.ts   — 5 courses x 4 terms of sample data for development
+  index.ts      — Public API surface
+
+Unit tests (43 total) in tools/1/src/track4/__tests__/:
+  bidEngine.test.ts   — 13 tests: tier table, threshold math, edge cases
+  sanitize.test.ts    — 16 tests: valid input, injection protection, field validation
+  store.test.ts       — 14 tests: upsert, sort order, getSectionsForCourse, clearTerm
+
+Also added xlsx (SheetJS) to tools/1/package.json and pushed everything to the tool1-track4test branch.
+
+
+FRONTEND — WHAT WAS BUILT
+--------------------------
+A working frontend for Track 4 lives in apps/web/src/app/tools/1/:
+
+  page.tsx              — Server component; loads persisted records from disk on startup,
+                          falls back to seed data if none exist
+  BidGuidanceSection.tsx — Client component; file upload form + bid guidance cards,
+                           loaded-term pills, seed data warning banner
+  actions.ts            — Server action for file upload: parse xlsx, persist records,
+                          return full guidance + storedTerms to client
+  persistence.ts        — Reads/writes clearing-prices.json in tools/1/data/;
+                          merges on courseId::section::term key
+  guidance.ts           — Pure utility: groups ClearingPriceRecord[] by course/section
+                          and calls computeBidGuidance() for each group
+
+UI features:
+  - Upload form: accepts xlsx file + term label (e.g. "Spring2025")
+  - Bid guidance cards: one per course/section, showing tier, thresholds, trend, volatility
+  - Loaded-term pills: shows which terms are currently reflected in the recommendations
+  - Seed data banner: yellow warning displayed when real data has not yet been uploaded
+  - Data persistence: uploading once stores data for all users across server restarts;
+    old terms are preserved when new ones are uploaded
+
+
+KEY DECISIONS AND TRADEOFFS
+----------------------------
+
+Prompt injection defense — sanitize at the boundary
+  All xlsx data is treated as untrusted external input. String fields are run through a character
+  allowlist ([A-Za-z0-9 .,'\-()&/]+) and length-capped before anything downstream touches them.
+  The rule for LLM usage: only pass structured/numeric fields (courseId, clearingPrice) into
+  prompts — never raw strings like title or instructor.
+
+  Tradeoff: the allowlist will reject legitimate course names with unusual characters (e.g.
+  accented letters, colons). May need to be widened once real data is seen.
+
+  Current status: strict mode is disabled ({ strict: false }) while LLM integration is not
+  active. Re-enable before connecting an LLM.
+
+Multi-term keyed store over single-snapshot
+  Chose Map<courseId::section, ClearingPriceRecord[]> so the bid engine can compute trends and
+  variance across terms rather than just reporting a single price. This is what makes
+  safe/competitive/reach tiers meaningful.
+
+  Tradeoff: the in-memory store resets on server restart. The JSON persistence layer solves this
+  for the frontend, but the store used by Track 2/3 API functions still needs to be re-populated
+  on startup for production.
+
+JSON file persistence (local dev solution)
+  Uploaded records are merged into tools/1/data/clearing-prices.json using a
+  courseId::section::term key. Old terms are never overwritten — only the matching term is
+  replaced when re-uploading. File is read on every page load (server component).
+
+  Tradeoff: this is a local/single-server solution. For production, the Platform team needs to
+  expose a shared database API via ToolContext.
+
+Server action for file upload (no new API routes)
+  Used Next.js Server Actions to handle xlsx upload, staying within the tool team's scope.
+  Tool teams are not permitted to add new API routes under apps/web/src/app/api/.
+
+buildGuidance as a plain utility (guidance.ts)
+  Next.js requires all exports from "use server" files to be async functions. buildGuidance is
+  a pure synchronous utility, so it was moved to guidance.ts (not a server file) and imported
+  by both actions.ts and page.tsx.
+
+parseXlsx exported from track4 public API
+  The web app's server action needs to call parseXlsx directly (to get the raw records before
+  persisting them). parseXlsx was added to tools/1/src/track4/index.ts exports.
+
+
+NEXT STEPS
+----------
+
+Immediate:
+  1. Confirm the real MBA Inside xlsx column names match the aliases in parseXlsx.ts — get a
+     sample file and test against it
+  2. Re-enable strict mode (strict: true) in actions.ts before connecting an LLM
+  3. On server startup, re-populate the in-memory store from clearing-prices.json so that
+     Track 2/3 API functions (getBidGuidance, getBidGuidanceForBundle) work after restart
+
+Track 4 remaining features:
+  - LLM integration: pass bid guidance to the LLM API so it can explain tiers in natural
+    language to the student
+  - Production persistence: replace clearing-prices.json with a Platform database API
+    once the Platform team exposes one
+
+Cross-track coordination needed:
+  - Track 2: call getSectionsForCourse() + getBidGuidance() per recommended course
+  - Track 3: call getBidGuidanceForBundle() once a schedule bundle is generated; attach
+    BidGuidance[] to the bundle before surfacing it to the student
+  - Shared ScheduleBundle type: Tracks 3 and 4 need to agree on a TypeScript interface;
+    should live in tools/1/src/types.ts

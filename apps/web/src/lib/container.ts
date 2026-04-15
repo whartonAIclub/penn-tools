@@ -44,8 +44,8 @@ import type { UserId, User } from "@penntools/core/types";
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
 import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
-import { Tool3 } from "@penntools/tool-3";
-toolRegistry.register(new Tool3());
+// import { Tool3 } from "@penntools/tool-3";
+// toolRegistry.register(new Tool3());
 import { Tool7 } from "@penntools/tool-7";
 toolRegistry.register(new Tool7());
 import { Tool8 } from "@penntools/tool-8";
@@ -54,10 +54,12 @@ import { PennPlannerTool } from "@penntools/tool-penn-planner";
 toolRegistry.register(new PennPlannerTool());
 import { Tool1 } from "@penntools/tool-1";
 toolRegistry.register(new Tool1());
-import { Tool18 } from "@penntools/tool-18";
-toolRegistry.register(new Tool18());
+// import { Tool18 } from "@penntools/tool-18";
+// toolRegistry.register(new Tool18());
 import { AiCompassTool } from "@penntools/tool-ai-compass";
 toolRegistry.register(new AiCompassTool());
+import { PitchCoachTool } from "@penntools/tool-pitch-coach";
+toolRegistry.register(new PitchCoachTool());
 import { PennPrioritiesTool } from "@penntools/tool-penn-priorities";
 toolRegistry.register(new PennPrioritiesTool());
 // ── Resource seeding (fire-and-forget) ────────────────────────────────────────

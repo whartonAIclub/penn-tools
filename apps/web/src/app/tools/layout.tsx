@@ -1,15 +1,38 @@
+"use client";
+
 import Link from "next/link";
+import { useSelectedLayoutSegment, usePathname } from "next/navigation";
 import { ToolInfoButton } from "@/components/layout/ToolInfoButton";
 import styles from "./layout.module.css";
 
 export default function ToolsLayout({ children }: { children: React.ReactNode }) {
+  const segment = useSelectedLayoutSegment();
+  const pathname = usePathname();
+  const isCareerCanvas = segment === "8";
+  const isCareerCanvasLanding = pathname === "/tools/8";
+  const isCareerCanvasSubPage = isCareerCanvas && !isCareerCanvasLanding;
+
+  const backHref = "/";
+  const backLabel = "← AskPenn";
+
   return (
     <div className={styles.container}>
-      <Link href="/" className={styles.back}>← AskPenn</Link>
-      <div className={styles.infoCorner}>
-        <ToolInfoButton />
-      </div>
-      <main className={styles.content}>{children}</main>
+      {!isCareerCanvasSubPage && (
+        <Link
+          href={backHref}
+          className={isCareerCanvas ? `${styles.back} ${styles.backCareerCanvas}` : styles.back}
+        >
+          {backLabel}
+        </Link>
+      )}
+      {!isCareerCanvas && (
+        <div className={styles.infoCorner}>
+          <ToolInfoButton />
+        </div>
+      )}
+      <main className={isCareerCanvas ? `${styles.content} ${styles.contentFullBleed}` : styles.content}>
+        {children}
+      </main>
     </div>
   );
 }

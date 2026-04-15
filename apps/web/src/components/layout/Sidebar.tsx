@@ -91,7 +91,9 @@ export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat, tools }:
           <p className={styles.sectionLabel}>Tools</p>
           {tools.map((tool) => (
             <Link key={tool.id} href={`/tools/${tool.id}`} className={styles.toolItem}>
-              <IconTool />
+              {tool.image && tool.image !== "Default"
+                ? <img src={tool.image} alt="" width={16} height={16} style={{ borderRadius: 3, objectFit: "cover" }} />
+                : <IconTool />}
               <span className={styles.chatTitle}>{tool.title}</span>
             </Link>
           ))}
