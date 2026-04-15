@@ -8,7 +8,7 @@ export class PlatformPlaygroundTool extends Tool<PlatformPlaygroundInput, Platfo
     id: "platform-playground",
     title: "Platform Playground",
     description: "To test Platform APIs",
-    image: "/tools/platform-playground/icon.png",
+    image: "Default",
     contributors: ["Ananya Chandra", "Ritika Agarwal", "Raven Kao"],
     mentor: "Ananya Chandra",
     version: "0.0.1",
