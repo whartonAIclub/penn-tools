@@ -42,14 +42,18 @@ export async function filterCourses(
     const embedding = await embedQuery(query);
     const vectorStr = `[${embedding.join(",")}]`;
 
-    // Cosine similarity search via pgvector
-    // Use extensions.vector to handle Supabase search_path not including extensions schema
-    const results = await prisma.$queryRaw<{ code: string; name: string }[]>`
-      SELECT code, name
-      FROM cc_course_embeddings
-      ORDER BY embedding <=> ${vectorStr}::extensions.vector
-      LIMIT ${maxResults}
-    `;
+    // Cosine similarity search via pgvector.
+    // SET LOCAL search_path adds the extensions schema for this transaction only —
+    // avoids "permission denied for schema extensions" for restricted DB roles.
+    const [, results] = await prisma.$transaction([
+      prisma.$executeRaw`SET LOCAL search_path = public, extensions`,
+      prisma.$queryRaw<{ code: string; name: string }[]>`
+        SELECT code, name
+        FROM cc_course_embeddings
+        ORDER BY embedding <=> ${vectorStr}::vector
+        LIMIT ${maxResults}
+      `,
+    ]);
 
     if (results.length === 0) return "";
 
