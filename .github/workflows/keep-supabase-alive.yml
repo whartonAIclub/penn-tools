@@ -9,7 +9,6 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping DB
-        run: psql "$CC_DATABASE_URL" -c "SELECT 1;"
-        env:
-          CC_DATABASE_URL: ${{ secrets.CC_DATABASE_URL }}
+      - name: Ping via Vercel
+        run: |
+          curl -f https://penn-tools.vercel.app/tools/8/ping
