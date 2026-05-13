@@ -1,0 +1,15 @@
+name: Keep Career Canvas Supabase alive
+
+on:
+  schedule:
+    - cron: '0 8 * * 1,3,5'  # Mon, Wed, Fri at 8am UTC
+  workflow_dispatch:           # allow manual trigger from GitHub Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping DB
+        run: psql "$CC_DATABASE_URL" -c "SELECT 1;"
+        env:
+          CC_DATABASE_URL: ${{ secrets.CC_DATABASE_URL }}
