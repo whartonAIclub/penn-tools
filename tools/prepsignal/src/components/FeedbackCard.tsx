@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { DIMENSIONS } from "@/lib/types";
 import type { SessionResult, Dimension } from "@/lib/types";
 import type { StoredSession } from "@/lib/storage";
@@ -8,6 +9,8 @@ interface Props {
   result: SessionResult;
   onReset: () => void;
   sessions: StoredSession[]; // prior sessions (excludes current)
+  caseType?: string;
+  industry?: string;
 }
 
 function historicalAvg(sessions: StoredSession[], key: Dimension): number | null {
@@ -16,8 +19,34 @@ function historicalAvg(sessions: StoredSession[], key: Dimension): number | null
   return scored.reduce((sum, s) => sum + s.scores[key].score, 0) / scored.length;
 }
 
-export default function FeedbackCard({ result, onReset, sessions }: Props) {
+function buildSummary(result: SessionResult, caseType?: string, industry?: string): string {
+  const lines: string[] = [];
+  lines.push("PrepSignal Score" + (caseType && industry ? ` — ${caseType} · ${industry}` : ""));
+  lines.push("");
+  for (const { key, label } of DIMENSIONS) {
+    const dim = result.scores[key];
+    const value = (!dim || dim.notApplicable) ? "N/A  " : `${dim.score}/5`;
+    lines.push(`${label.padEnd(22)}${value}`);
+  }
+  lines.push("");
+  lines.push(`Focus area: ${result.priority.label}`);
+  lines.push(result.priority.advice);
+  return lines.join("\n");
+}
+
+export default function FeedbackCard({ result, onReset, sessions, caseType, industry }: Props) {
   const { scores, priority } = result;
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(buildSummary(result, caseType, industry));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: select a textarea
+    }
+  }
 
   return (
     <div>
@@ -51,7 +80,7 @@ export default function FeedbackCard({ result, onReset, sessions }: Props) {
       </div>
 
       {/* Score grid */}
-      <div style={{
+      <div className="ps-score-grid" style={{
         display: "grid",
         gridTemplateColumns: "repeat(3, 1fr)",
         gap: "12px",
@@ -61,7 +90,7 @@ export default function FeedbackCard({ result, onReset, sessions }: Props) {
           const dim = scores[key];
           const isPriority = key === priority.dimension;
 
-          if (dim.notApplicable) {
+          if (!dim || dim.notApplicable) {
             return (
               <div key={key} style={{
                 border: "1px solid #e8e8e8",
@@ -169,21 +198,41 @@ export default function FeedbackCard({ result, onReset, sessions }: Props) {
       </div>
 
       {/* Actions */}
-      <button
-        onClick={onReset}
-        style={{
-          padding: "8px 16px",
-          fontSize: "13px",
-          fontWeight: 500,
-          border: "1px solid #d4d4d4",
-          borderRadius: "4px",
-          background: "#fff",
-          cursor: "pointer",
-          color: "#222",
-        }}
-      >
-        ← Score another session
-      </button>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <button
+          onClick={onReset}
+          style={{
+            padding: "8px 16px",
+            fontSize: "13px",
+            fontWeight: 500,
+            border: "1px solid #d4d4d4",
+            borderRadius: "4px",
+            background: "#fff",
+            cursor: "pointer",
+            color: "#222",
+            fontFamily: "inherit",
+          }}
+        >
+          ← Score another session
+        </button>
+        <button
+          onClick={handleCopy}
+          style={{
+            padding: "8px 16px",
+            fontSize: "13px",
+            fontWeight: 500,
+            border: "1px solid #d4d4d4",
+            borderRadius: "4px",
+            background: copied ? "#f0faf0" : "#fff",
+            cursor: "pointer",
+            color: copied ? "#2d7a2d" : "#555",
+            fontFamily: "inherit",
+            transition: "all 0.15s ease",
+          }}
+        >
+          {copied ? "✓ Copied" : "Copy summary"}
+        </button>
+      </div>
     </div>
   );
 }

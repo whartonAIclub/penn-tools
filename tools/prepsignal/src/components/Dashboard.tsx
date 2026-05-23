@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { DIMENSIONS } from "@/lib/types";
 import { toChartData, computeMultiSessionPriority } from "@/lib/storage";
 import type { StoredSession } from "@/lib/storage";
 import type { Dimension } from "@/lib/types";
 import SkillRadar from "./SkillRadar";
 import ProgressionChart from "./ProgressionChart";
+import SessionDetailModal from "./SessionDetailModal";
 
 interface Props {
   sessions: StoredSession[];
@@ -117,6 +119,8 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 }
 
 export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
+  const [selectedSession, setSelectedSession] = useState<StoredSession | null>(null);
+
   if (sessions.length === 0) {
     return (
       <div style={{
@@ -170,8 +174,16 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
 
   return (
     <div>
+      {/* Session detail modal */}
+      {selectedSession && (
+        <SessionDetailModal
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
+        />
+      )}
+
       {/* Stats row */}
-      <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+      <div className="ps-stats-row" style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
         <StatCard label="Sessions" value={String(sessions.length)} sub="total scored" />
         <StatCard label="Avg score" value={avgOverallScore(sessions)} sub="across all dimensions" />
         <StatCard label="Top strength" value={bestDimension(sessions)} sub="highest avg score" />
@@ -205,7 +217,7 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
       </div>
 
       {/* Charts row */}
-      <div style={{
+      <div className="ps-charts-grid" style={{
         display: "grid",
         gridTemplateColumns: "300px 1fr",
         gap: "16px",
@@ -217,7 +229,9 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
           <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", color: "#999", marginBottom: "8px" }}>
             Current skill shape
           </div>
+          <div className="ps-radar-container" style={{ overflow: "hidden" }}>
           <SkillRadar scores={latest.scores} priority={priorityDimension} />
+          </div>
           <div style={{ fontSize: "11px", color: "#999", textAlign: "center", marginTop: "4px" }}>
             Session {sessions.length} · {formatDate(latest.createdAt)}
           </div>
@@ -233,15 +247,18 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
       </div>
 
       {/* Case type & industry breakdown */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+      <div className="ps-breakdown-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
         <BreakdownCard title="Cases by type" sessions={sessions} field="caseType" />
         <BreakdownCard title="Cases by industry" sessions={sessions} field="industry" />
       </div>
 
       {/* Session history */}
       <div style={{ background: "#fff", border: "1px solid #d4d4d4", borderRadius: "4px", padding: "16px 20px" }}>
-        <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", color: "#999", marginBottom: "12px" }}>
+        <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", color: "#999", marginBottom: "4px" }}>
           Session history · {sessions.length} total
+        </div>
+        <div style={{ fontSize: "11px", color: "#bbb", marginBottom: "12px" }}>
+          Click any session to view its full feedback
         </div>
         <div>
           {sessions.map((session, i) => {
@@ -250,15 +267,25 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
               ? (scoredDims.reduce((a, { key }) => a + session.scores[key].score, 0) / scoredDims.length).toFixed(1)
               : "—";
             return (
-              <div key={session.id} style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 0",
-                borderBottom: i < sessions.length - 1 ? "1px solid #f0f0f0" : "none",
-                fontSize: "13px",
-                gap: "12px",
-              }}>
+              <div
+                key={session.id}
+                onClick={() => setSelectedSession(session)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 8px",
+                  marginLeft: "-8px",
+                  marginRight: "-8px",
+                  borderBottom: i < sessions.length - 1 ? "1px solid #f0f0f0" : "none",
+                  fontSize: "13px",
+                  gap: "12px",
+                  cursor: "pointer",
+                  borderRadius: "3px",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f8f8f8")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
                 <div style={{ minWidth: "120px" }}>
                   <div style={{ fontWeight: 500, marginBottom: "2px" }}>
                     {session.label ?? `Session ${sessions.length - i}`}
@@ -273,7 +300,7 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
                 <div style={{ fontSize: "12px", fontFamily: "monospace", color: "#555", minWidth: "48px", textAlign: "center" }}>
                   avg {sessionAvg}
                 </div>
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+                <div className="ps-session-badges" style={{ display: "flex", gap: "6px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
                   {DIMENSIONS.map(({ key, label }) => {
                     const dim = session.scores[key];
                     if (!dim) return null;
@@ -300,8 +327,9 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (confirm(`Delete Session ${sessions.length - i}? This cannot be undone.`)) {
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete this session? This cannot be undone.`)) {
                       onDelete(session.id);
                     }
                   }}

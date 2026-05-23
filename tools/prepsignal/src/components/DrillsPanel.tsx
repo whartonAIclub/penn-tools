@@ -207,7 +207,7 @@ export default function DrillsPanel({ sessions, onGoScore }: Props) {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
           {plan.skillBreakdown.map((dim, i) => (
-            <div key={dim.dimension} style={{
+            <div key={dim.dimension} className="ps-skill-row" style={{
               display: "grid",
               gridTemplateColumns: "160px 90px 50px 24px 1fr",
               alignItems: "center",
@@ -219,7 +219,7 @@ export default function DrillsPanel({ sessions, onGoScore }: Props) {
               <LevelBadge level={dim.level} />
               <span style={{ fontSize: "12px", fontFamily: "monospace", color: "#555" }}>{dim.avgScore.toFixed(1)}/5</span>
               <TrendArrow trend={dim.trend} />
-              <span style={{ fontSize: "12px", color: "#777", lineHeight: 1.4 }}>{dim.gaps}</span>
+              <span className="ps-skill-gaps" style={{ fontSize: "12px", color: "#777", lineHeight: 1.4 }}>{dim.gaps}</span>
             </div>
           ))}
         </div>

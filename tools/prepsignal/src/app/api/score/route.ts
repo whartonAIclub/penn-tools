@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scoreSession } from "@/lib/score";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const MIN_WORDS = 200;
 
@@ -8,6 +9,15 @@ function countWords(text: string): number {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = checkRateLimit(`score:${ip}`, { limit: 10, windowMs: 60 * 60 * 1000 }); // 10/hour
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. You've hit the 10 sessions/hour limit — try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+
   let body: { content?: string; caseType?: string; industry?: string; missingDimensions?: string[] };
   try {
     body = await req.json();

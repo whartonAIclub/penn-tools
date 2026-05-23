@@ -128,7 +128,7 @@ ${schemaLines}
 }`;
 
   const message = await client.messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-sonnet-4-6",
     max_tokens: 1024,
     system: dynamicPrompt,
     messages: [{ role: "user", content: `Case type: ${caseType}\nIndustry: ${industry}\n\nScore this case interview session:\n\n${content}` }],

@@ -1,0 +1,10 @@
+{
+  "name": "PrepSignal",
+  "description": "AI-powered case prep intelligence layer that uses pattern recognition to consolidate progress and generate practice recommendations",
+  "category": "Recruiting",
+  "builders": ["Ryan Sheehan", "Zoya Ali", "Abhishek Jonnavittula"],
+  "mentor": "Sanjana",
+  "version": "0.1.0",
+  "inceptionDate": "2026-03-18",
+  "latestReleaseDate": "2026-03-23"
+}

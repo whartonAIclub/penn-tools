@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { checkRateLimit } from "@/lib/rateLimit";
 import type { StoredSession } from "@/lib/storage";
 import type { DrillPlan } from "@/lib/types";
 
@@ -92,6 +93,15 @@ CRITICAL: Respond ONLY with valid JSON. No markdown, no preamble. Keep all strin
 }`;
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = checkRateLimit(`drills:${ip}`, { limit: 5, windowMs: 60 * 60 * 1000 }); // 5/hour
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+
   let body: { sessions?: StoredSession[] };
   try {
     body = await req.json();
@@ -129,7 +139,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const message = await client.messages.create({
-      model: "claude-opus-4-6",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: JSON.stringify(payload) }],
