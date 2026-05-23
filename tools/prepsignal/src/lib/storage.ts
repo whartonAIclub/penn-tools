@@ -196,6 +196,36 @@ export function computeMultiSessionPriority(sessions: StoredSession[]): SessionR
   return { dimension, label, advice: PRIORITY_ADVICE[dimension] };
 }
 
+export function exportSessions(): void {
+  const sessions = loadSessions();
+  const blob = new Blob([JSON.stringify(sessions, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `prepsignal-sessions-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Returns number of sessions imported (new sessions merged in; duplicates by id skipped).
+export function importSessions(json: string): number {
+  let incoming: StoredSession[];
+  try {
+    incoming = JSON.parse(json);
+    if (!Array.isArray(incoming)) throw new Error();
+  } catch {
+    throw new Error("Invalid file — expected a JSON array of sessions.");
+  }
+  const existing = loadSessions();
+  const existingIds = new Set(existing.map((s) => s.id));
+  const newSessions = incoming.filter((s) => s.id && !existingIds.has(s.id));
+  const merged = [...newSessions, ...existing].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  localStorage.setItem(KEY, JSON.stringify(merged));
+  return newSessions.length;
+}
+
 // Returns data shaped for the Recharts progression chart
 export function toChartData(sessions: StoredSession[]): Record<string, string | number>[] {
   return [...sessions].reverse().map((s, i) => {

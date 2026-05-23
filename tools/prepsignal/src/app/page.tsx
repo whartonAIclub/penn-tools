@@ -298,6 +298,10 @@ export default function Home() {
     setSessions(loadSessions());
   }
 
+  function handleImport() {
+    setSessions(loadSessions());
+  }
+
   function handleReset() {
     setScoringState("input");
     setContent("");
@@ -903,7 +907,7 @@ export default function Home() {
                   : "Score your first session to start tracking"}
               </p>
             </div>
-            <Dashboard sessions={sessions} onDelete={handleDelete} onSeedDemo={handleSeedDemo} />
+            <Dashboard sessions={sessions} onDelete={handleDelete} onSeedDemo={handleSeedDemo} onImport={handleImport} />
           </>
         )}
 

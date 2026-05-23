@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DIMENSIONS } from "@/lib/types";
-import { toChartData, computeMultiSessionPriority } from "@/lib/storage";
+import { toChartData, computeMultiSessionPriority, exportSessions, importSessions } from "@/lib/storage";
 import type { StoredSession } from "@/lib/storage";
 import type { Dimension } from "@/lib/types";
 import SkillRadar from "./SkillRadar";
@@ -13,6 +13,7 @@ interface Props {
   sessions: StoredSession[];
   onDelete: (id: string) => void;
   onSeedDemo?: () => void;
+  onImport?: () => void;
 }
 
 function formatDate(iso: string): string {
@@ -118,8 +119,28 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
+export default function Dashboard({ sessions, onDelete, onSeedDemo, onImport }: Props) {
   const [selectedSession, setSelectedSession] = useState<StoredSession | null>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+
+  function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const count = importSessions(ev.target?.result as string);
+        setImportMsg(count > 0 ? `Imported ${count} session${count !== 1 ? "s" : ""}.` : "No new sessions found.");
+        onImport?.();
+      } catch (err) {
+        setImportMsg(err instanceof Error ? err.message : "Import failed.");
+      }
+      setTimeout(() => setImportMsg(null), 3000);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
 
   if (sessions.length === 0) {
     return (
@@ -254,8 +275,36 @@ export default function Dashboard({ sessions, onDelete, onSeedDemo }: Props) {
 
       {/* Session history */}
       <div style={{ background: "#fff", border: "1px solid #d4d4d4", borderRadius: "4px", padding: "16px 20px" }}>
-        <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", color: "#999", marginBottom: "4px" }}>
-          Session history · {sessions.length} total
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", color: "#999" }}>
+            Session history · {sessions.length} total
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {importMsg && (
+              <span style={{ fontSize: "11px", color: "#555", fontFamily: "monospace" }}>{importMsg}</span>
+            )}
+            <input ref={importRef} type="file" accept=".json" style={{ display: "none" }} onChange={handleImport} />
+            <button
+              type="button"
+              onClick={() => importRef.current?.click()}
+              title="Import sessions from JSON"
+              style={{ fontSize: "11px", padding: "3px 8px", border: "1px solid #d4d4d4", borderRadius: "3px", background: "#fafafa", cursor: "pointer", color: "#555" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; e.currentTarget.style.borderColor = "#bbb"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#d4d4d4"; }}
+            >
+              Import
+            </button>
+            <button
+              type="button"
+              onClick={exportSessions}
+              title="Export sessions as JSON"
+              style={{ fontSize: "11px", padding: "3px 8px", border: "1px solid #d4d4d4", borderRadius: "3px", background: "#fafafa", cursor: "pointer", color: "#555" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; e.currentTarget.style.borderColor = "#bbb"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#d4d4d4"; }}
+            >
+              Export
+            </button>
+          </div>
         </div>
         <div style={{ fontSize: "11px", color: "#bbb", marginBottom: "12px" }}>
           Click any session to view its full feedback
