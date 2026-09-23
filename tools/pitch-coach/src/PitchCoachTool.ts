@@ -9,7 +9,7 @@ export class PitchCoachTool extends Tool<PitchCoachInput, PitchCoachOutput> {
     title: "PitchCoach AI",
     description:
       "Practice behavioral interviews and networking pitches with AI-powered feedback on delivery, STAR framework adherence, and communication clarity.",
-    image: "/tools/pitch-coach/icon.png",
+    image: "Default",
     contributors: ["Tony Sui", "Hannah Gao", "Ariana Katsanis", "Chithira Mamallan"],
     mentor: "Wharton AI & Analytics Club",
     version: "0.1.0",

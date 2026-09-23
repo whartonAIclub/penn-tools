@@ -20,17 +20,42 @@
   right: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 16px;
+  justify-content: flex-end;
+  padding: 20px 24px;
   pointer-events: none;
   z-index: 10;
 }
 
-.title {
-  margin: 0;
-  font-size: 1rem;
+.githubLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 2.1rem;
+  padding: 0 0.85rem;
+  color: #f5f7fb;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  box-shadow: 0 10px 28px rgba(15, 45, 115, 0.16);
+  pointer-events: auto;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+  text-decoration: none;
+}
+
+.githubLink:hover {
+  background: #163983;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.githubIcon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.githubText {
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text);
   letter-spacing: -0.01em;
 }
 
@@ -45,12 +70,36 @@
   padding: 0 24px 80px;
 }
 
+.taglineWrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .tagline {
   font-size: 3rem;
   font-weight: 700;
   color: var(--penn-blue);
   letter-spacing: -0.03em;
   margin: 0 0 32px;
+}
+
+.betaSticker {
+  position: absolute;
+  top: -0.35rem;
+  right: -3.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.45rem;
+  height: 1.4rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f5f3ef 0%, #ebe7df 100%);
+  color: #667a90;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 /* Active chat: input pinned to bottom */

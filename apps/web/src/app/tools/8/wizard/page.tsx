@@ -9,6 +9,7 @@ import {
   actionSaveRoadmap,
   actionLoadLatestRoadmap,
 } from "../actions";
+import { AuthModal, saveProfile, PROFILE_KEY, type CCProfile } from "../AuthModal";
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const navy = "#0F1D3A";
@@ -209,7 +210,7 @@ function MarkdownBody({ body }: { body: string }) {
   );
 }
 
-function ResultsView({ markdown, onRestart, hasScenario, isGuest }: { markdown: string; onRestart: () => void; hasScenario: boolean; isGuest: boolean }) {
+function ResultsView({ markdown, onRestart, hasScenario, isGuest, onSignIn }: { markdown: string; onRestart: () => void; hasScenario: boolean; isGuest: boolean; onSignIn: () => void }) {
   const sections = parseResultSections(markdown).filter((s) => {
     if (!hasScenario && s.title.toLowerCase().includes("what-if")) return false;
     return true;
@@ -250,7 +251,10 @@ function ResultsView({ markdown, onRestart, hasScenario, isGuest }: { markdown: 
         {isGuest && (
           <div className="cc-print-hide" style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FCD34D", color: "#92400E", fontSize: 14, lineHeight: 1.5 }}>
             <strong>You&apos;re in guest mode</strong> — your roadmap won&apos;t be stored online. Use the <strong>Save as PDF</strong> button on the right to keep a copy, or{" "}
-            <a href="/tools/8" style={{ color: "#92400E", fontWeight: 600, textDecoration: "underline" }}>sign in with your Penn email</a>{" "}
+            <button type="button" onClick={onSignIn}
+              style={{ background: "none", border: "none", padding: 0, color: "#92400E", fontWeight: 600, textDecoration: "underline", cursor: "pointer", fontSize: "inherit" }}>
+              sign in with your Penn email
+            </button>{" "}
             to save it to your profile and access it any time.
           </div>
         )}
@@ -299,23 +303,36 @@ function ResultsView({ markdown, onRestart, hasScenario, isGuest }: { markdown: 
   );
 }
 
-interface CCProfile { id: string; name: string; email: string; }
-
 // ── Main wizard page ───────────────────────────────────────────────────────
 export default function WizardPage() {
   const router = useRouter();
 
   const [profile, setProfile] = useState<CCProfile | null>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [step, setStep] = useState<WizardStep>(1);
   const [plan, setPlan] = useState<PlanState>({ status: "idle" });
   const [stepError, setStepError] = useState("");
+
+  // Called when a guest signs in from the results page
+  async function handleSignIn(p: CCProfile) {
+    saveProfile(p);
+    sessionStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    setProfile(p);
+    setIsGuest(false);
+    setShowAuthModal(false);
+    // Save wizard answers and roadmap to DB under their new profile
+    try { await actionSaveWizardAnswers(p.id, { school, major, year, coursework, interests, resumeText, linkedinText, targetRoles, scenarioNotes }); } catch { /* non-blocking */ }
+    if (plan.status === "ok") {
+      try { await actionSaveRoadmap(p.id, plan.markdown); } catch { /* non-blocking */ }
+    }
+  }
 
   // Load profile + restore saved answers and roadmap from DB
   useEffect(() => {
     async function init() {
       try {
-        const raw = sessionStorage.getItem("cc_profile");
+        const raw = sessionStorage.getItem(PROFILE_KEY);
         if (!raw) { setIsGuest(true); return; }
         const p = JSON.parse(raw) as CCProfile;
         setProfile(p);
@@ -515,6 +532,15 @@ export default function WizardPage() {
       minHeight: "100vh", background: cream,
       fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     }}>
+      {showAuthModal && (
+        <AuthModal
+          mode="profile-only"
+          onClose={() => setShowAuthModal(false)}
+          onGuest={() => setShowAuthModal(false)}
+          onProfile={handleSignIn}
+        />
+      )}
+
       {/* Top bar */}
       <div style={{
         background: cream, borderBottom: "1px solid #EAE5DC",
@@ -739,7 +765,7 @@ export default function WizardPage() {
 
         {/* Results */}
         {step === "results" && plan.status === "ok" && (
-          <ResultsView markdown={plan.markdown} onRestart={restart} hasScenario={!!scenarioNotes.trim()} isGuest={isGuest} />
+          <ResultsView markdown={plan.markdown} onRestart={restart} hasScenario={!!scenarioNotes.trim()} isGuest={isGuest} onSignIn={() => setShowAuthModal(true)} />
         )}
       </div>
     </div>

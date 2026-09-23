@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { saveWaivers } from "../waiversActions";
 import type { WaiverEntry } from "../waiversPersistence";
 
 interface CourseOption {
@@ -27,12 +26,13 @@ function newRow(): Row {
 export function WaiversEditor({
   courses,
   initial,
+  onComplete,
 }: {
   courses: CourseOption[];
   initial: WaiverEntry[];
+  onComplete?: (waivers: WaiverEntry[]) => void;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
 
   const [rows, setRows] = useState<Row[]>(() =>
     initial.length > 0
@@ -59,10 +59,10 @@ export function WaiversEditor({
 
   const handleSave = () => {
     const valid = rows.filter((r) => r.courseId !== "");
-    startTransition(async () => {
-      await saveWaivers(valid.map((r) => ({ courseId: r.courseId, type: r.type })));
-      router.push("/tools/1/requirements");
-    });
+    const entries = valid.map((r) => ({ courseId: r.courseId, type: r.type }));
+    localStorage.setItem("wizard_waivers", JSON.stringify(entries));
+    if (onComplete) onComplete(entries);
+    else router.push("/tools/1/requirements");
   };
 
   const getSuggestions = (row: Row) => {
@@ -226,14 +226,13 @@ export function WaiversEditor({
         </button>
         <button
           onClick={handleSave}
-          disabled={isPending}
           style={{
             padding: "10px 28px", background: "#011F5B", color: "#fff",
             border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600,
-            cursor: isPending ? "not-allowed" : "pointer", opacity: isPending ? 0.7 : 1,
+            cursor: "pointer",
           }}
         >
-          {isPending ? "Saving…" : "Save & view requirements →"}
+          Save & view requirements →
         </button>
       </div>
     </div>

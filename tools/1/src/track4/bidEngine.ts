@@ -17,7 +17,7 @@ export function computeBidGuidance(
   const stdDev       = computeStdDev(prices, averagePrice);
   const trend        = computeTrend(prices);
   const volatility   = computeVolatility(prices, averagePrice);
-  const tier         = determineTier(trend, volatility);
+  const tier         = history.length < MIN_TERMS_FOR_TREND ? "new" : determineTier(trend, volatility);
   const slope        = computeSlope(prices);
   const projectedPrice = clamp(Math.round((prices[prices.length - 1] ?? averagePrice) + slope));
 

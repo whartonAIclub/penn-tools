@@ -48,6 +48,34 @@ function lookupGuidance(sec: Section, guidance: BidGuidance[]): BidGuidance | un
   return guidance.find(g => g.courseId === cid && g.section === num);
 }
 
+function recommendBid(g: BidGuidance): { amount: number; rationale: string } {
+  // Safe courses: bidding competitive threshold saves points without risk.
+  // Competitive/reach/new: bid at the safe threshold to maximise chance of getting in.
+  const amount = g.tier === "safe" ? g.thresholds.competitive : g.thresholds.safe;
+
+  const tierNote: Record<string, string> = {
+    safe:        "Low competition — bid at the competitive threshold to save points.",
+    competitive: "Medium competition — bid at the safe threshold to secure your spot.",
+    reach:       "High competition — bid at the safe threshold; this course is in demand.",
+    new:         "No strong trend yet — using the projected price as a baseline.",
+  };
+  const trendNote =
+    g.trend === "rising"  ? " Prices are trending up — consider adding a small buffer above this." :
+    g.trend === "falling" ? " Prices are trending down — you may not need to overbid." : "";
+
+  return { amount, rationale: (tierNote[g.tier] ?? "") + trendNote };
+}
+
+function tierBadge(tier: string): { bg: string; color: string; label: string } {
+  const map: Record<string, { bg: string; color: string; label: string }> = {
+    safe:        { bg: "#d4edda", color: "#155724", label: "Safe" },
+    competitive: { bg: C.navy100, color: C.navy700, label: "Competitive" },
+    reach:       { bg: "#fff3cd", color: "#856404", label: "Reach" },
+    new:         { bg: "#e2e3e5", color: "#41464b", label: "New" },
+  };
+  return map[tier] ?? { bg: "#e2e3e5", color: "#41464b", label: "New" };
+}
+
 // ── Color map ────────────────────────────────────────────────────────
 
 function buildColorMap(sections: Section[]): Record<string, number> {
@@ -261,9 +289,10 @@ function LegendRow({ sec, colorMap, guidance }: {
 
 // ── Schedule option card ─────────────────────────────────────────────
 
-function ScheduleCard({ sol, idx, colorMap, guidance }: {
+function ScheduleCard({ sol, idx, colorMap, guidance, onSelect }: {
   sol: ScheduleSolution; idx: number;
   colorMap: Record<string, number>; guidance: BidGuidance[];
+  onSelect: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -288,6 +317,11 @@ function ScheduleCard({ sol, idx, colorMap, guidance }: {
             style={{ border:`1px solid ${C.navy700}`, background:C.white, color:C.navy700,
               borderRadius:8, padding:"10px 16px", fontSize:14, cursor:"pointer" }}>
             Expand
+          </button>
+          <button onClick={onSelect}
+            style={{ border:`1px solid ${C.navy700}`, background:C.navy700, color:C.white,
+              borderRadius:8, padding:"10px 16px", fontSize:14, cursor:"pointer", fontWeight:600 }}>
+            Select &amp; plan bids →
           </button>
         </div>
       </div>
@@ -336,6 +370,133 @@ function ScheduleCard({ sol, idx, colorMap, guidance }: {
   );
 }
 
+// ── Bid plan panel (Step 4) ──────────────────────────────────────────
+
+function BidPlanPanel({ sol, guidance, onBack }: {
+  sol: ScheduleSolution;
+  guidance: BidGuidance[];
+  onBack: () => void;
+}) {
+  const colorMap = buildColorMap(sol.sections);
+  const rows = sol.sections.map(sec => ({ sec, g: lookupGuidance(sec, guidance) }));
+  const withData = rows.filter(r => r.g);
+  const totalRec = withData.reduce((sum, r) => sum + recommendBid(r.g!).amount, 0);
+
+  return (
+    <div style={{ maxWidth:900, margin:"0 auto", padding:16,
+      fontFamily:"Inter, Segoe UI, Arial, sans-serif", color:C.text }}>
+      <WizardNav step={4} />
+
+      <div style={{ background:C.white, border:`1px solid ${C.gray300}`,
+        borderRadius:12, padding:20, marginBottom:20 }}>
+        <h2 style={{ margin:"0 0 6px", color:C.navy900 }}>Bid Plan</h2>
+        <p style={{ margin:"0 0 20px", color:C.sub, fontSize:14 }}>
+          Recommended bids for your selected schedule, based on historical clearing prices.
+        </p>
+
+        {/* Mini schedule grid */}
+        <div style={{ marginBottom:24 }}>
+          <WeeklyGrid sections={sol.sections} colorMap={colorMap} />
+        </div>
+
+        {/* Per-course bid recommendations */}
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {rows.map(({ sec, g }) => {
+            const col = hue(colorMap[sec.sectionId] ?? 0);
+
+            if (!g) return (
+              <div key={sec.sectionId} style={{ border:`1px solid ${C.gray300}`,
+                borderRadius:10, padding:"16px 18px", display:"flex", gap:14 }}>
+                <span style={{ width:16, height:16, borderRadius:4, flexShrink:0, marginTop:3,
+                  background:col.bg, border:`1px solid ${col.border}`, display:"inline-block" }} />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, fontSize:14, color:C.navy900 }}>{sec.courseTitle}</div>
+                  <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>
+                    {sec.courseId} · {sec.sectionId} · {sec.days} {sec.time}
+                  </div>
+                  <div style={{ fontSize:12, color:C.muted, marginTop:8, fontStyle:"italic" }}>
+                    No clearing price history — bid carefully.
+                  </div>
+                </div>
+              </div>
+            );
+
+            const rec = recommendBid(g);
+            const tb  = tierBadge(g.tier);
+            return (
+              <div key={sec.sectionId} style={{ border:`1px solid ${C.gray300}`,
+                borderRadius:10, padding:"16px 18px", display:"flex", gap:14 }}>
+                <span style={{ width:16, height:16, borderRadius:4, flexShrink:0, marginTop:3,
+                  background:col.bg, border:`1px solid ${col.border}`, display:"inline-block" }} />
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                    <div style={{ fontWeight:700, fontSize:14, color:C.navy900 }}>{sec.courseTitle}</div>
+                    <span style={{ fontSize:11, fontWeight:700, padding:"2px 9px",
+                      borderRadius:999, background:tb.bg, color:tb.color }}>
+                      {tb.label}
+                    </span>
+                  </div>
+                  <div style={{ fontSize:12, color:C.sub, marginTop:2 }}>
+                    {sec.courseId} · {sec.sectionId} · {sec.days} {sec.time}
+                  </div>
+
+                  <div style={{ marginTop:12, display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
+                    {/* Recommended amount — hero number */}
+                    <div style={{ background:C.navy100, border:`1px solid ${C.navy700}`,
+                      borderRadius:8, padding:"10px 18px", display:"flex",
+                      flexDirection:"column", alignItems:"center", minWidth:110 }}>
+                      <span style={{ fontSize:11, fontWeight:600, color:C.navy700,
+                        textTransform:"uppercase", letterSpacing:"0.04em" }}>Recommended</span>
+                      <span style={{ fontSize:24, fontWeight:800, color:C.navy900, marginTop:2 }}>
+                        {rec.amount} pts
+                      </span>
+                    </div>
+                    {/* Threshold reference pills */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                      <span style={{ fontSize:11, background:"#d4edda", color:"#155724",
+                        padding:"3px 10px", borderRadius:999 }}>Safe ≥{g.thresholds.safe} pts</span>
+                      <span style={{ fontSize:11, background:C.navy100, color:C.navy700,
+                        padding:"3px 10px", borderRadius:999 }}>Competitive ≥{g.thresholds.competitive} pts</span>
+                      <span style={{ fontSize:11, background:"#fff3cd", color:"#856404",
+                        padding:"3px 10px", borderRadius:999 }}>Reach ≥{g.thresholds.reach} pts</span>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize:13, color:C.sub, marginTop:10, lineHeight:1.5 }}>
+                    {rec.rationale}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Total recommended points */}
+        {withData.length > 0 && (
+          <div style={{ marginTop:20, padding:"16px 20px", background:C.navy900,
+            borderRadius:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div>
+              <div style={{ fontSize:13, color:"#93b4e0", fontWeight:600 }}>
+                Total recommended bid points
+              </div>
+              <div style={{ fontSize:11, color:"#6b8bbf", marginTop:2 }}>
+                {withData.length} of {rows.length} course{rows.length !== 1 ? "s" : ""} with historical data
+              </div>
+            </div>
+            <div style={{ fontSize:28, fontWeight:800, color:C.white }}>{totalRec} pts</div>
+          </div>
+        )}
+      </div>
+
+      <button onClick={onBack}
+        style={{ background:C.white, color:C.navy700, border:`1px solid ${C.navy700}`,
+          borderRadius:8, padding:"10px 16px", fontSize:14, cursor:"pointer" }}>
+        ← Back to results
+      </button>
+    </div>
+  );
+}
+
 // ── Wizard nav ───────────────────────────────────────────────────────
 
 function WizardNav({ step }: { step: number }) {
@@ -350,6 +511,10 @@ function WizardNav({ step }: { step: number }) {
       <span style={step===2?a:s}>2. Availability</span>
       <span style={arr}>→</span>
       <span style={step===3?a:s}>3. Results</span>
+      {step === 4 && <>
+        <span style={arr}>→</span>
+        <span style={a}>4. Bid Plan</span>
+      </>}
     </nav>
   );
 }
@@ -361,16 +526,17 @@ const DEPARTMENTS = [...new Set(CATALOG.flatMap(g => g.departments))].sort();
 
 // ── Main component ───────────────────────────────────────────────────
 
-interface Props { guidance: BidGuidance[] }
+interface Props { guidance: BidGuidance[]; initialShortlist?: ShortlistItem[] }
 
-export function SchedulerSection({ guidance }: Props) {
-  const [step, setStep]             = useState(1);
-  const [query, setQuery]           = useState("");
-  const [activeDept, setActiveDept] = useState("ALL");
-  const [shortlist, setShortlist]   = useState<ShortlistItem[]>([]);
-  const [blocked, setBlocked]       = useState<Set<string>>(new Set());
-  const [targetCu, setTargetCu]     = useState(5);
-  const [dragId, setDragId]         = useState<string | null>(null);
+export function SchedulerSection({ guidance, initialShortlist }: Props) {
+  const [step, setStep]                         = useState(1);
+  const [query, setQuery]                       = useState("");
+  const [activeDept, setActiveDept]             = useState("ALL");
+  const [shortlist, setShortlist]               = useState<ShortlistItem[]>(initialShortlist ?? []);
+  const [blocked, setBlocked]                   = useState<Set<string>>(new Set());
+  const [targetCu, setTargetCu]                 = useState(5);
+  const [dragId, setDragId]                     = useState<string | null>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<ScheduleSolution | null>(null);
 
   const shortlistedKeys = useMemo(
     () => new Set(shortlist.map(s => s.courseGroup.groupKey)),
@@ -567,6 +733,16 @@ export function SchedulerSection({ guidance }: Props) {
     </div>
   );
 
+  // ── Step 4: Bid plan ────────────────────────────────────────────
+
+  if (step === 4 && selectedSchedule) return (
+    <BidPlanPanel
+      sol={selectedSchedule}
+      guidance={guidance}
+      onBack={() => setStep(3)}
+    />
+  );
+
   // ── Step 3: Results ─────────────────────────────────────────────
 
   return (
@@ -585,7 +761,8 @@ export function SchedulerSection({ guidance }: Props) {
           <div style={{ display:"flex", flexDirection:"column", gap:28, width:"100%" }}>
             {schedules.map((sol, idx) => (
               <ScheduleCard key={idx} sol={sol} idx={idx}
-                colorMap={buildColorMap(sol.sections)} guidance={guidance} />
+                colorMap={buildColorMap(sol.sections)} guidance={guidance}
+                onSelect={() => { setSelectedSchedule(sol); setStep(4); }} />
             ))}
           </div>
         </div>

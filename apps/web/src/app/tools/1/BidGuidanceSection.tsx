@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import type { BidGuidance, BidTier, Trend } from "@penntools/tool-1/track4";
+import type { BidGuidance, BidTier, ClearingPriceRecord, Trend } from "@penntools/tool-1/track4";
+import { buildGuidance } from "./guidance";
 import { processUploadedFile } from "./actions";
 
 const TIER_STYLES: Record<BidTier, { bg: string; color: string; label: string }> = {
   safe:        { bg: "#dcfce7", color: "#15803d", label: "Safe" },
   competitive: { bg: "#fef9c3", color: "#a16207", label: "Competitive" },
   reach:       { bg: "#fee2e2", color: "#b91c1c", label: "Reach" },
+  new:         { bg: "#f3f4f6", color: "#6b7280", label: "1 term" },
 };
 
 const TREND_ICON: Record<Trend, string> = {
@@ -22,6 +24,14 @@ const TREND_COLOR: Record<Trend, string> = {
   stable:  "#6b7280",
 };
 
+const LS_KEY = "wizard_clearing_prices";
+
+function loadStoredRecords(): ClearingPriceRecord[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "[]") as ClearingPriceRecord[]; }
+  catch { return []; }
+}
+
 interface Props {
   defaultGuidance: BidGuidance[];
   defaultStoredTerms: string[];
@@ -29,9 +39,20 @@ interface Props {
 }
 
 export function BidGuidanceSection({ defaultGuidance, defaultStoredTerms, isUsingSeedData }: Props) {
-  const [guidance, setGuidance]       = useState<BidGuidance[]>(defaultGuidance);
-  const [storedTerms, setStoredTerms] = useState<string[]>(defaultStoredTerms);
-  const [usingSeed, setUsingSeed]     = useState(isUsingSeedData);
+  const [guidance, setGuidance] = useState<BidGuidance[]>(() => {
+    const stored = loadStoredRecords();
+    return stored.length > 0 ? buildGuidance(stored) : defaultGuidance;
+  });
+  const [storedTerms, setStoredTerms] = useState<string[]>(() => {
+    const stored = loadStoredRecords();
+    return stored.length > 0
+      ? [...new Set(stored.map((r) => r.term))].sort()
+      : defaultStoredTerms;
+  });
+  const [usingSeed, setUsingSeed] = useState(() => {
+    return loadStoredRecords().length === 0 ? isUsingSeedData : false;
+  });
+
   const [query, setQuery]             = useState("");
   const [error, setError]             = useState<string | null>(null);
   const [uploadInfo, setUploadInfo]   = useState<{ accepted: number; rejected: number; term: string } | null>(null);
@@ -52,8 +73,19 @@ export function BidGuidanceSection({ defaultGuidance, defaultStoredTerms, isUsin
       if (result.error) {
         setError(result.error);
       } else {
-        setGuidance(result.guidance);
-        setStoredTerms(result.storedTerms);
+        // Merge new records with existing localStorage records
+        const existing = loadStoredRecords();
+        const map = new Map<string, ClearingPriceRecord>();
+        for (const r of [...existing, ...result.records]) {
+          map.set(`${r.courseId}::${r.section}::${r.term}`, r);
+        }
+        const merged = Array.from(map.values());
+        localStorage.setItem(LS_KEY, JSON.stringify(merged));
+
+        const newGuidance = buildGuidance(merged);
+        const newTerms = [...new Set(merged.map((r) => r.term))].sort();
+        setGuidance(newGuidance);
+        setStoredTerms(newTerms);
         setUsingSeed(false);
         setUploadInfo({
           accepted: result.accepted,

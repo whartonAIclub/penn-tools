@@ -10,9 +10,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 import type { ClearingPriceRecord } from "@penntools/tool-1/track4";
 
-// Resolves to tools/1/data/clearing-prices.json from the repo root.
-// process.cwd() is the repo root when running `pnpm dev` from there.
-const DATA_DIR  = join(process.cwd(), "tools", "1", "data");
+// Resolves relative to this file: apps/web/src/app/tools/1/persistence.ts
+// → go up 6 levels to repo root → tools/1/data/clearing-prices.json
+const DATA_DIR  = join(__dirname, "..", "..", "..", "..", "..", "..", "tools", "1", "data");
 const DATA_FILE = join(DATA_DIR, "clearing-prices.json");
 
 export function loadPersistedRecords(): ClearingPriceRecord[] {
