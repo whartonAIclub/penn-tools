@@ -6,6 +6,7 @@ export {
   buildUserMessageForCareerCanvas,
 } from "./careerPrompt.js";
 export {
+  ccDb,
   upsertUser,
   findUserByEmail,
   saveWizardAnswers,

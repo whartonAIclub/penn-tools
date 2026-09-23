@@ -13,7 +13,7 @@ export class Tool8 extends Tool<Tool8Input, Tool8Output> {
     title: "Career Canvas",
     description:
       "An AI Powered Course, Major and Career Planner which identifies interests and skill gaps and builds a course roadmap for students",
-    image: "Default",
+    image: "/tools/8/icon.png",
     contributors: [
       "Ritika Agarwal",
       "Dee Xie",
