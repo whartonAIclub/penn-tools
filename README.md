@@ -18,7 +18,7 @@ The setup script handles everything: installs dependencies, builds packages, spi
 | pnpm | 9 | `npm install -g pnpm` |
 | Docker | any | https://docs.docker.com/get-docker |
 
-Docker is optional — without it, set `DATABASE_URL` in `apps/web/.env.local` manually and run `pnpm --filter @penntools/platform db:push` before starting.
+Docker is optional — without it, set `DATABASE_URL` in `apps/web/.env.local` manually and run `pnpm --filter @penntools/platform db:deploy` before starting (applies the schema and sets up tool databases).
 
 ### Environment variables
 
@@ -63,9 +63,26 @@ pnpm build                                    # production build
 pnpm typecheck                                # TypeScript check
 pnpm lint                                     # ESLint
 
-pnpm --filter @penntools/platform db:push     # apply schema changes
+pnpm --filter @penntools/platform db:deploy   # apply schema changes + tool databases
 pnpm --filter @penntools/platform db:migrate  # create a new migration
 ```
+
+## Deploying
+
+The app runs on [Railway](https://railway.com), configured by `railway.json`. On each push to the tracked branch, Railway:
+
+1. **Builds** the web app and every package it depends on.
+2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, then creates each tool's database role and schema and applies its migrations (see `packages/platform/scripts/setup-tools.mjs`). If this fails, the previous version keeps serving.
+3. **Starts** the app with `next start`.
+
+The database is Railway's pgvector Postgres template (the platform schema needs the `vector` extension). Set these variables on the app service:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `${{pgvector.DATABASE_URL}}` — a reference to the database service |
+| `OPENAI_API_KEY` | Your OpenAI key (chat and semantic search) |
+| `PORT` | `3000` — the port the public domain targets |
+| `NEXT_PUBLIC_APP_URL` | The app's public URL; baked in at build time, so redeploy after changing it |
 
 ## Adding a tool
 

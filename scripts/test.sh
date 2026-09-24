@@ -34,43 +34,52 @@ check_version node 20
 check_version pnpm 9
 success "node $(node --version), pnpm $(pnpm --version)"
 
+start_docker_desktop() {
+  docker desktop start &>/dev/null && return 0            # Docker Desktop 4.37+
+  [[ "$OSTYPE" == "darwin"* ]] && open -a Docker &>/dev/null && return 0
+  return 1
+}
+
 if ! command -v docker &>/dev/null; then
   warn "Docker not found — skipping Postgres setup."
   warn "Install it with: $(install_hint docker)"
   SKIP_DOCKER=1
-elif ! docker info &>/dev/null; then
-  warn "Docker is installed but the daemon isn't running."
-  warn "Open Docker Desktop, wait for it to start, then re-run this script."
-  SKIP_DOCKER=1
 else
-  success "docker $(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
-  SKIP_DOCKER=0
+  if ! docker info &>/dev/null; then
+    info "Docker isn't running — starting Docker Desktop..."
+    if start_docker_desktop; then
+      for _ in $(seq 1 60); do
+        docker info &>/dev/null && break
+        sleep 2
+      done
+    fi
+  fi
+  if docker info &>/dev/null; then
+    success "docker $(docker --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    SKIP_DOCKER=0
+  else
+    warn "Couldn't start Docker automatically."
+    warn "Open Docker Desktop, wait for it to start, then re-run this script."
+    SKIP_DOCKER=1
+  fi
 fi
 
-# ── 2. Install dependencies ───────────────────────────────────────────────────
-info "Installing workspace dependencies..."
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-success "Dependencies installed."
-
-# ── 3. Build packages (Next.js resolves workspace deps from dist/) ────────────
-info "Building @penntools/core..."
-pnpm --filter @penntools/core build
-info "Building @penntools/platform..."
-pnpm --filter @penntools/platform build
-info "Building tools..."
-pnpm --filter "@penntools/tool-*" build
-success "Packages built."
-
-# ── 4. Postgres via Docker ────────────────────────────────────────────────────
+# ── 2. Postgres via Docker ────────────────────────────────────────────────────
 DB_CONTAINER="penntools-db"
 DB_USER="penntools"
 DB_PASS="penntools"
 DB_NAME="penntools"
 DB_PORT="5432"
+# The platform schema needs the pgvector extension, which stock postgres images lack.
+DB_IMAGE="pgvector/pgvector:pg16"
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:${DB_PORT}/${DB_NAME}"
 
 if [[ "$SKIP_DOCKER" == "0" ]]; then
   if docker ps -a --format '{{.Names}}' | grep -q "^${DB_CONTAINER}$"; then
+    EXISTING_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$DB_CONTAINER")"
+    [[ "$EXISTING_IMAGE" == "$DB_IMAGE" ]] || die "Container '${DB_CONTAINER}' uses '${EXISTING_IMAGE}', which lacks pgvector.
+  Delete it (this erases its local data), then re-run this script:
+    docker rm -f ${DB_CONTAINER}"
     if docker ps --format '{{.Names}}' | grep -q "^${DB_CONTAINER}$"; then
       warn "Postgres container '${DB_CONTAINER}' is already running — skipping."
     else
@@ -85,20 +94,35 @@ if [[ "$SKIP_DOCKER" == "0" ]]; then
       -e POSTGRES_PASSWORD="$DB_PASS" \
       -e POSTGRES_DB="$DB_NAME" \
       -p "${DB_PORT}:5432" \
-      postgres:16-alpine
+      "$DB_IMAGE"
   fi
 
-  # Wait for Postgres to be ready
+  # Wait for Postgres to be ready. Check over TCP: on first start the image runs
+  # a socket-only init server, so this passes only once the real server is up.
   info "Waiting for Postgres to be ready..."
-  for i in $(seq 1 15); do
-    if docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" &>/dev/null; then
+  for i in $(seq 1 30); do
+    if docker exec "$DB_CONTAINER" pg_isready -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" &>/dev/null; then
       success "Postgres is ready."
       break
     fi
-    [[ "$i" == "15" ]] && die "Postgres did not become ready in time."
+    [[ "$i" == "30" ]] && die "Postgres did not become ready in time."
     sleep 1
   done
 fi
+
+# ── 3. Install dependencies ───────────────────────────────────────────────────
+info "Installing workspace dependencies..."
+pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+success "Dependencies installed."
+
+# ── 4. Build packages (Next.js resolves workspace deps from dist/) ────────────
+info "Building @penntools/core..."
+pnpm --filter @penntools/core build
+info "Building @penntools/platform..."
+pnpm --filter @penntools/platform build
+info "Building tools..."
+pnpm --filter "@penntools/tool-*" build
+success "Packages built."
 
 # ── 5. Env file ───────────────────────────────────────────────────────────────
 if [[ -f "$ENV_FILE" ]]; then
@@ -121,15 +145,16 @@ else
   fi
 fi
 
-# ── 6. Push schema to database ────────────────────────────────────────────────
+# ── 6. Set up database ────────────────────────────────────────────────────────
 # Prisma client was already generated as part of platform build above.
 if [[ "$SKIP_DOCKER" == "0" ]]; then
-  info "Pushing schema to database..."
-  (cd "$REPO_ROOT" && DATABASE_URL="$DATABASE_URL" pnpm --filter @penntools/platform db:push)
-  success "Database schema applied."
+  # Same step Railway runs before each deploy: schema push, then tool databases.
+  info "Setting up database..."
+  (cd "$REPO_ROOT" && DATABASE_URL="$DATABASE_URL" pnpm --filter @penntools/platform db:deploy)
+  success "Database ready."
 else
-  warn "Skipping db:push — run it manually after setting DATABASE_URL:"
-  warn "  pnpm --filter @penntools/platform db:push"
+  warn "Skipping database setup — run it manually after setting DATABASE_URL:"
+  warn "  pnpm --filter @penntools/platform db:deploy"
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────

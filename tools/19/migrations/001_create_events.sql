@@ -1,8 +1,8 @@
 -- Migration: 001_create_events
 -- Creates the events table for ingested ICS calendar events.
--- Run this against your Postgres / Supabase database before starting ingestion.
-
-CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- for gen_random_uuid()
+-- Applied by `pnpm --filter @penntools/platform db:deploy` as the compass role.
+-- gen_random_uuid() is built into Postgres 13+, so no pgcrypto extension is
+-- needed (the compass role is not allowed to create extensions).
 
 CREATE TABLE IF NOT EXISTS events (
   id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

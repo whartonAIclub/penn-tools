@@ -38,13 +38,15 @@
     "clean": "rm -rf dist",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma db push --skip-generate && node scripts/setup-tools.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@penntools/core": "workspace:*",
     "@prisma/client": "^5.14.0",
     "openai": "^4.0.0",
+    "postgres": "^3.4.5",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

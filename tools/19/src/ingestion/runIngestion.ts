@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import postgres from "postgres";
+import type { Sql } from "postgres";
 import { fetchIcsFeed } from "./fetchFeed.js";
 import { parseIcsFeed } from "./parseFeed.js";
 import { upsertEvents } from "./upsertEvents.js";
@@ -8,8 +8,8 @@ import { upsertEvents } from "./upsertEvents.js";
 export interface IngestionOptions {
   /** Full URL of the CampusGroups ICS feed. Typically from COMPASS_ICS_FEED_URL. */
   feedUrl: string;
-  /** Postgres connection string. Typically from DATABASE_URL. */
-  databaseUrl: string;
+  /** Compass database client (compass role), supplied by the calling API route. */
+  sql: Sql;
 }
 
 export interface IngestionResult {
@@ -35,9 +35,8 @@ export interface IngestionResult {
 export async function runIngestion(
   options: IngestionOptions
 ): Promise<IngestionResult> {
-  const { feedUrl, databaseUrl } = options;
+  const { feedUrl, sql } = options;
   const startedAt = Date.now();
-  const sql = postgres(databaseUrl, { max: 5 });
   const runId = randomUUID();
 
   try {
@@ -82,7 +81,5 @@ export async function runIngestion(
       durationMs,
       error: errorMessage,
     };
-  } finally {
-    await sql.end();
   }
 }

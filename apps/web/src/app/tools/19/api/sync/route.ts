@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runIngestion } from "@penntools/tool-19";
-import { isTool19Authorized, makeErrorId } from "../_guard";
+import { compassSql, databaseNotConfigured, isTool19Authorized, makeErrorId } from "../_guard";
 
 /**
  * POST /tools/19/api/sync
@@ -10,7 +10,7 @@ import { isTool19Authorized, makeErrorId } from "../_guard";
  *
  * Requires env vars:
  *   COMPASS_ICS_FEED_URL  - full URL of the CampusGroups ICS feed
- *   DATABASE_URL          - Postgres connection string
+ *   DATABASE_URL          - Postgres connection string (Compass uses its own role)
  *
  * Example:
  *   curl -X POST http://localhost:3000/tools/19/api/sync
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   const feedUrl = process.env["COMPASS_ICS_FEED_URL"];
-  const databaseUrl = process.env["DATABASE_URL"];
+  const sql = compassSql();
 
   if (!feedUrl) {
     return NextResponse.json(
@@ -33,14 +33,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!databaseUrl) {
-    return NextResponse.json(
-      { error: "DATABASE_URL environment variable is not set." },
-      { status: 500 }
-    );
-  }
+  if (!sql) return databaseNotConfigured();
 
-  const result = await runIngestion({ feedUrl, databaseUrl }).catch((error) => {
+  const result = await runIngestion({ feedUrl, sql }).catch((error) => {
     const errorId = makeErrorId();
     console.error(`[tool-19/sync] ${errorId}`, error);
     return {

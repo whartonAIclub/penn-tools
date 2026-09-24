@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listEvents } from "@penntools/tool-19";
-import { isTool19Authorized, makeErrorId } from "../_guard";
+import { compassSql, databaseNotConfigured, isTool19Authorized, makeErrorId } from "../_guard";
 
 /**
  * GET /tools/19/api/events
@@ -15,14 +15,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const databaseUrl = process.env["DATABASE_URL"];
+  const sql = compassSql();
 
-  if (!databaseUrl) {
-    return NextResponse.json(
-      { error: "DATABASE_URL environment variable is not set." },
-      { status: 500 }
-    );
-  }
+  if (!sql) return databaseNotConfigured();
 
   const limitParam = request.nextUrl.searchParams.get("limit");
   const parsedLimit = limitParam ? Number(limitParam) : undefined;
@@ -39,8 +34,8 @@ export async function GET(request: NextRequest) {
 
   const listOptions =
     typeof limit === "number"
-      ? { databaseUrl, limit, upcomingOnly }
-      : { databaseUrl, upcomingOnly };
+      ? { sql, limit, upcomingOnly }
+      : { sql, upcomingOnly };
 
   const result = await listEvents(listOptions).catch((error) => {
     const errorId = makeErrorId();

@@ -138,6 +138,16 @@ Send text input from the user and receive text output from an AI model (supports
 | Tool landing pages | `apps/web/src/app/tools/{id}/` | That tool's team |
 | Tool implementations | `tools/{id}/` | That tool's team |
 
+### Tool database isolation
+
+Tools that need their own tables get a dedicated Postgres role and schema in the shared database — never tables in `public` (which `prisma db push` manages and would drop):
+
+- Name the role and schema the same short, lowercase word for the tool (e.g. `compass`), not its numeric tool ID; use it everywhere the tool's database is referenced (`TOOLS`, `toolSql`).
+- Register the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs`. The `db:deploy` pre-deploy step (see `railway.json`) runs `db:push`, then creates the role and schema and applies the tool's `tools/{id}/migrations/*.sql` as that role — no manual setup.
+- The tool's API routes in `apps/web/src/app/tools/{id}/` (web-app code, where platform imports are allowed) get a shared database client from `toolSql("<role>")` in `@penntools/platform/db` and pass it into the tool's functions. The tool package itself (`tools/{id}/src/`) never creates connections; its only non-core import is `import type { Sql } from "postgres"` to type that parameter. The role's `search_path` is its schema; it cannot read other tools' or platform tables. The password is derived from `DATABASE_URL`, so there is no per-tool secret.
+- No tool can read another tool's data today. If one ever must, add explicit `GRANT`s to that same script so all shared access lives in one reviewed place; grant on a view rather than a table (a view is a stable contract) and schema-qualify names.
+- Compass (tool 19) is the reference implementation.
+
 After any TypeScript changes, verify compilation:
 ```
 npx tsc --noEmit -p apps/web/tsconfig.json
