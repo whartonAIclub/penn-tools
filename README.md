@@ -64,7 +64,6 @@ pnpm typecheck                                # TypeScript check
 pnpm lint                                     # ESLint
 
 pnpm --filter @penntools/platform db:deploy   # apply schema changes + tool databases
-pnpm --filter @penntools/platform db:migrate  # create a new migration
 ```
 
 ## Deploying

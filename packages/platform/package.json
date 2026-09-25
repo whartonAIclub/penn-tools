@@ -38,7 +38,6 @@
     "clean": "rm -rf dist",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma db push --skip-generate && node scripts/setup-tools.mjs"
   },
   "dependencies": {
