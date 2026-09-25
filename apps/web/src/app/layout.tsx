@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AskPenn",
+  title: "PennTools",
   description: "AI-powered tools for the Penn community",
   icons: {
     icon: "/wharton-ai-club-logo.png",
