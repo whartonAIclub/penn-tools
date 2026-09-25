@@ -83,7 +83,7 @@ After scaffolding, remind the team to:
 
 ## 4. Adding Platform APIs to a Tool
 
-When a tool team asks to use a platform API (LLM, database, analytics, etc.), use the **Platform Playground** (`tools/platform-playground/`) as the reference implementation. Do **not** modify any files outside the tool's scope — all platform APIs are already available via `ToolContext`.
+When a tool team asks to use a platform API (LLM, database, analytics, etc.), use the **Platform Playground** (`tools/platform-playground/`) as the reference implementation. Do **not** modify any files outside the tool's scope — the User and LLM APIs are already available via `ToolContext`, and the tool's own routes pass the Database and Embeddings APIs into its functions.
 
 ### Available APIs
 
@@ -96,6 +96,16 @@ Get the logged-in user's name and ID.
 Send text input from the user and receive text output from an AI model (supports OpenAI & Anthropic).
 
 > **Usage:** Ask your coding agent: `Implement LLM API and refer to the platform playground implementation for guidance.`
+
+#### Database API
+Tables of the tool's own, in a Postgres schema that only the tool can access (see **Tool database isolation** in section 5).
+
+> **Usage:** Ask your coding agent: `Implement Database API and refer to the Compass (tool 19) implementation for guidance.` The tool team writes `tools/{id}/schema.sql` (and, for reference data, `tools/{id}/seed.mjs`), and its routes or server actions pass `toolSql("<name>")` into the tool's functions. Registering the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs` is outside a tool team's scope, so ask the Platform team to add that one line.
+
+#### Embeddings API
+Turn text into vectors for semantic search, stored with pgvector in the tool's own tables. Requires the Database API.
+
+> **Usage:** Ask your coding agent: `Implement Embeddings API and refer to the Career Canvas (tool 8) implementation for guidance.` Routes or server actions pass `embeddingProvider` from `@/lib/container` (`null` without `OPENAI_API_KEY`) into the tool's functions, which type it as `EmbeddingProvider` from `@penntools/core/embeddings`.
 
 ### How to add an API integration
 
@@ -121,8 +131,8 @@ Send text input from the user and receive text output from an AI model (supports
 
 ### Rules
 
-- **All changes must stay within the tool's two directories.** Only the User API and LLM API are available. If a team needs something beyond these, explain that they should request it from the Platform team — do not add it yourself.
-- **Do not create new API routes.** Tools consume existing platform routes; only the Platform team creates new ones.
+- **All changes must stay within the tool's two directories.** Only the APIs listed above are available. If a team needs something beyond these, explain that they should request it from the Platform team — do not add it yourself.
+- **Do not create routes under `apps/web/src/app/api/`.** Those are platform routes; only the Platform team creates them. A tool may add its own routes or server actions inside its landing page folder (`apps/web/src/app/tools/{id}/`), as Compass and Career Canvas do.
 - **Do not duplicate platform logic.** If the Platform Playground already demonstrates the pattern, adapt it — don't reinvent it.
 
 ---
@@ -143,10 +153,12 @@ Send text input from the user and receive text output from an AI model (supports
 Tools that need their own tables get a dedicated Postgres role and schema in the shared database — never tables in `public` (which `prisma db push` manages and would drop):
 
 - Name the role and schema the same short, lowercase word for the tool (e.g. `compass`), not its numeric tool ID; use it everywhere the tool's database is referenced (`TOOLS`, `toolSql`).
-- Register the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs`. The `db:deploy` pre-deploy step (see `railway.json`) runs `db:push`, then creates the role and schema and applies the tool's `tools/{id}/migrations/*.sql` as that role — no manual setup.
-- The tool's API routes in `apps/web/src/app/tools/{id}/` (web-app code, where platform imports are allowed) get a shared database client from `toolSql("<role>")` in `@penntools/platform/db` and pass it into the tool's functions. The tool package itself (`tools/{id}/src/`) never creates connections; its only non-core import is `import type { Sql } from "postgres"` to type that parameter. The role's `search_path` is its schema; it cannot read other tools' or platform tables. The password is derived from `DATABASE_URL`, so there is no per-tool secret.
+- Register the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs`. The `db:deploy` pre-deploy step (see `railway.json`) runs `db:push`, then creates the role and schema and, as that role, applies `tools/{id}/schema.sql` and runs `tools/{id}/seed.mjs` if present — no manual setup.
+- There are no migrations: `schema.sql` is the tool's full schema and runs on every deploy, so every statement must be safe to re-run (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`). To add a column to a table that may already exist, append `ALTER TABLE … ADD COLUMN IF NOT EXISTS`. `seed.mjs` (optional) default-exports `async ({ sql, embeddings }) => {}` to fill reference data (`embeddings` is the platform's `EmbeddingProvider`, or `null` without `OPENAI_API_KEY`); it also runs every deploy, so it must skip work already done. A failed seed is logged and does not block the deploy.
+- The tool's API routes in `apps/web/src/app/tools/{id}/` (web-app code, where platform imports are allowed) get a shared database client from `toolSql("<role>")` in `@penntools/platform/db` and pass it into the tool's functions. The tool package itself (`tools/{id}/src/`) never creates connections; its only non-core import is `import type { Sql } from "postgres"` to type that parameter. The role's `search_path` is its schema; it cannot read other tools' or platform tables. The password is derived from `DATABASE_URL`, so there is no per-tool secret. This isolation guards against mistakes, not deliberate misuse: tool code runs in the same process as platform code (the web app, and `db:deploy` for seeds), which holds the admin `DATABASE_URL`, so reviewing tool PRs is what guards against that.
 - No tool can read another tool's data today. If one ever must, add explicit `GRANT`s to that same script so all shared access lives in one reviewed place; grant on a view rather than a table (a view is a stable contract) and schema-qualify names.
-- Compass (tool 19) is the reference implementation.
+- For vector search, use pgvector from `public`, where the platform installs it; it is not on the tool's `search_path`, so schema-qualify the type and operators (`public.vector`, `OPERATOR(public.<=>)`, `::public.vector`). Tool code gets embeddings from the platform's `EmbeddingProvider` (`@penntools/core/embeddings`), passed in by the route like the database client. Store `embeddings.model` next to each vector and search only rows from the current model, and have the seed re-embed rows from any other model, so changing the platform's model can't mix incomparable vectors.
+- Compass (tool 19) is the reference implementation; Career Canvas (tool 8) is the reference for vector search.
 
 After any TypeScript changes, verify compilation:
 ```

@@ -11,18 +11,21 @@
 │  packages/platform  (reads env vars, constructs clients) │
 │   ├─ Prisma repositories                                 │
 │   ├─ LLM adapters (OpenAI, Anthropic)                    │
+│   ├─ Embedding adapter (OpenAI)                          │
 │   ├─ Analytics (PostHog)                                 │
-│   └─ AnonymousIdentityService                            │
+│   ├─ AnonymousIdentityService                            │
+│   └─ Tool databases (toolSql; setup-tools for db:deploy) │
 ├──────────────────────────────────────────────────────────┤
 │  packages/core  (pure interfaces, no env, no vendor SDK) │
 │   ├─ Tool, ToolRegistry, ToolRunner, ToolContext         │
-│   ├─ LLMProvider interface                               │
+│   ├─ LLMProvider, EmbeddingProvider interfaces           │
 │   ├─ Analytics interface                                 │
 │   ├─ IdentityService interface                           │
 │   └─ Repository interfaces (Chat, Message, ToolData…)   │
 ├──────────────────────────────────────────────────────────┤
 │  tools/<tool_id>  (one folder per tool)                  │
-│   └─ extend Tool, implement execute(input, context)      │
+│   ├─ extend Tool, implement execute(input, context)      │
+│   └─ optional schema.sql + seed.mjs (own DB schema)      │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -173,9 +176,17 @@ Key design choices:
   own Postgres role and schema in the same database, never tables in `public`,
   which `prisma db push` manages and would drop. `db:deploy` (`prisma db push`,
   then `packages/platform/scripts/setup-tools.mjs`) creates each role and schema
-  and applies `tools/{id}/migrations/*.sql` as that role. A tool role cannot read
-  platform or other tools' tables. Compass (tool 19, schema `compass`) is the
-  reference.
+  and, as that role, applies `tools/{id}/schema.sql` and runs the optional
+  `tools/{id}/seed.mjs`. Like `prisma db push` for the platform, both run on
+  every deploy and must be safe to re-run; there are no migrations. A tool role
+  cannot read platform or other tools' tables. Compass (tool 19, schema
+  `compass`) is the reference.
+- Tools use pgvector from `public`, where the platform installs it. That schema is
+  not on a tool role's `search_path`, so tool SQL schema-qualifies the type and
+  operators (`public.vector`, `OPERATOR(public.<=>)`). Each vector is stored
+  with the model that made it; searches compare only the current model's
+  vectors, and the seed re-embeds the rest. Career Canvas (tool 8, schema
+  `careercanvas`) is the reference.
 - `messages.tool_id` is nullable — set only when `role = TOOL`.
 - The `tools` table in the schema is **optional** metadata for admin UIs;
   the runtime registry is code-based (no DB sync required for tools to work).
@@ -189,8 +200,8 @@ Core interfaces and tools never access `process.env`.
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | platform/prisma | Postgres connection |
-| `OPENAI_API_KEY` | platform/llm | OpenAI adapter |
+| `DATABASE_URL` | platform/prisma, `db:deploy` | Postgres admin connection; tool role passwords are derived from it |
+| `OPENAI_API_KEY` | platform/llm, platform/embeddings, `db:deploy` | OpenAI adapter, embeddings, and tool seeds (e.g. Career Canvas course embeddings; skipped when unset) |
 | `ANTHROPIC_API_KEY` | platform/llm | Anthropic adapter |
 | `POSTHOG_API_KEY` | platform/analytics | Event tracking |
 | `POSTHOG_HOST` | platform/analytics | PostHog instance URL |

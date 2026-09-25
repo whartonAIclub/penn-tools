@@ -1,31 +1,15 @@
-import { PrismaClient } from "../src/generated/client/index.js";
+import type { Sql } from "postgres";
 
-// ── Singleton Prisma client ────────────────────────────────────────────────
-const globalForPrisma = globalThis as unknown as { ccPrisma?: PrismaClient };
+// Queries against Career Canvas's own schema. The web app passes in the shared
+// client (`toolSql("careercanvas")`); this package never opens connections.
 
-export const ccDb =
-  globalForPrisma.ccPrisma ??
-  new PrismaClient({ datasources: { db: { url: process.env.CC_DATABASE_URL ?? "" } } });
+// ── Types ──────────────────────────────────────────────────────────────────
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.ccPrisma = ccDb;
-
-// ── User ───────────────────────────────────────────────────────────────────
-
-/** Find a user by email, or create them if they don't exist. */
-export async function upsertUser(name: string, email: string) {
-  return ccDb.cCUser.upsert({
-    where: { email },
-    update: { name },
-    create: { name, email },
-  });
+export interface CCUser {
+  id: string;
+  name: string;
+  email: string;
 }
-
-/** Find a user by email — returns null if not found. */
-export async function findUserByEmail(email: string) {
-  return ccDb.cCUser.findUnique({ where: { email } });
-}
-
-// ── Wizard answers ─────────────────────────────────────────────────────────
 
 export interface WizardAnswers {
   school: string;
@@ -39,41 +23,99 @@ export interface WizardAnswers {
   scenarioNotes: string;
 }
 
+export interface Roadmap {
+  id: string;
+  markdown: string;
+  createdAt: Date;
+}
+
+// ── User ───────────────────────────────────────────────────────────────────
+
+/** Find a user by email, or create them if they don't exist. */
+export async function upsertUser(sql: Sql, name: string, email: string): Promise<CCUser> {
+  const [user] = await sql<CCUser[]>`
+    INSERT INTO users (name, email)
+    VALUES (${name}, ${email})
+    ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id, name, email
+  `;
+  return user!;
+}
+
+/** Find a user by email — returns null if not found. */
+export async function findUserByEmail(sql: Sql, email: string): Promise<CCUser | null> {
+  const [user] = await sql<CCUser[]>`
+    SELECT id, name, email FROM users WHERE email = ${email}
+  `;
+  return user ?? null;
+}
+
+// ── Wizard answers ─────────────────────────────────────────────────────────
+
 /** Save (or overwrite) wizard answers for a user. */
-export async function saveWizardAnswers(userId: string, answers: WizardAnswers) {
-  return ccDb.cCWizardAnswers.upsert({
-    where: { userId },
-    update: answers,
-    create: { userId, ...answers },
-  });
+export async function saveWizardAnswers(
+  sql: Sql,
+  userId: string,
+  answers: WizardAnswers
+): Promise<void> {
+  await sql`
+    INSERT INTO wizard_answers (
+      user_id, school, major, year, coursework, interests,
+      resume_text, linkedin_text, target_roles, scenario_notes
+    )
+    VALUES (
+      ${userId}, ${answers.school}, ${answers.major}, ${answers.year},
+      ${answers.coursework}, ${answers.interests}, ${answers.resumeText},
+      ${answers.linkedinText}, ${answers.targetRoles}, ${answers.scenarioNotes}
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      school         = EXCLUDED.school,
+      major          = EXCLUDED.major,
+      year           = EXCLUDED.year,
+      coursework     = EXCLUDED.coursework,
+      interests      = EXCLUDED.interests,
+      resume_text    = EXCLUDED.resume_text,
+      linkedin_text  = EXCLUDED.linkedin_text,
+      target_roles   = EXCLUDED.target_roles,
+      scenario_notes = EXCLUDED.scenario_notes,
+      updated_at     = NOW()
+  `;
 }
 
 /** Load saved wizard answers for a user — returns null if none saved yet. */
-export async function loadWizardAnswers(userId: string) {
-  return ccDb.cCWizardAnswers.findUnique({ where: { userId } });
+export async function loadWizardAnswers(sql: Sql, userId: string): Promise<WizardAnswers | null> {
+  const [answers] = await sql<WizardAnswers[]>`
+    SELECT
+      school,
+      major,
+      year,
+      coursework,
+      interests,
+      resume_text    AS "resumeText",
+      linkedin_text  AS "linkedinText",
+      target_roles   AS "targetRoles",
+      scenario_notes AS "scenarioNotes"
+    FROM wizard_answers
+    WHERE user_id = ${userId}
+  `;
+  return answers ?? null;
 }
 
 // ── Roadmaps ───────────────────────────────────────────────────────────────
 
 /** Save a generated roadmap for a user. */
-export async function saveRoadmap(userId: string, markdown: string) {
-  return ccDb.cCRoadmap.create({
-    data: { userId, markdown },
-  });
+export async function saveRoadmap(sql: Sql, userId: string, markdown: string): Promise<void> {
+  await sql`INSERT INTO roadmaps (user_id, markdown) VALUES (${userId}, ${markdown})`;
 }
 
 /** Load the most recent roadmap for a user — returns null if none exist. */
-export async function loadLatestRoadmap(userId: string) {
-  return ccDb.cCRoadmap.findFirst({
-    where: { userId },
-    orderBy: { generatedAt: "desc" },
-  });
-}
-
-/** Load all roadmaps for a user, newest first. */
-export async function loadAllRoadmaps(userId: string) {
-  return ccDb.cCRoadmap.findMany({
-    where: { userId },
-    orderBy: { generatedAt: "desc" },
-  });
+export async function loadLatestRoadmap(sql: Sql, userId: string): Promise<Roadmap | null> {
+  const [roadmap] = await sql<Roadmap[]>`
+    SELECT id, markdown, created_at AS "createdAt"
+    FROM roadmaps
+    WHERE user_id = ${userId}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  return roadmap ?? null;
 }

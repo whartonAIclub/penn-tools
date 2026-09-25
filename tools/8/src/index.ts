@@ -6,13 +6,11 @@ export {
   buildUserMessageForCareerCanvas,
 } from "./careerPrompt.js";
 export {
-  ccDb,
   upsertUser,
   findUserByEmail,
   saveWizardAnswers,
   loadWizardAnswers,
   saveRoadmap,
   loadLatestRoadmap,
-  loadAllRoadmaps,
 } from "./db.js";
-export type { WizardAnswers } from "./db.js";
+export type { CCUser, WizardAnswers, Roadmap } from "./db.js";

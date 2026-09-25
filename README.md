@@ -71,7 +71,7 @@ pnpm --filter @penntools/platform db:deploy   # apply schema changes + tool data
 The app runs on [Railway](https://railway.com), configured by `railway.json`. On each push to the tracked branch, Railway:
 
 1. **Builds** the web app and every package it depends on.
-2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, then creates each tool's database role and schema and applies its migrations (see `packages/platform/scripts/setup-tools.mjs`). If this fails, the previous version keeps serving.
+2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). If this fails, the previous version keeps serving. On a fresh database, the first deploy takes about a minute longer while Career Canvas embeds the course catalog.
 3. **Starts** the app with `next start`.
 
 The database is Railway's pgvector Postgres template (the platform schema needs the `vector` extension). Set these variables on the app service:
@@ -79,7 +79,7 @@ The database is Railway's pgvector Postgres template (the platform schema needs 
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `${{pgvector.DATABASE_URL}}` — a reference to the database service |
-| `OPENAI_API_KEY` | Your OpenAI key (chat and semantic search) |
+| `OPENAI_API_KEY` | Your OpenAI key (chat and semantic search; deploys also use it to embed Career Canvas's course catalog) |
 | `PORT` | `3000` — the port the public domain targets |
 | `NEXT_PUBLIC_APP_URL` | The app's public URL; baked in at build time, so redeploy after changing it |
 
