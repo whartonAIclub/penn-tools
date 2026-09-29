@@ -1,8 +1,5 @@
-// Root page — renders the AskPenn chat interface.
-// This is a server component; the interactive shell is a client component.
-
-import { AppShell } from "@/components/layout/AppShell";
+// Root page — placeholder landing page for PennTools. AskPenn lives at /ask.
 
 export default function HomePage() {
-  return <AppShell />;
+  return <h1>PennTools</h1>;
 }

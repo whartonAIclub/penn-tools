@@ -4,76 +4,34 @@ import {
   listReflections,
   upsertReflection,
 } from "@penntools/tool-19";
-import { cookies } from "next/headers";
-import { randomUUID } from "node:crypto";
-
-const ANON_COOKIE = "penntools_uid";
-const ANON_HEADER = "x-tool-anon-id";
-
-function withIdentityCookie(
-  response: NextResponse,
-  userId: string
-) {
-  response.cookies.set(ANON_COOKIE, userId, {
-    httpOnly: true,
-    path: "/",
-  });
-
-  return response;
-}
-
-async function resolveAnonUserId(request: NextRequest): Promise<string> {
-  const provided = request.headers.get(ANON_HEADER)?.trim();
-  if (provided) return provided;
-
-  const cookieStore = await cookies();
-  const existing = cookieStore.get(ANON_COOKIE)?.value;
-  if (existing) return existing;
-
-  return randomUUID();
-}
-
-function getDatabaseUrl(): string | null {
-  return process.env["DATABASE_URL"] || null;
-}
-
-function extractEventId(request: NextRequest): string | null {
-  const queryEventId = request.nextUrl.searchParams.get("eventId");
-  if (queryEventId) return queryEventId;
-
-  return null;
-}
+import {
+  compassSql,
+  databaseNotConfigured,
+  extractEventId,
+  resolveAnonUserId,
+  withIdentityCookie,
+} from "../_guard";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const userId = await resolveAnonUserId(request);
-  const databaseUrl = getDatabaseUrl();
+  const sql = compassSql();
 
-  if (!databaseUrl) {
-    return NextResponse.json(
-      { error: "DATABASE_URL environment variable is not set." },
-      { status: 500 }
-    );
-  }
+  if (!sql) return databaseNotConfigured();
 
   const eventId = extractEventId(request) || undefined;
   const reflections = await listReflections(
     eventId
-      ? { databaseUrl, userId, eventId }
-      : { databaseUrl, userId }
+      ? { sql, userId, eventId }
+      : { sql, userId }
   );
   return withIdentityCookie(NextResponse.json({ reflections }), userId);
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const userId = await resolveAnonUserId(request);
-  const databaseUrl = getDatabaseUrl();
+  const sql = compassSql();
 
-  if (!databaseUrl) {
-    return NextResponse.json(
-      { error: "DATABASE_URL environment variable is not set." },
-      { status: 500 }
-    );
-  }
+  if (!sql) return databaseNotConfigured();
 
   const body = (await request.json().catch(() => null)) as
     | { eventId?: unknown; reflectionText?: unknown }
@@ -105,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const reflection = await upsertReflection({
-    databaseUrl,
+    sql,
     userId,
     eventId,
     reflectionText,
@@ -116,21 +74,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const userId = await resolveAnonUserId(request);
-  const databaseUrl = getDatabaseUrl();
+  const sql = compassSql();
 
-  if (!databaseUrl) {
-    return NextResponse.json(
-      { error: "DATABASE_URL environment variable is not set." },
-      { status: 500 }
-    );
-  }
+  if (!sql) return databaseNotConfigured();
 
   const eventId = extractEventId(request);
   if (!eventId) {
     return NextResponse.json({ error: "eventId is required" }, { status: 400 });
   }
 
-  const deleted = await deleteReflection({ databaseUrl, userId, eventId });
+  const deleted = await deleteReflection({ sql, userId, eventId });
   return withIdentityCookie(
     NextResponse.json({ eventId, deleted }),
     userId

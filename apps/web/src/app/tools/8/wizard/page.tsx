@@ -583,13 +583,13 @@ export default function WizardPage() {
             {plan.message === "NO_API_KEY" ? (
               <>
                 No API key found. Please{" "}
-                <a href="/" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>go to AskPenn</a>
+                <a href="/ask" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>go to AskPenn</a>
                 {" "}and enter your LLM API key in the bottom-left sidebar, then come back and try again.
               </>
             ) : plan.message === "INVALID_KEY" ? (
               <>
                 Your API key appears to be invalid or expired. Please{" "}
-                <a href="/" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>go to AskPenn</a>
+                <a href="/ask" style={{ color: "#B91C1C", fontWeight: 600, textDecoration: "underline" }}>go to AskPenn</a>
                 {" "}and update your LLM API key in the bottom-left sidebar.
               </>
             ) : (

@@ -1,4 +1,5 @@
 export { prisma } from "./prismaClient.js";
+export { toolSql } from "./toolDatabase.js";
 export { PrismaChatRepository } from "./repositories/PrismaChatRepository.js";
 export { PrismaMessageRepository } from "./repositories/PrismaMessageRepository.js";
 export { PrismaToolDataRepository } from "./repositories/PrismaToolDataRepository.js";

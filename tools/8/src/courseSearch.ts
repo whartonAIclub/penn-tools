@@ -1,34 +1,15 @@
-import { PrismaClient } from "../src/generated/client/index.js";
+import type { Sql } from "postgres";
+import type { EmbeddingProvider } from "@penntools/core/embeddings";
 
-const MODEL = "text-embedding-3-small";
-
-// ── Singleton Prisma client ────────────────────────────────────────────────
-const globalForPrisma = globalThis as unknown as { ccSearchPrisma?: PrismaClient };
-const prisma =
-  globalForPrisma.ccSearchPrisma ??
-  new PrismaClient({ datasources: { db: { url: process.env.CC_DATABASE_URL ?? "" } } });
-if (process.env.NODE_ENV !== "production") globalForPrisma.ccSearchPrisma = prisma;
-
-// ── Embed a query string via OpenAI ───────────────────────────────────────
-async function embedQuery(text: string): Promise<number[]> {
-  const apiKey = process.env.CC_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ model: MODEL, input: text }),
-  });
-  if (!res.ok) throw new Error(`Embedding API error: ${res.status}`);
-  const data = (await res.json()) as { data: { embedding: number[] }[] };
-  const first = data.data[0];
-  if (!first) throw new Error("No embedding returned");
-  return first.embedding;
+/** What course search needs; the web app supplies both. */
+export interface CourseSearchDeps {
+  sql: Sql;
+  embeddings: EmbeddingProvider;
 }
 
 // ── Semantic course search ─────────────────────────────────────────────────
 export async function filterCourses(
+  deps: CourseSearchDeps,
   major: string,
   interests: string,
   targetRoles: string,
@@ -39,21 +20,19 @@ export async function filterCourses(
   if (!query.trim()) return "";
 
   try {
-    const embedding = await embedQuery(query);
-    const vectorStr = `[${embedding.join(",")}]`;
+    const embedding = await deps.embeddings.embed(query);
+    const vector = `[${embedding.join(",")}]`;
 
-    // Cosine similarity search via pgvector.
-    // SET LOCAL search_path adds the extensions schema for this transaction only —
-    // avoids "permission denied for schema extensions" for restricted DB roles.
-    const [, results] = await prisma.$transaction([
-      prisma.$executeRaw`SET LOCAL search_path = public, extensions`,
-      prisma.$queryRaw<{ code: string; name: string }[]>`
-        SELECT code, name
-        FROM cc_course_embeddings
-        ORDER BY embedding <=> ${vectorStr}::vector
-        LIMIT ${maxResults}
-      `,
-    ]);
+    // Cosine distance via pgvector. Its type and operator live in `public`,
+    // outside this role's search_path, so both are schema-qualified. Only
+    // vectors from the query's model are comparable (see seed.mjs).
+    const results = await deps.sql<{ code: string; name: string }[]>`
+      SELECT code, name
+      FROM course_embeddings
+      WHERE model = ${deps.embeddings.model}
+      ORDER BY embedding OPERATOR(public.<=>) ${vector}::public.vector
+      LIMIT ${maxResults}
+    `;
 
     if (results.length === 0) return "";
 

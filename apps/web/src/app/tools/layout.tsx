@@ -13,7 +13,7 @@ export default function ToolsLayout({ children }: { children: React.ReactNode })
   const isCareerCanvasSubPage = isCareerCanvas && !isCareerCanvasLanding;
 
   const backHref = "/";
-  const backLabel = "← AskPenn";
+  const backLabel = "← PennTools";
 
   return (
     <div className={styles.container}>

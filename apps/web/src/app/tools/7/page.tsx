@@ -1351,7 +1351,7 @@ function TopBar({ screen, setScreen }: { screen: Screen; setScreen: (s: Screen) 
     <nav style={{ height: 52, flexShrink: 0, background: "#fff", borderBottom: "0.5px solid #e5e7eb", display: "flex", alignItems: "center", padding: "0 1.25rem", fontFamily: "'Geist', sans-serif" }}>
       {/* Left zone */}
       <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
-        <button onClick={() => window.location.assign("/")} style={{ fontSize: 13, color: "#5f5e5a", background: "none", border: "none", cursor: "pointer", fontFamily: "'Geist', sans-serif", padding: 0 }}>← AskPenn</button>
+        <button onClick={() => window.location.assign("/")} style={{ fontSize: 13, color: "#5f5e5a", background: "none", border: "none", cursor: "pointer", fontFamily: "'Geist', sans-serif", padding: 0 }}>← PennTools</button>
       </div>
       {/* Center zone */}
       <div style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: "1.5rem" }}>
