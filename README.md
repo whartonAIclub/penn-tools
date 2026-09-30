@@ -75,9 +75,11 @@ pnpm --filter @penntools/platform db:deploy   # apply schema changes + tool data
 
 ## Deploying
 
-The app runs on [Railway](https://railway.com), configured by `railway.json`. On each push to the tracked branch, Railway:
+The app runs on [Railway](https://railway.com). On the app service, set **Settings → Deploy → Pre-deploy Command** to `pnpm --filter @penntools/platform db:deploy`; without it the database is never set up. The build and start commands are Railway's defaults.
 
-1. **Builds** the web app and every package it depends on.
+On each push to the tracked branch, Railway:
+
+1. **Builds** the monorepo.
 2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). If this fails, the previous version keeps serving. On a fresh database, the first deploy takes about a minute longer while Career Canvas embeds the course catalog.
 3. **Starts** the app with `next start`.
 
@@ -87,7 +89,6 @@ The database is Railway's pgvector Postgres template (the platform schema needs 
 |---|---|
 | `DATABASE_URL` | `${{pgvector.DATABASE_URL}}` — a reference to the database service |
 | `OPENAI_API_KEY` | Your OpenAI key (chat and semantic search; deploys also use it to embed Career Canvas's course catalog) |
-| `PORT` | `3000` — the port the public domain targets |
 | `NEXT_PUBLIC_APP_URL` | The app's public URL; baked in at build time, so redeploy after changing it |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The Google OAuth client (redirect URI `<public URL>/api/auth/callback/google`) |
 | `NEXTAUTH_SECRET` | Signs session cookies; generate with `openssl rand -base64 32` |
