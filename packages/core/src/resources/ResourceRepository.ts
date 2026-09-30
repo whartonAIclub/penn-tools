@@ -4,9 +4,7 @@
 // Persists Penn resources (static directory entries + registered tools) and
 // supports nearest-neighbour retrieval via pre-computed vector embeddings.
 //
-// Platform adapters:
-//   - PrismaResourceRepository  — pgvector cosine similarity search
-//   - InMemoryResourceRepository — in-process cosine similarity (no DB)
+// Platform adapter: PrismaResourceRepository — pgvector cosine similarity search.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Resource {

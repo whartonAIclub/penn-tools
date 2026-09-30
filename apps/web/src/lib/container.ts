@@ -22,11 +22,6 @@ import {
   PrismaToolDataRepository,
   PrismaUserRepository,
   PrismaResourceRepository,
-  InMemoryChatRepository,
-  InMemoryMessageRepository,
-  InMemoryToolDataRepository,
-  InMemoryUserRepository,
-  InMemoryResourceRepository,
 } from "@penntools/platform/db";
 import { OpenAIAdapter, AnthropicAdapter } from "@penntools/platform/llm";
 import { OpenAIEmbeddingAdapter } from "@penntools/platform/embeddings";
@@ -65,49 +60,18 @@ toolRegistry.register(new PitchCoachTool());
 import { seedResources } from "./seedResources";
 
 // ── Repositories ──────────────────────────────────────────────────────────────
-// If DATABASE_URL is not set, use in-memory repositories so the app runs
-// without a database (sufficient for prototyping). Swap to Prisma repos when
-// a real DB is configured.
-//
-// In dev mode Next.js may re-evaluate this module per route, creating separate
-// in-memory stores. Pinning them to globalThis ensures all routes share the
-// same data.
+// Postgres is required, locally too (see README for the Docker setup).
 
-const useInMemory = !process.env["DATABASE_URL"];
-
-if (useInMemory) {
-  console.warn("[PennTools] DATABASE_URL not set — using in-memory repositories. Data will not persist across restarts.");
+if (!process.env["DATABASE_URL"]) {
+  console.error("[PennTools] DATABASE_URL not set — every database call will fail. See README for local setup.");
 }
 
-const globalForInMemory = globalThis as unknown as {
-  __penntools_inMemoryRepos?: {
-    chats: InMemoryChatRepository;
-    messages: InMemoryMessageRepository;
-    toolData: InMemoryToolDataRepository;
-    users: InMemoryUserRepository;
-  };
+export const repositories = {
+  chats: new PrismaChatRepository(prisma),
+  messages: new PrismaMessageRepository(prisma),
+  toolData: new PrismaToolDataRepository(prisma),
+  users: new PrismaUserRepository(prisma),
 };
-
-function getInMemoryRepositories() {
-  if (!globalForInMemory.__penntools_inMemoryRepos) {
-    globalForInMemory.__penntools_inMemoryRepos = {
-      chats: new InMemoryChatRepository(),
-      messages: new InMemoryMessageRepository(),
-      toolData: new InMemoryToolDataRepository(),
-      users: new InMemoryUserRepository(),
-    };
-  }
-  return globalForInMemory.__penntools_inMemoryRepos;
-}
-
-export const repositories = useInMemory
-  ? getInMemoryRepositories()
-  : {
-      chats: new PrismaChatRepository(prisma),
-      messages: new PrismaMessageRepository(prisma),
-      toolData: new PrismaToolDataRepository(prisma),
-      users: new PrismaUserRepository(prisma),
-    };
 
 // ── Embedding provider ─────────────────────────────────────────────────────
 // Only OpenAI provides an embeddings API we currently support.
@@ -127,14 +91,7 @@ if (!embeddingProvider) {
 
 // ── Resource repository ────────────────────────────────────────────────────
 
-const globalForInMemoryResource = globalThis as unknown as {
-  __penntools_inMemoryResourceRepo?: InMemoryResourceRepository;
-};
-
-export const resourceRepository: ResourceRepository = useInMemory
-  ? (globalForInMemoryResource.__penntools_inMemoryResourceRepo ??=
-      new InMemoryResourceRepository())
-  : new PrismaResourceRepository(prisma);
+export const resourceRepository: ResourceRepository = new PrismaResourceRepository(prisma);
 
 // ── LLM provider ──────────────────────────────────────────────────────────────
 // Reads OPENAI_API_KEY or ANTHROPIC_API_KEY from env.  Falls back to OpenAI.

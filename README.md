@@ -18,7 +18,7 @@ The setup script handles everything: installs dependencies, builds packages, spi
 | pnpm | 9 | `npm install -g pnpm` |
 | Docker | any | https://docs.docker.com/get-docker |
 
-Docker is optional — without it, set `DATABASE_URL` in `apps/web/.env.local` manually and run `pnpm --filter @penntools/platform db:deploy` before starting (applies the schema and sets up tool databases).
+The app needs Postgres. Docker is optional — without it, set `DATABASE_URL` in `apps/web/.env.local` to a Postgres with the `vector` extension, then apply the schema and set up tool databases before starting. `db:deploy` doesn't read `.env.local`, so pass the URL on the command line: `DATABASE_URL="<url>" pnpm --filter @penntools/platform db:deploy`.
 
 ### Environment variables
 

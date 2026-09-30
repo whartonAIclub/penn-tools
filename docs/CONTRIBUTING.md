@@ -48,12 +48,18 @@ Suggested ownership:
 
 ## Running locally
 
+The app needs Postgres. The simplest setup is `bash scripts/test.sh` (see the
+README), which starts Postgres in Docker. To do it by hand:
+
 ```bash
 # Install all dependencies
 pnpm install
 
-# Generate Prisma client
-pnpm --filter @penntools/platform db:generate
+# Build the platform package, then apply the database schema and tool
+# databases. db:deploy doesn't read apps/web/.env.local, so pass the URL of a
+# Postgres with the vector extension (and set the same one in .env.local).
+pnpm --filter @penntools/platform build
+DATABASE_URL="<url>" pnpm --filter @penntools/platform db:deploy
 
 # Start the web app
 pnpm dev

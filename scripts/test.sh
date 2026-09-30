@@ -153,8 +153,8 @@ if [[ "$SKIP_DOCKER" == "0" ]]; then
   (cd "$REPO_ROOT" && DATABASE_URL="$DATABASE_URL" pnpm --filter @penntools/platform db:deploy)
   success "Database ready."
 else
-  warn "Skipping database setup — run it manually after setting DATABASE_URL:"
-  warn "  pnpm --filter @penntools/platform db:deploy"
+  warn "Skipping database setup — run it manually with your database URL:"
+  warn "  DATABASE_URL=\"<url>\" pnpm --filter @penntools/platform db:deploy"
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
