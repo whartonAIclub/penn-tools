@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SiteHeader />
+        {/* See .app-viewport in globals.css for why pages render in this box. */}
+        <div className="app-viewport">
+          <div className="app-scroll">{children}</div>
+        </div>
+      </body>
     </html>
   );
 }

@@ -1,27 +1,9 @@
 .container {
-  min-height: 100vh;
+  min-height: 100%;
   background: var(--bg);
   display: flex;
   flex-direction: column;
 }
-
-.back {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.875rem;
-  color: var(--text);
-  text-decoration: none;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--bg);
-  transition: background 0.1s;
-}
-.back:hover { background: var(--nav-hover); }
 
 .infoCorner {
   position: fixed;
@@ -41,23 +23,4 @@
 .contentFullBleed {
   max-width: none;
   padding: 0;
-}
-
-.backCareerCanvas {
-  position: absolute;
-  top: 26px;
-  left: 16px;
-  background: transparent;
-  color: #0F1D3A;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  font-size: 0.95rem;
-  font-weight: 600;
-  border: none;
-  box-shadow: none;
-  opacity: 0.6;
-  letter-spacing: -0.01em;
-}
-.backCareerCanvas:hover {
-  background: transparent;
-  opacity: 1;
 }

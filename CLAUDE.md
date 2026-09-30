@@ -148,6 +148,15 @@ Turn text into vectors for semantic search, stored with pgvector in the tool's o
 | Tool landing pages | `apps/web/src/app/tools/{id}/` | That tool's team |
 | Tool implementations | `tools/{id}/` | That tool's team |
 
+### Tool pages: header and layout
+
+Every page, including tool pages, renders below the site header (PennTools on the left). Tool pages render in the area under it, which scrolls on its own:
+
+- Size full-height layouts with `height: 100%` / `min-height: 100%`, not `100vh`.
+- `position: fixed` is relative to the area under the header, so a container pinned with `top: 0 … bottom: 0` fills that area rather than the window.
+
+See **Site header** and **Page layout** in `docs/ARCHITECTURE.md`.
+
 ### Tool database isolation
 
 Tools that need their own tables get a dedicated Postgres role and schema in the shared database — never tables in `public` (which `prisma db push` manages and would drop):

@@ -165,6 +165,29 @@ directly.
 
 ---
 
+## Site header and page layout
+
+### Site header
+
+The root layout (`apps/web/src/app/layout.tsx`) renders `SiteHeader`
+(`apps/web/src/components/layout/SiteHeader.tsx`) above every page, including
+tool pages. On the left, "PennTools" links to the home page.
+
+### Page layout
+
+Below the header, every page renders inside `.app-viewport`, which fills the rest
+of the window and scrolls on its own (styles in `apps/web/src/app/globals.css`).
+For page authors this means:
+
+- Size full-height layouts with `height: 100%` / `min-height: 100%`, not `100vh`;
+  `100vh` is taller than the space under the header and adds a scrollbar.
+- `position: fixed` is relative to the area under the header, not the window
+  (`.app-viewport` uses `contain: layout`). A full-screen container pinned with
+  `top: 0 … bottom: 0` fills the area under the header instead of covering it,
+  and fixed modals and toasts stay in place while the page scrolls.
+
+---
+
 ## Data model
 
 See `packages/platform/prisma/schema.prisma` for the canonical schema.
