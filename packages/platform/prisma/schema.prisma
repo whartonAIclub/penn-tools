@@ -1,20 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PennTools Prisma schema
 //
-// Multi-user readiness strategy (authless v1):
+// Identity:
+//   - Users exist only once they sign in with Google; there are no anonymous
+//     users. A users row is created on first sign-in, keyed by google_id.
 //   - Every table that holds user data has a user_id column (UUID).
-//   - user_id is created on first visit and stored in an HTTP-only cookie.
 //   - All queries are scoped: WHERE user_id = $userId.
-//   - When UPenn SSO is added (v2), a new row is inserted in `users` with
-//     type=authenticated, and an optional mapping table links the anonymous
-//     UUID to the authenticated user's sub. Historic rows stay intact.
 //
-// Rationale for NOT persisting tool registry metadata in DB (tools table):
-//   The tool registry (list of available tools + metadata) is a code-time
-//   concern — tools are deployed with the app, not dynamically installed at
-//   runtime. Storing it in the DB adds a sync step (migrations on every tool
-//   addition) with no real benefit for v1. The tools table is left here as an
-//   OPTIONAL design target for a future admin panel or dynamic discovery.
+// Tool metadata is not stored here: tools ship with the app, so the registry
+// in code (built from each tool's meta.json) is the source of truth.
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
@@ -32,12 +26,17 @@ datasource db {
 
 model User {
   id        String   @id @default(uuid())
-  type      UserType @default(ANONYMOUS)
   createdAt DateTime @default(now()) @map("created_at")
 
-  /// Display name from SSO — null for anonymous users.
+  /// Google account id (OpenID `sub`); every user has signed in with Google.
+  googleId  String   @unique @map("google_id")
+  /// Display name from Google.
   name      String?
-  /// UPenn identifier (pennid / eppn) from SSO — null for anonymous users.
+  /// Email from Google.
+  email     String?
+  /// Profile picture URL from Google.
+  image     String?
+  /// UPenn identifier (pennid / eppn), reserved for Penn SSO.
   pennId    String?  @unique @map("penn_id")
 
   chats     Chat[]
@@ -45,11 +44,6 @@ model User {
   toolData  ToolData[]
 
   @@map("users")
-}
-
-enum UserType {
-  ANONYMOUS
-  AUTHENTICATED
 }
 
 // ── Chats ─────────────────────────────────────────────────────────────────────
@@ -131,21 +125,4 @@ model Resource {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("resources")
-}
-
-// ── Tools (OPTIONAL metadata table) ──────────────────────────────────────────
-
-/// Persisted tool metadata — optional for v1. Useful for an admin panel or
-/// marketplace UI that needs to list tools without booting the Node process.
-/// Keep in sync with the code registry at deploy time (e.g. via a seed script).
-model Tool {
-  id           String   @id // matches ToolManifest.id
-  title        String
-  description  String   @db.Text
-  image        String
-  /// JSON array of contributor strings, e.g. ["alice", "bob"]
-  contributors Json
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  @@map("tools")
 }

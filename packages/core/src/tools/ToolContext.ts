@@ -50,7 +50,7 @@ export interface ToolContext {
   /**
    * Full profile of the current user, pre-resolved by the platform.
    * Tools read this directly — they never fetch the user themselves.
-   * name and pennId are null for anonymous (not-yet-logged-in) users.
+   * Always a signed-in user; tools only run for signed-in users.
    */
   currentUser: User;
 

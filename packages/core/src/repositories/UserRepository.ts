@@ -1,20 +1,19 @@
-import type { User, UserId, UserType } from "../types/index.js";
+import type { User, UserId } from "../types/index.js";
 
-export interface CreateUserInput {
-  id: UserId; // caller provides the UUID
-  type: UserType;
-}
-
-export interface UpdateProfileInput {
-  name?: string;
-  pennId?: string;
+/** The Google account someone signed in with. */
+export interface GoogleAccountInput {
+  /** Google's stable account id (the OpenID `sub` claim). */
+  googleId: string;
+  email: string | null;
+  name: string | null;
+  image: string | null;
 }
 
 export interface UserRepository {
   findById(id: UserId): Promise<User | null>;
-  /** Find a user by their UPenn identifier (set after SSO login). */
-  findByPennId(pennId: string): Promise<User | null>;
-  create(input: CreateUserInput): Promise<User>;
-  /** Update profile fields on an existing user. Returns the updated user. */
-  updateProfile(id: UserId, input: UpdateProfileInput): Promise<User>;
+  /**
+   * Called on every sign-in: returns the user for this Google account,
+   * creating it on first sign-in, with name, email and picture refreshed.
+   */
+  upsertByGoogleAccount(input: GoogleAccountInput): Promise<User>;
 }

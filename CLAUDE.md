@@ -120,8 +120,8 @@ Turn text into vectors for semantic search, stored with pgvector in the tool's o
    - Never use `process.env`, `fetch` to external services, or vendor SDKs directly
 
 3. **Frontend (landing page)** — Edit only `apps/web/src/app/tools/{id}/`:
-   - For **User API**: call `GET /api/me` to get the logged-in user's name and ID
-   - For **LLM API**: call `POST /api/llm/complete` with `{ messages }` in the body; optionally pass a user-provided API key via the `X-Api-Key` header
+   - For **User API**: call `GET /api/me` to get the logged-in user's name and ID (it returns `401` when signed out). In the tool's own routes and server actions, call `getCurrentUser()` from `@/lib/auth` (null when signed out; respond with `signInRequired()`) — never create your own user IDs or identity cookies
+   - For **LLM API**: call `POST /api/llm/complete` with `{ messages }` in the body; optionally pass a user-provided API key via the `X-Api-Key` header. It requires a signed-in user and returns `401` otherwise
    - Mirror the patterns in the Platform Playground's `page.tsx`
 
 4. **Verify compilation** after changes:
@@ -150,10 +150,11 @@ Turn text into vectors for semantic search, stored with pgvector in the tool's o
 
 ### Tool pages: header and layout
 
-Every page, including tool pages, renders below the site header (PennTools on the left). Tool pages render in the area under it, which scrolls on its own:
+Every page, including tool pages, renders below the site header (PennTools on the left; **Sign in**, or the profile icon and **Log out**, on the right). Tool pages render in the area under it, which scrolls on its own:
 
 - Size full-height layouts with `height: 100%` / `min-height: 100%`, not `100vh`.
 - `position: fixed` is relative to the area under the header, so a container pinned with `top: 0 … bottom: 0` fills that area rather than the window.
+- Don't build sign-in UI. When a platform API returns `401`, tell the user to sign in with the button in the header.
 
 See **Site header** and **Page layout** in `docs/ARCHITECTURE.md`.
 

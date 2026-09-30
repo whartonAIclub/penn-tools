@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Message, Chat } from "@penntools/core/types";
 
 interface UseChatOptions {
-  userId: string | null;
+  userId: string;
   chatId: string | null;
 }
 
@@ -16,6 +16,17 @@ interface UseChatResult {
   startNewChat: () => Promise<string | null>;
 }
 
+/**
+ * Fetches JSON from a platform API. If the session has ended (401), reloads the
+ * page, which then shows the sign-in prompt; any other failure throws.
+ */
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (res.status === 401) window.location.reload();
+  if (!res.ok) throw new Error(`${url} failed (HTTP ${res.status})`);
+  return (await res.json()) as T;
+}
+
 export function useChat({ userId, chatId }: UseChatOptions): UseChatResult {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
@@ -24,10 +35,8 @@ export function useChat({ userId, chatId }: UseChatOptions): UseChatResult {
 
   // Load chat list.
   useEffect(() => {
-    if (!userId) return;
-    fetch("/api/chats")
-      .then((r) => r.json())
-      .then((data: { chats: Chat[] }) => setChats(data.chats))
+    fetchJson<{ chats: Chat[] }>("/api/chats")
+      .then((data) => setChats(data.chats))
       .catch(console.error);
   }, [userId]);
 
@@ -44,9 +53,8 @@ export function useChat({ userId, chatId }: UseChatOptions): UseChatResult {
 
     setIsLoading(true);
     let cancelled = false;
-    fetch(`/api/chats/${chatId}`)
-      .then((r) => r.json())
-      .then((data: { messages: Message[] }) => {
+    fetchJson<{ messages: Message[] }>(`/api/chats/${chatId}`)
+      .then((data) => {
         if (!cancelled) setMessages(data.messages ?? []);
       })
       .catch(console.error)
@@ -67,7 +75,7 @@ export function useChat({ userId, chatId }: UseChatOptions): UseChatResult {
       const optimistic: Message = {
         id: `optimistic-${Date.now()}`,
         chatId: effectiveChatId,
-        userId: userId ?? "",
+        userId,
         role: "user",
         content,
         toolId: null,
@@ -79,7 +87,7 @@ export function useChat({ userId, chatId }: UseChatOptions): UseChatResult {
         const apiKey = typeof window !== "undefined"
           ? (localStorage.getItem("penntools_api_key") ?? "")
           : "";
-        const res = await fetch("/api/chat/send", {
+        const data = await fetchJson<{ userMessage: Message; assistantMessage: Message }>("/api/chat/send", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -87,20 +95,16 @@ export function useChat({ userId, chatId }: UseChatOptions): UseChatResult {
           },
           body: JSON.stringify({ chatId: effectiveChatId, content }),
         });
-        const data = (await res.json()) as {
-          userMessage: Message;
-          assistantMessage: Message;
-        };
 
         // Replace the optimistic message with the real one.
         setMessages((prev) => [
           ...prev.filter((m) => m.id !== optimistic.id),
-          ...[data.userMessage, data.assistantMessage].filter(Boolean),
+          data.userMessage,
+          data.assistantMessage,
         ]);
 
         // Refresh chat list to update title / ordering.
-        const chatsRes = await fetch("/api/chats");
-        const chatsData = (await chatsRes.json()) as { chats: Chat[] };
+        const chatsData = await fetchJson<{ chats: Chat[] }>("/api/chats");
         setChats(chatsData.chats);
       } catch (err) {
         console.error(err);
@@ -116,8 +120,7 @@ export function useChat({ userId, chatId }: UseChatOptions): UseChatResult {
 
   const startNewChat = useCallback(async (): Promise<string | null> => {
     try {
-      const res = await fetch("/api/chats/new", { method: "POST" });
-      const data = (await res.json()) as { chat: Chat };
+      const data = await fetchJson<{ chat: Chat }>("/api/chats/new", { method: "POST" });
       setChats((prev) => [data.chat, ...prev]);
       return data.chat.id;
     } catch (err) {

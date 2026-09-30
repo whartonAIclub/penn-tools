@@ -5,8 +5,11 @@ import { useState } from "react";
 
 type NavItem = "playground" | "api-reference";
 
-type UserResponse = { id: string; type: string; name: string | null; pennId: string | null };
+type UserResponse = { id: string; name: string | null; email: string | null; image: string | null; pennId: string | null };
 type LlmResponse = { content: string; model: string; usage: { promptTokens: number; completionTokens: number; totalTokens: number } };
+
+/** Platform APIs return 401 when signed out; sign-in lives in the site header. */
+const SIGN_IN_MESSAGE = "Sign in with the button at the top right to use this API.";
 
 type ApiState<T> = { status: "idle" | "loading" | "success" | "error"; data: T | null; error: string | null };
 
@@ -35,6 +38,7 @@ export default function PlatformPlaygroundPage() {
     setUserApi({ status: "loading", data: null, error: null });
     try {
       const res = await fetch("/api/me");
+      if (res.status === 401) throw new Error(SIGN_IN_MESSAGE);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: UserResponse = await res.json();
       setUserApi({ status: "success", data, error: null });
@@ -56,6 +60,7 @@ export default function PlatformPlaygroundPage() {
         },
         body: JSON.stringify({ prompt: llmPrompt }),
       });
+      if (res.status === 401) throw new Error(SIGN_IN_MESSAGE);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: LlmResponse = await res.json();
       setLlmApi({ status: "success", data, error: null });
@@ -83,7 +88,7 @@ export default function PlatformPlaygroundPage() {
             renderResult={(data) => (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <LabeledRow label="ID" value={data.id} />
-                <LabeledRow label="Type" value={data.type} />
+                <LabeledRow label="Email" value={data.email} nullable />
                 <LabeledRow label="Name" value={data.name} nullable />
                 <LabeledRow label="Penn ID" value={data.pennId} nullable />
               </div>
@@ -134,13 +139,14 @@ export default function PlatformPlaygroundPage() {
             <CodeBlock>{`// Backend — in your execute() method
 const user = context.currentUser;
 // user.id     — stable UUID
-// user.name   — display name (null until SSO)
-// user.pennId — Penn ID (null until SSO)
-// user.type   — "anonymous" | "authenticated"`}</CodeBlock>
+// user.name   — display name from Google
+// user.email  — email from Google
+// user.image  — profile picture URL from Google, if any`}</CodeBlock>
             <UsageExample>{`// Frontend — in your landing page
 const res = await fetch("/api/me");
 const user = await res.json();
-// { id, type, name, pennId }`}</UsageExample>
+// { id, name, email, image, pennId }
+// 401 when signed out — prompt the user to sign in`}</UsageExample>
           </Section>
 
           <Section title="LLM API" badge="context.llm" badgeColor="#1a56a4">

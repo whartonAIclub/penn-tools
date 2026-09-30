@@ -6,6 +6,7 @@
 ┌──────────────────────────────────────────────────────────┐
 │  apps/web  (Next.js)                                     │
 │   └─ route handlers → container.ts (DI root)            │
+│   └─ lib/auth.ts (Google sign-in, getCurrentUser)       │
 │   └─ React components → hooks → fetch()                 │
 ├──────────────────────────────────────────────────────────┤
 │  packages/platform  (reads env vars, constructs clients) │
@@ -13,14 +14,12 @@
 │   ├─ LLM adapters (OpenAI, Anthropic)                    │
 │   ├─ Embedding adapter (OpenAI)                          │
 │   ├─ Analytics (PostHog)                                 │
-│   ├─ AnonymousIdentityService                            │
 │   └─ Tool databases (toolSql; setup-tools for db:deploy) │
 ├──────────────────────────────────────────────────────────┤
 │  packages/core  (pure interfaces, no env, no vendor SDK) │
 │   ├─ Tool, ToolRegistry, ToolRunner, ToolContext         │
 │   ├─ LLMProvider, EmbeddingProvider interfaces           │
 │   ├─ Analytics interface                                 │
-│   ├─ IdentityService interface                           │
 │   └─ Repository interfaces (Chat, Message, ToolData…)   │
 ├──────────────────────────────────────────────────────────┤
 │  tools/<tool_id>  (one folder per tool)                  │
@@ -151,17 +150,19 @@ directly.
 
 ---
 
-## Multi-user readiness (authless v1)
+## Identity and sign-in
 
-- On first visit, `AnonymousIdentityService.getOrCreateAnonymousUserId()` creates
-  a UUID and writes it as an HTTP-only cookie (`penntools_uid`).
+- There are no anonymous users. A `users` row exists only once someone signs in
+  with Google, keyed by `google_id`; each sign-in refreshes their name, email
+  and picture.
+- Sign-in uses NextAuth (`apps/web/src/lib/auth.ts`). Sessions are signed JWT
+  cookies carrying the `users` row id; there are no session tables. In
+  development without Google credentials, sign-in logs in as a fixed local user.
+- `getCurrentUser()` (`apps/web/src/lib/auth.ts`) is the one place server code
+  gets the current user. Signed-out visitors can browse pages, but it returns
+  null for them and APIs that need a user respond `401` via `signInRequired()`.
 - Every repository method receives `userId` explicitly — there are no implicit
   "current user" globals.
-- When UPenn SSO is added (v2):
-  1. Implement `IdentityService.linkToAuthenticatedUser(anonymousId, pennId)`.
-  2. Insert a `users` row with `type=authenticated`.
-  3. All historical rows (chats, messages, tool_data) remain associated with the
-     original UUID — no data migration needed.
 
 ---
 
@@ -171,7 +172,19 @@ directly.
 
 The root layout (`apps/web/src/app/layout.tsx`) renders `SiteHeader`
 (`apps/web/src/components/layout/SiteHeader.tsx`) above every page, including
-tool pages. On the left, "PennTools" links to the home page.
+tool pages. It is a server component that calls `getCurrentUser()`:
+
+- **Left:** "PennTools", linking to the home page.
+- **Signed out:** a **Sign in** button. It signs in with the provider in
+  `signInProvider` (Google, or the local development user) and returns to the
+  same page. It is disabled when sign-in isn't configured.
+- **Signed in:** the profile picture (or initial), linking to account settings
+  at `/settings`, and **Log out**, which signs out and stays on the page.
+
+Pages that need a user render `SignInPrompt` for signed-out visitors instead of
+their content (`/ask` and `/settings` do). Because `getCurrentUser()` reads the
+request's cookies, every page renders per request rather than being prerendered;
+it is cached per request, so the header and the page share one user lookup.
 
 ### Page layout
 
@@ -185,6 +198,8 @@ For page authors this means:
   (`.app-viewport` uses `contain: layout`). A full-screen container pinned with
   `top: 0 … bottom: 0` fills the area under the header instead of covering it,
   and fixed modals and toasts stay in place while the page scrolls.
+- Don't build sign-in UI in a tool; when a platform API returns `401`, ask the
+  user to sign in with the button in the header.
 
 ---
 
@@ -211,15 +226,15 @@ Key design choices:
   vectors, and the seed re-embeds the rest. Career Canvas (tool 8, schema
   `careercanvas`) is the reference.
 - `messages.tool_id` is nullable — set only when `role = TOOL`.
-- The `tools` table in the schema is **optional** metadata for admin UIs;
-  the runtime registry is code-based (no DB sync required for tools to work).
+- Tool metadata is not stored in the database; the registry in code is the
+  source of truth.
 
 ---
 
 ## Configuration
 
-All env var reads happen in `packages/platform` and `apps/web/src/lib/container.ts`.
-Core interfaces and tools never access `process.env`.
+All env var reads happen in `packages/platform`, `apps/web/src/lib/container.ts`
+and `apps/web/src/lib/auth.ts`. Core interfaces and tools never access `process.env`.
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
@@ -228,3 +243,6 @@ Core interfaces and tools never access `process.env`.
 | `ANTHROPIC_API_KEY` | platform/llm | Anthropic adapter |
 | `POSTHOG_API_KEY` | platform/analytics | Event tracking |
 | `POSTHOG_HOST` | platform/analytics | PostHog instance URL |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | web/lib/auth | Google sign-in (OAuth client); without them, development signs in as a local user and production disables sign-in |
+| `NEXTAUTH_SECRET` | web/lib/auth | Signs session cookies; required with the Google credentials |
+| `NEXTAUTH_URL` | web/lib/auth | The site's public URL; required in production |

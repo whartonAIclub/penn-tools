@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import type { Chat } from "@penntools/core/types";
+import type { Chat, User } from "@penntools/core/types";
 import type { ToolManifest } from "@penntools/core/tools";
+import { ProfileAvatar } from "./ProfileAvatar";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -12,6 +13,7 @@ interface SidebarProps {
   onSelectChat: (id: string) => void;
   onNewChat: () => void;
   tools: ToolManifest[];
+  user: Pick<User, "name" | "email" | "image">;
 }
 
 function IconNewChat() {
@@ -54,7 +56,7 @@ function IconGrid() {
   );
 }
 
-export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat, tools }: SidebarProps) {
+export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat, tools, user }: SidebarProps) {
   const [apiKey, setApiKey] = useState("");
 
   useEffect(() => {
@@ -129,13 +131,13 @@ export function Sidebar({ chats, activeChatId, onSelectChat, onNewChat, tools }:
         />
       </div>
 
-      {/* Bottom: user */}
-      <div className={styles.userRow}>
-        <div className={styles.avatar}>A</div>
+      {/* Bottom: user, linking to account settings */}
+      <Link href="/settings" className={styles.userRow}>
+        <ProfileAvatar name={user.name ?? user.email} image={user.image} />
         <div className={styles.userInfo}>
-          <span className={styles.userName}>Anonymous</span>
+          <span className={styles.userName}>{user.name ?? user.email}</span>
         </div>
-      </div>
+      </Link>
     </aside>
   );
 }

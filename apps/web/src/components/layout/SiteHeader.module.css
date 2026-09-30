@@ -17,3 +17,15 @@
   color: var(--penn-blue);
   text-decoration: none;
 }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile {
+  display: flex;
+  border-radius: 50%;
+  outline-offset: 2px;
+}

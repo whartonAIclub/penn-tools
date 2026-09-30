@@ -20,10 +20,6 @@
       "types": "./dist/analytics/index.d.ts",
       "import": "./dist/analytics/index.js"
     },
-    "./identity": {
-      "types": "./dist/identity/index.d.ts",
-      "import": "./dist/identity/index.js"
-    },
     "./repositories": {
       "types": "./dist/repositories/index.d.ts",
       "import": "./dist/repositories/index.js"

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { llm, createLLMFromKey } from "@/lib/container";
+import { getCurrentUser, signInRequired } from "@/lib/auth";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (!(await getCurrentUser())) return signInRequired();
+
   const { prompt } = (await req.json()) as { prompt: string };
 
   if (!prompt?.trim()) {

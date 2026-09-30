@@ -20,6 +20,8 @@ The setup script handles everything: installs dependencies, builds packages, spi
 
 The app needs Postgres. Docker is optional — without it, set `DATABASE_URL` in `apps/web/.env.local` to a Postgres with the `vector` extension, then apply the schema and set up tool databases before starting. `db:deploy` doesn't read `.env.local`, so pass the URL on the command line: `DATABASE_URL="<url>" pnpm --filter @penntools/platform db:deploy`.
 
+Locally, you don't need Google credentials: without them, **Sign in** logs you in as a local development user.
+
 ### Environment variables
 
 Copy `.env.example` to `apps/web/.env.local` (the setup script does this automatically) and fill in:
@@ -34,6 +36,11 @@ DATABASE_URL="postgresql://penntools:penntools@localhost:5432/penntools"
 
 # Optional
 POSTHOG_API_KEY=""
+
+# Optional locally — Google sign-in (see .env.example)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+NEXTAUTH_SECRET=""
 ```
 
 ## Monorepo layout
@@ -82,6 +89,9 @@ The database is Railway's pgvector Postgres template (the platform schema needs 
 | `OPENAI_API_KEY` | Your OpenAI key (chat and semantic search; deploys also use it to embed Career Canvas's course catalog) |
 | `PORT` | `3000` — the port the public domain targets |
 | `NEXT_PUBLIC_APP_URL` | The app's public URL; baked in at build time, so redeploy after changing it |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The Google OAuth client (redirect URI `<public URL>/api/auth/callback/google`) |
+| `NEXTAUTH_SECRET` | Signs session cookies; generate with `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | The app's public URL |
 
 ## Adding a tool
 

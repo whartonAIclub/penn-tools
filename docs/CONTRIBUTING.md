@@ -65,6 +65,8 @@ DATABASE_URL="<url>" pnpm --filter @penntools/platform db:deploy
 pnpm dev
 ```
 
+Without Google credentials, **Sign in** logs you in as a local development user.
+
 ## Running tests
 
 ```bash

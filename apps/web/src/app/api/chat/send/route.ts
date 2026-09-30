@@ -2,7 +2,7 @@
 // POST /api/chat/send
 //
 // Flow:
-//   1. Resolve anonymous user id from cookie.
+//   1. Resolve the signed-in user (401 if signed out).
 //   2. Parse request body: { chatId, content }.
 //   3. Load (or create) the chat.
 //   4. Persist the user message.
@@ -22,7 +22,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { resolveIdentity } from "@/lib/resolveIdentity";
+import { getCurrentUser, signInRequired } from "@/lib/auth";
 import { repositories, llm, toolRunner, logger, createLLMFromKey } from "@/lib/container";
 import { ToolNotFoundError, ToolAccessDeniedError } from "@penntools/core/tools";
 import { buildResourceContext } from "@/lib/buildResourceContext";
@@ -33,7 +33,9 @@ interface SendBody {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const { userId, setCookie } = await resolveIdentity();
+  const user = await getCurrentUser();
+  if (!user) return signInRequired();
+  const userId = user.id;
   const body = (await req.json()) as SendBody;
   const { chatId, content } = body;
 
@@ -135,17 +137,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await repositories.chats.update(chatId, { title: shortTitle });
   }
 
-  const response = NextResponse.json({
+  return NextResponse.json({
     userMessage,
     assistantMessage,
   });
-
-  if (setCookie) {
-    response.cookies.set(setCookie.name, setCookie.value, {
-      httpOnly: setCookie.httpOnly,
-      path: setCookie.path,
-    });
-  }
-
-  return response;
 }

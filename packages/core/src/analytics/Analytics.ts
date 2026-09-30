@@ -13,7 +13,7 @@ export type EventProperties = Record<string, string | number | boolean | null>;
 export interface Analytics {
   /**
    * Track a named event.
-   * @param userId - Scoped to the anonymous or authenticated user.
+   * @param userId - The signed-in user.
    * @param event  - Snake_case event name, e.g. "chat_message_sent".
    * @param props  - Flat key-value properties (no nested objects to stay
    *                 compatible with all analytics backends).

@@ -6,17 +6,19 @@
 
 export type UserId = string; // UUID
 
-export type UserType = "anonymous" | "authenticated";
-
+/** A signed-in person. Every user has signed in with Google at least once. */
 export interface User {
   id: UserId;
-  type: UserType;
   createdAt: Date;
-  /** Display name — null until the user logs in via SSO. */
+  /** Display name from Google. */
   name: string | null;
+  /** Email from Google. */
+  email: string | null;
+  /** Profile picture URL from Google, if any. */
+  image: string | null;
   /**
-   * UPenn identifier (e.g. pennid / eppn) from SSO.
-   * Null for anonymous users; set when linkToAuthenticatedUser is called.
+   * UPenn identifier (e.g. pennid / eppn) from Penn SSO, once it exists.
+   * Null until then.
    */
   pennId: string | null;
 }

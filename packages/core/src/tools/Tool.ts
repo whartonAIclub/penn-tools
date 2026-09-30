@@ -90,8 +90,8 @@ export abstract class Tool<
   /**
    * Return true if the given user is permitted to run this tool.
    *
-   * Default: allow all users (appropriate for v1 authless mode).
-   * Override to add role checks when UPenn auth is introduced.
+   * Default: allow every signed-in user.
+   * Override to add role checks.
    *
    * Keeping this on the base class (rather than in ToolRunner) means each
    * tool can express its own policy without touching runner logic.

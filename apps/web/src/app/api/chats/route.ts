@@ -2,11 +2,13 @@
 // POST /api/chats — handled in /api/chats/new/route.ts (kept separate for clarity)
 
 import { NextResponse } from "next/server";
-import { resolveIdentity } from "@/lib/resolveIdentity";
+import { getCurrentUser, signInRequired } from "@/lib/auth";
 import { repositories } from "@/lib/container";
 
 export async function GET(): Promise<NextResponse> {
-  const { userId } = await resolveIdentity();
-  const chats = await repositories.chats.findAllByUser(userId);
+  const user = await getCurrentUser();
+  if (!user) return signInRequired();
+
+  const chats = await repositories.chats.findAllByUser(user.id);
   return NextResponse.json({ chats });
 }

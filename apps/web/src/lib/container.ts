@@ -28,7 +28,6 @@ import { OpenAIEmbeddingAdapter } from "@penntools/platform/embeddings";
 import type { EmbeddingProvider } from "@penntools/core/embeddings";
 import type { ResourceRepository } from "@penntools/core/resources";
 import { PostHogAnalytics } from "@penntools/platform/analytics";
-import { AnonymousIdentityService } from "@penntools/platform/identity";
 import { NoopAnalytics } from "@penntools/core/analytics";
 import { toolRegistry, ToolRunner } from "@penntools/core/tools";
 import type { ToolContext } from "@penntools/core/tools";
@@ -135,10 +134,6 @@ function createAnalytics(): Analytics {
 }
 
 export const analytics: Analytics = createAnalytics();
-
-// ── Identity ──────────────────────────────────────────────────────────────────
-
-export const identityService = new AnonymousIdentityService(repositories.users);
 
 // ── Logger ────────────────────────────────────────────────────────────────────
 

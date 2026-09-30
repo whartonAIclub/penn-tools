@@ -5,16 +5,15 @@ import { Sidebar } from "./Sidebar";
 import { ChatThread } from "../chat/ChatThread";
 import { ChatInput } from "../chat/ChatInput";
 import { useChat } from "@/hooks/useChat";
-import { useAnonymousIdentity } from "@/hooks/useAnonymousIdentity";
 import type { ToolManifest } from "@penntools/core/tools";
+import type { User } from "@penntools/core/types";
 import styles from "./AppShell.module.css";
 
-export function AppShell() {
-  const { userId } = useAnonymousIdentity();
+export function AppShell({ user }: { user: Pick<User, "id" | "name" | "email" | "image"> }) {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [tools, setTools] = useState<ToolManifest[]>([]);
   const { messages, chats, sendMessage, startNewChat, isLoading } = useChat({
-    userId,
+    userId: user.id,
     chatId: activeChatId,
   });
 
@@ -52,6 +51,7 @@ export function AppShell() {
         onSelectChat={setActiveChatId}
         onNewChat={handleNewChat}
         tools={tools}
+        user={user}
       />
 
       <main className={styles.main}>
