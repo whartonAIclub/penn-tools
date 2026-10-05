@@ -75,7 +75,14 @@ pnpm --filter @penntools/platform db:deploy   # apply schema changes + tool data
 
 ## Deploying
 
-The app runs on [Railway](https://railway.com). On the app service, set **Settings → Deploy → Pre-deploy Command** to `pnpm --filter @penntools/platform db:deploy`; without it the database is never set up. The build and start commands are Railway's defaults.
+The app runs on [Railway](https://railway.com). Railway has deprecated Config as Code (`railway.json`), so these commands are set by hand on the app service (**Settings → Deploy**):
+
+| Setting | Value | Why it's needed |
+|---|---|---|
+| Start command | `pnpm --filter @penntools/web start` | The root `package.json` has no `start` script, so Railway can't detect one. |
+| Pre-deploy command | `pnpm --filter @penntools/platform db:deploy` | Sets up the database (step 2 below); without it the tables are never created. |
+
+Leave the build command empty: Railway runs the root `build` script (`turbo build`).
 
 On each push to the tracked branch, Railway:
 
