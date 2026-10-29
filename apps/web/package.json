@@ -17,6 +17,7 @@
     "@penntools/tool-3": "workspace:*",
     "@penntools/tool-askpenn": "workspace:*",
     "@penntools/tool-career-canvas": "workspace:*",
+    "@penntools/tool-chatprep": "workspace:*",
     "@penntools/tool-coursematch-assist": "workspace:*",
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-pitch-coach": "workspace:*",
