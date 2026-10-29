@@ -18,6 +18,7 @@
     "@penntools/tool-askpenn": "workspace:*",
     "@penntools/tool-career-canvas": "workspace:*",
     "@penntools/tool-coursematch-assist": "workspace:*",
+    "@penntools/tool-penn-fitness": "workspace:*",
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-pitch-coach": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",

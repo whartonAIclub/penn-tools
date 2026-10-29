@@ -44,6 +44,9 @@ importers:
       '@penntools/tool-coursematch-assist':
         specifier: workspace:*
         version: link:../../tools/coursematch-assist
+      '@penntools/tool-penn-fitness':
+        specifier: workspace:*
+        version: link:../../tools/penn-fitness
       '@penntools/tool-penn-planner':
         specifier: workspace:*
         version: link:../../tools/penn-planner
@@ -223,6 +226,19 @@ importers:
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
+  tools/penn-fitness:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
     devDependencies:
       typescript:
         specifier: ^5.4.0
