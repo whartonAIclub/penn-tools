@@ -44,6 +44,8 @@ import { PitchCoachTool } from "@penntools/tool-pitch-coach";
 toolRegistry.register(new PitchCoachTool());
 import { AskPennTool } from "@penntools/tool-askpenn";
 toolRegistry.register(new AskPennTool());
+import { TrekFinderTool } from "@penntools/tool-trek-finder";
+toolRegistry.register(new TrekFinderTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 
