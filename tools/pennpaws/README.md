@@ -8,7 +8,7 @@ PennPaws is a tool on [penntools.org](https://penntools.org) that connects Penn 
 |---|---|
 | **Team** | Lu Lu, Esther Li |
 | **Program** | Wharton AI Club, AI Product Manager Training, Cohort 3 |
-| **Status** | Registered, designing. Core loop due Tue 11/10 |
+| **Status** | Core loop built and tested, next: try it in the browser and run user tests |
 | **Demo day** | Tue 11/17, live on penntools.org |
 | **Tool ID** | `pennpaws`, so the URL is `/tools/pennpaws` |
 

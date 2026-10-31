@@ -1,12 +1,47 @@
-// A placeholder page. To build the tool, see section 4 of CLAUDE.md: AskPenn
-// (tools/askpenn) and the Platform Playground (tools/platform-playground) are
-// the reference tools.
+// PennPaws: Penn students find a verified fellow student to look after their
+// pet. Signed-out visitors are asked to sign in. AI is optional, so users
+// without a saved key still get the whole tool.
 
-export default function PennpawsPage() {
+import type { Metadata } from "next";
+import { toolSql } from "@penntools/platform/db";
+import { firstName, listMyRequests, listNotifications, listOpenRequests } from "@penntools/tool-pennpaws";
+import { getAI } from "@/lib/ai";
+import { getCurrentUser } from "@/lib/auth";
+import { SignInPrompt } from "@/components/layout/SignInPrompt";
+import { PennPaws } from "./PennPaws";
+
+export const metadata: Metadata = {
+  title: "PennPaws",
+};
+
+export default async function PennPawsPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return (
+      <SignInPrompt
+        title="PennPaws"
+        message="Going away? Find a verified Penn student to walk your dog or visit your cat, or offer to help. Everyone here signs in with a Penn account."
+      />
+    );
+  }
+
+  const sql = toolSql("pennpaws");
+  if (!sql) throw new Error("PennPaws's database is not configured (check DATABASE_URL).");
+
+  const [open, mine, notifications, providers] = await Promise.all([
+    listOpenRequests(sql, user.id),
+    listMyRequests(sql, user.id),
+    listNotifications(sql, user.id),
+    getAI().then((ai) => ai?.providers() ?? []),
+  ]);
+
   return (
-    <div>
-      <h1>{"PennPaws"}</h1>
-      <p>{"Find a verified Penn student to walk your dog or visit your cat while you're away."}</p>
-    </div>
+    <PennPaws
+      userFirstName={firstName(user.name ?? "")}
+      open={open}
+      mine={mine}
+      notifications={notifications}
+      hasAI={providers.length > 0}
+    />
   );
 }

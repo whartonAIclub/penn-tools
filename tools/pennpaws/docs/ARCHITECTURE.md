@@ -20,15 +20,15 @@ Our schema can't read platform tables, so when someone posts or offers we copy t
 ## Data model
 
 ```sql
-pets        (id, owner_id, name, kind, kind_other, details, photo_url, created_at)
-sitters     (user_id PK, name, email, bio, comfortable_with[], area, created_at)
-requests    (id, owner_id, owner_name, owner_email, pet_id, starts_on, ends_on,
-             schedule, schedule_other, tasks[], tasks_other, access, access_other,
-             pay_text, notes, status, created_at, updated_at)
-offers      (id, request_id, sitter_id, message, status, created_at)
+requests    (id, owner_id, owner_name, owner_email, pet_name, pet_kind, pet_details,
+             photo, weekly, starts_on, ends_on,
+             frequency, frequency_other, tasks[], tasks_other, access, access_other,
+             pay, area, notes, status, created_at, updated_at)
+offers      (id, request_id, sitter_id, sitter_name, sitter_email, message, status, created_at)
               UNIQUE (request_id, sitter_id)
-agreements  (id, request_id, offer_id, terms JSONB, version,
-             owner_approved_at, sitter_approved_at, created_at)
+agreements  (request_id PK, offer_id, terms JSONB, version,
+             owner_approved_at, sitter_approved_at, updated_at)
+notifications (id, user_id, request_id, message, read_at, created_at)
 ```
 
 * Every "something else" answer is stored next to its fixed option (`kind` plus `kind_other`), so we can filter on the fixed options and still keep what people typed. Repeated "something else" answers tell us which options to add next.
@@ -64,6 +64,12 @@ Updates use a check on the current status (`UPDATE ... WHERE status = 'open'`), 
 * Calls run only in server code through `getAI()`, on the signed in user's own key. The owner's key pays for parsing, and whoever asks for the draft or change pays for that.
 * Every AI step has a non-AI path: the survey is a form, and the agreement has a template. A missing, invalid or empty key shows the platform's pointer to Settings and falls back to the form.
 * Errors come back as data (`error.toJSON()`) so the page can show a clear message.
+
+## Notifications
+
+Every event that needs someone (a new offer, being picked or not, an approval, a booking, a change request, a cancellation) goes through one function, `notify()` in `src/notifications.ts`. It stores the notification in our `notifications` table, which drives the bell and its unread count, then hands it to any extra channels.
+
+The platform has no email or phone push today, and push needs a service worker at the site root, which is outside our folders. When the Platform team adds either, we pass a `NotificationChannel` to `notify()` and no other code changes. A failing channel never blocks the action.
 
 ## Privacy and safety
 
