@@ -338,6 +338,18 @@ export function requestStart(profile: OwnerProfile): RequestStart {
   };
 }
 
+/** A sitter's profile in plain words, for AI to introduce them in a message. Leaves out gender and location. */
+export function aboutSitter(profile: SitterProfile): string {
+  const list = (options: readonly Option[], values: readonly string[]) => values.map((value) => labelOf(options, value).toLowerCase()).join(", ");
+  return [
+    profile.bio,
+    `Offers: ${list(SERVICES, profile.services)}.`,
+    `Comfortable with: ${list(SITTER_PET_KINDS, profile.petKinds)}; sizes ${list(PET_SIZES, profile.sizes)}.`,
+    profile.experience.length ? `Experience: ${list(EXPERIENCE, profile.experience)}.` : "No pet-sitting experience yet.",
+    `Available: ${list(AVAILABILITY, profile.availability)}.`,
+  ].join(" ");
+}
+
 /** The profile, or the first thing wrong with it. Server actions get browser input, so check it. */
 export function checkProfile(input: unknown): Checked<Profile> {
   const role = (input as { role?: unknown } | null)?.role;

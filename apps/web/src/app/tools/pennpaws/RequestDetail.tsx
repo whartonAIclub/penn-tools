@@ -1,12 +1,16 @@
 "use client";
 
-// One request, as the viewer may see it: a sitter can offer to help, the
-// owner picks an offer, and both review and approve the care agreement.
-// Contacts appear only once both have approved.
+// One request, as the viewer may see it: a sitter can ask the owner questions
+// and accept the job, the owner replies and picks one sitter from everyone who
+// accepted, and both review and approve the care agreement.
+// Contacts appear only once both have approved. Either person marks the
+// booking done, then the owner can rate it; the sitter sees ratings only
+// anonymously, in Completed.
 
 import { useCallback, useEffect, useState } from "react";
-import { describe, type AgreementTerms, type RequestView } from "@penntools/tool-pennpaws";
-import { accept, approve, askForChange, cancel, loadRequest, offer, type ActionResult } from "./actions";
+import { describe, type AgreementTerms } from "@penntools/tool-pennpaws";
+import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, type ActionResult, type RequestPage } from "./actions";
+import { Conversation } from "./Conversation";
 import { CheckIcon, PetAvatar } from "./PennPaws";
 import styles from "./PennPaws.module.css";
 
@@ -21,8 +25,19 @@ const TERM_LABELS: [keyof AgreementTerms, string][] = [
   ["notes", "Notes"],
 ];
 
-export function RequestDetail({ requestId, onBack, onChanged }: { requestId: string; onBack: () => void; onChanged: () => void }) {
-  const [request, setRequest] = useState<RequestView | null | undefined>(undefined);
+export function RequestDetail({
+  requestId,
+  hasAI,
+  onBack,
+  onChanged,
+}: {
+  requestId: string;
+  /** Whether the user saved an API key, for "Help me write" in messages. */
+  hasAI: boolean;
+  onBack: () => void;
+  onChanged: () => void;
+}) {
+  const [request, setRequest] = useState<RequestPage | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -142,16 +157,32 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
             placeholder="I have pets at home, live nearby and I'm free mornings and evenings."
           />
           <button type="submit" className={styles.primary} disabled={busy || !message.trim()}>
-            I can help
+            Accept this job
           </button>
-          <span className={styles.hint}>{request.ownerFirstName} sees your first name and this note. Emails are shared only after you both approve.</span>
+          <span className={styles.hint}>
+            {request.ownerFirstName} picks one sitter from everyone who accepts, and sees your first name and this note. Emails are shared only after you both
+            approve. Questions first? Message {request.ownerFirstName} below.
+          </span>
         </form>
       )}
       {!request.mine && role === null && request.status !== "open" && <p className={styles.muted}>This request already has a sitter.</p>}
 
       {/* A sitter who offered */}
       {role === "sitter" && request.myOffer?.status === "pending" && (
-        <div className={styles.notice}>You offered to help. We'll let you know when {request.ownerFirstName} decides.</div>
+        <div className={styles.notice}>You accepted this job. We'll let you know when {request.ownerFirstName} picks a sitter.</div>
+      )}
+
+      {/* A sitter's conversation with the owner */}
+      {!request.mine && request.threads[0] && (request.threads[0].canSend || request.threads[0].messages.length > 0) && (
+        <Conversation
+          key={`${request.threads[0].messages.length}`}
+          requestId={request.id}
+          thread={request.threads[0]}
+          title={`Messages with ${request.ownerFirstName}`}
+          otherFirstName={request.ownerFirstName}
+          hasAI={hasAI}
+          onSent={reload}
+        />
       )}
       {role === "sitter" && request.myOffer?.status === "declined" && (
         <div className={styles.panelPlain}>{request.draft.petName} found another sitter this time. Thanks for offering.</div>
@@ -178,6 +209,22 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
           )}
         </div>
       )}
+
+      {/* The owner's conversations, one per sitter who wrote */}
+      {request.mine &&
+        request.threads
+          .filter((t) => t.canSend || t.messages.length > 0)
+          .map((t) => (
+            <Conversation
+              key={`${t.id}-${t.messages.length}`}
+              requestId={request.id}
+              thread={t}
+              title={`Messages with ${t.sitterFirstName}`}
+              otherFirstName={t.sitterFirstName}
+              hasAI={hasAI}
+              onSent={reload}
+            />
+          ))}
 
       {/* The agreement */}
       {agreement && (request.status === "matched" || request.status === "agreed") && (
@@ -269,6 +316,34 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
         </div>
       )}
 
+      {role && request.status === "agreed" && (
+        <div className={styles.panelPlain}>
+          <span>When the care is finished, mark it done. {otherName} is told.</span>
+          <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => markDone(request.id))}>
+            Mark as done
+          </button>
+        </div>
+      )}
+
+      {role === "sitter" && request.status === "completed" && (
+        <div className={styles.noticeGood}>
+          <strong>Done. Thanks for looking after {request.draft.petName}.</strong>
+          <span>Record what you were paid in Earnings. Ratings from owners show up in Completed, without their names.</span>
+        </div>
+      )}
+      {role === "owner" && request.status === "completed" &&
+        (request.reviewed ? (
+          <div className={styles.noticeGood}>
+            <strong>Thanks for your rating.</strong>
+          </div>
+        ) : (
+          <ReviewForm
+            sitterName={request.sitterFirstName ?? "your sitter"}
+            busy={busy}
+            onSubmit={(rating, feedback) => void act(() => rate(request.id, { rating, feedback: feedback.trim() || null }))}
+          />
+        ))}
+
       {request.status === "cancelled" && (
         <div className={styles.notice}>{request.mine ? "You cancelled this request." : "The owner cancelled this request."}</div>
       )}
@@ -292,6 +367,55 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
           </button>
         ))}
     </section>
+  );
+}
+
+function ReviewForm({ sitterName, busy, onSubmit }: { sitterName: string; busy: boolean; onSubmit: (rating: number, feedback: string) => void }) {
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState("");
+  return (
+    <form
+      className={styles.panelPlain}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(rating, feedback);
+      }}
+    >
+      <span id="pp-rating" className={styles.label}>
+        How did {sitterName} do?
+      </span>
+      <div className={styles.starPicker} role="radiogroup" aria-labelledby="pp-rating">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={rating === n}
+            aria-label={`${n} ${n === 1 ? "star" : "stars"}`}
+            className={n <= rating ? styles.starOn : styles.starOff}
+            onClick={() => setRating(n)}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      <label htmlFor="pp-feedback" className={styles.label}>
+        Feedback (optional)
+      </label>
+      <textarea
+        id="pp-feedback"
+        className={styles.input}
+        rows={3}
+        maxLength={500}
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+        placeholder="Sent a photo after every walk. Mochi loved her."
+      />
+      <span className={styles.hint}>{sitterName} sees your rating and feedback without your name or which booking it&apos;s about.</span>
+      <button type="submit" className={styles.primary} disabled={busy || rating === 0}>
+        Send rating
+      </button>
+    </form>
   );
 }
 

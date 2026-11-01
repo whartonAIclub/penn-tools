@@ -68,6 +68,43 @@ export async function polishAgreement(ai: AI, provider: AIProvider, terms: Terms
   return object;
 }
 
+export interface MessageContext {
+  /** Who the draft is for. */
+  writer: "owner" | "sitter";
+  writerFirstName: string;
+  otherFirstName: string;
+  /** The request in plain words (describe() plus pay, area and notes). */
+  request: Record<string, string | null>;
+  /** The sitter's profile in plain words, when the writer is the sitter. */
+  aboutMe: string | null;
+  /** The conversation so far, oldest first. */
+  thread: { fromMe: boolean; body: string }[];
+}
+
+const MessageDraft = z.object({ message: z.string() });
+
+/**
+ * A message for the writer to edit and send themselves: a sitter's first
+ * note and questions, or a reply to the latest message. Never sent by AI.
+ */
+export async function draftMessage(ai: AI, provider: AIProvider, context: MessageContext): Promise<string> {
+  const { object } = await ai.generateObject({
+    provider,
+    tier: "fast",
+    reasoning: "low",
+    schema: MessageDraft,
+    system:
+      `Draft a short, friendly message from ${context.writerFirstName}, a Penn ${context.writer === "sitter" ? "student who wants to look after this pet" : "student who posted this pet-care request"}, ` +
+      `to ${context.otherFirstName} on PennPaws. Plain text, at most 90 words, no subject line or sign-off. ` +
+      (context.thread.length === 0
+        ? "It's the first message: introduce the writer in one sentence using only what aboutMe says, then ask two or three questions that matter for this job and aren't answered by the request, such as feeding, walking routine, key handoff or a quick meet-and-greet. "
+        : "Reply to the latest message from the other person, answering what the request lets you answer. ") +
+      "Use only facts given; where the writer must fill something in, write it in [square brackets]. Never include addresses, phone numbers or emails.",
+    messages: [{ role: "user", content: JSON.stringify({ request: context.request, aboutMe: context.aboutMe, thread: context.thread.slice(-10) }) }],
+  });
+  return object.message.trim().slice(0, LIMITS.message);
+}
+
 /** The agreement with the requested change applied, leaving everything else as it was. */
 export async function applyChange(ai: AI, provider: AIProvider, terms: Terms, change: string): Promise<Terms> {
   const { object } = await ai.generateObject({

@@ -6,6 +6,7 @@
 import type { Sql } from "postgres";
 import { AgreementTerms, type AgreementTerms as Terms } from "./agreement.js";
 import { allowedFrom, bothApproved, canSeeContacts, type OfferStatus, type RequestStatus, type Role } from "./booking.js";
+import type { PaymentMethod, SitterJob } from "./jobs.js";
 import { notify, type NotificationChannel } from "./notifications.js";
 import type { RequestDraft } from "./request.js";
 import { LIMITS } from "./survey.js";
@@ -52,11 +53,13 @@ export interface RequestView extends RequestCard {
   sitterFirstName: string | null;
   /** Both people's emails, only once the booking is agreed. */
   contacts: { owner: string | null; sitter: string | null } | null;
+  /** Whether the owner has rated this booking. Always false for the sitter, who sees ratings only anonymously. */
+  reviewed: boolean;
 }
 
 export class PennPawsError extends Error {}
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || "A Penn student";
@@ -89,6 +92,7 @@ interface RequestRow {
   notes: string | null;
   status: RequestStatus;
   created_at: Date;
+  completed_at: Date | null;
   offer_count: string;
 }
 
@@ -98,7 +102,7 @@ function selectRequests(sql: Sql) {
            r.pet_details, r.photo, r.weekly,
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
-           r.pay, r.area, r.vet, r.notes, r.status, r.created_at,
+           r.pay, r.area, r.vet, r.notes, r.status, r.created_at, r.completed_at,
            (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count
     FROM requests r
   `;
@@ -158,6 +162,29 @@ export async function listMyRequests(sql: Sql, userId: string): Promise<RequestC
   return rows.map((row) => toCard(row, userId));
 }
 
+/** Every request the sitter offered on, with their offer, whether it's their turn to approve, and what they've been paid. */
+export async function listSitterJobs(sql: Sql, sitterId: string): Promise<SitterJob[]> {
+  const rows = await sql<
+    (RequestRow & { offer_status: OfferStatus; sitter_approved: boolean; amount: string | null; method: PaymentMethod | null; paid_on: string | null })[]
+  >`
+    SELECT q.*, o.status AS offer_status, a.sitter_approved_at IS NOT NULL AS sitter_approved,
+           p.amount, p.method, to_char(p.paid_on, 'YYYY-MM-DD') AS paid_on
+    FROM (${selectRequests(sql)}) q
+    JOIN offers o ON o.request_id = q.id AND o.sitter_id = ${sitterId} AND o.status <> 'withdrawn'
+    LEFT JOIN agreements a ON a.request_id = q.id AND a.offer_id = o.id
+    LEFT JOIN payments p ON p.request_id = q.id AND p.sitter_id = o.sitter_id
+    ORDER BY q.weekly, q.starts_on, q.created_at DESC
+    LIMIT 200
+  `;
+  return rows.map((row) => ({
+    request: toCard(row, sitterId),
+    offer: row.offer_status,
+    needsMyApproval: row.offer_status === "accepted" && row.status === "matched" && !row.sitter_approved,
+    completedAt: row.completed_at?.toISOString() ?? null,
+    payment: row.amount && row.method && row.paid_on ? { amount: Number(row.amount), method: row.method, paidOn: row.paid_on } : null,
+  }));
+}
+
 /** One request as the viewer may see it, or null if it doesn't exist. */
 export async function getRequestView(sql: Sql, viewerId: string, requestId: string): Promise<RequestView | null> {
   if (!UUID_RE.test(requestId)) return null;
@@ -195,6 +222,8 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
     }
   }
 
+  const reviewed = isOwner && row.status === "completed" && (await sql`SELECT 1 FROM reviews WHERE request_id = ${requestId}`).length > 0;
+
   return {
     ...toCard(row, viewerId),
     role,
@@ -203,6 +232,7 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
     agreement,
     sitterFirstName: party && accepted ? firstName(accepted.sitter_name) : null,
     contacts: party && accepted && canSeeContacts(row.status) ? { owner: row.owner_email, sitter: accepted.sitter_email } : null,
+    reviewed,
   };
 }
 
@@ -384,6 +414,23 @@ export async function approveAgreement(
   const message = agreed
     ? `You're booked. ${party.me} approved the agreement for ${party.pet}, and you can now see each other's email.`
     : `${party.me} approved the agreement for ${party.pet}. It's your turn to review it.`;
+  await notify(sql, party.other.id, message, requestId, channels);
+}
+
+/** Marks a booked request done, by either person, and tells the other. */
+export async function completeBooking(sql: Sql, userId: string, requestId: string, channels: readonly NotificationChannel[] = []): Promise<void> {
+  const party = await partyOf(sql, userId, requestId);
+  if (!party || party.status !== "agreed") throw new PennPawsError("This booking can't be marked done now.");
+  const moved = await sql`
+    UPDATE requests SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+    WHERE id = ${requestId} AND status = ANY(${sql.array([...allowedFrom("complete")])})
+    RETURNING id
+  `;
+  if (moved.length === 0) throw new PennPawsError("This booking can't be marked done now.");
+  const message =
+    party.role === "sitter"
+      ? `${party.me} marked looking after ${party.pet} as done. How did it go? Leave a rating.`
+      : `${party.me} marked the booking for ${party.pet} as done. Thanks for looking after ${party.pet}.`;
   await notify(sql, party.other.id, message, requestId, channels);
 }
 

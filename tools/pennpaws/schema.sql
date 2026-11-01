@@ -45,6 +45,9 @@ CREATE INDEX IF NOT EXISTS requests_owner_idx ON requests (owner_id, created_at 
 -- Added after the first deploy: the owner's vet, for the care agreement.
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS vet TEXT;
 
+-- Added after the first deploy: when either person marked the booking done.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+
 -- A sitter's offer to help with one request; one per sitter per request.
 CREATE TABLE IF NOT EXISTS offers (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -107,3 +110,52 @@ CREATE TABLE IF NOT EXISTS members (
 );
 
 CREATE INDEX IF NOT EXISTS members_role_idx ON members (role);
+
+-- What a sitter was paid for a booking, as they record it. Money moves in
+-- Venmo, PayPal and the like, outside PennPaws; this only keeps track.
+CREATE TABLE IF NOT EXISTS payments (
+  request_id  UUID          PRIMARY KEY REFERENCES requests (id) ON DELETE CASCADE,
+  sitter_id   TEXT          NOT NULL,
+  amount      NUMERIC(8, 2) NOT NULL CHECK (amount > 0),
+  method      TEXT          NOT NULL CHECK (method IN ('venmo', 'paypal', 'zelle', 'cash', 'other')),
+  paid_on     DATE          NOT NULL,
+  created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS payments_sitter_idx ON payments (sitter_id, paid_on DESC);
+
+-- An owner's rating of a finished booking, one per booking. The sitter reads
+-- ratings without the owner, the pet or the booking (see jobs.ts), so owners
+-- can be honest.
+CREATE TABLE IF NOT EXISTS reviews (
+  request_id  UUID        PRIMARY KEY REFERENCES requests (id) ON DELETE CASCADE,
+  owner_id    TEXT        NOT NULL,
+  sitter_id   TEXT        NOT NULL,
+  rating      SMALLINT    NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  feedback    TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS reviews_sitter_idx ON reviews (sitter_id, created_at DESC);
+
+-- Messages about a request: one thread per sitter, between that sitter and
+-- the owner, so they can sort out details before and after booking. Emails
+-- stay hidden; people talk here until both approve.
+CREATE TABLE IF NOT EXISTS threads (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id  UUID        NOT NULL REFERENCES requests (id) ON DELETE CASCADE,
+  sitter_id   TEXT        NOT NULL,
+  sitter_name TEXT        NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (request_id, sitter_id)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id          BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  thread_id   UUID        NOT NULL REFERENCES threads (id) ON DELETE CASCADE,
+  from_owner  BOOLEAN     NOT NULL,
+  body        TEXT        NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS messages_thread_idx ON messages (thread_id, id);

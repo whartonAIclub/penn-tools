@@ -3,8 +3,8 @@
 // First-time setup, one step at a time: pick a role, pass the school email
 // check, then answer that role's survey and say roughly where you are. Owners
 // describe their pet and sitters what they can take on, on the same scales,
-// so matching can compare them later. Members can open it again from the main
-// page to change their answers.
+// so matching can compare them later. My profile opens it on the saved
+// answers, where each line has an Edit link back to its question.
 
 import { Fragment, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -345,43 +345,48 @@ function problem(step: Step, f: Form, school: string | null): string | null {
   }
 }
 
-/** The review card's lines for the chosen role. */
-function summary(f: Form, school: string): [string, string][] {
-  const lines: [string, string][] = [
-    ["Role", labelOf(ROLES, f.role ?? "")],
-    ["School", school],
+/** The review card's lines for the chosen role, each with the step that asks it (null when it can't be edited). */
+function summary(f: Form, school: string): [string, string, Step | null][] {
+  const lines: [string, string, Step | null][] = [
+    ["Role", labelOf(ROLES, f.role ?? ""), "role"],
+    ["School", school, null],
   ];
   if (f.role === "owner") {
     const kind = needsKindText(f.petKind) ? f.petKindOther : labelOf(PET_KINDS, f.petKind ?? "").replace(/^A /, "");
     lines.push(
-      ["Pet", [f.petName, kind, labelOf(PET_SIZES, f.size ?? "").toLowerCase(), labelOf(PET_AGES, f.age ?? "").toLowerCase()].filter(Boolean).join(", ")],
+      ["Pet", [f.petName, kind, labelOf(PET_SIZES, f.size ?? "").toLowerCase(), labelOf(PET_AGES, f.age ?? "").toLowerCase()].filter(Boolean).join(", "), "pet"],
       [
         "Personality",
         [labelOf(ENERGY, f.energy ?? ""), labelOf(WITH_PEOPLE, f.withPeople ?? ""), `with other animals: ${labelOf(WITH_ANIMALS, f.withAnimals ?? "").toLowerCase()}`, `alone: ${labelOf(ALONE, f.alone ?? "").toLowerCase()}`].join(". "),
+        "personality",
       ],
-      ["Special care", f.specialCare.length ? labelsOf(SPECIAL_CARE, f.specialCare.filter((c) => c !== OTHER)).concat(f.specialCare.includes(OTHER) ? `${f.specialCare.length > 1 ? ", " : ""}${f.specialCareOther}` : "") : "None"],
-      ["Bites or scratches", f.bites ? `Yes. ${f.bitesDetails}` : "No"],
-      ["Sitter", labelOf(GENDER_PREFS, f.sitterGenderPref ?? "")],
+      [
+        "Special care",
+        f.specialCare.length ? labelsOf(SPECIAL_CARE, f.specialCare.filter((c) => c !== OTHER)).concat(f.specialCare.includes(OTHER) ? `${f.specialCare.length > 1 ? ", " : ""}${f.specialCareOther}` : "") : "None",
+        "care",
+      ],
+      ["Bites or scratches", f.bites ? `Yes. ${f.bitesDetails}` : "No", "care"],
+      ["Sitter", labelOf(GENDER_PREFS, f.sitterGenderPref ?? ""), "preference"],
     );
   } else if (f.role === "sitter") {
     lines.push(
-      ["Offers", labelsOf(SERVICES, f.services)],
-      ["Pets", `${labelsOf(SITTER_PET_KINDS, f.petKinds)}. Sizes: ${labelsOf(PET_SIZES, f.sizes).toLowerCase()}`],
-      ["Energy", labelsOf(ENERGY, f.energies)],
-      ["Anxious pets", f.anxiousOk ? "Comfortable with them" : "Prefer not"],
-      ["Experience", f.experience.length ? labelsOf(EXPERIENCE, f.experience) : "None yet"],
-      ["Schedule", `${labelsOf(AVAILABILITY, f.availability)}. Travels up to ${labelOf(TRAVEL, f.travel ?? "").toLowerCase()}`],
-      ["Gender", `${labelOf(GENDERS, f.gender ?? "")}${f.gender !== "prefer_not" ? (f.showGender ? ", shown on your profile" : ", kept private") : ""}`],
-      ["About you", f.bio],
+      ["Offers", labelsOf(SERVICES, f.services), "services"],
+      ["Pets", `${labelsOf(SITTER_PET_KINDS, f.petKinds)}. Sizes: ${labelsOf(PET_SIZES, f.sizes).toLowerCase()}`, "comfort"],
+      ["Energy", labelsOf(ENERGY, f.energies), "comfort"],
+      ["Anxious pets", f.anxiousOk ? "Comfortable with them" : "Prefer not", "comfort"],
+      ["Experience", f.experience.length ? labelsOf(EXPERIENCE, f.experience) : "None yet", "experience"],
+      ["Schedule", `${labelsOf(AVAILABILITY, f.availability)}. Travels up to ${labelOf(TRAVEL, f.travel ?? "").toLowerCase()}`, "experience"],
+      ["Gender", `${labelOf(GENDERS, f.gender ?? "")}${f.gender !== "prefer_not" ? (f.showGender ? ", shown on your profile" : ", kept private") : ""}`, "about"],
+      ["About you", f.bio, "about"],
     );
     if (f.services.includes("boarding")) {
       const home = f.homeType === OTHER ? f.homeTypeOther : labelOf(HOME_TYPES, f.homeType ?? "");
-      lines.push(["Your home", [home, f.hasYard ? "has a yard" : "no yard", f.otherPets.trim() ? `other pets: ${f.otherPets.trim()}` : "no other pets"].join(", ")]);
+      lines.push(["Your home", [home, f.hasYard ? "has a yard" : "no yard", f.otherPets.trim() ? `other pets: ${f.otherPets.trim()}` : "no other pets"].join(", "), "home"]);
     }
   } else {
-    lines.push(["Your pet", f.petName.trim() || "No pet yet"], ["About you", f.bio.trim() || "Nothing yet"]);
+    lines.push(["Your pet", f.petName.trim() || "No pet yet", "pals"], ["About you", f.bio.trim() || "Nothing yet", "pals"]);
   }
-  lines.push(["Location", f.area]);
+  lines.push(["Location", f.area, "location"]);
   return lines;
 }
 
@@ -408,7 +413,10 @@ export function Onboarding({
 }) {
   const router = useRouter();
   const [f, setF] = useState<Form>(() => fromProfile(initial));
-  const [step, setStep] = useState<Step>("role");
+  // My profile opens on the saved answers; first-time setup starts at the role.
+  const [step, setStep] = useState<Step>(initial && onDone ? "review" : "role");
+  // Set when editing one answer from the review: Continue goes back there.
+  const [editingOne, setEditingOne] = useState(false);
   const [ownPlace, setOwnPlace] = useState(() => initial !== null && initial.location.area !== GPS_AREA && !NEIGHBORHOODS.some((n) => n.value === initial.location.area));
   const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -423,7 +431,20 @@ export function Onboarding({
   };
   const goTo = (next: Form) => {
     const nextSteps = stepsFor(next);
+    if (editingOne) {
+      // Back to the review, unless the change opened a question that still needs answering (like boarding's home step).
+      const open = nextSteps.find((s) => s !== "review" && problem(s, next, school) !== null);
+      if (!open) setEditingOne(false);
+      setStep(open ?? "review");
+      return;
+    }
     setStep(nextSteps[nextSteps.indexOf(step) + 1] ?? "review");
+  };
+  const edit = (target: Step) => {
+    setError(null);
+    // Changing the role means a different survey, so that walks through every step.
+    setEditingOne(target !== "role");
+    setStep(target);
   };
   /** Saves `patch` and moves on, for questions answered with one tap. */
   const answer = (patch: Partial<Form>) => {
@@ -443,6 +464,11 @@ export function Onboarding({
   };
   const back = () => {
     setError(null);
+    if (editingOne) {
+      setEditingOne(false);
+      setStep("review");
+      return;
+    }
     setStep(steps[index - 1] ?? "role");
   };
   const toggle = <T,>(list: readonly T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -490,10 +516,18 @@ export function Onboarding({
 
   const body = (
     <section className={styles.survey}>
-      <div className={styles.progressLabel}>{step === "review" ? "Review your answers" : `Step ${index + 1} of ${steps.length - 1}, ${TITLES[step]}`}</div>
-      <div className={styles.progress} aria-hidden="true">
-        <span style={{ width: `${Math.round((index / (steps.length - 1)) * 100)}%` }} />
-      </div>
+      {editingOne && step !== "review" ? (
+        <div className={styles.progressLabel}>Editing {TITLES[step]}</div>
+      ) : (
+        step !== "review" || !onDone ? (
+          <>
+            <div className={styles.progressLabel}>{step === "review" ? "Review your answers" : `Step ${index + 1} of ${steps.length - 1}, ${TITLES[step]}`}</div>
+            <div className={styles.progress} aria-hidden="true">
+              <span style={{ width: `${Math.round((index / (steps.length - 1)) * 100)}%` }} />
+            </div>
+          </>
+        ) : null
+      )}
 
       {step === "role" && (
         <Ask title={`Welcome, ${userFirstName}. How will you use PennPaws?`} lead="You can change this any time from your profile.">
@@ -757,18 +791,28 @@ export function Onboarding({
       )}
 
       {step === "review" && (
-        <Ask title="Here's your profile" lead="Look it over, then save. You can change it any time.">
+        <Ask
+          title={onDone ? "My profile" : "Here's your profile"}
+          lead={onDone ? "Your answers from setup. Tap Edit next to anything to change it, then save." : "Look it over, then save. You can change it any time."}
+        >
           <dl className={styles.panel}>
-            {summary(f, school ?? "").map(([label, value]) => (
-              <Fragment key={label}>
+            {summary(f, school ?? "").map(([label, value, target], i) => (
+              <Fragment key={`${label}-${i}`}>
                 <dt>{label}</dt>
-                <dd className={styles.preLine}>{value}</dd>
+                <dd className={styles.summaryValue}>
+                  <span className={styles.preLine}>{value}</span>
+                  {target && (
+                    <button type="button" className={styles.editLink} onClick={() => edit(target)} aria-label={`Edit ${label.toLowerCase()}`}>
+                      Edit
+                    </button>
+                  )}
+                </dd>
               </Fragment>
             ))}
           </dl>
           <div className={styles.row}>
-            <button type="button" className={styles.secondary} onClick={() => setStep("role")}>
-              Edit answers
+            <button type="button" className={styles.secondary} onClick={() => edit("role")}>
+              Start over
             </button>
             <button type="button" className={styles.primary} disabled={busy} onClick={() => void save()}>
               {busy ? "Saving…" : onDone ? "Save changes" : "Save and start"}
@@ -784,9 +828,9 @@ export function Onboarding({
         </p>
       )}
 
-      {step !== "role" && (
+      {step !== "role" && !(step === "review" && onDone) && (
         <button type="button" className={styles.link} onClick={back}>
-          Back a step
+          {editingOne ? (onDone ? "Back to my profile" : "Back to review") : "Back a step"}
         </button>
       )}
       {onDone && (

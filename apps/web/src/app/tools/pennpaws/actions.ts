@@ -21,21 +21,35 @@ import {
   cancelRequest,
   changeAgreement,
   checkDraft,
+  checkPayment,
   checkProfile,
+  checkReview,
+  clearPayment,
+  firstName,
+  completeBooking,
+  aboutSitter,
   createRequest,
+  describe,
+  draftMessage,
+  getMember,
   getRequestView,
   getTerms,
   isoDate,
+  leaveReview,
+  listThreads,
   markAllRead,
   noteChange,
   offerHelp,
   parseSentence,
   polishAgreement,
+  recordPayment,
   saveMember,
+  sendMessage,
   verifySchool,
   type ParsedRequest,
   type Person,
   type RequestView,
+  type Thread,
 } from "@penntools/tool-pennpaws";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
@@ -142,6 +156,18 @@ export async function cancel(requestId: string): Promise<ActionResult> {
   });
 }
 
+/** Rates a finished booking. The sitter sees the rating without the owner's name or the booking. */
+export async function rate(requestId: string, input: unknown): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  const checked = checkReview(input);
+  if (!checked.ok) return { ok: false, error: checked.error };
+  return run(async () => {
+    await leaveReview(db(), user.id, String(requestId), checked.value);
+    return null;
+  });
+}
+
 // ── Sitter ────────────────────────────────────────────────────────────────────
 
 export async function offer(requestId: string, message: string): Promise<ActionResult> {
@@ -153,11 +179,77 @@ export async function offer(requestId: string, message: string): Promise<ActionR
   });
 }
 
+/** Records what the sitter was paid for a booking (money moves outside PennPaws). */
+export async function savePayment(requestId: string, input: unknown): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  const checked = checkPayment(input);
+  if (!checked.ok) return { ok: false, error: checked.error };
+  return run(async () => {
+    await recordPayment(db(), user.id, String(requestId), checked.value);
+    return null;
+  });
+}
+
+export async function removePayment(requestId: string): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  return run(async () => {
+    await clearPayment(db(), user.id, String(requestId));
+    return null;
+  });
+}
+
 // ── Both ──────────────────────────────────────────────────────────────────────
 
-export async function loadRequest(requestId: string): Promise<RequestView | null> {
+/** A request as the viewer may see it, with the message threads they may read. */
+export type RequestPage = RequestView & { threads: Thread[] };
+
+export async function loadRequest(requestId: string): Promise<RequestPage | null> {
   const user = await signedIn();
-  return user ? getRequestView(db(), user.id, String(requestId)) : null;
+  if (!user) return null;
+  const sql = db();
+  const [view, threads] = await Promise.all([getRequestView(sql, user.id, String(requestId)), listThreads(sql, user.id, String(requestId))]);
+  return view ? { ...view, threads } : null;
+}
+
+/** Sends a message: a sitter in their own thread, the owner in the thread they reply to. */
+export async function message(requestId: string, body: string, threadId: string | null): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  if (typeof body !== "string" || body.length > LIMITS.message) return { ok: false, error: `Keep it under ${LIMITS.message} characters.` };
+  return run(async () => {
+    await sendMessage(db(), user, String(requestId), body, threadId ? String(threadId) : null);
+    return null;
+  });
+}
+
+/** An AI draft of the viewer's next message in a thread, for them to edit and send. Needs a saved API key. */
+export async function draftNextMessage(requestId: string, threadId: string | null): Promise<ActionResult<string>> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  const ai = await userAI();
+  if (!ai) return { ok: false, error: "Save an API key in Settings to get help writing, or type your message.", kind: "missing_key" };
+  const sql = db();
+  const [view, threads, member] = await Promise.all([
+    getRequestView(sql, user.id, String(requestId)),
+    listThreads(sql, user.id, String(requestId)),
+    getMember(sql, user.id),
+  ]);
+  if (!view) return { ok: false, error: "That request doesn't exist." };
+  const thread = view.mine ? threads.find((t) => t.id === threadId) : threads[0];
+  if (!thread?.canSend) return { ok: false, error: "This conversation is closed." };
+  const lines = describe(view.draft);
+  return run(() =>
+    draftMessage(ai.ai, ai.provider, {
+      writer: view.mine ? "owner" : "sitter",
+      writerFirstName: firstName(user.name),
+      otherFirstName: view.mine ? thread.sitterFirstName : view.ownerFirstName,
+      request: { pet: `${view.draft.petName}, ${lines.pet}`, when: lines.when, visits: lines.visits, care: lines.care, keys: lines.access, pay: view.draft.pay, area: view.draft.area, vet: view.draft.vet, notes: view.draft.notes },
+      aboutMe: !view.mine && member?.profile.role === "sitter" ? aboutSitter(member.profile) : null,
+      thread: thread.messages.map((m) => ({ fromMe: m.mine, body: m.body })),
+    }),
+  );
 }
 
 export async function approve(requestId: string, version: number): Promise<ActionResult> {
@@ -166,6 +258,15 @@ export async function approve(requestId: string, version: number): Promise<Actio
   if (!Number.isInteger(version)) return { ok: false, error: "Reload the page and try again." };
   return run(async () => {
     await approveAgreement(db(), user.id, String(requestId), version);
+    return null;
+  });
+}
+
+export async function markDone(requestId: string): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  return run(async () => {
+    await completeBooking(db(), user.id, String(requestId));
     return null;
   });
 }

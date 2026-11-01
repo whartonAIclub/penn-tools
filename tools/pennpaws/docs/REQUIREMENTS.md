@@ -28,6 +28,7 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | R3 | P1 | Saved sitter profile (My profile page) | Short bio, pets they're comfortable with, area. Today a sitter writes a note with each offer instead. | Esther | 11/9 | Built |
 | R3b | P1 | Saved pet profiles | Reuse a pet across requests instead of answering again. | | 11/12 | To do |
 | R24 | P0 | First-time setup | New members pick a role (owner, sitter, Pet Pals), pass the Penn email check (upenn.edu only during the pilot; the local test user passes only under `pnpm dev`), answer that role's profile survey, and share GPS (rounded to about 300 m) or a neighborhood. My profile reopens it. | Esther | 11/6 | Built |
+| R30 | P1 | My profile shows saved answers | My profile opens on every answer from setup, with an Edit link on each line that opens that question and returns to the summary. Start over re-runs the whole setup. | Esther | 11/9 | Built |
 | R25 | P1 | Request survey starts from the owner's profile | Pet name, kind, size, age, energy, neighborhood and care notes from the profile are filled in; the survey opens at the next question and the owner can still change anything. | Esther | 11/8 | Built |
 
 ### Posting a request (owner)
@@ -49,6 +50,8 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | R9 | P0 | Request detail page | Pet, dates, care, area, pay, owner first name, verified badge. | Lu | 11/8 | Done |
 | R10 | P0 | Sitter offers to help | One offer per sitter per request, with a short note. Owner is notified. | Lu | 11/9 | Done |
 | R11 | P0 | Owner picks one sitter | Other offers are declined automatically and told so. | Lu | 11/9 | Done |
+| R29 | P1 | Messages about a job | One thread per sitter per request with the owner. Any sitter may write while the request is open; after the owner picks, only the picked sitter's thread stays open until done. Sitters never see each other's threads. The other person is notified. "Help me write" drafts with AI from the request (and the sitter's profile); the person edits and sends. Hidden without an API key. Sitter's button now reads "Accept this job"; the owner still picks. | Esther | 11/10 | Built |
+| R26 | P1 | Sitter tabs | Sitters see Find jobs, My tasks (agreements to approve, upcoming, offers waiting), Completed and Earnings instead of the owner's Post and Mine. Owners and Pet Pals keep Find, Post, Mine. | Esther | 11/10 | Built |
 
 ### Agreement and booking
 
@@ -58,6 +61,8 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | R13 | P0 | Both people approve | Owner and sitter each tap Approve. Either can ask for a change, which resets both approvals. Approving an old version is refused. | Lu | 11/10 | Done |
 | R14 | P0 | Contact reveal | Only after both approvals, each sees the other's Penn email. | Lu | 11/10 | Done |
 | R15 | P1 | My requests page | Requests you posted and offered on, with status. | Lu | 11/12 | Done |
+| R27 | P1 | Mark a booking done | Either person taps Mark as done on a booked request; the other is notified. | Esther | 11/10 | Built |
+| R28 | P1 | Sitter payment tracking | Sitter records amount, method (Venmo, PayPal, Zelle, cash, other) and date per booking, can edit or remove it, and sees this month, all time and done-but-unpaid. Money moves outside PennPaws. | Esther | 11/10 | Built |
 
 ### Notifications
 
@@ -74,5 +79,5 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | R17 | P0 | Tests with fake AI | Survey checks, booking rules, agreement and AI calls tested with no key or network. Full booking flow tested against Postgres. | Lu | 11/12 | Done |
 | R18 | P0 | 5 user tests | Five Penn students we don't know complete a flow unaided. Notes added to this repo. | | 11/10 | To do |
 | R19 | P0 | Launch PR merged | Only our two folders plus registration lines. `pnpm check:tools` passes. Platform team adds `pennpaws` to `TOOLS`. | | 11/14 | To do |
-| R20 | P2 | Reviews after a booking | | | | To do |
+| R20 | P2 | Reviews after a booking | Owner rates a done booking once (1 to 5 stars, optional feedback). The sitter sees ratings in Completed with no owner name, pet, booking or exact date, only the month; the notification doesn't link to the booking. Public ratings for other members come later. | Esther | 11/12 | Built |
 | R21 | P2 | Pet photo and sticker studio | | | | To do |
