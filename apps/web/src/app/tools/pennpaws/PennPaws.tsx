@@ -4,17 +4,35 @@
 // your own requests and offers, and see notifications. A request opens in
 // RequestDetail, where offers, the agreement and approvals happen. My profile
 // reopens the first-time setup to change the member's role or answers.
+//
+// Tabs follow the member's role. Sitters get Find jobs, My tasks, Completed
+// and Earnings (SitterViews.tsx); owners and Pet Pals get Find, Post and Mine.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { describe, requestStart, type Member, type Notification, type RequestCard as Card } from "@penntools/tool-pennpaws";
+import { describe, requestStart, type Member, type Notification, type RequestCard as Card, type Review, type SitterJob } from "@penntools/tool-pennpaws";
 import { readNotifications } from "./actions";
 import { Onboarding } from "./Onboarding";
 import { RequestDetail } from "./RequestDetail";
+import { Completed, Earnings, MyTasks } from "./SitterViews";
 import { Survey } from "./Survey";
 import styles from "./PennPaws.module.css";
 
-type View = { tab: "find" | "post" | "mine" | "alerts" | "profile" } | { tab: "request"; id: string; back: "find" | "mine" | "alerts" };
+type ListTab = "find" | "mine" | "alerts" | "tasks" | "done" | "earnings";
+type View = { tab: ListTab | "post" | "profile" } | { tab: "request"; id: string; back: ListTab };
+
+const OWNER_TABS = [
+  ["find", "Browse", "Find a request"],
+  ["post", "Post", "Post a request"],
+  ["mine", "Mine", "My requests"],
+] as const;
+
+const SITTER_TABS = [
+  ["find", "Jobs", "Find jobs"],
+  ["tasks", "Tasks", "My tasks"],
+  ["done", "Done", "Completed"],
+  ["earnings", "Earned", "Earnings"],
+] as const;
 
 const STATUS_LABELS: Record<Card["status"], string> = {
   open: "Open",
@@ -31,6 +49,8 @@ export function PennPaws({
   member,
   open,
   mine,
+  jobs,
+  reviews,
   notifications,
   hasAI,
 }: {
@@ -41,17 +61,21 @@ export function PennPaws({
   member: Member;
   open: Card[];
   mine: Card[];
+  /** The sitter's jobs and anonymous ratings; empty for other roles. */
+  jobs: SitterJob[];
+  reviews: Review[];
   notifications: Notification[];
   hasAI: boolean;
 }) {
   const router = useRouter();
+  const isSitter = member.role === "sitter";
   // Owners start with their own requests (or posting one); sitters and Pet Pals start browsing.
   const home: View = { tab: member.role === "owner" ? (mine.length > 0 ? "mine" : "post") : "find" };
   const [view, setView] = useState<View>(home);
   const [kind, setKind] = useState<"all" | "dog" | "cat">("all");
   const unread = notifications.filter((n) => !n.read).length;
 
-  const openRequest = (id: string, back: "find" | "mine" | "alerts") => setView({ tab: "request", id, back });
+  const openRequest = (id: string, back: ListTab) => setView({ tab: "request", id, back });
   const showAlerts = async () => {
     setView({ tab: "alerts" });
     if (unread > 0) {
@@ -60,7 +84,8 @@ export function PennPaws({
     }
   };
 
-  const shown = open.filter((r) => kind === "all" || r.draft.petKind === kind);
+  // Sitters only see other people's requests; their own (posted while they were an owner) show in My tasks.
+  const shown = open.filter((r) => (kind === "all" || r.draft.petKind === kind) && !(isSitter && r.mine));
   const activeTab = view.tab === "request" ? view.back : view.tab;
 
   return (
@@ -83,14 +108,8 @@ export function PennPaws({
         </div>
       </header>
 
-      <nav className={styles.tabs} aria-label="PennPaws">
-        {(
-          [
-            ["find", "Browse", "Find a request"],
-            ["post", "Post", "Post a request"],
-            ["mine", "Mine", "My requests"],
-          ] as const
-        ).map(([tab, short, full]) => (
+      <nav className={isSitter ? styles.tabs4 : styles.tabs} aria-label="PennPaws">
+        {(isSitter ? SITTER_TABS : OWNER_TABS).map(([tab, short, full]) => (
           <button
             key={tab}
             type="button"
@@ -122,11 +141,15 @@ export function PennPaws({
               ))}
             </div>
             {shown.length === 0 ? (
-              <Empty
-                title="No open requests right now"
-                body="When someone posts, it shows up here. Going away yourself?"
-                action={{ label: "Post a request", onClick: () => setView({ tab: "post" }) }}
-              />
+              isSitter ? (
+                <Empty title="No open requests right now" body="When someone posts, it shows up here, and we'll keep your offers in My tasks." />
+              ) : (
+                <Empty
+                  title="No open requests right now"
+                  body="When someone posts, it shows up here. Going away yourself?"
+                  action={{ label: "Post a request", onClick: () => setView({ tab: "post" }) }}
+                />
+              )
             ) : (
               <ul className={styles.list}>
                 {shown.map((request) => (
@@ -171,6 +194,17 @@ export function PennPaws({
           </section>
         )}
 
+        {view.tab === "tasks" && (
+          <MyTasks
+            jobs={jobs}
+            ownRequests={mine.filter((r) => r.mine && (r.status === "open" || r.status === "matched" || r.status === "agreed"))}
+            onOpen={(id) => openRequest(id, "tasks")}
+            onFind={() => setView({ tab: "find" })}
+          />
+        )}
+        {view.tab === "done" && <Completed jobs={jobs} reviews={reviews} onOpen={(id) => openRequest(id, "done")} onFind={() => setView({ tab: "find" })} />}
+        {view.tab === "earnings" && <Earnings jobs={jobs} onOpen={(id) => openRequest(id, "earnings")} />}
+
         {view.tab === "alerts" && (
           <section className={styles.section}>
             <h2 className={styles.heading}>Notifications</h2>
@@ -199,7 +233,7 @@ export function PennPaws({
         )}
 
         {view.tab === "request" && (
-          <RequestDetail key={view.id} requestId={view.id} onBack={() => setView({ tab: view.back })} onChanged={() => router.refresh()} />
+          <RequestDetail key={view.id} requestId={view.id} hasAI={hasAI} onBack={() => setView({ tab: view.back })} onChanged={() => router.refresh()} />
         )}
 
         {view.tab === "profile" && (
@@ -210,7 +244,18 @@ export function PennPaws({
   );
 }
 
-export function RequestCard({ request, onOpen, showStatus = false }: { request: Card; onOpen: () => void; showStatus?: boolean }) {
+export function RequestCard({
+  request,
+  onOpen,
+  showStatus = false,
+  pill,
+}: {
+  request: Card;
+  onOpen: () => void;
+  showStatus?: boolean;
+  /** A label in place of the status, such as "Your turn to approve" in a sitter's tasks. */
+  pill?: { text: string; good?: boolean };
+}) {
   const lines = describe(request.draft);
   return (
     <button type="button" className={styles.card} onClick={onOpen}>
@@ -240,7 +285,9 @@ export function RequestCard({ request, onOpen, showStatus = false }: { request: 
         <span className={styles.owner}>
           <CheckIcon /> {request.mine ? "Your request" : `${request.ownerFirstName}, Penn`}
         </span>
-        {showStatus ? (
+        {pill ? (
+          <span className={pill.good ? styles.pillGood : styles.pill}>{pill.text}</span>
+        ) : showStatus ? (
           <span className={request.status === "agreed" ? styles.pillGood : styles.pill}>{STATUS_LABELS[request.status]}</span>
         ) : (
           request.offerCount > 0 && (
@@ -266,7 +313,7 @@ export function PetAvatar({ name, photo, large = false }: { name: string; photo:
   );
 }
 
-function Empty({ title, body, action }: { title: string; body: string; action?: { label: string; onClick: () => void } }) {
+export function Empty({ title, body, action }: { title: string; body: string; action?: { label: string; onClick: () => void } }) {
   return (
     <div className={styles.empty}>
       <strong>{title}</strong>

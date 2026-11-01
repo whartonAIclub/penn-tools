@@ -6,7 +6,16 @@
 
 import type { Metadata } from "next";
 import { toolSql } from "@penntools/platform/db";
-import { firstName, getMember, listMyRequests, listNotifications, listOpenRequests, verifySchool } from "@penntools/tool-pennpaws";
+import {
+  firstName,
+  getMember,
+  listMyRequests,
+  listMyReviews,
+  listNotifications,
+  listOpenRequests,
+  listSitterJobs,
+  verifySchool,
+} from "@penntools/tool-pennpaws";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { isPennEmail } from "@/lib/pennEmail";
@@ -40,11 +49,14 @@ export default async function PennPawsPage() {
     return <Onboarding userFirstName={userFirstName} email={user.email} school={school} initial={member?.profile ?? null} />;
   }
 
-  const [open, mine, notifications, providers] = await Promise.all([
+  const isSitter = member.role === "sitter";
+  const [open, mine, notifications, providers, jobs, reviews] = await Promise.all([
     listOpenRequests(sql, user.id),
     listMyRequests(sql, user.id),
     listNotifications(sql, user.id),
     getAI().then((ai) => ai?.providers() ?? []),
+    isSitter ? listSitterJobs(sql, user.id) : [],
+    isSitter ? listMyReviews(sql, user.id) : [],
   ]);
 
   return (
@@ -55,6 +67,8 @@ export default async function PennPawsPage() {
       member={member}
       open={open}
       mine={mine}
+      jobs={jobs}
+      reviews={reviews}
       notifications={notifications}
       hasAI={providers.length > 0}
     />

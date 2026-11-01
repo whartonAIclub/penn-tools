@@ -628,6 +628,96 @@
   border-radius: 999px;
 }
 
+/* Sitters have four tabs. */
+.tabs4 {
+  composes: tabs;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Earnings: totals, then one row per booking. */
+.totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.total {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--pp-ground);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+.totalValue { font-size: 1.15rem; color: var(--text); }
+.earningRow {
+  padding: 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.earningTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.earningPet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.earningPet:hover strong { text-decoration: underline; }
+.rowActions { display: flex; align-items: center; gap: 16px; }
+
+/* Ratings: the sitter's summary, each anonymous rating, and the owner's picker. */
+.ratingCard {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--pp-green-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ratingBig { display: inline-flex; align-items: center; gap: 8px; font-size: 1.4rem; font-weight: 700; color: var(--pp-green-dark); }
+.stars { color: var(--pp-gold); letter-spacing: 1px; }
+.starsOff { color: var(--pp-line); }
+.review {
+  padding: 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.review p { margin: 0; }
+.starPicker { display: flex; gap: 4px; }
+.starOn,
+.starOff {
+  width: 44px;
+  height: 44px;
+  font-size: 1.6rem;
+  line-height: 1;
+  border-radius: 10px;
+}
+.starOn { color: var(--pp-gold); }
+.starOff { color: var(--pp-line); }
+.starOn:focus-visible,
+.starOff:focus-visible { outline: 2px solid var(--pp-green); outline-offset: 2px; }
+
+/* Messages between an owner and a sitter. */
+.conversation { display: flex; flex-direction: column; gap: 10px; }
+.messageTime { display: block; margin-top: 4px; font-size: 0.72rem; opacity: 0.75; white-space: pre-line; }
+.conversation .me,
+.conversation .bot { white-space: pre-line; }
+
+/* My profile: each saved answer with a link to change it. */
+.summaryValue { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.editLink {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pp-green);
+  text-decoration: underline;
+}
+
 /* Full tab labels where they fit, short ones on narrow phones. */
 .tabShort { display: none; }
 @media (max-width: 420px) {
