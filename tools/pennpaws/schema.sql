@@ -86,3 +86,24 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications (user_id, id DESC);
+
+-- A member's first-time setup: the role they chose, the school their .edu
+-- sign-in email belongs to, and their survey answers. profile is checked in
+-- code against the Profile schema in profile.ts. lat/lng (rounded to about
+-- 300 m, never an exact address) and area are copied out of it for matching
+-- by distance.
+CREATE TABLE IF NOT EXISTS members (
+  user_id     TEXT             PRIMARY KEY,
+  name        TEXT             NOT NULL,
+  email       TEXT,
+  school      TEXT             NOT NULL,
+  role        TEXT             NOT NULL CHECK (role IN ('owner', 'sitter', 'pals')),
+  profile     JSONB            NOT NULL,
+  lat         DOUBLE PRECISION,
+  lng         DOUBLE PRECISION,
+  area        TEXT,
+  created_at  TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ      NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS members_role_idx ON members (role);

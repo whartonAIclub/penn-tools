@@ -2,7 +2,7 @@
 
 **A Penn student you can trust looks after your pet while you're away.**
 
-PennPaws is a tool on [penntools.org](https://penntools.org) that connects Penn pet owners with Penn students who walk dogs and visit cats. Everyone signs in with a verified Penn account. A short guided survey writes the request, AI drafts the care agreement, and nothing is booked until both people approve.
+PennPaws is a tool on [penntools.org](https://penntools.org) that connects Penn pet owners with Penn students who walk dogs and visit cats. Everyone signs in with a verified Penn account: Penn is our pilot school, and other schools come later. New members pick a role (owner, sitter or Pet Pals) and answer a short profile survey once. A short guided survey writes the request, AI drafts the care agreement, and nothing is booked until both people approve.
 
 | | |
 |---|---|
@@ -36,7 +36,7 @@ Owner approves ✋ + sitter approves ✋ ──► booked, both see each other's
 
 | In | Later |
 |---|---|
-| Penn sign in (platform) | Payments inside the app (Venmo for now) |
+| Penn sign in (platform), Penn only for the pilot | Payments inside the app (Venmo for now), other schools |
 | Pet profile and sitter profile | Open chat between users |
 | Guided survey to post a request, or one sentence | Reviews and repeat sitters |
 | Browse and filter open requests | Native iPhone app (the site works in a phone browser) |

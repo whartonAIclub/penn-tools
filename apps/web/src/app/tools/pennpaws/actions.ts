@@ -21,6 +21,7 @@ import {
   cancelRequest,
   changeAgreement,
   checkDraft,
+  checkProfile,
   createRequest,
   getRequestView,
   getTerms,
@@ -30,12 +31,15 @@ import {
   offerHelp,
   parseSentence,
   polishAgreement,
+  saveMember,
+  verifySchool,
   type ParsedRequest,
   type Person,
   type RequestView,
 } from "@penntools/tool-pennpaws";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
+import { ALLOW_LOCAL_TEST_ACCOUNT } from "./school";
 
 export type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string; kind?: string };
 
@@ -72,6 +76,22 @@ async function userAI(): Promise<{ ai: AI; provider: AIProvider } | null> {
   const ai = await getAI();
   const provider = ai ? (await ai.providers())[0] : undefined;
   return ai && provider ? { ai, provider } : null;
+}
+
+// ── First-time setup ──────────────────────────────────────────────────────────
+
+/** Saves the role and survey answers. Only members signed in with a Penn email (the pilot school) may join. */
+export async function saveProfile(input: unknown): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  const school = verifySchool(user.email, ALLOW_LOCAL_TEST_ACCOUNT);
+  if (!school) return { ok: false, error: "PennPaws is open to Penn for now. Log out, then sign in with your Penn account." };
+  const checked = checkProfile(input);
+  if (!checked.ok) return { ok: false, error: checked.error };
+  return run(async () => {
+    await saveMember(db(), user, school, checked.value);
+    return null;
+  });
 }
 
 // ── Owner ─────────────────────────────────────────────────────────────────────
