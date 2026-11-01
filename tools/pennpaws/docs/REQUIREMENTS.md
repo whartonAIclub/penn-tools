@@ -34,7 +34,7 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 |---|---|---|---|---|---|---|
 | R4 | P0 | Guided survey posts a request | Seven steps: pet, about them, dates, visits and care, keys, pay, notes. Every step has a "something else" text option. Progress shown. | Lu | 11/8 | Done |
 | R5 | P0 | Review before posting | Summary card of every answer. Owner can edit or post. Nothing is visible to sitters until Post. | Lu | 11/8 | Done |
-| R6 | P1 | One sentence to request | AI fills the survey from a sentence, asks for missing fields, owner reviews. Hidden when the user has no API key. | Lu | 11/9 | Built |
+| R6 | P1 | One sentence to request | AI fills the survey from a sentence, asks for missing fields, owner reviews. Hidden when the user has no API key. | Lu | 11/9 | Done |
 | R7 | P1 | Owner can cancel an open request | Status changes to cancelled. Sitters with offers are notified. | Lu | 11/9 | Built |
 | R7b | P2 | Owner can edit an open request | | | | To do |
 

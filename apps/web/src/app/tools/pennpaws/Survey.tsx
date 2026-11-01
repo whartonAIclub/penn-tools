@@ -161,6 +161,8 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
   const [typing, setTyping] = useState(false);
   const [sentence, setSentence] = useState("");
   const [filledByAI, setFilledByAI] = useState(false);
+  // The first question AI left for the owner to answer.
+  const [aiFrom, setAiFrom] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -195,6 +197,7 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
     const next = mergeParsed(a, result.data);
     setA(next);
     setFilledByAI(true);
+    setAiFrom(firstMissing(next));
     setTyping(false);
     setStep(firstMissing(next));
   };
@@ -212,20 +215,40 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
   const lines = describe(toDraft(a));
   const weekend = thisWeekend(new Date());
 
-  // The conversation so far: each answered question and its answer.
-  const log: { from: "bot" | "me"; text: string }[] = [{ from: "bot", text: `Hi ${userFirstName}. Who are we looking after while you're away?` }];
+  // The conversation so far: each question asked and its answer. After AI
+  // fills the answers, it picks up at the first question AI couldn't answer.
+  const questions = [
+    `Hi ${userFirstName}. Who are we looking after while you're away?`,
+    `Lovely. Tell me about your ${kindWord}. A photo helps your sitter know who to look for at the door.`,
+    "When will you be away?",
+    `How often should someone come by, and what should they do for ${a.petName || "them"}?`,
+    "How will your sitter get in?",
+    "What would you like to pay? Pick a rate, or I can suggest one.",
+    "Last one. Anything a sitter should know about health, quirks or your vet? And roughly where are you?",
+    "Here is your request. Look it over, then post it.",
+  ];
+  const answers = [
+    needsKindText(a.petKind) ? a.petKindOther : labelOf(PET_KINDS, a.petKind ?? ""),
+    [a.petName, a.petDetails].filter(Boolean).join(", ") + (a.photo ? ". Photo added." : ""),
+    lines.when,
+    `${lines.visits}. ${lines.care}`,
+    lines.access,
+    a.pay,
+    [a.area, a.notes].filter(Boolean).join(". ") || "Nothing else",
+  ];
+  const log: { from: "bot" | "me"; text: string }[] = [{ from: "bot", text: questions[0]! }];
+  let first = 0;
   if (filledByAI) {
+    first = aiFrom;
     log.push({ from: "me", text: sentence });
-    log.push({ from: "bot", text: step === REVIEW ? "Got it. I filled everything in from what you wrote. Check it, then post." : "Got it. I filled in what you told me, and I'll ask about the rest." });
-  } else {
-    const said = (n: number, me: string, next: string) => step > n && log.push({ from: "me", text: me }, { from: "bot", text: next });
-    said(0, needsKindText(a.petKind) ? a.petKindOther : labelOf(PET_KINDS, a.petKind ?? ""), `Lovely. Tell me about your ${kindWord}. A photo helps your sitter know who to look for at the door.`);
-    said(1, [a.petName, a.petDetails].filter(Boolean).join(", ") + (a.photo ? ". Photo added." : ""), "When will you be away?");
-    said(2, lines.when, `How often should someone come by, and what should they do for ${a.petName || "them"}?`);
-    said(3, `${lines.visits}. ${lines.care}`, "How will your sitter get in?");
-    said(4, lines.access, "What would you like to pay? Pick a rate, or I can suggest one.");
-    said(5, a.pay, "Last one. Anything a sitter should know about health, quirks or your vet? And roughly where are you?");
-    said(6, [a.area, a.notes].filter(Boolean).join(". ") || "Nothing else", "Here is your request. Look it over, then post it.");
+    log.push({
+      from: "bot",
+      text: aiFrom === REVIEW ? "Got it. I filled everything in from what you wrote. Check it, then post." : "Got it. I filled in what you told me. Just a few more questions.",
+    });
+    if (aiFrom < REVIEW) log.push({ from: "bot", text: questions[aiFrom]! });
+  }
+  for (let n = first; n < Math.min(step, REVIEW); n++) {
+    log.push({ from: "me", text: answers[n]! }, { from: "bot", text: questions[n + 1]! });
   }
 
   const kindTasks = TASKS_BY_KIND[a.petKind ?? "dog"];
