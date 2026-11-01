@@ -8,7 +8,7 @@
 // anonymously, in Completed.
 
 import { useCallback, useEffect, useState } from "react";
-import { describe, type AgreementTerms } from "@penntools/tool-pennpaws";
+import { FIT_LABELS, describe, type AgreementTerms, type AskCheck, type Match } from "@penntools/tool-pennpaws";
 import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, type ActionResult, type RequestPage } from "./actions";
 import { Conversation } from "./Conversation";
 import { CheckIcon, PetAvatar } from "./PennPaws";
@@ -28,12 +28,15 @@ const TERM_LABELS: [keyof AgreementTerms, string][] = [
 export function RequestDetail({
   requestId,
   hasAI,
+  match,
   onBack,
   onChanged,
 }: {
   requestId: string;
   /** Whether the user saved an API key, for "Help me write" in messages. */
   hasAI: boolean;
+  /** How this request fits the viewer, when they're a sitter looking at an open request. */
+  match: Match | null;
   onBack: () => void;
   onChanged: () => void;
 }) {
@@ -80,6 +83,8 @@ export function RequestDetail({
   const myApproval = agreement && (role === "owner" ? agreement.ownerApproved : agreement.sitterApproved);
   const otherName = role === "owner" ? request.sitterFirstName : request.ownerFirstName;
   const pendingOffers = request.offers.filter((o) => o.status === "pending");
+  const boarding = request.draft.careType === "boarding";
+  const myMatch = !request.mine ? match : null;
 
   return (
     <section className={styles.section}>
@@ -99,7 +104,7 @@ export function RequestDetail({
       <dl className={styles.panel}>
         <dt>When</dt>
         <dd>{lines.when}</dd>
-        <dt>Visits</dt>
+        <dt>{request.draft.careType === "visits" ? "Visits" : "Stay"}</dt>
         <dd>{lines.visits}</dd>
         <dt>Care</dt>
         <dd>{lines.care}</dd>
@@ -109,8 +114,14 @@ export function RequestDetail({
             <dd>{request.draft.area}. Exact address once you both approve.</dd>
           </>
         )}
-        <dt>Keys</dt>
+        <dt>{boarding ? "Handover" : "Keys"}</dt>
         <dd>{lines.access}</dd>
+        {lines.sitter && (
+          <>
+            <dt>Sitter</dt>
+            <dd>{lines.sitter}</dd>
+          </>
+        )}
         {request.draft.vet && (
           <>
             <dt>Vet</dt>
@@ -128,6 +139,23 @@ export function RequestDetail({
           <strong>{request.draft.pay}</strong>
         </dd>
       </dl>
+
+      {request.draft.original && (
+        <details className={styles.original}>
+          <summary>
+            {request.mine ? "Your" : `${request.ownerFirstName}'s`} original post{request.draft.originalLanguage ? ` (${request.draft.originalLanguage})` : ""}
+          </summary>
+          <p className={styles.preLine}>{request.draft.original}</p>
+        </details>
+      )}
+
+      {myMatch && (myMatch.reasons.length > 0 || myMatch.concerns.length > 0) && (
+        <div className={styles.panelPlain}>
+          <strong>How you match{FIT_LABELS[myMatch.fit] ? `: ${FIT_LABELS[myMatch.fit]}` : ""}</strong>
+          <MatchList match={{ fits: myMatch.reasons, misses: myMatch.concerns }} />
+          <span className={styles.hint}>From your profile. Change it in My profile.</span>
+        </div>
+      )}
 
       {error && (
         <p className={styles.error} role="alert">
@@ -201,6 +229,7 @@ export function RequestDetail({
                   <CheckIcon /> {o.sitterFirstName}, Penn
                 </strong>
                 <p className={styles.preLine}>{o.message}</p>
+                {o.match && <MatchList match={o.match} />}
                 <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => accept(o.id))}>
                   Choose {o.sitterFirstName}
                 </button>
@@ -367,6 +396,23 @@ export function RequestDetail({
           </button>
         ))}
     </section>
+  );
+}
+
+function MatchList({ match }: { match: AskCheck }) {
+  return (
+    <ul className={styles.matchList}>
+      {match.fits.map((fit) => (
+        <li key={fit} className={styles.matchFit}>
+          ✓ {fit}
+        </li>
+      ))}
+      {match.misses.map((miss) => (
+        <li key={miss} className={styles.matchMiss}>
+          ✗ {miss}
+        </li>
+      ))}
+    </ul>
   );
 }
 

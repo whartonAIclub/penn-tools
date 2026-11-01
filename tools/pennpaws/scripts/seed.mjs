@@ -89,6 +89,7 @@ const SITTERS = [
       gender: "woman",
       showGender: true,
       bio: "Second-year nursing student. Grew up with a golden retriever and two cats, and I'm on campus over Thanksgiving.",
+      languages: ["english", "spanish"],
       boarding: null,
     },
   },
@@ -109,6 +110,7 @@ const SITTERS = [
       gender: "man",
       showGender: true,
       bio: "Wharton MBA and marathoner. Happy to take big, energetic dogs on long runs along the Schuylkill.",
+      languages: ["english"],
       boarding: null,
     },
   },
@@ -129,6 +131,7 @@ const SITTERS = [
       gender: "woman",
       showGender: true,
       bio: "大四学生，家里有两只猫。Vet school applicant; I've given insulin shots to my own diabetic cat for two years.",
+      languages: ["mandarin", "english"],
       boarding: null,
     },
   },
@@ -149,6 +152,7 @@ const SITTERS = [
       gender: "non_binary",
       showGender: false,
       bio: "Engineering PhD with a small fenced yard. I can board small dogs at my place on weekends.",
+      languages: ["english", "korean"],
       boarding: { homeType: "house", homeTypeOther: null, hasYard: true, otherPets: "One calm senior beagle", housingAllowsPets: true, roommatesAgree: true },
     },
   },
@@ -199,6 +203,8 @@ const OWNERS = [
       pay: "$25 a visit",
       area: "Rittenhouse",
       notes: "感恩节回家一周，想找有养猫经验、靠谱的同学每天上门喂一次。希望每天发张照片或小视频报平安。女生优先，谢谢！",
+      mustHaves: ["cat_experience", "daily_updates"],
+      sitterGender: "woman",
     }),
   },
   {
@@ -246,6 +252,7 @@ const OWNERS = [
       area: "Spruce Hill, 45th and Baltimore",
       vet: "Penn Vet Ryan Hospital",
       notes: "豆豆有糖尿病，每天早晚 8 点各打一次胰岛素，需要有打针经验的人。她怕生，第一次见面会躲床底，过一会儿就好。",
+      languages: ["mandarin"],
     }),
   },
   {
@@ -322,6 +329,7 @@ const OWNERS = [
       petDetails: "Husky, 5 years",
       startsOn: iso(saturday(2)),
       endsOn: plusDays(saturday(2), 2),
+      careType: "stay",
       frequency: "overnight",
       tasks: ["walks", "feeding", "water"],
       access: "in_person",
@@ -373,7 +381,8 @@ async function play() {
   const open = await sql`
     SELECT r.id, r.pet_name, r.pet_kind, r.pet_kind_other, r.pet_details, r.weekly,
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
-           r.frequency, r.tasks, r.area, m.lat, m.lng, m.area AS member_area
+           r.frequency, r.tasks, r.area, r.care_type, r.must_haves, r.sitter_gender, r.languages,
+           m.lat, m.lng, m.area AS member_area
     FROM requests r LEFT JOIN members m ON m.user_id = r.owner_id
     WHERE r.status = 'open' AND r.owner_id NOT LIKE 'seed-%'
   `;
@@ -387,6 +396,10 @@ async function play() {
       frequency: r.frequency,
       tasks: r.tasks,
       area: r.area,
+      careType: r.care_type,
+      mustHaves: r.must_haves,
+      sitterGender: r.sitter_gender,
+      languages: r.languages,
     };
     const owner = { point: pointOf({ area: r.member_area ?? "", lat: r.lat, lng: r.lng }, r.area), profile: null };
     const ranked = SITTERS.map((s) => ({ s, score: scoreMatch(s.profile, pointOf(s.profile.location), r.id, draft, owner).score }))

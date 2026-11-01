@@ -29,6 +29,43 @@ export const DATE_MODES = [
 ] as const satisfies readonly Option[];
 export type DateMode = (typeof DATE_MODES)[number]["value"];
 
+/** Where the care happens. Visits ask how often; a stay or boarding is overnight. */
+export const CARE_TYPES = [
+  { value: "visits", label: "Visits at my place", hint: "Walks or drop-ins while you're away" },
+  { value: "stay", label: "Sitter stays at my place", hint: "Overnight, in your home" },
+  { value: "boarding", label: "Boarding at the sitter's home", hint: "Your pet stays with them" },
+] as const satisfies readonly Option[];
+export type CareType = (typeof CARE_TYPES)[number]["value"];
+
+/** What an owner can require of a sitter. Matching compares these with sitter profiles. */
+export const MUST_HAVES = [
+  { value: "cat_experience", label: "Has cared for cats" },
+  { value: "dog_experience", label: "Has cared for dogs" },
+  { value: "home_most_days", label: "Home most of the day" },
+  { value: "daily_updates", label: "Daily photo or video updates" },
+] as const satisfies readonly Option[];
+export type MustHave = (typeof MUST_HAVES)[number]["value"];
+
+/**
+ * Languages members speak (sitters) or would like their sitter to speak
+ * (owners). The site itself stays in English; this is for matching.
+ */
+export const LANGUAGES = [
+  { value: "english", label: "English" },
+  { value: "mandarin", label: "Mandarin" },
+  { value: "cantonese", label: "Cantonese" },
+  { value: "spanish", label: "Spanish" },
+  { value: "korean", label: "Korean" },
+  { value: "japanese", label: "Japanese" },
+  { value: "hindi", label: "Hindi" },
+  { value: "french", label: "French" },
+  { value: "arabic", label: "Arabic" },
+  { value: "portuguese", label: "Portuguese" },
+  { value: "vietnamese", label: "Vietnamese" },
+  { value: "german", label: "German" },
+] as const satisfies readonly Option[];
+export type Language = (typeof LANGUAGES)[number]["value"];
+
 export const FREQUENCIES = [
   { value: "once_daily", label: "Once a day" },
   { value: "twice_daily", label: "Twice a day" },
@@ -72,11 +109,16 @@ export type Access = (typeof ACCESS)[number]["value"];
 export const PAY_PRESETS = [15, 20, 25] as const;
 export const SUGGESTED_PAY = 20;
 
+/** Suggested pay per night, for a stay or boarding. */
+export const NIGHT_PAY_PRESETS = [30, 40, 50] as const;
+export const SUGGESTED_NIGHT_PAY = 40;
+
 export const LIMITS = {
   name: 60,
   shortText: 120,
   notes: 1000,
-  sentence: 500,
+  /** A pasted post or a description of what the owner needs, for AI to read. */
+  sentence: 1500,
   message: 500,
   /** A resized photo as a data URL; the survey shrinks photos well under this. */
   photo: 200_000,
@@ -84,6 +126,12 @@ export const LIMITS = {
 
 export function labelOf(options: readonly Option[], value: string): string {
   return options.find((option) => option.value === value)?.label ?? value;
+}
+
+/** "English, Mandarin and Spanish". */
+export function listLabels(options: readonly Option[], values: readonly string[]): string {
+  const labels = values.map((value) => labelOf(options, value));
+  return labels.length <= 1 ? labels.join("") : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
 }
 
 /** The coming Saturday and Sunday (today when it is the weekend), as YYYY-MM-DD. */

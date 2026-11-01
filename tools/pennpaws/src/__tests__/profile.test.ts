@@ -35,6 +35,7 @@ const owner: OwnerProfile = {
     bitesDetails: null,
   },
   sitterGenderPref: "none",
+  sitterLanguages: ["mandarin"],
 };
 
 const sitter: SitterProfile = {
@@ -51,6 +52,7 @@ const sitter: SitterProfile = {
   gender: "woman",
   showGender: false,
   bio: "Grew up with two labs.",
+  languages: ["english", "spanish"],
   boarding: null,
 };
 
@@ -138,7 +140,17 @@ describe("requestStart", () => {
       petDetails: "Medium, adult, high energy",
       area: "University City",
       notes: "With new people: warms up after a bit. With other animals: picky about friends. Alone: a bit anxious.",
+      sitterGender: "none",
+      languages: ["mandarin"],
     });
+  });
+
+  it("treats profiles saved before languages existed as no preference (owners) and English (sitters)", () => {
+    const { sitterLanguages: _owner, ...oldOwner } = owner;
+    const { languages: _sitter, ...oldSitter } = sitter;
+    expect(checkProfile(oldOwner)).toMatchObject({ ok: true, value: { sitterLanguages: [] } });
+    expect(checkProfile(oldSitter)).toMatchObject({ ok: true, value: { languages: ["english"] } });
+    expect(checkProfile({ ...sitter, languages: [] })).toEqual({ ok: false, error: "Pick the languages you speak." });
   });
 
   it("adds special care and bite history to the notes", () => {

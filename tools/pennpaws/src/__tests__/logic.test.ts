@@ -28,6 +28,12 @@ const mochi: RequestDraft = {
   area: "Near 40th Street",
   vet: null,
   notes: "Pulls on the leash near squirrels.",
+  careType: "visits",
+  mustHaves: [],
+  sitterGender: "none",
+  languages: [],
+  original: null,
+  originalLanguage: null,
 };
 
 /** An AI whose generateObject returns `object` and records each request. */
@@ -81,6 +87,7 @@ describe("describe", () => {
       visits: "Twice a day",
       care: "Walks, Fresh water",
       access: "Meet in person",
+      sitter: null,
     });
   });
 

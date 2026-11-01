@@ -702,6 +702,17 @@
 .starOn:focus-visible,
 .starOff:focus-visible { outline: 2px solid var(--pp-green); outline-offset: 2px; }
 
+/* What AI understood from a pasted post. */
+.understood { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.understood svg { color: var(--pp-green); vertical-align: -2px; }
+
+/* How a sitter matches a request. */
+.matchList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
+.matchFit { color: var(--pp-green-dark); }
+.matchMiss { color: var(--pp-gold-text); }
+.original { font-size: 0.9rem; }
+.original summary { cursor: pointer; color: var(--pp-green); font-weight: 600; }
+
 /* Messages between an owner and a sitter. */
 .conversation { display: flex; flex-direction: column; gap: 10px; }
 .messageTime { display: block; margin-top: 4px; font-size: 0.72rem; opacity: 0.75; white-space: pre-line; }

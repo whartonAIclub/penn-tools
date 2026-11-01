@@ -32,7 +32,7 @@ We start with dog walks and cat visits near campus. Overnight stays and boarding
 
 ## Scope
 
-**In the MVP:** first-time setup (pick a role, Penn email check, profile survey), pet and sitter profiles, guided survey or one sentence to post a request, browse and filter requests, offer to help, messages between an owner and each sitter about a job (AI can draft one; the person edits and sends), AI care agreement, two approvals, contact reveal.
+**In the MVP:** first-time setup (pick a role, Penn email check, profile survey), pet and sitter profiles, guided survey or a pasted post (any language, written up in English) to post a request, visits, stays or boarding, sitter must-haves and language preferences with matching, browse and filter requests, offer to help, messages between an owner and each sitter about a job (AI can draft one; the person edits and sends), AI care agreement, two approvals, contact reveal.
 
 **Not now:** schools other than Penn, payments in the app, group chat or messages outside a job, maps, reviews, native iPhone app, pet photo and sticker studio.
 

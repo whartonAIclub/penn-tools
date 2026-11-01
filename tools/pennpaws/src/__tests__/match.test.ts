@@ -17,6 +17,7 @@ const sitter: SitterProfile = {
   gender: "man",
   showGender: true,
   bio: "Penn student.",
+  languages: ["english"],
   boarding: null,
 };
 const here = pointOf(sitter.location);
@@ -40,6 +41,12 @@ const cat: RequestDraft = {
   area: "Spruce Hill",
   vet: null,
   notes: null,
+  careType: "visits",
+  mustHaves: [],
+  sitterGender: "none",
+  languages: [],
+  original: null,
+  originalLanguage: null,
 };
 
 const ownerPet = (pet: Partial<OwnerProfile["pet"]>, pref: OwnerProfile["sitterGenderPref"] = "none"): OwnerContext => ({
@@ -64,6 +71,7 @@ const ownerPet = (pet: Partial<OwnerProfile["pet"]>, pref: OwnerProfile["sitterG
       ...pet,
     },
     sitterGenderPref: pref,
+    sitterLanguages: [],
   },
 });
 
