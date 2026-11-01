@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
 import { agreementTemplate } from "../agreement.js";
+import { getMember, saveMember } from "../members.js";
 import { listNotifications, markAllRead } from "../notifications.js";
+import type { Profile } from "../profile.js";
 import type { RequestDraft } from "../request.js";
 import {
   acceptOffer,
@@ -136,5 +138,16 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
   it("marks notifications read", async () => {
     await markAllRead(sql, lu.id);
     expect((await listNotifications(sql, lu.id)).every((n) => n.read)).toBe(true);
+  });
+
+  it("saves a member's setup and replaces it when they change their answers", async () => {
+    expect(await getMember(sql, priya.id)).toBeNull();
+    const pals: Profile = { role: "pals", location: { area: "Fishtown", lat: 39.972, lng: -75.135 }, petName: null, bio: null };
+    await saveMember(sql, priya, "upenn.edu", pals);
+    expect(await getMember(sql, priya.id)).toEqual({ userId: priya.id, school: "upenn.edu", role: "pals", profile: pals });
+
+    const changed: Profile = { ...pals, petName: "Biscuit" };
+    await saveMember(sql, priya, "upenn.edu", changed);
+    expect((await getMember(sql, priya.id))?.profile).toEqual(changed);
   });
 });

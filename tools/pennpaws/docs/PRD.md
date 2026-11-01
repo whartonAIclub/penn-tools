@@ -6,6 +6,8 @@ Draft 2, Oct 31, 2026. Owners: Lu Lu and Esther Li.
 
 Thanksgiving break starts nine days after demo day. Hundreds of Penn pet owners leave campus at once, and none of them want a stranger from an app holding their keys. We launch into that week with one promise: every sitter is a verified Penn student.
 
+Penn is the pilot. Only upenn.edu accounts can join. Once the loop works at Penn, other schools' .edu accounts can join too; the code keeps a list of pilot schools, so adding one is a one-line change plus the Platform team allowing that school's sign-in.
+
 ## Users
 
 **Owners.** A grad student with a dog or cat, away for one to seven days, who wants someone nearby they can vouch for.
@@ -30,9 +32,9 @@ We start with dog walks and cat visits near campus. Overnight stays and boarding
 
 ## Scope
 
-**In the MVP:** pet and sitter profiles, guided survey or one sentence to post a request, browse and filter requests, offer to help, AI care agreement, two approvals, contact reveal.
+**In the MVP:** first-time setup (pick a role, Penn email check, profile survey), pet and sitter profiles, guided survey or one sentence to post a request, browse and filter requests, offer to help, AI care agreement, two approvals, contact reveal.
 
-**Not now:** payments in the app, open chat, maps, reviews, native iPhone app, pet photo and sticker studio.
+**Not now:** schools other than Penn, payments in the app, open chat, maps, reviews, native iPhone app, pet photo and sticker studio.
 
 ## Solving the empty room
 

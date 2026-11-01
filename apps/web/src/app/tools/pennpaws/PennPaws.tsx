@@ -2,17 +2,19 @@
 
 // The PennPaws page: browse open requests, post one with the survey, follow
 // your own requests and offers, and see notifications. A request opens in
-// RequestDetail, where offers, the agreement and approvals happen.
+// RequestDetail, where offers, the agreement and approvals happen. My profile
+// reopens the first-time setup to change the member's role or answers.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { describe, type Notification, type RequestCard as Card } from "@penntools/tool-pennpaws";
+import { describe, requestStart, type Member, type Notification, type RequestCard as Card } from "@penntools/tool-pennpaws";
 import { readNotifications } from "./actions";
+import { Onboarding } from "./Onboarding";
 import { RequestDetail } from "./RequestDetail";
 import { Survey } from "./Survey";
 import styles from "./PennPaws.module.css";
 
-type View = { tab: "find" | "post" | "mine" | "alerts" } | { tab: "request"; id: string; back: "find" | "mine" | "alerts" };
+type View = { tab: "find" | "post" | "mine" | "alerts" | "profile" } | { tab: "request"; id: string; back: "find" | "mine" | "alerts" };
 
 const STATUS_LABELS: Record<Card["status"], string> = {
   open: "Open",
@@ -25,6 +27,8 @@ const STATUS_LABELS: Record<Card["status"], string> = {
 export function PennPaws({
   userFirstName,
   pennVerified,
+  email,
+  member,
   open,
   mine,
   notifications,
@@ -33,13 +37,17 @@ export function PennPaws({
   userFirstName: string;
   /** False for the local development user, who has no Penn email. */
   pennVerified: boolean;
+  email: string | null;
+  member: Member;
   open: Card[];
   mine: Card[];
   notifications: Notification[];
   hasAI: boolean;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<View>({ tab: "find" });
+  // Owners start with their own requests (or posting one); sitters and Pet Pals start browsing.
+  const home: View = { tab: member.role === "owner" ? (mine.length > 0 ? "mine" : "post") : "find" };
+  const [view, setView] = useState<View>(home);
   const [kind, setKind] = useState<"all" | "dog" | "cat">("all");
   const unread = notifications.filter((n) => !n.read).length;
 
@@ -64,10 +72,15 @@ export function PennPaws({
             {pennVerified && <CheckIcon />} {pennVerified ? "Penn verified" : "Test account"}
           </span>
         </div>
-        <button type="button" className={styles.bell} onClick={showAlerts} aria-label={unread ? `Notifications, ${unread} new` : "Notifications"}>
-          <BellIcon />
-          {unread > 0 && <span className={styles.badge}>{unread}</span>}
-        </button>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.profileButton} aria-current={view.tab === "profile" ? "page" : undefined} onClick={() => setView({ tab: "profile" })}>
+            My profile
+          </button>
+          <button type="button" className={styles.bell} onClick={showAlerts} aria-label={unread ? `Notifications, ${unread} new` : "Notifications"}>
+            <BellIcon />
+            {unread > 0 && <span className={styles.badge}>{unread}</span>}
+          </button>
+        </div>
       </header>
 
       <nav className={styles.tabs} aria-label="PennPaws">
@@ -130,6 +143,7 @@ export function PennPaws({
           <Survey
             userFirstName={userFirstName}
             hasAI={hasAI}
+            start={member.profile.role === "owner" ? requestStart(member.profile) : null}
             onPosted={(id) => {
               router.refresh();
               openRequest(id, "mine");
@@ -186,6 +200,10 @@ export function PennPaws({
 
         {view.tab === "request" && (
           <RequestDetail key={view.id} requestId={view.id} onBack={() => setView({ tab: view.back })} onChanged={() => router.refresh()} />
+        )}
+
+        {view.tab === "profile" && (
+          <Onboarding userFirstName={userFirstName} email={email} school={member.school} initial={member.profile} onDone={() => setView(home)} />
         )}
       </main>
     </div>

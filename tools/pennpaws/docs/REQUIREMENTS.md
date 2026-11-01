@@ -25,8 +25,10 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 |---|---|---|---|---|---|---|
 | R1 | P0 | Signed out visitors see what PennPaws is and a sign in button | Uses the platform `SignInPrompt`. No custom login code. | Lu | 11/6 | Done |
 | R2 | P0 | Pet details on every request | Name, kind (dog, cat, more than one, something else with text), breed or notes, optional photo. | Lu | 11/6 | Done |
-| R3 | P1 | Saved sitter profile (My profile page) | Short bio, pets they're comfortable with, area. Today a sitter writes a note with each offer instead. | Esther | 11/9 | In progress |
+| R3 | P1 | Saved sitter profile (My profile page) | Short bio, pets they're comfortable with, area. Today a sitter writes a note with each offer instead. | Esther | 11/9 | Built |
 | R3b | P1 | Saved pet profiles | Reuse a pet across requests instead of answering again. | | 11/12 | To do |
+| R24 | P0 | First-time setup | New members pick a role (owner, sitter, Pet Pals), pass the Penn email check (upenn.edu only during the pilot; the local test user passes only under `pnpm dev`), answer that role's profile survey, and share GPS (rounded to about 300 m) or a neighborhood. My profile reopens it. | Esther | 11/6 | Built |
+| R25 | P1 | Request survey starts from the owner's profile | Pet name, kind, size, age, energy, neighborhood and care notes from the profile are filled in; the survey opens at the next question and the owner can still change anything. | Esther | 11/8 | Built |
 
 ### Posting a request (owner)
 

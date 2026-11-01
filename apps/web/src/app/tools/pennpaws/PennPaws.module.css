@@ -544,6 +544,73 @@
 }
 .photoOn { border-style: solid; border-color: var(--pp-green); padding: 0; }
 
+/* ── First-time setup ────────────────────────────────────────────────────── */
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.check input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--pp-green);
+}
+
+.headerActions { display: flex; align-items: center; gap: 8px; }
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.infoButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--pp-green);
+}
+.infoButton:hover,
+.infoButton[aria-expanded="true"] { background: var(--pp-green-soft); }
+.infoButton:focus-visible {
+  outline: 2px solid var(--pp-green);
+  outline-offset: 2px;
+}
+
+.infoPanel {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--pp-green-soft);
+  color: #24443c;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.infoPanel p { margin: 0; }
+.infoPanel ul { margin: 6px 0; padding-left: 18px; }
+.infoPanel li + li { margin-top: 2px; }
+
+.profileButton {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--pp-ground);
+}
+.profileButton:hover { background: var(--pp-line); }
+.profileButton:focus-visible {
+  outline: 2px solid var(--pp-green);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .progress span { transition: none; }
 }

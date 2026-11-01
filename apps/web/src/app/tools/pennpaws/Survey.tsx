@@ -4,7 +4,8 @@
 // answer, type only when you want to. Every question has "Something else"
 // with a text box. Owners with an API key can type one sentence instead and
 // let AI fill in the answers; either way they review everything before
-// posting.
+// posting. Owners who described their pet in first-time setup start with it
+// filled in, on the step where they can add a photo.
 
 import { useState, type ReactNode } from "react";
 import {
@@ -28,6 +29,7 @@ import {
   type ParsedRequest,
   type PetKind,
   type RequestDraft,
+  type RequestStart,
   type Task,
 } from "@penntools/tool-pennpaws";
 import { parseRequest, postRequest } from "./actions";
@@ -159,9 +161,20 @@ async function shrinkPhoto(file: File): Promise<string> {
   return canvas.toDataURL("image/jpeg", 0.8);
 }
 
-export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: string; hasAI: boolean; onPosted: (id: string) => void }) {
-  const [a, setA] = useState<Answers>(EMPTY);
-  const [step, setStep] = useState(0);
+export function Survey({
+  userFirstName,
+  hasAI,
+  start = null,
+  onPosted,
+}: {
+  userFirstName: string;
+  hasAI: boolean;
+  /** The owner's pet from their profile, if they have one. */
+  start?: RequestStart | null;
+  onPosted: (id: string) => void;
+}) {
+  const [a, setA] = useState<Answers>(() => (start ? { ...EMPTY, ...start } : EMPTY));
+  const [step, setStep] = useState(start ? 1 : 0);
   const [typing, setTyping] = useState(false);
   const [sentence, setSentence] = useState("");
   const [filledByAI, setFilledByAI] = useState(false);
@@ -550,7 +563,7 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
   );
 }
 
-function Choices<T extends string>({
+export function Choices<T extends string>({
   options,
   selected,
   onPick,
@@ -580,7 +593,7 @@ function Choices<T extends string>({
   );
 }
 
-function TextField({
+export function TextField({
   id,
   label,
   value,
@@ -621,7 +634,7 @@ function TextField({
   );
 }
 
-function Continue({ onClick, label = "Continue" }: { onClick: () => void; label?: string }) {
+export function Continue({ onClick, label = "Continue" }: { onClick: () => void; label?: string }) {
   return (
     <button type="button" className={styles.primary} onClick={onClick}>
       {label}

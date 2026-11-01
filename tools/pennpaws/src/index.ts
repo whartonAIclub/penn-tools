@@ -6,3 +6,5 @@ export * from "./agreement.js";
 export * from "./ai.js";
 export * from "./notifications.js";
 export * from "./requests.js";
+export * from "./profile.js";
+export * from "./members.js";
