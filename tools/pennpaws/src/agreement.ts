@@ -25,7 +25,7 @@ export function agreementTemplate(request: RequestDraft, ownerFirstName: string)
     care: lines.care,
     keys: lines.access,
     pay: `${request.pay}, paid directly (for example on Venmo)`,
-    vet: null,
+    vet: request.vet,
     ifUrgent: `Text ${ownerFirstName} first, then call the vet`,
     notes: request.notes,
   };

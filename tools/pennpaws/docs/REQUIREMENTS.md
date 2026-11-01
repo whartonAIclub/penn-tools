@@ -3,7 +3,7 @@
 How to use this page: pick an unowned row, put your name in Owner, build it on `team/pennpaws`, and update Status. Add new rows at the bottom of their section with the next number.
 
 **Priority:** P0 must ship for demo day, P1 ship if time allows, P2 after launch.
-**Status:** To do, Built (code and automated tests pass, not yet tried in the browser), Done (tried on the local dev server and meets every acceptance criterion).
+**Status:** To do, In progress, Built (code and automated tests pass, not yet tried in the browser), Done (tried on the local dev server and meets every acceptance criterion).
 
 ## Week 1, due Tue 11/3
 
@@ -24,8 +24,8 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | ID | P | Requirement | Acceptance criteria | Owner | Due | Status |
 |---|---|---|---|---|---|---|
 | R1 | P0 | Signed out visitors see what PennPaws is and a sign in button | Uses the platform `SignInPrompt`. No custom login code. | Lu | 11/6 | Done |
-| R2 | P0 | Pet details on every request | Name, kind (dog, cat, more than one, something else with text), breed or notes, optional photo. | Lu | 11/6 | Built |
-| R3 | P1 | Saved sitter profile | Short bio, pets they're comfortable with, area. Today a sitter writes a note with each offer instead. | | 11/9 | To do |
+| R2 | P0 | Pet details on every request | Name, kind (dog, cat, more than one, something else with text), breed or notes, optional photo. | Lu | 11/6 | Done |
+| R3 | P1 | Saved sitter profile (My profile page) | Short bio, pets they're comfortable with, area. Today a sitter writes a note with each offer instead. | Esther | 11/9 | In progress |
 | R3b | P1 | Saved pet profiles | Reuse a pet across requests instead of answering again. | | 11/12 | To do |
 
 ### Posting a request (owner)
@@ -35,7 +35,7 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | R4 | P0 | Guided survey posts a request | Seven steps: pet, about them, dates, visits and care, keys, pay, notes. Every step has a "something else" text option. Progress shown. | Lu | 11/8 | Done |
 | R5 | P0 | Review before posting | Summary card of every answer. Owner can edit or post. Nothing is visible to sitters until Post. | Lu | 11/8 | Done |
 | R6 | P1 | One sentence to request | AI fills the survey from a sentence, asks for missing fields, owner reviews. Hidden when the user has no API key. | Lu | 11/9 | Done |
-| R7 | P1 | Owner can cancel an open request | Status changes to cancelled. Sitters with offers are notified. | Lu | 11/9 | Built |
+| R7 | P1 | Owner can cancel an open request | Owner confirms first. Status changes to cancelled and the page says so. Sitters with offers are notified. | Lu | 11/9 | Done |
 | R7b | P2 | Owner can edit an open request | | | | To do |
 
 ### Finding a sitter

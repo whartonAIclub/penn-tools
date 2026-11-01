@@ -26,6 +26,7 @@ const mochi: RequestDraft = {
   accessOther: null,
   pay: "$20 a visit",
   area: "Near 40th Street",
+  vet: null,
   notes: "Pulls on the leash near squirrels.",
 };
 
@@ -139,6 +140,10 @@ describe("agreement", () => {
       ifUrgent: "Text Lu first, then call the vet",
       notes: "Pulls on the leash near squirrels.",
     });
+  });
+
+  it("puts the owner's vet in the agreement", () => {
+    expect(agreementTemplate({ ...mochi, vet: "University City Animal Clinic" }, "Lu").vet).toBe("University City Animal Clinic");
   });
 
   it("records a change request in the notes when no AI can apply it", () => {

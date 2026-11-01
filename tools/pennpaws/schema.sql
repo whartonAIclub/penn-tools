@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS requests (
   access_other     TEXT,
   pay              TEXT        NOT NULL,
   area             TEXT,
+  vet              TEXT,
   notes            TEXT,
   status           TEXT        NOT NULL DEFAULT 'open'
                    CHECK (status IN ('open', 'matched', 'agreed', 'completed', 'cancelled')),
@@ -40,6 +41,9 @@ CREATE TABLE IF NOT EXISTS requests (
 -- Browsing lists open requests by start date; "my requests" lists an owner's.
 CREATE INDEX IF NOT EXISTS requests_status_starts_idx ON requests (status, starts_on);
 CREATE INDEX IF NOT EXISTS requests_owner_idx ON requests (owner_id, created_at DESC);
+
+-- Added after the first deploy: the owner's vet, for the care agreement.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS vet TEXT;
 
 -- A sitter's offer to help with one request; one per sitter per request.
 CREATE TABLE IF NOT EXISTS offers (

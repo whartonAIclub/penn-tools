@@ -55,6 +55,7 @@ const draft: RequestDraft = {
   accessOther: null,
   pay: "$20 a visit",
   area: null,
+  vet: null,
   notes: null,
 };
 

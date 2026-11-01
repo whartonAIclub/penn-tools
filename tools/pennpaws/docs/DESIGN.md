@@ -24,7 +24,7 @@ Posting works like Lemonade's insurance flow: one question at a time, tap an ans
 | 4 | How often, and what to do? | Once a day, Twice a day, Every other day, Stay overnight. Walks or litter box, feeding, water, playtime, medication, clean up or brushing | Something else for both |
 | 5 | How will your sitter get in? | Meet in person, Front desk, Lockbox or code, Decide with my sitter | Something else |
 | 6 | What would you like to pay? | $15, $20, $25 a visit, Suggest a fair rate | Set my own amount |
-| 7 | Anything else? | Skip | Health, quirks, vet |
+| 7 | Where, vet, anything else? | Continue | Neighborhood or cross streets, vet, health and habits (three separate boxes) |
 
 Owners can also skip the survey and type one sentence. AI fills the answers, names what it assumed, and the owner reviews the same summary card.
 

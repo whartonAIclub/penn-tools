@@ -547,3 +547,23 @@
 @media (prefers-reduced-motion: reduce) {
   .progress span { transition: none; }
 }
+
+/* The local development user has no Penn email, so it is labeled honestly. */
+.testAccount {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pp-gold-text);
+  background: var(--pp-gold-soft);
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+/* Full tab labels where they fit, short ones on narrow phones. */
+.tabShort { display: none; }
+@media (max-width: 420px) {
+  .tabShort { display: inline; }
+  .tabFull { display: none; }
+}

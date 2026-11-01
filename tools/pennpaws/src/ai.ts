@@ -28,6 +28,7 @@ export const ParsedRequest = z.object({
   accessOther: z.string().nullable(),
   pay: z.string().nullable().describe('For example "$20 a visit"'),
   area: z.string().nullable().describe("Neighborhood or street near campus"),
+  vet: z.string().nullable().describe("The pet's vet clinic or doctor"),
   notes: z.string().nullable().describe("Health, quirks or vet details"),
 });
 export type ParsedRequest = z.infer<typeof ParsedRequest>;

@@ -7,6 +7,7 @@ import { toolSql } from "@penntools/platform/db";
 import { firstName, listMyRequests, listNotifications, listOpenRequests } from "@penntools/tool-pennpaws";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
+import { isPennEmail } from "@/lib/pennEmail";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { PennPaws } from "./PennPaws";
 
@@ -38,6 +39,7 @@ export default async function PennPawsPage() {
   return (
     <PennPaws
       userFirstName={firstName(user.name ?? "")}
+      pennVerified={isPennEmail(user.email)}
       open={open}
       mine={mine}
       notifications={notifications}

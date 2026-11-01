@@ -24,12 +24,15 @@ const STATUS_LABELS: Record<Card["status"], string> = {
 
 export function PennPaws({
   userFirstName,
+  pennVerified,
   open,
   mine,
   notifications,
   hasAI,
 }: {
   userFirstName: string;
+  /** False for the local development user, who has no Penn email. */
+  pennVerified: boolean;
   open: Card[];
   mine: Card[];
   notifications: Notification[];
@@ -57,8 +60,8 @@ export function PennPaws({
       <header className={styles.header}>
         <div className={styles.brand}>
           <h1 className={styles.title}>PennPaws</h1>
-          <span className={styles.verified}>
-            <CheckIcon /> Penn verified
+          <span className={pennVerified ? styles.verified : styles.testAccount}>
+            {pennVerified && <CheckIcon />} {pennVerified ? "Penn verified" : "Test account"}
           </span>
         </div>
         <button type="button" className={styles.bell} onClick={showAlerts} aria-label={unread ? `Notifications, ${unread} new` : "Notifications"}>
@@ -70,11 +73,11 @@ export function PennPaws({
       <nav className={styles.tabs} aria-label="PennPaws">
         {(
           [
-            ["find", "Browse"],
-            ["post", "Post"],
-            ["mine", "My requests"],
+            ["find", "Browse", "Find a request"],
+            ["post", "Post", "Post a request"],
+            ["mine", "Mine", "My requests"],
           ] as const
-        ).map(([tab, label]) => (
+        ).map(([tab, short, full]) => (
           <button
             key={tab}
             type="button"
@@ -82,7 +85,8 @@ export function PennPaws({
             aria-current={activeTab === tab ? "page" : undefined}
             onClick={() => setView({ tab })}
           >
-            {label}
+            <span className={styles.tabShort}>{short}</span>
+            <span className={styles.tabFull}>{full}</span>
           </button>
         ))}
       </nav>

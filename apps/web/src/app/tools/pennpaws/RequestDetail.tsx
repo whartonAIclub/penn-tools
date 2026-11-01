@@ -28,6 +28,7 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
   const [message, setMessage] = useState("");
   const [change, setChange] = useState("");
   const [changing, setChanging] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const reload = useCallback(async () => setRequest(await loadRequest(requestId)), [requestId]);
   useEffect(() => {
@@ -95,6 +96,12 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
         )}
         <dt>Keys</dt>
         <dd>{lines.access}</dd>
+        {request.draft.vet && (
+          <>
+            <dt>Vet</dt>
+            <dd>{request.draft.vet}</dd>
+          </>
+        )}
         {request.draft.notes && (
           <>
             <dt>Notes</dt>
@@ -262,16 +269,28 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
         </div>
       )}
 
-      {role === "owner" && (request.status === "open" || request.status === "matched") && (
-        <button
-          type="button"
-          className={styles.link}
-          disabled={busy}
-          onClick={() => void act(() => cancel(request.id))}
-        >
-          Cancel this request
-        </button>
+      {request.status === "cancelled" && (
+        <div className={styles.notice}>{request.mine ? "You cancelled this request." : "The owner cancelled this request."}</div>
       )}
+
+      {role === "owner" && (request.status === "open" || request.status === "matched") &&
+        (confirmingCancel ? (
+          <div className={styles.panelPlain}>
+            <span>Cancel this request? Anyone who offered will be told.</span>
+            <div className={styles.row}>
+              <button type="button" className={styles.secondary} onClick={() => setConfirmingCancel(false)}>
+                Keep it
+              </button>
+              <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => cancel(request.id))}>
+                Yes, cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className={styles.link} onClick={() => setConfirmingCancel(true)}>
+            Cancel this request
+          </button>
+        ))}
     </section>
   );
 }

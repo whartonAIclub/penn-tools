@@ -85,6 +85,7 @@ interface RequestRow {
   access_other: string | null;
   pay: string;
   area: string | null;
+  vet: string | null;
   notes: string | null;
   status: RequestStatus;
   created_at: Date;
@@ -97,7 +98,7 @@ function selectRequests(sql: Sql) {
            r.pet_details, r.photo, r.weekly,
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
-           r.pay, r.area, r.notes, r.status, r.created_at,
+           r.pay, r.area, r.vet, r.notes, r.status, r.created_at,
            (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count
     FROM requests r
   `;
@@ -123,6 +124,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       accessOther: row.access_other,
       pay: row.pay,
       area: row.area,
+      vet: row.vet,
       notes: row.notes,
     },
     ownerFirstName: firstName(row.owner_name),
@@ -212,12 +214,12 @@ export async function createRequest(sql: Sql, owner: Person, draft: RequestDraft
     INSERT INTO requests (
       owner_id, owner_name, owner_email, pet_name, pet_kind, pet_kind_other, pet_details, photo,
       weekly, starts_on, ends_on, frequency, frequency_other, tasks, tasks_other,
-      access, access_other, pay, area, notes
+      access, access_other, pay, area, vet, notes
     ) VALUES (
       ${owner.id}, ${owner.name}, ${owner.email}, ${draft.petName}, ${draft.petKind}, ${draft.petKindOther},
       ${draft.petDetails}, ${draft.photo}, ${draft.weekly}, ${draft.weekly ? null : draft.startsOn},
       ${draft.weekly ? null : draft.endsOn}, ${draft.frequency}, ${draft.frequencyOther}, ${sql.array(draft.tasks)},
-      ${draft.tasksOther}, ${draft.access}, ${draft.accessOther}, ${draft.pay}, ${draft.area}, ${draft.notes}
+      ${draft.tasksOther}, ${draft.access}, ${draft.accessOther}, ${draft.pay}, ${draft.area}, ${draft.vet}, ${draft.notes}
     ) RETURNING id
   `;
   return row!.id;

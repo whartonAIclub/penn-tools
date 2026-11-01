@@ -52,6 +52,7 @@ interface Answers {
   pay: string;
   payOwn: boolean;
   area: string;
+  vet: string;
   notes: string;
   notesDone: boolean;
 }
@@ -74,6 +75,7 @@ const EMPTY: Answers = {
   pay: "",
   payOwn: false,
   area: "",
+  vet: "",
   notes: "",
   notesDone: false,
 };
@@ -103,6 +105,7 @@ function toDraft(a: Answers): RequestDraft {
     accessOther: a.access === OTHER ? orNull(a.accessOther) : null,
     pay: a.pay.trim(),
     area: orNull(a.area),
+    vet: orNull(a.vet),
     notes: orNull(a.notes),
   };
 }
@@ -140,6 +143,7 @@ function mergeParsed(a: Answers, p: ParsedRequest): Answers {
   if (p.accessOther) next.accessOther = p.accessOther;
   if (p.pay) next.pay = p.pay;
   if (p.area) next.area = p.area;
+  if (p.vet) next.vet = p.vet;
   if (p.notes) next.notes = p.notes;
   return next;
 }
@@ -224,7 +228,7 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
     `How often should someone come by, and what should they do for ${a.petName || "them"}?`,
     "How will your sitter get in?",
     "What would you like to pay? Pick a rate, or I can suggest one.",
-    "Last one. Anything a sitter should know about health, quirks or your vet? And roughly where are you?",
+    "Last one. Roughly where are you, who is your vet, and is there anything else a sitter should know?",
     "Here is your request. Look it over, then post it.",
   ];
   const answers = [
@@ -234,7 +238,7 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
     `${lines.visits}. ${lines.care}`,
     lines.access,
     a.pay,
-    [a.area, a.notes].filter(Boolean).join(". ") || "Nothing else",
+    [a.area, a.vet && `Vet: ${a.vet}`, a.notes].filter(Boolean).join(". ") || "Nothing else",
   ];
   const log: { from: "bot" | "me"; text: string }[] = [{ from: "bot", text: questions[0]! }];
   let first = 0;
@@ -290,6 +294,8 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
             <dd>{a.pay}</dd>
             <dt className={styles.muted}>Where</dt>
             <dd>{a.area || "Not given"}</dd>
+            <dt className={styles.muted}>Vet</dt>
+            <dd>{a.vet || "Not given"}</dd>
             <dt className={styles.muted}>Notes</dt>
             <dd className={styles.preLine}>{a.notes || "None"}</dd>
           </dl>
@@ -487,9 +493,18 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
 
         {step === 6 && (
           <>
-            <TextField id="pp-area" label="Roughly where (optional)" value={a.area} placeholder="Near 40th and Spruce" onChange={(area) => set({ area })} />
+            {/* One box per kind of answer: testers typed temperament into a shared "where" box. */}
+            <TextField
+              id="pp-area"
+              label="Neighborhood or nearest cross streets (optional)"
+              value={a.area}
+              placeholder="40th and Spruce"
+              onChange={(area) => set({ area })}
+            />
+            <span className={styles.hint}>Only this shows on your request. Your exact address is shared once you both approve.</span>
+            <TextField id="pp-vet" label="Vet (optional)" value={a.vet} placeholder="University City Animal Clinic" onChange={(vet) => set({ vet })} />
             <label htmlFor="pp-notes" className={styles.label}>
-              Health, quirks, vet, anything else (optional)
+              Health, habits or anything else a sitter should know (optional)
             </label>
             <textarea
               id="pp-notes"
@@ -498,7 +513,7 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
               maxLength={LIMITS.notes}
               value={a.notes}
               onChange={(e) => set({ notes: e.target.value })}
-              placeholder="Pulls on the leash near squirrels. Vet is University City Animal Clinic."
+              placeholder="Shy with strangers at first. Gets one treat after dinner."
             />
             <button type="button" className={styles.primary} onClick={() => answer({ notesDone: true })}>
               Continue

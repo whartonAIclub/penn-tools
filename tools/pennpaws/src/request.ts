@@ -28,6 +28,7 @@ export const RequestDraft = z
     accessOther: optionalText(LIMITS.shortText),
     pay: z.string().trim().min(1, "Choose what you'll pay.").max(LIMITS.shortText),
     area: optionalText(LIMITS.shortText),
+    vet: optionalText(LIMITS.shortText),
     notes: optionalText(LIMITS.notes),
   })
   .superRefine((draft, ctx) => {
