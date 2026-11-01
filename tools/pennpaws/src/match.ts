@@ -17,7 +17,7 @@ import {
   type SitterProfile,
 } from "./profile.js";
 import type { RequestDraft } from "./request.js";
-import { OTHER, labelOf } from "./survey.js";
+import { LANGUAGES, OTHER, labelOf, listLabels } from "./survey.js";
 
 export interface Point {
   lat: number;
@@ -120,13 +120,23 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
     else bad(miles <= travel * 2 ? 12 : 25, `${miles.toFixed(1)} mi away, past your ${labelOf(TRAVEL, sitter.travel).toLowerCase()}`);
   }
 
+  // The type of care. A stay or boarding is overnight by definition.
+  if (draft.careType === "boarding") {
+    if (sitter.services.includes("boarding")) good(12, "You offer boarding at your place");
+    else bad(30, "Boarding at your place, which you don't offer");
+  } else if (draft.careType === "stay") {
+    if (sitter.services.includes("overnight")) good(10, "You do overnight stays");
+    else bad(25, "Needs an overnight stay, which you don't offer");
+  }
+
   // The kind of visit.
-  const overnight = draft.frequency === "overnight";
-  if (overnight) {
+  const overnight = draft.careType !== "visits" || draft.frequency === "overnight";
+  if (draft.careType === "visits" && draft.frequency === "overnight") {
     if (sitter.services.includes("overnight") || sitter.services.includes("boarding")) good(8, "You do overnights");
     else bad(15, "Needs overnights, which you don't offer");
   }
-  if (draft.tasks.includes("walks")) {
+  // Walks at the owner's place; a boarded dog is walked from the sitter's.
+  if (draft.careType === "visits" && draft.tasks.includes("walks")) {
     if (sitter.services.includes("walk")) good(5, "You do dog walks");
     else bad(10, "Needs walks, which you don't offer");
   }
@@ -152,12 +162,32 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
       if (sitter.experience.includes("injections")) good(15, "You've given injections");
       else bad(15, "Needs injections, which you haven't listed");
     }
-    const pref = owner.profile?.sitterGenderPref ?? "none";
-    if (pref !== "none" && sitter.gender !== pref) bad(25, `The owner prefers a ${labelOf(GENDER_PREFS, pref).toLowerCase()} sitter`);
   }
+  // The request's own preference wins; otherwise the owner's profile.
+  const pref = draft.sitterGender !== "none" ? draft.sitterGender : owner.profile?.sitterGenderPref ?? "none";
+  if (pref !== "none" && sitter.gender !== pref) bad(25, `The owner prefers a ${labelOf(GENDER_PREFS, pref).toLowerCase()} sitter`);
   if (draft.tasks.includes("medication") || pet?.specialCare.includes("medication")) {
     if (sitter.experience.includes("medication")) good(8, "You've given medication");
     else bad(8, "Needs medication, which you haven't listed");
+  }
+
+  // What the owner asked of a sitter on this request.
+  if (draft.mustHaves.includes("cat_experience")) {
+    if (sitter.experience.includes("owned_cats")) good(8, "You've had cats");
+    else bad(15, "The owner wants someone who's cared for cats");
+  }
+  if (draft.mustHaves.includes("dog_experience")) {
+    if (sitter.experience.includes("owned_dogs")) good(8, "You've had dogs");
+    else bad(15, "The owner wants someone who's cared for dogs");
+  }
+  if (draft.mustHaves.includes("home_most_days")) {
+    if (sitter.availability.includes("weekday_daytime")) good(6, "You're free weekday daytimes");
+    else bad(10, "The owner wants someone home most of the day");
+  }
+  if (draft.languages.length > 0) {
+    const shared = draft.languages.filter((l) => sitter.languages.includes(l));
+    if (shared.length) good(10, `You speak ${listLabels(LANGUAGES, shared)}`);
+    else bad(15, `The owner would like a sitter who speaks ${listLabels(LANGUAGES, draft.languages).replace(/ and /, " or ")}`);
   }
 
   // When. Only a clear clash counts against: a request that needs weekdays from someone free on weekends only.
@@ -180,6 +210,48 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
     concerns: concerns.sort(byWeight).map((c) => c.text),
     miles: miles === null ? null : Math.round(miles * 10) / 10,
   };
+}
+
+/** What an owner asked for on a request, checked against one sitter, in words for the owner. */
+export interface AskCheck {
+  fits: string[];
+  misses: string[];
+}
+
+const SERVICES_FOR_CARE: Record<RequestDraft["careType"], { services: readonly SitterProfile["services"][number][]; fit: string; miss: string }> = {
+  visits: { services: ["walk", "drop_in"], fit: "Does walks or drop-ins", miss: "Doesn't do walks or drop-ins" },
+  stay: { services: ["overnight"], fit: "Does overnight stays", miss: "Doesn't do overnight stays" },
+  boarding: { services: ["boarding"], fit: "Offers boarding", miss: "Doesn't offer boarding" },
+};
+const PET_FOR_SITTER = { dog: "dogs", cat: "cats", other: "small_pets" } as const;
+const PET_WORDS = { dogs: "dogs", cats: "cats", small_pets: "small pets" } as const;
+
+/**
+ * Shows the owner, on each offer, whether the sitter has what the request asks
+ * for: the type of care, the kind of pet, the must-haves, gender and
+ * languages. Only what the owner asked is checked.
+ */
+export function checkAsks(draft: RequestDraft, sitter: SitterProfile): AskCheck {
+  const fits: string[] = [];
+  const misses: string[] = [];
+  const check = (ok: boolean, fit: string, miss: string) => (ok ? fits.push(fit) : misses.push(miss));
+
+  const care = SERVICES_FOR_CARE[draft.careType];
+  check(care.services.some((s) => sitter.services.includes(s)), care.fit, care.miss);
+  if (draft.petKind !== "several") {
+    const kind = PET_FOR_SITTER[draft.petKind];
+    check(sitter.petKinds.includes(kind), `Comfortable with ${PET_WORDS[kind]}`, `Doesn't list ${PET_WORDS[kind]}`);
+  }
+  if (draft.mustHaves.includes("cat_experience")) check(sitter.experience.includes("owned_cats"), "Has owned cats", "No cat experience listed");
+  if (draft.mustHaves.includes("dog_experience")) check(sitter.experience.includes("owned_dogs"), "Has owned dogs", "No dog experience listed");
+  if (draft.mustHaves.includes("home_most_days")) check(sitter.availability.includes("weekday_daytime"), "Free weekday daytimes", "Not free weekday daytimes");
+  // Sitters agreed their gender is used for matching, even when it isn't shown.
+  if (draft.sitterGender !== "none") check(sitter.gender === draft.sitterGender, "Matches your gender preference", "Doesn't match your gender preference");
+  if (draft.languages.length) {
+    const shared = draft.languages.filter((l) => sitter.languages.includes(l));
+    check(shared.length > 0, `Speaks ${listLabels(LANGUAGES, shared)}`, `Doesn't speak ${listLabels(LANGUAGES, draft.languages).replace(/ and /, " or ")}`);
+  }
+  return { fits, misses };
 }
 
 /** The owner's location and pet profile for each request, by request id. */

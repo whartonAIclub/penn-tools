@@ -63,6 +63,12 @@ const draft: RequestDraft = {
   area: null,
   vet: null,
   notes: null,
+  careType: "visits",
+  mustHaves: [],
+  sitterGender: "none",
+  languages: [],
+  original: null,
+  originalLanguage: null,
 };
 
 const template = async (d: RequestDraft, owner: string) => agreementTemplate(d, owner);
@@ -205,6 +211,58 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     await expect(sendMessage(sql, lu, requestId, "Sorry!", ownerThreads[1]!.id)).rejects.toThrow("This conversation is closed.");
     await sendMessage(sql, priya, requestId, "Thanks! See you Tuesday.", null);
     expect((await listThreads(sql, lu.id, requestId)).map((t) => t.canSend)).toEqual([true, false]);
+  });
+
+  it("stores a boarding request's must-haves and shows the owner how each sitter fits", async () => {
+    const requestId = await createRequest(sql, lu, {
+      ...draft,
+      petName: "Jinjin",
+      petKind: "cat",
+      careType: "boarding",
+      frequency: "overnight",
+      mustHaves: ["cat_experience", "daily_updates"],
+      sitterGender: "woman",
+      languages: ["mandarin"],
+      original: "感恩节猫咪寄养",
+      originalLanguage: "Chinese",
+    });
+    const card = (await listOpenRequests(sql, sam.id)).find((r) => r.id === requestId);
+    expect(card?.draft).toMatchObject({
+      careType: "boarding",
+      mustHaves: ["cat_experience", "daily_updates"],
+      sitterGender: "woman",
+      languages: ["mandarin"],
+      original: "感恩节猫咪寄养",
+      originalLanguage: "Chinese",
+    });
+
+    const samProfile: Profile = {
+      role: "sitter",
+      location: { area: "Spruce Hill", lat: 39.951, lng: -75.21 },
+      services: ["boarding"],
+      petKinds: ["cats"],
+      sizes: ["small"],
+      energy: ["low"],
+      anxiousOk: true,
+      experience: ["owned_cats"],
+      travel: "1",
+      availability: ["weekends"],
+      gender: "man",
+      showGender: true,
+      bio: "Cat person.",
+      languages: ["english"],
+      boarding: { homeType: "apartment", homeTypeOther: null, hasYard: false, otherPets: null, housingAllowsPets: true, roommatesAgree: true },
+    };
+    await saveMember(sql, sam, "upenn.edu", samProfile);
+    await offerHelp(sql, sam, requestId, "Happy to board Jinjin.");
+
+    const asOwner = await getRequestView(sql, lu.id, requestId);
+    expect(asOwner?.offers[0]?.match).toEqual({
+      fits: ["Offers boarding", "Comfortable with cats", "Has owned cats"],
+      misses: ["Doesn't match your gender preference", "Doesn't speak Mandarin"],
+    });
+    // A sitter never gets the owner's view of how they match.
+    expect((await getRequestView(sql, sam.id, requestId))?.myOffer?.match).toBeNull();
   });
 
   it("cancels an open request and tells sitters who offered", async () => {

@@ -22,7 +22,7 @@ export function agreementTemplate(request: RequestDraft, ownerFirstName: string)
   return {
     dates: lines.when,
     visits: lines.visits,
-    care: lines.care,
+    care: request.mustHaves.includes("daily_updates") ? `${lines.care}. A photo or video update every day` : lines.care,
     keys: lines.access,
     pay: `${request.pay}, paid directly (for example on Venmo)`,
     vet: request.vet,

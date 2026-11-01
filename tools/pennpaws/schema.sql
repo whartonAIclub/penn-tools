@@ -48,6 +48,17 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS vet TEXT;
 -- Added after the first deploy: when either person marked the booking done.
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
+-- Added after the first deploy: the type of care (visits, stay or boarding),
+-- what the owner asks of a sitter (compared with sitter profiles), and the
+-- owner's own post when AI read it from another language.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS care_type TEXT NOT NULL DEFAULT 'visits'
+  CHECK (care_type IN ('visits', 'stay', 'boarding'));
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS must_haves TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS sitter_gender TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS languages TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS original_text TEXT;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS original_language TEXT;
+
 -- A sitter's offer to help with one request; one per sitter per request.
 CREATE TABLE IF NOT EXISTS offers (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

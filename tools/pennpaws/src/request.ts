@@ -2,7 +2,8 @@
 // checked, and how it reads in plain words. Storage is in requests.ts.
 
 import { z } from "@penntools/core/ai";
-import { ACCESS, FREQUENCIES, LIMITS, OTHER, PET_KINDS, TASKS, labelOf, shortDate } from "./survey.js";
+import { GENDER_PREFS } from "./profile.js";
+import { ACCESS, CARE_TYPES, FREQUENCIES, LANGUAGES, LIMITS, MUST_HAVES, OTHER, PET_KINDS, TASKS, labelOf, listLabels, shortDate } from "./survey.js";
 
 const values = <T extends readonly { value: string }[]>(options: T) =>
   options.map((option) => option.value) as [T[number]["value"], ...T[number]["value"][]];
@@ -30,6 +31,16 @@ export const RequestDraft = z
     area: optionalText(LIMITS.shortText),
     vet: optionalText(LIMITS.shortText),
     notes: optionalText(LIMITS.notes),
+    // Added later; the defaults keep older requests and callers working.
+    careType: z.enum(values(CARE_TYPES)).default("visits"),
+    /** What the owner requires of a sitter, compared with sitter profiles. */
+    mustHaves: z.array(z.enum(values(MUST_HAVES))).max(MUST_HAVES.length).default([]),
+    sitterGender: z.enum(values(GENDER_PREFS)).default("none"),
+    /** Languages the owner would like their sitter to speak. Empty for no preference. */
+    languages: z.array(z.enum(values(LANGUAGES))).max(LANGUAGES.length).default([]),
+    /** The owner's own post, kept when AI read it from another language. */
+    original: optionalText(LIMITS.sentence).default(null),
+    originalLanguage: optionalText(40).default(null),
   })
   .superRefine((draft, ctx) => {
     const needsText = (chosen: boolean, text: string | null, path: string, message: string) => {
@@ -60,6 +71,17 @@ export function checkDraft(input: unknown): Checked<RequestDraft> {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+const VISITS_BY_CARE_TYPE = {
+  stay: "Sitter stays overnight at the owner's home",
+  boarding: "Boarding at the sitter's home",
+} as const;
+
+/** How the pet is handed over for boarding, in place of how the sitter gets in. */
+const BOARDING_HANDOVER: Partial<Record<RequestDraft["access"], string>> = {
+  in_person: "Drop-off and pick-up in person",
+  decide_later: "Drop-off and pick-up to agree",
+};
+
 /** Plain-words lines for a request card and the agreement template. */
 export function describe(draft: RequestDraft): {
   pet: string;
@@ -67,6 +89,8 @@ export function describe(draft: RequestDraft): {
   visits: string;
   care: string;
   access: string;
+  /** What the owner asks of a sitter, or null when nothing. */
+  sitter: string | null;
 } {
   const kind =
     draft.petKind === OTHER || draft.petKind === "several"
@@ -85,8 +109,26 @@ export function describe(draft: RequestDraft): {
           ? shortDate(draft.startsOn)
           : `${shortDate(draft.startsOn)} to ${shortDate(draft.endsOn)}`
         : "Dates to agree",
-    visits: draft.frequency === OTHER ? draft.frequencyOther ?? "" : labelOf(FREQUENCIES, draft.frequency),
+    visits:
+      draft.careType !== "visits"
+        ? VISITS_BY_CARE_TYPE[draft.careType]
+        : draft.frequency === OTHER
+          ? draft.frequencyOther ?? ""
+          : labelOf(FREQUENCIES, draft.frequency),
     care: care.join(", "),
-    access: draft.access === OTHER ? draft.accessOther ?? "" : labelOf(ACCESS, draft.access),
+    access:
+      draft.access === OTHER
+        ? draft.accessOther ?? ""
+        : (draft.careType === "boarding" ? BOARDING_HANDOVER[draft.access] : undefined) ?? labelOf(ACCESS, draft.access),
+    sitter: describeSitterWishes(draft),
   };
+}
+
+function describeSitterWishes(draft: RequestDraft): string | null {
+  const parts = [
+    draft.mustHaves.length ? capitalize(listLabels(MUST_HAVES, draft.mustHaves).toLowerCase()) : null,
+    draft.sitterGender !== "none" ? `Prefers a ${labelOf(GENDER_PREFS, draft.sitterGender).toLowerCase()} sitter` : null,
+    draft.languages.length ? `Speaks ${listLabels(LANGUAGES, draft.languages).replace(/ and /, " or ")}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(". ") : null;
 }

@@ -7,6 +7,8 @@ import type { Sql } from "postgres";
 import { AgreementTerms, type AgreementTerms as Terms } from "./agreement.js";
 import { allowedFrom, bothApproved, canSeeContacts, type OfferStatus, type RequestStatus, type Role } from "./booking.js";
 import type { PaymentMethod, SitterJob } from "./jobs.js";
+import { checkAsks, type AskCheck } from "./match.js";
+import { checkProfile } from "./profile.js";
 import { notify, type NotificationChannel } from "./notifications.js";
 import type { RequestDraft } from "./request.js";
 import { LIMITS } from "./survey.js";
@@ -33,6 +35,8 @@ export interface OfferView {
   sitterFirstName: string;
   message: string;
   status: OfferStatus;
+  /** Whether the sitter has what the request asks for, for the owner; null without a sitter profile. */
+  match: AskCheck | null;
 }
 
 export interface AgreementView {
@@ -90,6 +94,12 @@ interface RequestRow {
   area: string | null;
   vet: string | null;
   notes: string | null;
+  care_type: RequestDraft["careType"];
+  must_haves: RequestDraft["mustHaves"];
+  sitter_gender: RequestDraft["sitterGender"];
+  languages: RequestDraft["languages"];
+  original_text: string | null;
+  original_language: string | null;
   status: RequestStatus;
   created_at: Date;
   completed_at: Date | null;
@@ -103,6 +113,7 @@ function selectRequests(sql: Sql) {
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
            r.pay, r.area, r.vet, r.notes, r.status, r.created_at, r.completed_at,
+           r.care_type, r.must_haves, r.sitter_gender, r.languages, r.original_text, r.original_language,
            (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count
     FROM requests r
   `;
@@ -130,6 +141,12 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       area: row.area,
       vet: row.vet,
       notes: row.notes,
+      careType: row.care_type,
+      mustHaves: row.must_haves,
+      sitterGender: row.sitter_gender,
+      languages: row.languages,
+      original: row.original_text,
+      originalLanguage: row.original_language,
     },
     ownerFirstName: firstName(row.owner_name),
     status: row.status,
@@ -194,14 +211,27 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
   const offers = await sql<
     { id: string; sitter_id: string; sitter_name: string; sitter_email: string | null; message: string; status: OfferStatus }[]
   >`SELECT id, sitter_id, sitter_name, sitter_email, message, status FROM offers WHERE request_id = ${requestId} ORDER BY created_at`;
+
+  const isOwner = row.owner_id === viewerId;
+  const card = toCard(row, viewerId);
+  // The owner sees how each sitter who offered fits the request.
+  const matches = new Map<string, AskCheck>();
+  if (isOwner && offers.length > 0) {
+    const members = await sql<{ user_id: string; profile: unknown }[]>`
+      SELECT user_id, profile FROM members WHERE user_id IN ${sql(offers.map((o) => o.sitter_id))}
+    `;
+    for (const member of members) {
+      const checked = checkProfile(member.profile);
+      if (checked.ok && checked.value.role === "sitter") matches.set(member.user_id, checkAsks(card.draft, checked.value));
+    }
+  }
   const toView = (o: (typeof offers)[number]): OfferView => ({
     id: o.id,
     sitterFirstName: firstName(o.sitter_name),
     message: o.message,
     status: o.status,
+    match: matches.get(o.sitter_id) ?? null,
   });
-
-  const isOwner = row.owner_id === viewerId;
   const mine = offers.find((o) => o.sitter_id === viewerId) ?? null;
   const accepted = offers.find((o) => o.status === "accepted") ?? null;
   const role: Role | null = isOwner ? "owner" : mine ? "sitter" : null;
@@ -225,7 +255,7 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
   const reviewed = isOwner && row.status === "completed" && (await sql`SELECT 1 FROM reviews WHERE request_id = ${requestId}`).length > 0;
 
   return {
-    ...toCard(row, viewerId),
+    ...card,
     role,
     offers: isOwner ? offers.map(toView) : [],
     myOffer: mine ? toView(mine) : null,
@@ -244,12 +274,15 @@ export async function createRequest(sql: Sql, owner: Person, draft: RequestDraft
     INSERT INTO requests (
       owner_id, owner_name, owner_email, pet_name, pet_kind, pet_kind_other, pet_details, photo,
       weekly, starts_on, ends_on, frequency, frequency_other, tasks, tasks_other,
-      access, access_other, pay, area, vet, notes
+      access, access_other, pay, area, vet, notes,
+      care_type, must_haves, sitter_gender, languages, original_text, original_language
     ) VALUES (
       ${owner.id}, ${owner.name}, ${owner.email}, ${draft.petName}, ${draft.petKind}, ${draft.petKindOther},
       ${draft.petDetails}, ${draft.photo}, ${draft.weekly}, ${draft.weekly ? null : draft.startsOn},
       ${draft.weekly ? null : draft.endsOn}, ${draft.frequency}, ${draft.frequencyOther}, ${sql.array(draft.tasks)},
-      ${draft.tasksOther}, ${draft.access}, ${draft.accessOther}, ${draft.pay}, ${draft.area}, ${draft.vet}, ${draft.notes}
+      ${draft.tasksOther}, ${draft.access}, ${draft.accessOther}, ${draft.pay}, ${draft.area}, ${draft.vet}, ${draft.notes},
+      ${draft.careType}, ${sql.array(draft.mustHaves)}, ${draft.sitterGender}, ${sql.array(draft.languages)},
+      ${draft.original}, ${draft.originalLanguage}
     ) RETURNING id
   `;
   return row!.id;

@@ -2,20 +2,27 @@
 
 // Posting a request as a short conversation: one question at a time, tap an
 // answer, type only when you want to. Every question has "Something else"
-// with a text box. Owners with an API key can type one sentence instead and
-// let AI fill in the answers; either way they review everything before
-// posting. Owners who described their pet in first-time setup start with it
-// filled in, on the step where they can add a photo.
+// with a text box. Owners with an API key can paste a post or describe what
+// they need, in any language, and let AI fill in the answers in English; they
+// check what AI understood, answer only what's missing, and review everything
+// before posting. Owners who described their pet in first-time setup start
+// with it filled in, on the step where they can add a photo.
 
 import { useState, type ReactNode } from "react";
 import {
   ACCESS,
+  CARE_TYPES,
   DATE_MODES,
   FREQUENCIES,
+  GENDER_PREFS,
+  LANGUAGES,
   LIMITS,
+  MUST_HAVES,
+  NIGHT_PAY_PRESETS,
   OTHER,
   PAY_PRESETS,
   PET_KINDS,
+  SUGGESTED_NIGHT_PAY,
   SUGGESTED_PAY,
   TASKS,
   TASKS_BY_KIND,
@@ -24,8 +31,12 @@ import {
   labelOf,
   thisWeekend,
   type Access,
+  type CareType,
   type DateMode,
   type Frequency,
+  type GenderPref,
+  type Language,
+  type MustHave,
   type ParsedRequest,
   type PetKind,
   type RequestDraft,
@@ -57,7 +68,21 @@ interface Answers {
   vet: string;
   notes: string;
   notesDone: boolean;
+  careType: CareType | null;
+  mustHaves: MustHave[];
+  sitterGender: GenderPref;
+  languages: Language[];
+  /** The owner's post, kept when AI read it from another language. */
+  original: string | null;
+  originalLanguage: string | null;
 }
+
+/** For boarding, the keys question becomes how the pet is handed over. */
+const HANDOVER = [
+  { value: "in_person", label: "Drop off and pick up in person", hint: "At the sitter's place, or they come to you" },
+  { value: "decide_later", label: "Decide with my sitter", hint: "Sort it out once you match" },
+  { value: OTHER, label: "Something else", hint: "Type your own" },
+] as const;
 
 const EMPTY: Answers = {
   petKind: null,
@@ -80,6 +105,12 @@ const EMPTY: Answers = {
   vet: "",
   notes: "",
   notesDone: false,
+  careType: null,
+  mustHaves: [],
+  sitterGender: "none",
+  languages: [],
+  original: null,
+  originalLanguage: null,
 };
 
 const STEPS = ["your pet", "about them", "dates", "care", "keys", "pay", "notes"] as const;
@@ -90,6 +121,7 @@ const needsKindText = (kind: PetKind | null) => kind === OTHER || kind === "seve
 
 function toDraft(a: Answers): RequestDraft {
   const weekly = a.dateMode === "weekly";
+  const visits = (a.careType ?? "visits") === "visits";
   return {
     petName: a.petName.trim(),
     petKind: a.petKind ?? "dog",
@@ -99,8 +131,9 @@ function toDraft(a: Answers): RequestDraft {
     weekly,
     startsOn: weekly ? null : orNull(a.startsOn),
     endsOn: weekly ? null : orNull(a.endsOn),
-    frequency: a.frequency ?? "once_daily",
-    frequencyOther: a.frequency === OTHER ? orNull(a.frequencyOther) : null,
+    // A stay or boarding has no visit schedule; it's overnight.
+    frequency: visits ? a.frequency ?? "once_daily" : "overnight",
+    frequencyOther: visits && a.frequency === OTHER ? orNull(a.frequencyOther) : null,
     tasks: a.tasks,
     tasksOther: a.tasks.includes(OTHER) ? orNull(a.tasksOther) : null,
     access: a.access ?? "decide_later",
@@ -109,24 +142,49 @@ function toDraft(a: Answers): RequestDraft {
     area: orNull(a.area),
     vet: orNull(a.vet),
     notes: orNull(a.notes),
+    careType: a.careType ?? "visits",
+    mustHaves: a.mustHaves,
+    sitterGender: a.sitterGender,
+    languages: a.languages,
+    original: a.original,
+    originalLanguage: a.originalLanguage,
   };
+}
+
+/** The steps whose answers are still missing, in order. */
+function missingSteps(a: Answers): number[] {
+  const missing = [
+    !a.petKind || (needsKindText(a.petKind) && !a.petKindOther.trim()),
+    !a.petName.trim(),
+    !a.dateMode || (a.dateMode !== "weekly" && (!a.startsOn || !a.endsOn || a.endsOn < a.startsOn)),
+    !a.careType ||
+      (a.careType === "visits" && (!a.frequency || (a.frequency === OTHER && !a.frequencyOther.trim()))) ||
+      a.tasks.length === 0 ||
+      (a.tasks.includes(OTHER) && !a.tasksOther.trim()),
+    !a.access || (a.access === OTHER && !a.accessOther.trim()),
+    !a.pay.trim(),
+    !a.notesDone,
+  ];
+  return missing.flatMap((isMissing, step) => (isMissing ? [step] : []));
 }
 
 /** The first step whose answer is still missing, or REVIEW when everything is in. */
 function firstMissing(a: Answers): number {
-  if (!a.petKind || (needsKindText(a.petKind) && !a.petKindOther.trim())) return 0;
-  if (!a.petName.trim()) return 1;
-  if (!a.dateMode || (a.dateMode !== "weekly" && (!a.startsOn || !a.endsOn || a.endsOn < a.startsOn))) return 2;
-  if (!a.frequency || (a.frequency === OTHER && !a.frequencyOther.trim()) || a.tasks.length === 0 || (a.tasks.includes(OTHER) && !a.tasksOther.trim())) return 3;
-  if (!a.access || (a.access === OTHER && !a.accessOther.trim())) return 4;
-  if (!a.pay.trim()) return 5;
-  if (!a.notesDone) return 6;
-  return REVIEW;
+  return missingSteps(a)[0] ?? REVIEW;
 }
 
 /** Merges what AI found into the answers, keeping only values the survey accepts. */
-function mergeParsed(a: Answers, p: ParsedRequest): Answers {
+function mergeParsed(a: Answers, p: ParsedRequest, post: string): Answers {
   const next = { ...a };
+  if (p.careType) next.careType = p.careType;
+  if (p.mustHaves?.length) next.mustHaves = p.mustHaves;
+  if (p.sitterGender) next.sitterGender = p.sitterGender;
+  if (p.languages?.length) next.languages = p.languages;
+  // Keep the owner's own words when AI translated them.
+  if (p.sourceLanguage && !/^english$/i.test(p.sourceLanguage.trim())) {
+    next.original = post.trim();
+    next.originalLanguage = p.sourceLanguage.trim();
+  }
   if (p.petKind) next.petKind = p.petKind;
   if (p.petKindOther) next.petKindOther = p.petKindOther;
   if (p.petName) next.petName = p.petName;
@@ -180,6 +238,8 @@ export function Survey({
   const [filledByAI, setFilledByAI] = useState(false);
   // The first question AI left for the owner to answer.
   const [aiFrom, setAiFrom] = useState(0);
+  // True while the owner checks what AI understood, before the remaining questions.
+  const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -211,12 +271,23 @@ export function Survey({
       setError(result.error);
       return;
     }
-    const next = mergeParsed(a, result.data);
+    const next = mergeParsed(a, result.data, sentence);
     setA(next);
     setFilledByAI(true);
     setAiFrom(firstMissing(next));
     setTyping(false);
-    setStep(firstMissing(next));
+    setUnderstood(true);
+  };
+  const confirmUnderstood = () => {
+    setUnderstood(false);
+    setStep(aiFrom);
+  };
+  const startOver = () => {
+    setA(start ? { ...EMPTY, ...start } : EMPTY);
+    setFilledByAI(false);
+    setUnderstood(false);
+    setStep(0);
+    setTyping(true);
   };
 
   const post = async () => {
@@ -231,6 +302,11 @@ export function Survey({
   const kindWord = a.petKind === "cat" ? "cat" : a.petKind === "dog" ? "dog" : "pet";
   const lines = describe(toDraft(a));
   const weekend = thisWeekend(new Date());
+  const boarding = a.careType === "boarding";
+  // A stay or boarding is paid by the night, visits by the visit.
+  const nightly = a.careType === "stay" || boarding;
+  const payUnit = nightly ? "a night" : "a visit";
+  const toggle = <T,>(list: readonly T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
   // The conversation so far: each question asked and its answer. After AI
   // fills the answers, it picks up at the first question AI couldn't answer.
@@ -238,10 +314,10 @@ export function Survey({
     `Hi ${userFirstName}. Who are we looking after while you're away?`,
     `Lovely. Tell me about your ${kindWord}. A photo helps your sitter know who to look for at the door.`,
     "When will you be away?",
-    `How often should someone come by, and what should they do for ${a.petName || "them"}?`,
-    "How will your sitter get in?",
+    `What kind of care does ${a.petName || "your pet"} need, and what should the sitter do?`,
+    boarding ? `How will you hand ${a.petName || "them"} over to your sitter?` : "How will your sitter get in?",
     "What would you like to pay? Pick a rate, or I can suggest one.",
-    "Last one. Roughly where are you, who is your vet, and is there anything else a sitter should know?",
+    "Last one. Roughly where are you, who is your vet, what matters in a sitter, and is there anything else they should know?",
     "Here is your request. Look it over, then post it.",
   ];
   const answers = [
@@ -251,7 +327,7 @@ export function Survey({
     `${lines.visits}. ${lines.care}`,
     lines.access,
     a.pay,
-    [a.area, a.vet && `Vet: ${a.vet}`, a.notes].filter(Boolean).join(". ") || "Nothing else",
+    [a.area, a.vet && `Vet: ${a.vet}`, lines.sitter, a.notes].filter(Boolean).join(". ") || "Nothing else",
   ];
   const log: { from: "bot" | "me"; text: string }[] = [{ from: "bot", text: questions[0]! }];
   let first = 0;
@@ -260,9 +336,13 @@ export function Survey({
     log.push({ from: "me", text: sentence });
     log.push({
       from: "bot",
-      text: aiFrom === REVIEW ? "Got it. I filled everything in from what you wrote. Check it, then post." : "Got it. I filled in what you told me. Just a few more questions.",
+      text: understood
+        ? `Here's what I understood${a.originalLanguage ? ` (you wrote in ${a.originalLanguage}; sitters see it in English, with your post attached)` : ""}. Is it right?`
+        : aiFrom === REVIEW
+          ? "Great. I filled everything in from what you wrote. Check it, then post."
+          : "Great. Just a few more questions.",
     });
-    if (aiFrom < REVIEW) log.push({ from: "bot", text: questions[aiFrom]! });
+    if (!understood && aiFrom < REVIEW) log.push({ from: "bot", text: questions[aiFrom]! });
   }
   for (let n = first; n < Math.min(step, REVIEW); n++) {
     log.push({ from: "me", text: answers[n]! }, { from: "bot", text: questions[n + 1]! });
@@ -297,21 +377,70 @@ export function Survey({
           <dl className={styles.facts}>
             <dt className={styles.muted}>When</dt>
             <dd>{lines.when}</dd>
-            <dt className={styles.muted}>Visits</dt>
+            <dt className={styles.muted}>{a.careType === "visits" ? "Visits" : "Stay"}</dt>
             <dd>{lines.visits}</dd>
             <dt className={styles.muted}>Care</dt>
             <dd>{lines.care}</dd>
-            <dt className={styles.muted}>Keys</dt>
+            <dt className={styles.muted}>{boarding ? "Handover" : "Keys"}</dt>
             <dd>{lines.access}</dd>
             <dt className={styles.muted}>Pay</dt>
             <dd>{a.pay}</dd>
+            <dt className={styles.muted}>Sitter</dt>
+            <dd>{lines.sitter ?? "No preferences"}</dd>
             <dt className={styles.muted}>Where</dt>
             <dd>{a.area || "Not given"}</dd>
             <dt className={styles.muted}>Vet</dt>
             <dd>{a.vet || "Not given"}</dd>
             <dt className={styles.muted}>Notes</dt>
             <dd className={styles.preLine}>{a.notes || "None"}</dd>
+            {a.original && (
+              <>
+                <dt className={styles.muted}>Your post</dt>
+                <dd className={styles.preLine}>
+                  {a.original}
+                  <span className={styles.hint}> Shown to sitters as written, in {a.originalLanguage}.</span>
+                </dd>
+              </>
+            )}
           </dl>
+        </div>
+      )}
+
+      {understood && (
+        <div className={styles.panelPlain}>
+          <ul className={styles.understood}>
+            {[
+              a.petKind && ["Pet", [a.petName, needsKindText(a.petKind) ? a.petKindOther : labelOf(PET_KINDS, a.petKind).replace(/^A /, ""), a.petDetails].filter(Boolean).join(", ")],
+              a.dateMode && ["When", lines.when],
+              a.careType && ["Type of care", lines.visits],
+              a.tasks.length > 0 && ["Care", lines.care],
+              a.access && [boarding ? "Handover" : "Keys", lines.access],
+              a.pay.trim() && ["Pay", a.pay],
+              lines.sitter && ["Sitter", lines.sitter],
+              a.area.trim() && ["Where", a.area],
+              a.vet.trim() && ["Vet", a.vet],
+              a.notes.trim() && ["Notes", a.notes],
+            ]
+              .filter((line): line is [string, string] => Array.isArray(line))
+              .map(([label, value]) => (
+                <li key={label}>
+                  <CheckMark /> <strong>{label}:</strong> {value}
+                </li>
+              ))}
+          </ul>
+          {missingSteps(a).length > 0 && (
+            <span className={styles.muted}>
+              I&apos;ll still ask about: {missingSteps(a).map((n) => (n === 6 ? "anything else" : STEPS[n])).join(", ")}.
+            </span>
+          )}
+          <div className={styles.row}>
+            <button type="button" className={styles.secondary} onClick={startOver}>
+              Not right, start over
+            </button>
+            <button type="button" className={styles.primary} onClick={confirmUnderstood}>
+              Looks right
+            </button>
+          </div>
         </div>
       )}
 
@@ -322,7 +451,7 @@ export function Survey({
       )}
 
       <div className={styles.answer}>
-        {step === 0 && !typing && (
+        {step === 0 && !typing && !understood && (
           <>
             <Choices
               columns
@@ -343,7 +472,7 @@ export function Survey({
             )}
             {hasAI && (
               <button type="button" className={styles.link} onClick={() => setTyping(true)}>
-                Rather type it all in one sentence?
+                Paste a post you wrote, or describe it in your own words
               </button>
             )}
           </>
@@ -352,26 +481,29 @@ export function Survey({
         {step === 0 && typing && (
           <>
             <label htmlFor="pp-sentence" className={styles.label}>
-              Describe what you need, like texting a friend
+              Paste your post or describe what you need. Any language works.
             </label>
             <textarea
               id="pp-sentence"
               className={styles.input}
-              rows={3}
+              rows={5}
               maxLength={LIMITS.sentence}
               value={sentence}
               onChange={(e) => setSentence(e.target.value)}
-              placeholder="Walk Mochi twice a day Thursday to Sunday, she's a shiba near 40th St"
+              placeholder="Looking for someone with cat experience to board my cat Nov 18 to 30. Daily photos please, pay negotiable."
             />
             <div className={styles.row}>
               <button type="button" className={styles.secondary} onClick={() => setTyping(false)}>
                 Answer questions instead
               </button>
               <button type="button" className={styles.primary} disabled={busy || !sentence.trim()} onClick={() => void fill()}>
-                {busy ? "Reading…" : "Fill it in for me"}
+                {busy ? "Reading…" : "Read it for me"}
               </button>
             </div>
-            <span className={styles.hint}>Uses your saved API key once. We ask about anything you leave out.</span>
+            <span className={styles.hint}>
+              Uses your saved API key once. Your request is written in English for every sitter, with your original post attached. We ask about anything
+              you leave out.
+            </span>
           </>
         )}
 
@@ -438,12 +570,18 @@ export function Survey({
 
         {step === 3 && (
           <>
-            <span className={styles.label}>How often</span>
-            <Choices options={FREQUENCIES} selected={a.frequency} onPick={(frequency) => set({ frequency })} />
-            {a.frequency === OTHER && (
-              <TextField id="pp-freq" label="Describe the schedule" value={a.frequencyOther} placeholder="Mornings only, weekdays" onChange={(frequencyOther) => set({ frequencyOther })} />
+            <span className={styles.label}>Type of care</span>
+            <Choices rows options={CARE_TYPES} selected={a.careType} onPick={(careType) => set({ careType })} />
+            {a.careType === "visits" && (
+              <>
+                <span className={styles.label}>How often</span>
+                <Choices options={FREQUENCIES.filter((f) => f.value !== "overnight")} selected={a.frequency} onPick={(frequency) => set({ frequency })} />
+                {a.frequency === OTHER && (
+                  <TextField id="pp-freq" label="Describe the schedule" value={a.frequencyOther} placeholder="Mornings only, weekdays" onChange={(frequencyOther) => set({ frequencyOther })} />
+                )}
+              </>
             )}
-            <span className={styles.label}>What to do on each visit</span>
+            <span className={styles.label}>{a.careType === "visits" ? "What to do on each visit" : "What should the sitter do?"}</span>
             <div className={styles.chips}>
               {kindTasks.map((task) => {
                 const on = a.tasks.includes(task);
@@ -469,9 +607,20 @@ export function Survey({
 
         {step === 4 && (
           <>
-            <Choices rows options={ACCESS} selected={a.access} onPick={(access) => (access === OTHER ? set({ access }) : answer({ access, accessOther: "" }))} />
+            <Choices
+              rows
+              options={boarding ? HANDOVER : ACCESS}
+              selected={a.access}
+              onPick={(access) => (access === OTHER ? set({ access }) : answer({ access, accessOther: "" }))}
+            />
             {a.access === OTHER && (
-              <TextField id="pp-access" label="How will the sitter get in?" value={a.accessOther} placeholder="My roommate will let them in" onChange={(accessOther) => set({ accessOther })}>
+              <TextField
+                id="pp-access"
+                label={boarding ? "How will you hand them over?" : "How will the sitter get in?"}
+                value={a.accessOther}
+                placeholder={boarding ? "My roommate will drop her off" : "My roommate will let them in"}
+                onChange={(accessOther) => set({ accessOther })}
+              >
                 <Continue onClick={goOn} />
               </TextField>
             )}
@@ -481,8 +630,8 @@ export function Survey({
         {step === 5 && (
           <>
             <div className={styles.threeCol}>
-              {PAY_PRESETS.map((amount) => {
-                const value = `$${amount} a visit`;
+              {(nightly ? NIGHT_PAY_PRESETS : PAY_PRESETS).map((amount) => {
+                const value = `$${amount} ${payUnit}`;
                 return (
                   <button key={amount} type="button" className={a.pay === value ? styles.tileOn : styles.tile} aria-pressed={a.pay === value} onClick={() => answer({ pay: value, payOwn: false })}>
                     ${amount}
@@ -490,14 +639,20 @@ export function Survey({
                 );
               })}
             </div>
-            <button type="button" className={styles.secondary} onClick={() => answer({ pay: `$${SUGGESTED_PAY} a visit, suggested`, payOwn: false })}>
+            <button type="button" className={styles.secondary} onClick={() => answer({ pay: `$${nightly ? SUGGESTED_NIGHT_PAY : SUGGESTED_PAY} ${payUnit}, suggested`, payOwn: false })}>
               Suggest a fair rate for me
             </button>
             <button type="button" className={a.payOwn ? styles.tileOn : styles.secondary} aria-pressed={a.payOwn} onClick={() => set({ payOwn: true, pay: "" })}>
               Set my own amount
             </button>
             {a.payOwn && (
-              <TextField id="pp-pay" label="Amount and how you'll pay" value={a.pay} placeholder="$150 for the week on Venmo" onChange={(pay) => set({ pay })}>
+              <TextField
+                id="pp-pay"
+                label="Amount and how you'll pay"
+                value={a.pay}
+                placeholder={nightly ? "$400 for the two weeks, or negotiable" : "$150 for the week on Venmo"}
+                onChange={(pay) => set({ pay })}
+              >
                 <Continue onClick={goOn} />
               </TextField>
             )}
@@ -528,6 +683,31 @@ export function Survey({
               onChange={(e) => set({ notes: e.target.value })}
               placeholder="Shy with strangers at first. Gets one treat after dinner."
             />
+            <span className={styles.label}>What matters in a sitter? (optional)</span>
+            <div className={styles.chips} role="group" aria-label="Sitter must-haves">
+              {MUST_HAVES.map((option) => {
+                const on = a.mustHaves.includes(option.value);
+                return (
+                  <button key={option.value} type="button" className={on ? styles.chipOn : styles.chip} aria-pressed={on} onClick={() => set({ mustHaves: toggle(a.mustHaves, option.value) })}>
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span className={styles.label}>Sitter&apos;s gender</span>
+            <Choices options={GENDER_PREFS} selected={a.sitterGender} onPick={(sitterGender) => set({ sitterGender })} />
+            <span className={styles.label}>Languages you&apos;d like them to speak (optional)</span>
+            <div className={styles.chips} role="group" aria-label="Sitter languages">
+              {LANGUAGES.map((option) => {
+                const on = a.languages.includes(option.value);
+                return (
+                  <button key={option.value} type="button" className={on ? styles.chipOn : styles.chip} aria-pressed={on} onClick={() => set({ languages: toggle(a.languages, option.value) })}>
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span className={styles.hint}>We show sitters how they match, and show you how each sitter who offers matches.</span>
             <button type="button" className={styles.primary} onClick={() => answer({ notesDone: true })}>
               Continue
             </button>
@@ -639,6 +819,14 @@ export function Continue({ onClick, label = "Continue" }: { onClick: () => void;
     <button type="button" className={styles.primary} onClick={onClick}>
       {label}
     </button>
+  );
+}
+
+function CheckMark() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
   );
 }
 

@@ -5,7 +5,7 @@
 
 import { z } from "@penntools/core/ai";
 import type { Checked } from "./request.js";
-import { LIMITS, OTHER, PET_KINDS, labelOf, type Option } from "./survey.js";
+import { LANGUAGES, LIMITS, OTHER, PET_KINDS, labelOf, type Language, type Option } from "./survey.js";
 
 const values = <T extends readonly { value: string }[]>(options: T) =>
   options.map((option) => option.value) as [T[number]["value"], ...T[number]["value"][]];
@@ -240,6 +240,8 @@ export const OwnerProfile = z
       bitesDetails: optionalText(LIMITS.notes),
     }),
     sitterGenderPref: z.enum(values(GENDER_PREFS)),
+    /** Languages the owner would like their sitter to speak; added later, so empty when missing. */
+    sitterLanguages: z.array(z.enum(values(LANGUAGES))).max(LANGUAGES.length).default([]),
   })
   .superRefine((p, ctx) => {
     const needsText = (chosen: boolean, text: string | null, path: string[], message: string) => {
@@ -266,6 +268,8 @@ export const SitterProfile = z
     gender: z.enum(values(GENDERS)),
     showGender: z.boolean(),
     bio: z.string().trim().min(1, "Write a line or two about yourself.").max(LIMITS.notes),
+    // Added later: profiles saved before it are taken as English.
+    languages: atLeastOne(LANGUAGES, "Pick the languages you speak.").default(["english"]),
     boarding: z
       .object({
         homeType: z.enum(values(HOME_TYPES)),
@@ -311,6 +315,8 @@ export interface RequestStart {
   petDetails: string;
   area: string;
   notes: string;
+  sitterGender: OwnerProfile["sitterGenderPref"];
+  languages: Language[];
 }
 
 const ENERGY_WORDS: Record<Energy, string> = { low: "couch potato", medium: "moderate energy", high: "high energy" };
@@ -335,6 +341,8 @@ export function requestStart(profile: OwnerProfile): RequestStart {
     petDetails: [lower(PET_SIZES, pet.size), lower(PET_AGES, pet.age), ENERGY_WORDS[pet.energy]].join(", ").replace(/^./, (c) => c.toUpperCase()),
     area: area ?? "",
     notes: notes.filter(Boolean).join("\n").slice(0, LIMITS.notes),
+    sitterGender: profile.sitterGenderPref,
+    languages: [...profile.sitterLanguages],
   };
 }
 
@@ -347,6 +355,7 @@ export function aboutSitter(profile: SitterProfile): string {
     `Comfortable with: ${list(SITTER_PET_KINDS, profile.petKinds)}; sizes ${list(PET_SIZES, profile.sizes)}.`,
     profile.experience.length ? `Experience: ${list(EXPERIENCE, profile.experience)}.` : "No pet-sitting experience yet.",
     `Available: ${list(AVAILABILITY, profile.availability)}.`,
+    `Speaks: ${profile.languages.map((l) => labelOf(LANGUAGES, l)).join(", ")}.`,
   ].join(" ");
 }
 

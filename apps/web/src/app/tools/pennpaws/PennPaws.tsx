@@ -264,7 +264,7 @@ export function PennPaws({
         )}
 
         {view.tab === "request" && (
-          <RequestDetail key={view.id} requestId={view.id} hasAI={hasAI} onBack={() => setView({ tab: view.back })} onChanged={() => router.refresh()} />
+          <RequestDetail key={view.id} requestId={view.id} hasAI={hasAI} match={matchOf.get(view.id) ?? null} onBack={() => setView({ tab: view.back })} onChanged={() => router.refresh()} />
         )}
 
         {view.tab === "profile" && (
@@ -288,7 +288,7 @@ export function RequestCard({
   onOpen: () => void;
   showStatus?: boolean;
   /** A label in place of the status, such as "Your turn to approve" in a sitter's tasks. */
-  pill?: { text: string; good?: boolean };
+  pill?: { text: string; good?: boolean } | undefined;
 }) {
   const lines = describe(request.draft);
   return (
@@ -312,6 +312,12 @@ export function RequestCard({
           <>
             <span className={styles.muted}>Where</span>
             <span>{request.draft.area}</span>
+          </>
+        )}
+        {lines.sitter && (
+          <>
+            <span className={styles.muted}>Sitter</span>
+            <span>{lines.sitter}</span>
           </>
         )}
       </span>

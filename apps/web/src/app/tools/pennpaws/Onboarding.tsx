@@ -17,6 +17,7 @@ import {
   GENDERS,
   GENDER_PREFS,
   HOME_TYPES,
+  LANGUAGES,
   LIMITS,
   LOCAL_TEST_SCHOOL,
   NEIGHBORHOODS,
@@ -41,6 +42,7 @@ import {
   type Gender,
   type GenderPref,
   type HomeType,
+  type Language,
   type MemberRole,
   type Option,
   type PetAge,
@@ -79,7 +81,9 @@ interface Form {
   bites: boolean | null;
   bitesDetails: string;
   sitterGenderPref: GenderPref | null;
+  sitterLanguages: Language[];
   // Sitters. Pet Pals use bio too.
+  languages: Language[];
   services: Service[];
   petKinds: SitterPetKind[];
   sizes: PetSize[];
@@ -118,6 +122,8 @@ const EMPTY: Form = {
   bites: null,
   bitesDetails: "",
   sitterGenderPref: null,
+  sitterLanguages: [],
+  languages: [],
   services: [],
   petKinds: [],
   sizes: [],
@@ -216,6 +222,7 @@ function toProfile(f: Form): unknown {
         bitesDetails: f.bites ? orNull(f.bitesDetails) : null,
       },
       sitterGenderPref: f.sitterGenderPref,
+      sitterLanguages: f.sitterLanguages,
     };
   }
   if (f.role === "sitter") {
@@ -233,6 +240,7 @@ function toProfile(f: Form): unknown {
       gender: f.gender,
       showGender: f.gender !== "prefer_not" && f.showGender,
       bio: f.bio.trim(),
+      languages: f.languages,
       boarding: f.services.includes("boarding")
         ? {
             homeType: f.homeType,
@@ -270,6 +278,7 @@ function fromProfile(p: Profile | null): Form {
         bites: p.pet.bites,
         bitesDetails: p.pet.bitesDetails ?? "",
         sitterGenderPref: p.sitterGenderPref,
+        sitterLanguages: [...p.sitterLanguages],
       };
     case "sitter":
       return {
@@ -285,6 +294,7 @@ function fromProfile(p: Profile | null): Form {
         gender: p.gender,
         showGender: p.showGender,
         bio: p.bio,
+        languages: [...p.languages],
         homeType: p.boarding?.homeType ?? null,
         homeTypeOther: p.boarding?.homeTypeOther ?? "",
         hasYard: p.boarding?.hasYard ?? null,
@@ -328,6 +338,7 @@ function problem(step: Step, f: Form, school: string | null): string | null {
       return f.availability.length ? null : "Pick when you're usually free.";
     case "about":
       if (!f.gender) return "Choose an option. Prefer not to say is fine.";
+      if (f.languages.length === 0) return "Pick the languages you speak.";
       return f.bio.trim() ? null : "Write a line or two about yourself.";
     case "home":
       if (!f.homeType || f.hasYard === null) return all;
@@ -367,6 +378,7 @@ function summary(f: Form, school: string): [string, string, Step | null][] {
       ],
       ["Bites or scratches", f.bites ? `Yes. ${f.bitesDetails}` : "No", "care"],
       ["Sitter", labelOf(GENDER_PREFS, f.sitterGenderPref ?? ""), "preference"],
+      ["Sitter languages", f.sitterLanguages.length ? labelsOf(LANGUAGES, f.sitterLanguages) : "No preference", "preference"],
     );
   } else if (f.role === "sitter") {
     lines.push(
@@ -377,6 +389,7 @@ function summary(f: Form, school: string): [string, string, Step | null][] {
       ["Experience", f.experience.length ? labelsOf(EXPERIENCE, f.experience) : "None yet", "experience"],
       ["Schedule", `${labelsOf(AVAILABILITY, f.availability)}. Travels up to ${labelOf(TRAVEL, f.travel ?? "").toLowerCase()}`, "experience"],
       ["Gender", `${labelOf(GENDERS, f.gender ?? "")}${f.gender !== "prefer_not" ? (f.showGender ? ", shown on your profile" : ", kept private") : ""}`, "about"],
+      ["Languages", labelsOf(LANGUAGES, f.languages), "about"],
       ["About you", f.bio, "about"],
     );
     if (f.services.includes("boarding")) {
@@ -634,8 +647,14 @@ export function Onboarding({
       )}
 
       {step === "preference" && (
-        <Ask title="Who would you like as a sitter?" lead="If you choose a gender, we only suggest sitters who share theirs.">
-          <Choices rows options={GENDER_PREFS} selected={f.sitterGenderPref} onPick={(sitterGenderPref) => answer({ sitterGenderPref })} />
+        <Ask title="Who would you like as a sitter?" lead="We use these to show you how each sitter matches. You can change them on any request.">
+          <Question label="Gender">
+            <Choices rows options={GENDER_PREFS} selected={f.sitterGenderPref} onPick={(sitterGenderPref) => set({ sitterGenderPref })} />
+          </Question>
+          <Question label="Languages you'd like them to speak (optional)">
+            <MultiChoice options={LANGUAGES} selected={f.sitterLanguages} onToggle={(language) => set({ sitterLanguages: toggle(f.sitterLanguages, language) })} />
+          </Question>
+          <Continue onClick={goOn} />
         </Ask>
       )}
 
@@ -692,6 +711,9 @@ export function Onboarding({
             </Check>
           )}
           {f.gender === "prefer_not" && <span className={styles.hint}>Owners who ask for a particular gender won't see you as a match.</span>}
+          <Question label="Languages you speak">
+            <MultiChoice options={LANGUAGES} selected={f.languages} onToggle={(language) => set({ languages: toggle(f.languages, language) })} />
+          </Question>
           <label htmlFor="pp-bio" className={styles.label}>
             A line or two about you
           </label>

@@ -211,7 +211,17 @@ export async function aiMatches(): Promise<ActionResult<Record<string, AIMatch>>
         return [
           {
             id: m.requestId,
-            request: { pet: `${d.petName}, ${lines.pet}`, when: lines.when, visits: lines.visits, care: lines.care, pay: d.pay, area: d.area, notes: d.notes },
+            request: {
+              pet: `${d.petName}, ${lines.pet}`,
+              when: lines.when,
+              visits: lines.visits,
+              care: lines.care,
+              pay: d.pay,
+              area: d.area,
+              notes: d.notes,
+              sitterWanted: lines.sitter,
+              originalPost: d.original,
+            },
             rules: { score: m.score, reasons: m.reasons, concerns: m.concerns },
           },
         ];
