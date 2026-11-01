@@ -88,19 +88,18 @@
 }
 
 .tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   border-radius: 12px;
   background: var(--pp-ground);
-  overflow-x: auto;
 }
 
 .tab,
 .tabActive {
-  flex: 1 0 auto;
   min-height: 40px;
-  padding: 0 14px;
+  padding: 0 8px;
   border-radius: 9px;
   font-size: 0.875rem;
   font-weight: 600;

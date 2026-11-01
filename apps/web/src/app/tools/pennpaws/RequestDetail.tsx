@@ -132,7 +132,7 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
             maxLength={500}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="I grew up with two shibas and I'm free mornings and evenings."
+            placeholder="I have pets at home, live nearby and I'm free mornings and evenings."
           />
           <button type="submit" className={styles.primary} disabled={busy || !message.trim()}>
             I can help
@@ -187,15 +187,15 @@ export function RequestDetail({ requestId, onBack, onChanged }: { requestId: str
             {TERM_LABELS.map(([key, label]) =>
               agreement.terms[key] ? (
                 <Term key={key} label={label} value={agreement.terms[key]!} />
-              ) : key === "vet" ? (
+              ) : key === "vet" && request.status === "matched" ? (
                 <Term key={key} label={label} value="Add the vet's name and phone with Ask for a change" muted />
               ) : null,
             )}
           </dl>
 
           <ul className={styles.approvals}>
-            <Approval name={request.ownerFirstName} done={agreement.ownerApproved} />
-            <Approval name={request.sitterFirstName ?? "Sitter"} done={agreement.sitterApproved} />
+            <Approval name={request.ownerFirstName} done={agreement.ownerApproved} isYou={role === "owner"} />
+            <Approval name={request.sitterFirstName ?? "Sitter"} done={agreement.sitterApproved} isYou={role === "sitter"} />
           </ul>
 
           {request.status === "matched" && !changing && (
@@ -285,11 +285,11 @@ function Term({ label, value, muted = false }: { label: string; value: string; m
   );
 }
 
-function Approval({ name, done }: { name: string; done: boolean }) {
+function Approval({ name, done, isYou }: { name: string; done: boolean; isYou: boolean }) {
   return (
     <li className={done ? styles.approvalDone : styles.approvalWaiting}>
       <span className={styles.approvalDot}>{done ? <CheckIcon /> : null}</span>
-      {done ? `${name} approved` : `Waiting for ${name}`}
+      {isYou ? (done ? "You approved" : "Waiting for you") : done ? `${name} approved` : `Waiting for ${name}`}
     </li>
   );
 }

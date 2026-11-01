@@ -70,8 +70,8 @@ export function PennPaws({
       <nav className={styles.tabs} aria-label="PennPaws">
         {(
           [
-            ["find", "Find a request"],
-            ["post", "Post a request"],
+            ["find", "Browse"],
+            ["post", "Post"],
             ["mine", "My requests"],
           ] as const
         ).map(([tab, label]) => (

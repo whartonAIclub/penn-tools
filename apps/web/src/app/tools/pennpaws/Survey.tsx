@@ -337,10 +337,11 @@ export function Survey({ userFirstName, hasAI, onPosted }: { userFirstName: stri
           <>
             <div className={styles.nameRow}>
               <TextField id="pp-name" label="Name" value={a.petName} placeholder="Mochi" maxLength={LIMITS.name} onChange={(petName) => set({ petName })} />
-              <label className={a.photo ? styles.photoOn : styles.photo} aria-label={a.photo ? "Change photo" : "Add a photo"}>
+              <label className={a.photo ? styles.photoOn : styles.photo}>
                 {a.photo ? <PetAvatar name={a.petName} photo={a.photo} /> : <CameraIcon />}
                 <input
                   type="file"
+                  aria-label={a.photo ? "Change photo" : "Add a photo"}
                   accept="image/*"
                   className={styles.visuallyHidden}
                   onChange={async (e) => {
