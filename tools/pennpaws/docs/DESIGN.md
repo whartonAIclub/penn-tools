@@ -1,6 +1,6 @@
 # Design
 
-The clickable prototype lives in Claude Design: [PennPaws screens](https://claude.ai/artifact/WAwaUqNXrMKXGXrPKBLeB4). Ask Lu for access if the link doesn't open.
+The clickable prototype lives in Claude Design: [PennPaws screens](https://claude.ai/artifact/WAwaUqNXrMKXGXrPKBLeB4). Ask Lu for access if the link doesn't open. Its source is versioned in [prototype/](prototype/).
 
 ## Screens
 
