@@ -117,3 +117,45 @@ export async function applyChange(ai: AI, provider: AIProvider, terms: Terms, ch
   });
   return object;
 }
+
+/** One request as the AI sees it when ranking: the owner's words plus what the rules found. */
+export interface MatchCandidate {
+  id: string;
+  request: Record<string, string | null>;
+  rules: { score: number; reasons: string[]; concerns: string[] };
+}
+
+export const RankedMatches = z.object({
+  matches: z.array(
+    z.object({
+      id: z.string(),
+      score: z.number().int().min(0).max(100),
+      reason: z.string().describe("One sentence to the sitter on why this job suits them, in English"),
+      concern: z.string().nullable().describe("One short sentence on anything that might not work, in English, or null"),
+    }),
+  ),
+});
+export type RankedMatches = z.infer<typeof RankedMatches>;
+
+/**
+ * Re-ranks the rules' best few for one sitter. The AI reads the owner's own
+ * words in any language (notes like "女生优先", "prefers a woman"), which the
+ * rules can't, and explains each pick. Ids it invents are dropped.
+ */
+export async function rankMatches(ai: AI, provider: AIProvider, aboutMe: string, candidates: readonly MatchCandidate[]): Promise<RankedMatches["matches"]> {
+  if (candidates.length === 0) return [];
+  const { object } = await ai.generateObject({
+    provider,
+    tier: "fast",
+    reasoning: "low",
+    schema: RankedMatches,
+    system:
+      "You match Penn student pet sitters with pet-care requests from other students. Score how well each request suits this sitter from 0 to 100 " +
+      "and return every request, best first. Start from the rules score and adjust it with what the owner's own words say (they may write in Chinese or another language): " +
+      "preferences about the sitter, how often they want updates, health or behavior, and dates. Write the reason and concern in plain English to the sitter, " +
+      "using only facts given, and mention anything you read in the owner's words that the rules missed. Never invent facts.",
+    messages: [{ role: "user", content: JSON.stringify({ aboutMe, requests: candidates }) }],
+  });
+  const ids = new Set(candidates.map((c) => c.id));
+  return object.matches.filter((m) => ids.has(m.id));
+}

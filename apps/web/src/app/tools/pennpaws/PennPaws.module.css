@@ -724,3 +724,27 @@
   .tabShort { display: inline; }
   .tabFull { display: none; }
 }
+
+/* ── Matching on Find jobs ───────────────────────────────────────────────── */
+
+.rankBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+.rankBar .secondary { flex: none; min-height: 40px; padding: 0 14px; font-size: 0.85rem; }
+
+.matchLine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--pp-ground);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.fitGood { color: var(--pp-green-dark); }
+.fitPoor { color: var(--pp-error); }

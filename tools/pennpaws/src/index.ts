@@ -10,3 +10,4 @@ export * from "./profile.js";
 export * from "./members.js";
 export * from "./jobs.js";
 export * from "./messages.js";
+export * from "./match.js";

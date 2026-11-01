@@ -10,8 +10,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { describe, requestStart, type Member, type Notification, type RequestCard as Card, type Review, type SitterJob } from "@penntools/tool-pennpaws";
-import { readNotifications } from "./actions";
+import { FIT_LABELS, describe, fitOf, requestStart, type Match, type Member, type Notification, type RequestCard as Card, type Review, type SitterJob } from "@penntools/tool-pennpaws";
+import { aiMatches, readNotifications, type AIMatch } from "./actions";
 import { Onboarding } from "./Onboarding";
 import { RequestDetail } from "./RequestDetail";
 import { Completed, Earnings, MyTasks } from "./SitterViews";
@@ -48,6 +48,7 @@ export function PennPaws({
   email,
   member,
   open,
+  matches,
   mine,
   jobs,
   reviews,
@@ -60,6 +61,8 @@ export function PennPaws({
   email: string | null;
   member: Member;
   open: Card[];
+  /** How well each open request fits the sitter, from the rules; empty for other roles. */
+  matches: Match[];
   mine: Card[];
   /** The sitter's jobs and anonymous ratings; empty for other roles. */
   jobs: SitterJob[];
@@ -74,6 +77,9 @@ export function PennPaws({
   const [view, setView] = useState<View>(home);
   const [kind, setKind] = useState<"all" | "dog" | "cat">("all");
   const unread = notifications.filter((n) => !n.read).length;
+  const [aiRanked, setAIRanked] = useState<Record<string, AIMatch> | null>(null);
+  const [ranking, setRanking] = useState(false);
+  const [rankError, setRankError] = useState<string | null>(null);
 
   const openRequest = (id: string, back: ListTab) => setView({ tab: "request", id, back });
   const showAlerts = async () => {
@@ -85,7 +91,19 @@ export function PennPaws({
   };
 
   // Sitters only see other people's requests; their own (posted while they were an owner) show in My tasks.
-  const shown = open.filter((r) => (kind === "all" || r.draft.petKind === kind) && !(isSitter && r.mine));
+  const filtered = open.filter((r) => (kind === "all" || r.draft.petKind === kind) && !(isSitter && r.mine));
+  // Sitters see the best fit first: the AI's score once they've asked for it, else the rules'.
+  const matchOf = new Map(matches.map((m) => [m.requestId, m]));
+  const scoreOf = (id: string) => aiRanked?.[id]?.score ?? matchOf.get(id)?.score ?? 0;
+  const shown = isSitter ? [...filtered].sort((a, b) => scoreOf(b.id) - scoreOf(a.id)) : filtered;
+  const rankWithAI = async () => {
+    setRanking(true);
+    setRankError(null);
+    const result = await aiMatches();
+    setRanking(false);
+    if (result.ok) setAIRanked(result.data);
+    else setRankError(result.error);
+  };
   const activeTab = view.tab === "request" ? view.back : view.tab;
 
   return (
@@ -140,6 +158,19 @@ export function PennPaws({
                 </button>
               ))}
             </div>
+            {isSitter && shown.length > 0 && (
+              <div className={styles.rankBar}>
+                <span className={styles.muted}>
+                  {aiRanked ? "Ranked by AI, reading each owner's own words." : "Best fit for your profile first."}
+                </span>
+                {hasAI && (
+                  <button type="button" className={styles.secondary} onClick={rankWithAI} disabled={ranking}>
+                    {ranking ? "Ranking..." : aiRanked ? "Rank again" : "Rank with AI"}
+                  </button>
+                )}
+              </div>
+            )}
+            {rankError && <p className={styles.error}>{rankError}</p>}
             {shown.length === 0 ? (
               isSitter ? (
                 <Empty title="No open requests right now" body="When someone posts, it shows up here, and we'll keep your offers in My tasks." />
@@ -154,7 +185,7 @@ export function PennPaws({
               <ul className={styles.list}>
                 {shown.map((request) => (
                   <li key={request.id}>
-                    <RequestCard request={request} onOpen={() => openRequest(request.id, "find")} />
+                    <RequestCard request={request} match={isSitter ? matchLine(matchOf.get(request.id), aiRanked?.[request.id]) : null} onOpen={() => openRequest(request.id, "find")} />
                   </li>
                 ))}
               </ul>
@@ -249,8 +280,11 @@ export function RequestCard({
   onOpen,
   showStatus = false,
   pill,
+  match = null,
 }: {
   request: Card;
+  /** Why this request suits the sitter, on Find jobs. */
+  match?: MatchLine | null;
   onOpen: () => void;
   showStatus?: boolean;
   /** A label in place of the status, such as "Your turn to approve" in a sitter's tasks. */
@@ -281,6 +315,13 @@ export function RequestCard({
           </>
         )}
       </span>
+      {match && (match.label || match.reason) && (
+        <span className={styles.matchLine}>
+          {match.label && <strong className={match.good ? styles.fitGood : styles.fitPoor}>{match.label}</strong>}
+          {match.reason && <span>{match.reason}</span>}
+          {match.concern && <span className={styles.muted}>Check: {match.concern}</span>}
+        </span>
+      )}
       <span className={styles.cardFoot}>
         <span className={styles.owner}>
           <CheckIcon /> {request.mine ? "Your request" : `${request.ownerFirstName}, Penn`}
@@ -299,6 +340,30 @@ export function RequestCard({
       </span>
     </button>
   );
+}
+
+export interface MatchLine {
+  label: string | null;
+  good: boolean;
+  reason: string | null;
+  concern: string | null;
+}
+
+const sentence = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`);
+
+/** What a Find jobs card says about fit: the AI's words when it has ranked, else the rules' top reasons. */
+function matchLine(rules: Match | undefined, ai: AIMatch | undefined): MatchLine | null {
+  if (ai) {
+    const fit = fitOf(ai.score);
+    return { label: FIT_LABELS[fit], good: fit !== "poor", reason: ai.reason, concern: ai.concern };
+  }
+  if (!rules) return null;
+  return {
+    label: FIT_LABELS[rules.fit],
+    good: rules.fit !== "poor",
+    reason: rules.reasons.length ? rules.reasons.slice(0, 2).map(sentence).join(" ") : null,
+    concern: rules.concerns[0] ?? null,
+  };
 }
 
 export function PetAvatar({ name, photo, large = false }: { name: string; photo: string | null; large?: boolean }) {

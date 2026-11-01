@@ -65,6 +65,12 @@ Updates use a check on the current status (`UPDATE ... WHERE status = 'open'`), 
 * Every AI step has a non-AI path: the survey is a form, and the agreement has a template. A missing, invalid or empty key shows the platform's pointer to Settings and falls back to the form.
 * Errors come back as data (`error.toJSON()`) so the page can show a clear message.
 
+## Matching
+
+`match.ts` scores each open request for a sitter from 0 to 100 with plain rules, so ranking works for everyone and is easy to test. It compares the sitter's profile with the owner's pet profile and the request on the same scales: pet kind, distance (rounded GPS, or a neighborhood named in the area) against the sitter's travel range, services, size, energy, anxious pets, injections and medication, bite history, the owner's sitter preference and weekdays. Each rule adds or takes points and leaves a short reason or concern.
+
+Rank with AI (`rankMatches` in `ai.ts`) sends the rules' best 10, with their reasons, to the fast tier. The AI reads what rules can't, mostly the owner's notes in any language, and returns a score, one reason and one concern per request. Ids it doesn't recognize are dropped, and any AI error leaves the rules ranking in place.
+
 ## Notifications
 
 Every event that needs someone (a new offer, being picked or not, an approval, a booking, a change request, a cancellation) goes through one function, `notify()` in `src/notifications.ts`. It stores the notification in our `notifications` table, which drives the bell and its unread count, then hands it to any extra channels.

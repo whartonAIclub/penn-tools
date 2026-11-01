@@ -14,6 +14,7 @@ import {
   listNotifications,
   listOpenRequests,
   listSitterJobs,
+  matchRequests,
   verifySchool,
 } from "@penntools/tool-pennpaws";
 import { getAI } from "@/lib/ai";
@@ -58,6 +59,7 @@ export default async function PennPawsPage() {
     isSitter ? listSitterJobs(sql, user.id) : [],
     isSitter ? listMyReviews(sql, user.id) : [],
   ]);
+  const matches = member.profile.role === "sitter" ? await matchRequests(sql, member.profile, open.filter((r) => !r.mine)) : [];
 
   return (
     <PennPaws
@@ -66,6 +68,7 @@ export default async function PennPawsPage() {
       email={user.email}
       member={member}
       open={open}
+      matches={matches}
       mine={mine}
       jobs={jobs}
       reviews={reviews}

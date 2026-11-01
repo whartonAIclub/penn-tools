@@ -52,6 +52,10 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | R11 | P0 | Owner picks one sitter | Other offers are declined automatically and told so. | Lu | 11/9 | Done |
 | R29 | P1 | Messages about a job | One thread per sitter per request with the owner. Any sitter may write while the request is open; after the owner picks, only the picked sitter's thread stays open until done. Sitters never see each other's threads. The other person is notified. "Help me write" drafts with AI from the request (and the sitter's profile); the person edits and sends. Hidden without an API key. Sitter's button now reads "Accept this job"; the owner still picks. | Esther | 11/10 | Built |
 | R26 | P1 | Sitter tabs | Sitters see Find jobs, My tasks (agreements to approve, upcoming, offers waiting), Completed and Earnings instead of the owner's Post and Mine. Owners and Pet Pals keep Find, Post, Mine. | Esther | 11/10 | Built |
+| R31 | P0 | Find jobs ranked by fit | Sitters see the best fit first, with a Great or Good match label, the top reasons and one thing to check. Rules compare the sitter's profile with the owner's pet profile and request: pet kind, distance against their travel range, services, size, energy, anxious pets, injections and medication, bite history, the owner's sitter preference and weekdays. Works without an API key. | Lu | 11/10 | Done |
+| R32 | P0 | Rank with AI | With a key, Rank with AI re-ranks the rules' best 10. The AI reads the owner's own words in any language (for example "女生优先" or "8 a.m. insulin") and writes one reason and one concern per job. Errors show on the page and leave the rules ranking in place. | Lu | 11/10 | Done |
+| R33 | P1 | Test with fake people | `seed` adds 4 fake sitters and 6 fake owners (ids start with `seed-`); `seed play` has them offer, pick and approve; `seed reset` removes them. Lets one local account walk both sides. | Lu | 11/3 | Done |
+| R34 | P2 | Owners see offers ranked by fit | The same match reasons on each offer an owner gets. | | 11/12 | To do |
 
 ### Agreement and booking
 

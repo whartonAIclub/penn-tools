@@ -36,6 +36,11 @@ import {
   getTerms,
   isoDate,
   leaveReview,
+  listOpenRequests,
+  matchRequests,
+  rankMatches,
+  GENDERS,
+  labelOf,
   listThreads,
   markAllRead,
   noteChange,
@@ -169,6 +174,55 @@ export async function rate(requestId: string, input: unknown): Promise<ActionRes
 }
 
 // ── Sitter ────────────────────────────────────────────────────────────────────
+
+export interface AIMatch {
+  score: number;
+  reason: string;
+  concern: string | null;
+}
+
+/** How many of the rules' best requests the AI re-ranks; the rest keep the rules order. */
+const AI_MATCH_LIMIT = 10;
+
+/** The AI's ranking of the open requests that best fit the signed-in sitter, by request id. */
+export async function aiMatches(): Promise<ActionResult<Record<string, AIMatch>>> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  const ai = await userAI();
+  if (!ai) return { ok: false, error: "Add an AI key in Settings to rank jobs with AI." };
+  const sql = db();
+  const member = await getMember(sql, user.id);
+  if (member?.profile.role !== "sitter") return { ok: false, error: "Matching is for sitters. Switch your role in My profile." };
+  const sitter = member.profile;
+  try {
+    const open = (await listOpenRequests(sql, user.id)).filter((r) => !r.mine);
+    const byId = new Map(open.map((r) => [r.id, r]));
+    const best = (await matchRequests(sql, sitter, open)).filter((m) => m.fit !== "poor").slice(0, AI_MATCH_LIMIT);
+    const aboutMe = `${aboutSitter(sitter)} Gender: ${labelOf(GENDERS, sitter.gender).toLowerCase()}. Area: ${sitter.location.area}.`;
+    const ranked = await rankMatches(
+      ai.ai,
+      ai.provider,
+      aboutMe,
+      best.flatMap((m) => {
+        const request = byId.get(m.requestId);
+        if (!request) return [];
+        const lines = describe(request.draft);
+        const d = request.draft;
+        return [
+          {
+            id: m.requestId,
+            request: { pet: `${d.petName}, ${lines.pet}`, when: lines.when, visits: lines.visits, care: lines.care, pay: d.pay, area: d.area, notes: d.notes },
+            rules: { score: m.score, reasons: m.reasons, concerns: m.concerns },
+          },
+        ];
+      }),
+    );
+    return { ok: true, data: Object.fromEntries(ranked.map((m) => [m.id, { score: m.score, reason: m.reason, concern: m.concern }])) };
+  } catch (error) {
+    if (isAIError(error)) return { ok: false, error: error.toJSON().message, kind: error.kind };
+    throw error;
+  }
+}
 
 export async function offer(requestId: string, message: string): Promise<ActionResult> {
   const user = await signedIn();

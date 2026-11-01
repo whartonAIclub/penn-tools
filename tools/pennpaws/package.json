@@ -16,6 +16,7 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "seed": "tsc && node scripts/seed.mjs",
     "clean": "rm -rf dist"
   },
   "dependencies": {

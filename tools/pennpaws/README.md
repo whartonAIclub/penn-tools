@@ -8,7 +8,7 @@ PennPaws is a tool on [penntools.org](https://penntools.org) that connects Penn 
 |---|---|
 | **Team** | Lu Lu, Esther Li |
 | **Program** | Wharton AI Club, AI Product Manager Training, Cohort 3 |
-| **Status** | Core loop built and tested, next: try it in the browser and run user tests |
+| **Status** | Core loop, profiles, sitter tabs and AI matching built and tried in the browser. Next: user tests with fake and real students |
 | **Demo day** | Tue 11/17, live on penntools.org |
 | **Tool ID** | `pennpaws`, so the URL is `/tools/pennpaws` |
 
@@ -19,18 +19,22 @@ Penn students with dogs and cats get stuck every time they travel for recruiting
 ## How it works
 
 ```
-Owner answers a few quick questions ──► AI turns them into a request card ──► owner posts it ✋
+Owner answers a few quick questions ──► AI turns them into a request card ──► owner posts it (approves)
                                                                                   │
-Sitter browses open requests and taps "I can help" ◄──────────────────────────────┘
+Sitter sees open requests ranked by fit ◄─────────────────────────────────────────┘
+(rules compare profiles; AI reads the owner's own words, in any language, and explains each pick)
+        │
+        ▼
+Sitter accepts the job ──► owner picks one sitter (approves)
         │
         ▼
 AI drafts a care agreement: dates, visits, keys, food, vet, pay
         │
         ▼
-Owner approves ✋ + sitter approves ✋ ──► booked, both see each other's Penn email
+Owner approves + sitter approves ──► booked, both see each other's Penn email
 ```
 
-✋ marks a step a person must approve. AI never posts or books on its own.
+AI never posts, picks or books on its own: every step marked "approves" is a person's call.
 
 ## What's in the MVP
 
@@ -39,7 +43,7 @@ Owner approves ✋ + sitter approves ✋ ──► booked, both see each other's
 | Penn sign in (platform), Penn only for the pilot | Payments inside the app (Venmo for now), other schools |
 | Pet profile and sitter profile | Open chat between users |
 | Guided survey to post a request, or one sentence | Reviews and repeat sitters |
-| Browse and filter open requests | Native iPhone app (the site works in a phone browser) |
+| Browse open requests, ranked by fit with AI reasons | Native iPhone app (the site works in a phone browser) |
 | Offer to help, care agreement, two approvals | Pet photo and sticker studio |
 
 ## Documents
@@ -64,6 +68,26 @@ pnpm dev
 ```
 
 Then open http://localhost:3000, sign in (locally you are a test user), save an OpenAI key in Settings, and pick PennPaws from the sidebar.
+
+## Test with fake people
+
+Locally the platform signs everyone in as the same test user, so there's no second person to play the other side. The seed script adds fake Penn students instead: 4 sitters and 6 owners with open requests, some written in Chinese or with preferences tucked into the notes, so AI matching has something real to read.
+
+```bash
+pnpm --filter @penntools/tool-pennpaws seed
+```
+
+Set your role in My profile. As a sitter, Find jobs ranks their requests; tap Rank with AI to see the AI's picks. As an owner, post a request. Then, after each step you take, let the fake people take theirs: sitters offer on your requests, owners pick you, and both approve agreements.
+
+```bash
+pnpm --filter @penntools/tool-pennpaws seed play
+```
+
+```bash
+pnpm --filter @penntools/tool-pennpaws seed reset
+```
+
+Fake members have ids starting with `seed-` and never mix with real ones. On penntools.org this isn't needed: any two Penn accounts can test together.
 
 ## Working together
 
