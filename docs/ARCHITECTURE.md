@@ -178,7 +178,10 @@ section 4; this section covers the design.
   browser first) are in `packages/core/src/ai/attachments.ts`, also exported
   without zod as `@penntools/core/ai/attachments` for browser code. Office
   files aren't supported: Anthropic doesn't read them, so a tool would have to
-  extract their text first.
+  extract their text first. Pages send files to a route in the tool's folder
+  (AskPenn's `stream/route.ts`), since Next.js refuses server action requests
+  over 1 MB. PDFs are the costly part: Claude reads each page as text and an
+  image, about 1,500 tokens a page, up to 600 pages, so AskPenn allows 20.
 - **Errors.** Every failure reaching a tool is an `AIError` (aborts excepted):
   provider errors map to a kind, and anything else (a connection dropped
   mid-stream, a bug) becomes `unavailable` and is logged in full.

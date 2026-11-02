@@ -228,12 +228,18 @@
   background: var(--bg);
   border: 1px solid var(--input-border);
   border-radius: 28px;
-  padding: 10px 10px 10px 16px;
+  padding: 10px;
   box-shadow: var(--input-shadow);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .pill:focus-within {
   border-color: #b0b0b0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+/* Files dragged over the chat drop here */
+.pill.dragging {
+  border-style: dashed;
+  border-color: #888;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
@@ -303,3 +309,62 @@
   cursor: pointer;
 }
 .sendBtn.sendActive:hover { background: #333; }
+
+.attachBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--section-label);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.attachBtn:hover:not(:disabled) { background: var(--nav-hover); }
+.attachBtn:disabled { opacity: 0.5; cursor: default; }
+
+.attachError {
+  color: #b91c1c;
+  font-size: 0.8rem;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* ── Attachments: files waiting to send, and names on sent messages ──────── */
+
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.bubble .attachments:last-child { margin-bottom: 0; }
+
+.attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 240px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--nav-hover);
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.bubbleUser .attachment { background: #e6e6e6; }
+
+.attachmentName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.removeAttachment {
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--section-label);
+  padding: 0 2px;
+}
+.removeAttachment:hover:not(:disabled) { color: var(--text); }
