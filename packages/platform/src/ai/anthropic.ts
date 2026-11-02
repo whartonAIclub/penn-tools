@@ -7,10 +7,30 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { AISchema, AIStopReason, GenerateResult } from "@penntools/core/ai";
+import type { AIContentPart, AIMessage, AISchema, AIStopReason, GenerateResult } from "@penntools/core/ai";
 import type { ProviderAdapter } from "./adapter.js";
 
 type Message = Anthropic.Messages.Message;
+
+function contentBlock(part: AIContentPart): Anthropic.Messages.ContentBlockParam {
+  switch (part.type) {
+    case "text":
+      return { type: "text", text: part.text };
+    case "image":
+      return { type: "image", source: { type: "base64", media_type: part.mediaType, data: part.data } };
+    case "pdf":
+      return {
+        type: "document",
+        title: part.filename,
+        source: { type: "base64", media_type: "application/pdf", data: part.data },
+      };
+  }
+}
+
+function messageParam(message: AIMessage): Anthropic.Messages.MessageParam {
+  if (typeof message.content === "string") return { role: message.role, content: message.content };
+  return { role: message.role, content: message.content.map(contentBlock) };
+}
 
 /**
  * The schema as plain JSON Schema. The helper's object also carries a parse
@@ -57,7 +77,7 @@ export function createAnthropicAdapter(apiKey: string): ProviderAdapter {
         {
           model: request.model,
           max_tokens: request.maxOutputTokens,
-          messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
+          messages: request.messages.map(messageParam),
           ...(request.system !== undefined && { system: request.system }),
           output_config: { effort: request.reasoning, ...(schema && { format: outputFormat(schema) }) },
         },

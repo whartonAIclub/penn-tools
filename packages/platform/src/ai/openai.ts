@@ -7,10 +7,26 @@
 
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import type { AISchema, AIStopReason, GenerateResult } from "@penntools/core/ai";
+import type { AIContentPart, AIMessage, AISchema, AIStopReason, GenerateResult } from "@penntools/core/ai";
 import type { ProviderAdapter } from "./adapter.js";
 
 type Response = OpenAI.Responses.Response;
+
+function inputContent(part: AIContentPart): OpenAI.Responses.ResponseInputContent {
+  switch (part.type) {
+    case "text":
+      return { type: "input_text", text: part.text };
+    case "image":
+      return { type: "input_image", detail: "auto", image_url: `data:${part.mediaType};base64,${part.data}` };
+    case "pdf":
+      return { type: "input_file", filename: part.filename, file_data: `data:application/pdf;base64,${part.data}` };
+  }
+}
+
+function inputMessage(message: AIMessage): OpenAI.Responses.EasyInputMessage {
+  if (typeof message.content === "string") return { role: message.role, content: message.content };
+  return { role: message.role, content: message.content.map(inputContent) };
+}
 
 /**
  * The schema as a plain format (the helper's object also carries a hidden
@@ -58,7 +74,7 @@ export function createOpenAIAdapter(apiKey: string): ProviderAdapter {
       const events = await client.responses.create(
         {
           model: request.model,
-          input: request.messages.map((m) => ({ role: m.role, content: m.content })),
+          input: request.messages.map(inputMessage),
           ...(request.system !== undefined && { instructions: request.system }),
           max_output_tokens: request.maxOutputTokens,
           reasoning: { effort: request.reasoning },

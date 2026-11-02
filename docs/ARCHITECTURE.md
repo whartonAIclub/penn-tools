@@ -166,6 +166,19 @@ section 4; this section covers the design.
   `generateObject`, the adapter sends the Zod schema as structured output and
   returns the raw text; `createAI` checks the stop reason (refused, cut off)
   before parsing and validating.
+- **Images and PDFs.** A user message's content can be a list of parts (text,
+  image, PDF; `AIContentPart`), sent inline as base64 in the request: nothing
+  is uploaded to the provider's Files API, which would leave files in the
+  user's own provider account and tie them to one provider. Those are the only
+  files the AI API takes, in the image types both providers read, and
+  `createAI` checks each one really is its type from its first bytes, so a
+  mislabelled file never reaches a provider; tools convert anything else first,
+  to text or to a supported image. The limits, `fileType()` and
+  `imageFitSize()` (the largest size Claude reads, for shrinking images in the
+  browser first) are in `packages/core/src/ai/attachments.ts`, also exported
+  without zod as `@penntools/core/ai/attachments` for browser code. Office
+  files aren't supported: Anthropic doesn't read them, so a tool would have to
+  extract their text first.
 - **Errors.** Every failure reaching a tool is an `AIError` (aborts excepted):
   provider errors map to a kind, and anything else (a connection dropped
   mid-stream, a bug) becomes `unavailable` and is logged in full.

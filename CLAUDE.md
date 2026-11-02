@@ -81,7 +81,7 @@ Get the logged-in user's name and ID.
 > **Usage:** Ask your coding agent: `Implement User API and refer to the platform playground implementation for guidance.`
 
 #### AI API
-Generate text, streams or structured data (typed objects checked against a Zod schema) with OpenAI or Anthropic, using the signed-in user's own API key from Settings. The tool picks the provider on every call, plus a model tier (`fast`, `standard`, `best`) and reasoning level; the platform sets the models and defaults in `packages/core/src/ai/models.ts`. The tool never sees the key: if the user hasn't saved one for that provider, the call fails with `AIError("missing_key")`. The platform's own keys are never used for generation.
+Generate text, streams or structured data (typed objects checked against a Zod schema) with OpenAI or Anthropic, using the signed-in user's own API key from Settings. The tool picks the provider on every call, plus a model tier (`fast`, `standard`, `best`) and reasoning level; the platform sets the models and defaults in `packages/core/src/ai/models.ts`. The tool never sees the key: if the user hasn't saved one for that provider, the call fails with `AIError("missing_key")`. The platform's own keys are never used for generation. A user message can also carry images (JPEG, PNG, GIF or WebP, up to 7 MB each) and PDFs, and the AI API rejects any file that isn't really the type it's labelled. It takes no other files: convert them first, to text or to a supported image.
 
 > **Usage:** Ask your coding agent: `Implement AI API and refer to the platform playground implementation for guidance.` The Platform Playground shows single replies and structured output; for streaming and chat history, refer to the AskPenn (tools/askpenn) implementation instead.
 
