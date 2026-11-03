@@ -7,6 +7,8 @@
 // action, since Next.js refuses server action requests over 1 MB and
 // screenshots are bigger. A body over MAX_REQUEST_BYTES gets a 413.
 //
+// A person also gets an outreach email draft, unless they already have one.
+//
 // Responds { ok: true, item, replaced } or { ok: false, error: { kind?, message } },
 // where kind is the AIError kind when the AI API failed.
 
@@ -19,9 +21,11 @@ import {
   UnclearPasteError,
   checkPaste,
   cleanLink,
+  draftOutreach,
   getProfile,
   reviewPaste,
   saveItem,
+  saveOutreach,
   type NewItem,
   type Paste,
 } from "@penntools/tool-recruiting-helper";
@@ -73,5 +77,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const { item, replaced } = await saveItem(sql, user.id, scored);
+
+  // Every person gets an outreach draft, written now unless they already have
+  // one (a re-scored person keeps theirs). If it fails, the person is still
+  // saved, and the page drafts it later (draftMissingOutreach in actions.ts).
+  if (item.kind === "contact" && !item.outreach) {
+    try {
+      const draft = await draftOutreach((await getAI())!, provider as AIProvider, profile, item);
+      if (await saveOutreach(sql, user.id, item.id, draft)) item.outreach = draft;
+    } catch (error) {
+      if (!isAIError(error)) throw error;
+    }
+  }
   return Response.json({ ok: true, item, replaced });
 }

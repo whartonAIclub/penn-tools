@@ -436,6 +436,12 @@
 .outreach .textarea { align-self: stretch; }
 .outreachTitle { font-size: 0.875rem; }
 
+.schoolEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .reviseAll {
   display: flex;
   flex-direction: column;

@@ -326,6 +326,48 @@ export function scoreContactReview(
   };
 }
 
+export const MAX_SCHOOLS = 5;
+export const MAX_SCHOOL_LENGTH = 150;
+
+/** The schools the student typed, cleaned up, or why they can't be saved. */
+export function checkSchools(value: unknown): { schools: string[] } | { problem: string } {
+  if (!Array.isArray(value)) return { problem: "Schools must be a list." };
+  const schools = [...new Set(value.map((s) => (typeof s === "string" ? s.trim() : "")).filter(Boolean))];
+  if (schools.length > MAX_SCHOOLS) return { problem: `Add at most ${MAX_SCHOOLS} schools.` };
+  if (schools.some((s) => s.length > MAX_SCHOOL_LENGTH || s.includes("\0"))) {
+    return { problem: `Keep each school under ${MAX_SCHOOL_LENGTH} characters.` };
+  }
+  return { schools };
+}
+
+/** Marks a signal the student vouched for by typing a school, rather than one read from the profile. */
+const ADDED_BY_YOU = "Added by you: ";
+
+/**
+ * The person with the schools the student typed in (when the screenshot missed
+ * them), re-scored: the Penn alum tag follows the schools, and a bonus signal
+ * that names one of them (e.g. "Wharton" for "The Wharton School, MBA") earns
+ * its point. Signals read from the profile are kept; ones from schools typed
+ * in earlier are replaced.
+ */
+export function withSchools(contact: ScoredContact, schools: string[], profile: RecruitingProfile): ScoredContact {
+  const fromProfile = contact.matchedSignals.filter((m) => !m.evidence.startsWith(ADDED_BY_YOU));
+  const already = new Set(fromProfile.map((m) => m.signal.trim().toLowerCase()));
+  const fromSchools = profile.bonusSignals.flatMap((signal) => {
+    const key = signal.trim().toLowerCase();
+    const school = key && !already.has(key) ? schools.find((s) => s.toLowerCase().includes(key)) : undefined;
+    if (!school) return [];
+    already.add(key);
+    return [{ signal: signal.trim(), evidence: `${ADDED_BY_YOU}${school}` }];
+  });
+  const rescored = scoreContactReview(
+    { ...contact, schools, matchedSignals: [...fromProfile, ...fromSchools] },
+    profile.companies,
+    profile.bonusSignals,
+  );
+  return { ...contact, ...rescored };
+}
+
 // ── Any paste: a job posting or a person ─────────────────────────────────────
 
 /**

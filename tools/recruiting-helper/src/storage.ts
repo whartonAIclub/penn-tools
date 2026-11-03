@@ -3,7 +3,7 @@
 // signed-in user's id; every read and write is scoped to that user.
 
 import type { Sql } from "postgres";
-import { scoreContactReview, scorePostingReview } from "./scoring.js";
+import { scoreContactReview, scorePostingReview, withSchools } from "./scoring.js";
 import type { OutreachDraft, RecruitingProfile, ScoredContact, ScoredPosting } from "./scoring.js";
 
 /** The most items one user keeps; the lowest-ranked beyond this aren't listed. */
@@ -161,6 +161,30 @@ export async function saveOutreach(sql: Sql, userId: string, itemId: string, dra
     RETURNING 1
   `;
   return rows.length > 0;
+}
+
+/**
+ * Sets a person's schools (typed in by the student, checked with checkSchools)
+ * and re-scores them against the profile. The updated person, or null if they
+ * don't exist or aren't the user's.
+ */
+export async function saveSchools(
+  sql: Sql,
+  userId: string,
+  itemId: string,
+  schools: string[],
+  profile: RecruitingProfile,
+): Promise<SavedContact | null> {
+  const contact = await getContact(sql, userId, itemId);
+  if (!contact) return null;
+  const { id: _id, addedAt: _addedAt, ...stored } = contact;
+  const updated = { ...stored, ...withSchools(contact, schools, profile), link: contact.link };
+  const [row] = await sql<{ updated_at: Date }[]>`
+    UPDATE items SET score = ${updated.score}, result = ${sql.json(updated as never)}
+    WHERE id = ${itemId} AND user_id = ${userId} AND kind = 'contact'
+    RETURNING updated_at
+  `;
+  return row ? (toSaved(itemId, updated, row.updated_at) as SavedContact) : null;
 }
 
 /** Deletes one of the user's items; false if it doesn't exist or isn't theirs. */

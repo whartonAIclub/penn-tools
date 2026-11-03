@@ -16,6 +16,7 @@ import {
   saveItem,
   saveOutreach,
   saveProfile,
+  saveSchools,
   setOutreachStyle,
   type NewItem,
 } from "../storage.js";
@@ -175,6 +176,17 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
 
     await setOutreachStyle(sql, "jen", null);
     expect(await getProfile(sql, "jen")).not.toHaveProperty("outreachStyle");
+  });
+
+  it("saves schools typed in for the user's own people, re-scored", async () => {
+    const profile = { ...SAMPLE_PROFILE, bonusSignals: ["Wharton"] };
+    const { item } = await saveItem(sql, "kim", { ...contact(4, "Lee Park", "https://www.linkedin.com/in/lee"), schools: null, pennAlum: null } as NewItem);
+    expect(await saveSchools(sql, "mallory", item.id, ["Wharton"], profile)).toBeNull();
+
+    const updated = await saveSchools(sql, "kim", item.id, ["The Wharton School, MBA"], profile);
+    expect(updated).toMatchObject({ pennAlum: true, score: 5, link: "https://www.linkedin.com/in/lee" });
+    const [listed] = await listItems(sql, "kim");
+    expect(listed).toMatchObject({ schools: ["The Wharton School, MBA"], score: 5 });
   });
 
   it("removes only the user's own items", async () => {

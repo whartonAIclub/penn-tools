@@ -18,9 +18,11 @@ import type {
 } from "@penntools/tool-recruiting-helper";
 import {
   clearMyOutreachStyle,
+  draftMissingOutreach,
   draftMyOutreach,
   removeMyItem,
   reviseAllMyOutreach,
+  saveMySchools,
   saveMyOutreach,
   saveMyProfile,
 } from "./actions";
@@ -95,6 +97,28 @@ export function RecruitingHelper({
     if (!initialProfile) setBrowserProfile(oldBrowserProfile(userId));
   }, [userId, initialProfile]);
 
+  // Every person gets an email draft: write any that are missing (people scored
+  // before drafts were automatic, or whose draft failed) once, when the page opens.
+  const [autoDrafts, setAutoDrafts] = useState<{ state: "writing"; count: number } | { state: "error"; error: ScoreError } | null>(null);
+  const autoDraftStarted = useRef(false);
+  useEffect(() => {
+    if (autoDraftStarted.current || !initialProfile) return;
+    const count = initialItems.filter((i) => i.kind === "contact" && !i.outreach).length;
+    if (count === 0) return;
+    autoDraftStarted.current = true;
+    setAutoDrafts({ state: "writing", count });
+    draftMissingOutreach(providers[0]!)
+      .then((result) => {
+        if (result.ok) {
+          setItems(result.data.items);
+          setAutoDrafts(null);
+        } else {
+          setAutoDrafts({ state: "error", error: { message: result.message, ...(result.kind && { kind: result.kind }) } });
+        }
+      })
+      .catch(() => setAutoDrafts({ state: "error", error: { message: "Couldn't write the missing email drafts. Reload to try again." } }));
+  }, [initialItems, initialProfile, providers]);
+
   return (
     <div className={styles.page}>
       <header>
@@ -150,6 +174,7 @@ export function RecruitingHelper({
           <RankedList
             items={items}
             provider={provider}
+            autoDrafts={autoDrafts}
             outreachStyle={profile.outreachStyle ?? null}
             onStyleChange={(outreachStyle) =>
               setProfile((old) => {
@@ -656,11 +681,17 @@ function AddCard({
           <p className={styles.hint}>
             {latest.replaced ? "Already on your list, so it was updated:" : "Added to your list:"}
           </p>
-          <ItemDetails item={latest.item} />
+          <ItemDetails
+            item={latest.item}
+            onUpdated={(item) => {
+              setLatest({ ...latest, item });
+              onUpdated(item);
+            }}
+          />
           {latest.item.kind === "contact" && (
             <Outreach
               // A fresh draft area for each person scored.
-              key={latest.item.id}
+              key={`${latest.item.id}:${draftKey(latest.item.outreach)}`}
               contact={latest.item}
               provider={provider}
               onSaved={(item) => {
@@ -682,6 +713,7 @@ type Filter = "all" | SavedItem["kind"];
 function RankedList({
   items,
   provider,
+  autoDrafts,
   outreachStyle,
   onStyleChange,
   onItemsReplaced,
@@ -690,6 +722,8 @@ function RankedList({
 }: {
   items: SavedItem[];
   provider: AIProvider;
+  /** Missing email drafts being written, or why they couldn't be. */
+  autoDrafts: { state: "writing"; count: number } | { state: "error"; error: ScoreError } | null;
   /** The remembered instruction new drafts follow, if any. */
   outreachStyle: string | null;
   onStyleChange: (style: string | null) => void;
@@ -734,6 +768,25 @@ function RankedList({
           ))}
         </div>
       </div>
+
+      {autoDrafts?.state === "writing" && (
+        <p className={styles.notice} role="status">
+          Writing email drafts for {autoDrafts.count} {autoDrafts.count === 1 ? "person" : "people"}…
+        </p>
+      )}
+      {autoDrafts?.state === "error" && (
+        <p className={styles.error}>
+          Couldn&apos;t write the missing email drafts: {autoDrafts.error.message}
+          {autoDrafts.error.kind && KEY_PROBLEMS.has(autoDrafts.error.kind) && (
+            <>
+              {" "}
+              <Link href="/settings" className={styles.link}>
+                Open Settings
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       {(draftCount > 0 || outreachStyle) && (
         <ReviseAllDrafts
@@ -781,8 +834,17 @@ function RankedList({
               </div>
               {open === item.id && (
                 <div className={styles.listDetails}>
-                  <ItemDetails item={item} />
-                  {item.kind === "contact" && <Outreach contact={item} provider={provider} onSaved={onUpdated} />}
+                  <ItemDetails item={item} onUpdated={onUpdated} />
+                  {item.kind === "contact" && (
+                    <Outreach
+                      // Starts over when the saved draft changes elsewhere (written for them, or all drafts changed).
+                      key={`${item.id}:${draftKey(item.outreach)}`}
+                      contact={item}
+                      provider={provider}
+                      writing={autoDrafts?.state === "writing"}
+                      onSaved={onUpdated}
+                    />
+                  )}
                   <button className={styles.textButton} onClick={() => void remove(item.id)}>
                     Remove from list
                   </button>
@@ -811,7 +873,83 @@ function ScoreBadge({ score }: { score: number }) {
 const tierLabel = (tier: CompanyTier | "off-list") =>
   tier === "off-list" ? "not on your list" : `${tier[0]!.toUpperCase() + tier.slice(1)} company`;
 
-function ItemDetails({ item }: { item: SavedItem }) {
+/** A person's schools, which the student can add or correct when a screenshot missed them. */
+function SchoolEditor({ contact, onSaved }: { contact: SavedContact; onSaved: (item: SavedItem) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function start() {
+    setValue((contact.schools ?? []).join("; "));
+    setError(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await saveMySchools(contact.id, value.split(/[;\n]/));
+      if (result.ok) {
+        onSaved(result.data);
+        setEditing(false);
+      } else {
+        setError(result.message);
+      }
+    } catch {
+      setError("Couldn't save. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className={styles.schoolEdit}>
+        <strong>School:</strong>
+        <div className={styles.row}>
+          <input
+            className={styles.input}
+            aria-label="Their schools"
+            value={value}
+            autoFocus
+            placeholder="e.g. The Wharton School, MBA; Wellesley College, BA"
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void save();
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+          <button className={styles.uploadButton} onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button className={styles.textButton} onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </div>
+        <span className={styles.hint}>Separate schools with a semicolon. A school that matches one of your bonus signals adds a point.</span>
+        {error && <p className={styles.error}>{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <p>
+      <strong>School:</strong>{" "}
+      {contact.schools === null
+        ? "not recorded"
+        : contact.schools.length
+          ? contact.schools.join("; ")
+          : "none shown on their profile"}{" "}
+      <button className={styles.textButton} onClick={start}>
+        {contact.schools?.length ? "Edit" : "Add"}
+      </button>
+    </p>
+  );
+}
+
+function ItemDetails({ item, onUpdated }: { item: SavedItem; onUpdated: (item: SavedItem) => void }) {
   if (item.kind === "posting") {
     return (
       <div className={styles.details}>
@@ -862,14 +1000,7 @@ function ItemDetails({ item }: { item: SavedItem }) {
           Seen on profile: {item.matchedSignals.map((m) => `${m.signal} (“${m.evidence}”)`).join("; ")}
         </p>
       )}
-      <p>
-        <strong>School:</strong>{" "}
-        {item.schools === null
-          ? "not recorded (scored before schools were read; paste their profile again to add it)"
-          : item.schools.length
-            ? item.schools.join("; ")
-            : "none shown on their profile"}
-      </p>
+      <SchoolEditor contact={item} onSaved={onUpdated} />
       {item.pennAlum && (
         <p className={styles.notice}>Penn alum: look up their email in the Penn / Wharton alumni directory.</p>
       )}
@@ -1008,14 +1139,25 @@ function ReviseAllDrafts({
   );
 }
 
-/** A cold email to the person: drafted by the AI on request, then the student's to edit, save and copy. */
+/** Identifies a saved draft's content, so the draft area restarts when it changes elsewhere. */
+function draftKey(draft: OutreachDraft | undefined): string {
+  return draft ? `${draft.subject.length}-${draft.body.length}-${draft.body.slice(0, 40)}` : "none";
+}
+
+/**
+ * The cold email to the person: written for them automatically when they're
+ * scored, then the student's to edit, save and copy, or have rewritten.
+ */
 function Outreach({
   contact,
   provider,
+  writing = false,
   onSaved,
 }: {
   contact: SavedContact;
   provider: AIProvider;
+  /** True while the page is writing missing drafts, this one among them. */
+  writing?: boolean;
   onSaved: (item: SavedItem) => void;
 }) {
   const [draft, setDraft] = useState<OutreachDraft | null>(contact.outreach ?? null);
@@ -1073,9 +1215,14 @@ function Outreach({
   return (
     <div className={styles.outreach}>
       {!draft ? (
-        <button className={styles.uploadButton} onClick={() => void generate()} disabled={state === "drafting"}>
-          {state === "drafting" ? "Drafting…" : "✉ Draft outreach email"}
-        </button>
+        writing || state === "drafting" ? (
+          <p className={styles.hint}>Writing their email draft…</p>
+        ) : (
+          // Only when writing it automatically failed (say, the AI key ran out of credit).
+          <button className={styles.uploadButton} onClick={() => void generate()}>
+            Try writing their email draft again
+          </button>
+        )
       ) : (
         <>
           <strong className={styles.outreachTitle}>Outreach email draft</strong>

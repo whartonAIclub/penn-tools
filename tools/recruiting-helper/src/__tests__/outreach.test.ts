@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest, AISchema } from "@penntools/core/ai";
 import { checkInstruction, checkOutreach, draftOutreach, reviseOutreach } from "../outreach.js";
-import { isPennSchool, type ScoredContact } from "../scoring.js";
+import { checkSchools, isPennSchool, withSchools, type ScoredContact } from "../scoring.js";
 import { SAMPLE_PROFILE } from "../samples.js";
 
 const person: ScoredContact = {
@@ -101,6 +101,45 @@ describe("checkOutreach", () => {
   ])("rejects %s", (_label, draft) => {
     expect(checkOutreach(draft)).toEqual(expect.any(String));
   });
+});
+
+describe("withSchools", () => {
+  const profile = { ...SAMPLE_PROFILE, companies: [{ name: "Google", tier: "target" as const }], bonusSignals: ["Wharton", "Speaks Spanish"] };
+  const unknown: ScoredContact = { ...person, schools: null, pennAlum: null, matchedSignals: [], points: [], score: 4 };
+
+  it("tags Penn alumni and adds the point for a school named in a bonus signal", () => {
+    const updated = withSchools(unknown, ["The Wharton School, MBA"], profile);
+    expect(updated.schools).toEqual(["The Wharton School, MBA"]);
+    expect(updated.pennAlum).toBe(true);
+    expect(updated.points).toContain("+1 Wharton");
+    expect(updated.score).toBe(5); // 1 + 2 Target + 1 role + 1 Wharton
+    expect(updated.matchedSignals).toEqual([{ signal: "Wharton", evidence: "Added by you: The Wharton School, MBA" }]);
+  });
+
+  it("doesn't count a signal twice when the profile already showed it", () => {
+    const seen = { ...unknown, matchedSignals: [{ signal: "Wharton", evidence: "The Wharton School" }] };
+    const updated = withSchools(seen, ["Wharton"], profile);
+    expect(updated.matchedSignals).toHaveLength(1);
+  });
+
+  it("drops a point from a school typed in earlier when the school is changed", () => {
+    const withWharton = withSchools(unknown, ["Wharton"], profile);
+    const changed = withSchools(withWharton, ["Harvard Business School"], profile);
+    expect(changed.pennAlum).toBe(false);
+    expect(changed.points).not.toContain("+1 Wharton");
+    expect(changed.score).toBe(4);
+  });
+});
+
+describe("checkSchools", () => {
+  it("trims, drops blanks and repeats", () => {
+    expect(checkSchools([" Wharton ", "", "Wharton", "Wellesley College"])).toEqual({ schools: ["Wharton", "Wellesley College"] });
+  });
+
+  it.each([["not a list", "Wharton"], ["too many", ["a", "b", "c", "d", "e", "f"]], ["too long", ["x".repeat(151)]]])(
+    "rejects %s",
+    (_label, value) => expect(checkSchools(value)).toEqual({ problem: expect.any(String) }),
+  );
 });
 
 describe("isPennSchool", () => {
