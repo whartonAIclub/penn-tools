@@ -436,6 +436,24 @@
 .outreach .textarea { align-self: stretch; }
 .outreachTitle { font-size: 0.875rem; }
 
+.reviseAll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dce3ff;
+  border-radius: 10px;
+  background: #f5f7ff;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+
 .listText {
   display: flex;
   flex-direction: column;

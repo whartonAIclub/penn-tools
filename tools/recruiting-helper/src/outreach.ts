@@ -13,6 +13,7 @@ import type { OutreachDraft, RecruitingProfile, ScoredContact } from "./scoring.
 
 export const MAX_SUBJECT_LENGTH = 200;
 export const MAX_BODY_LENGTH = 5000;
+export const MAX_INSTRUCTION_LENGTH = 500;
 
 export const OutreachSchema = z.object({
   subject: z.string().describe("A short, specific subject line"),
@@ -28,6 +29,21 @@ Write like a thoughtful student, not a template:
 - One small, clear ask: a 15-20 minute call about their path and team. Don't ask for a job or a referral.
 - Sign off with the student's first name if the background states it; otherwise write [Your name].
 Use ONLY facts given about the person and the student. Never invent shared experiences, mutual contacts or details.`;
+
+/** Why an instruction for the drafts can't be used, or null if it's fine. */
+export function checkInstruction(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return "Type how you'd like the drafts changed.";
+  if (value.length > MAX_INSTRUCTION_LENGTH) return `Keep the instruction to at most ${MAX_INSTRUCTION_LENGTH} characters.`;
+  if (value.includes("\0")) return "The instruction has characters that can't be used.";
+  return null;
+}
+
+/** The student's standing style for every email, as a section of the prompt; empty if none. */
+function styleSection(profile: RecruitingProfile): string {
+  return profile.outreachStyle?.trim()
+    ? `\n\n## How the student wants every email written (follow it, within the rules above)\n${profile.outreachStyle.trim()}`
+    : "";
+}
 
 /** Why the draft can't be saved, or null if it's fine. */
 export function checkOutreach(value: unknown): string | null {
@@ -67,12 +83,51 @@ export async function draftOutreach(
     messages: [
       {
         role: "user",
-        content: `## The person\n${describePerson(contact)}\n\n## The student's target roles\n${profile.targetRoles}\n\n## The student's background\n${profile.background}`,
+        content: `${aboutBoth(profile, contact)}${styleSection(profile)}`,
       },
     ],
   });
+  return tidyDraft(object);
+}
+
+const REVISE_SYSTEM = `${OUTREACH_SYSTEM}
+
+You are revising an existing draft. Apply the student's instruction to it, and keep everything else that works.
+The instruction can change tone, length, structure or wording, but it can't override the rule against inventing facts:
+if following it exactly would need a fact you weren't given, follow it as far as the facts allow.`;
+
+/** The draft rewritten to follow the student's instruction, e.g. "make it shorter". */
+export async function reviseOutreach(
+  ai: AI,
+  provider: AIProvider,
+  profile: RecruitingProfile,
+  contact: ScoredContact,
+  draft: OutreachDraft,
+  instruction: string,
+): Promise<OutreachDraft> {
+  const { object } = await ai.generateObject({
+    provider,
+    tier: "standard",
+    reasoning: "low",
+    schema: OutreachSchema,
+    system: REVISE_SYSTEM,
+    messages: [
+      {
+        role: "user",
+        content: `${aboutBoth(profile, contact)}\n\n## The current draft\nSubject: ${draft.subject}\n\n${draft.body}\n\n## The student's instruction\n${instruction}`,
+      },
+    ],
+  });
+  return tidyDraft(object);
+}
+
+function aboutBoth(profile: RecruitingProfile, contact: ScoredContact): string {
+  return `## The person\n${describePerson(contact)}\n\n## The student's target roles\n${profile.targetRoles}\n\n## The student's background\n${profile.background}`;
+}
+
+function tidyDraft(draft: OutreachDraft): OutreachDraft {
   return {
-    subject: object.subject.trim().slice(0, MAX_SUBJECT_LENGTH),
-    body: object.body.trim().slice(0, MAX_BODY_LENGTH),
+    subject: draft.subject.trim().slice(0, MAX_SUBJECT_LENGTH),
+    body: draft.body.trim().slice(0, MAX_BODY_LENGTH),
   };
 }

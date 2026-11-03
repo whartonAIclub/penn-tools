@@ -16,7 +16,14 @@ import type {
   SavedItem,
   Screenshot,
 } from "@penntools/tool-recruiting-helper";
-import { draftMyOutreach, removeMyItem, saveMyOutreach, saveMyProfile } from "./actions";
+import {
+  clearMyOutreachStyle,
+  draftMyOutreach,
+  removeMyItem,
+  reviseAllMyOutreach,
+  saveMyOutreach,
+  saveMyProfile,
+} from "./actions";
 import { Dictation } from "./Dictation";
 import { RolePicker } from "./RolePicker";
 import { ACCEPT, readScreenshot, screenshotSrc, toBase64 } from "./screenshots";
@@ -108,7 +115,8 @@ export function RecruitingHelper({
           maxResumeBytes={limits.resumeBytes}
           maxBackgroundLength={limits.backgroundLength}
           onSaved={(saved, rescored) => {
-            setProfile(saved);
+            // The editor doesn't edit the outreach style, and the server kept it.
+            setProfile({ ...saved, ...(profile?.outreachStyle && { outreachStyle: profile.outreachStyle }) });
             setItems(rescored);
             setEditingProfile(false);
             setBrowserProfile(null);
@@ -137,10 +145,20 @@ export function RecruitingHelper({
               // A repeat of the same person or posting link comes back with the old entry's id.
               setItems((old) => [item, ...old.filter((i) => i.id !== item.id)].sort(byRank))
             }
+            onUpdated={(item) => setItems((old) => old.map((i) => (i.id === item.id ? item : i)))}
           />
           <RankedList
             items={items}
             provider={provider}
+            outreachStyle={profile.outreachStyle ?? null}
+            onStyleChange={(outreachStyle) =>
+              setProfile((old) => {
+                if (!old) return old;
+                const { outreachStyle: _old, ...rest } = old;
+                return outreachStyle ? { ...rest, outreachStyle } : rest;
+              })
+            }
+            onItemsReplaced={setItems}
             onRemoved={(id) => setItems((old) => old.filter((i) => i.id !== id))}
             onUpdated={(item) => setItems((old) => old.map((i) => (i.id === item.id ? item : i)))}
           />
@@ -433,6 +451,7 @@ function AddCard({
   samples,
   limits,
   onScored,
+  onUpdated,
 }: {
   provider: AIProvider;
   providers: AIProvider[];
@@ -441,6 +460,8 @@ function AddCard({
   samples: { posting: string; linkedIn: string };
   limits: { pasteLength: number; screenshots: number };
   onScored: (item: SavedItem) => void;
+  /** An item changed after scoring (its outreach draft was written or edited). */
+  onUpdated: (item: SavedItem) => void;
 }) {
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
@@ -636,6 +657,18 @@ function AddCard({
             {latest.replaced ? "Already on your list, so it was updated:" : "Added to your list:"}
           </p>
           <ItemDetails item={latest.item} />
+          {latest.item.kind === "contact" && (
+            <Outreach
+              // A fresh draft area for each person scored.
+              key={latest.item.id}
+              contact={latest.item}
+              provider={provider}
+              onSaved={(item) => {
+                setLatest({ ...latest, item });
+                onUpdated(item);
+              }}
+            />
+          )}
         </div>
       )}
     </section>
@@ -649,14 +682,22 @@ type Filter = "all" | SavedItem["kind"];
 function RankedList({
   items,
   provider,
+  outreachStyle,
+  onStyleChange,
+  onItemsReplaced,
   onRemoved,
   onUpdated,
 }: {
   items: SavedItem[];
   provider: AIProvider;
+  /** The remembered instruction new drafts follow, if any. */
+  outreachStyle: string | null;
+  onStyleChange: (style: string | null) => void;
+  onItemsReplaced: (items: SavedItem[]) => void;
   onRemoved: (id: string) => void;
   onUpdated: (item: SavedItem) => void;
 }) {
+  const draftCount = items.filter((i) => i.kind === "contact" && i.outreach).length;
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -693,6 +734,16 @@ function RankedList({
           ))}
         </div>
       </div>
+
+      {(draftCount > 0 || outreachStyle) && (
+        <ReviseAllDrafts
+          provider={provider}
+          draftCount={draftCount}
+          outreachStyle={outreachStyle}
+          onStyleChange={onStyleChange}
+          onItemsReplaced={onItemsReplaced}
+        />
+      )}
 
       {ranked.length === 0 ? (
         <p className={styles.help}>Nothing here yet. Score a job posting or a LinkedIn profile above.</p>
@@ -841,6 +892,121 @@ function ItemDetails({ item }: { item: SavedItem }) {
 }
 
 // ── Outreach email ───────────────────────────────────────────────────────────
+
+const INSTRUCTION_EXAMPLES = [
+  "Make them shorter",
+  "Open with \"I'm a Wharton MBA candidate\"",
+  "Make the tone more casual",
+  "Ask for a 15-minute call instead of 20",
+];
+
+/** One instruction applied to every saved draft, optionally remembered for new drafts. */
+function ReviseAllDrafts({
+  provider,
+  draftCount,
+  outreachStyle,
+  onStyleChange,
+  onItemsReplaced,
+}: {
+  provider: AIProvider;
+  draftCount: number;
+  outreachStyle: string | null;
+  onStyleChange: (style: string | null) => void;
+  onItemsReplaced: (items: SavedItem[]) => void;
+}) {
+  const [instruction, setInstruction] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [state, setState] = useState<"idle" | "working">("idle");
+  const [result, setResult] = useState<{ ok: boolean; message: string; kind?: string } | null>(null);
+
+  async function apply() {
+    const plural = draftCount === 1 ? "draft" : "drafts";
+    if (!window.confirm(`Rewrite all ${draftCount} email ${plural}, including any you've edited?`)) return;
+    setState("working");
+    setResult(null);
+    try {
+      const response = await reviseAllMyOutreach(provider, instruction, remember);
+      if (!response.ok) {
+        setResult({ ok: false, message: response.message, ...(response.kind && { kind: response.kind }) });
+      } else {
+        onItemsReplaced(response.data.items);
+        if (remember && response.data.revised === response.data.total) onStyleChange(instruction.trim());
+        const { revised, total } = response.data;
+        setResult(
+          revised === total
+            ? { ok: true, message: `Updated ${revised} ${revised === 1 ? "draft" : "drafts"}.${remember ? " New drafts will follow it too." : ""}` }
+            : { ok: false, message: `Updated ${revised} of ${total} drafts, then the AI stopped. Try again to finish the rest.` },
+        );
+        setInstruction("");
+      }
+    } catch {
+      setResult({ ok: false, message: "Couldn't reach PennTools. Check your connection and try again." });
+    } finally {
+      setState("idle");
+    }
+  }
+
+  async function forget() {
+    const response = await clearMyOutreachStyle().catch(() => null);
+    if (response?.ok) onStyleChange(null);
+  }
+
+  return (
+    <div className={styles.reviseAll}>
+      <strong className={styles.outreachTitle}>
+        {draftCount === 1 ? "Change your email draft" : `Change all ${draftCount} email drafts at once`}
+      </strong>
+      <div className={styles.row}>
+        <input
+          className={styles.input}
+          aria-label="How to change all the email drafts"
+          value={instruction}
+          maxLength={500}
+          placeholder="e.g. make them shorter"
+          onChange={(e) => setInstruction(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && instruction.trim() && draftCount > 0 && state === "idle") void apply();
+          }}
+        />
+        <button className={styles.button} onClick={() => void apply()} disabled={!instruction.trim() || draftCount === 0 || state === "working"}>
+          {state === "working" ? `Updating ${draftCount}…` : "Update all"}
+        </button>
+      </div>
+      <div className={styles.chips}>
+        {INSTRUCTION_EXAMPLES.map((example) => (
+          <button key={example} type="button" className={styles.chip} onClick={() => setInstruction(example)}>
+            {example}
+          </button>
+        ))}
+      </div>
+      <label className={styles.checkbox}>
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        Use this for new drafts too
+      </label>
+      {outreachStyle && (
+        <p className={styles.hint}>
+          New drafts follow: &ldquo;{outreachStyle}&rdquo;.{" "}
+          <button className={styles.textButton} onClick={() => void forget()}>
+            Stop using it
+          </button>
+        </p>
+      )}
+      {result && (
+        <p className={result.ok ? styles.notice : styles.error}>
+          {result.message}
+          {result.kind && KEY_PROBLEMS.has(result.kind) && (
+            <>
+              {" "}
+              <Link href="/settings" className={styles.link}>
+                Open Settings
+              </Link>
+            </>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
 
 /** A cold email to the person: drafted by the AI on request, then the student's to edit, save and copy. */
 function Outreach({

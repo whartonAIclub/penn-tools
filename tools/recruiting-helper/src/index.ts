@@ -47,10 +47,19 @@ export {
   getContact,
   saveOutreach,
   rescoreItems,
+  setOutreachStyle,
   matchKey,
   MAX_ITEMS,
 } from "./storage.js";
-export { checkOutreach, draftOutreach, MAX_SUBJECT_LENGTH, MAX_BODY_LENGTH } from "./outreach.js";
+export {
+  checkInstruction,
+  checkOutreach,
+  draftOutreach,
+  reviseOutreach,
+  MAX_SUBJECT_LENGTH,
+  MAX_BODY_LENGTH,
+  MAX_INSTRUCTION_LENGTH,
+} from "./outreach.js";
 export type { SavedItem, SavedPosting, SavedContact, NewItem } from "./storage.js";
 export {
   checkResume,

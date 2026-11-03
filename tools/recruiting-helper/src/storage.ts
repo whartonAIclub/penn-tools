@@ -48,10 +48,27 @@ export async function saveProfile(sql: Sql, userId: string, profile: RecruitingP
     companies: profile.companies.map(({ name, tier }) => ({ name, tier })),
     bonusSignals: profile.bonusSignals,
   };
+  // The editor doesn't edit the outreach style (setOutreachStyle does), so keep it.
   await sql`
     INSERT INTO profiles (user_id, profile) VALUES (${userId}, ${sql.json(value)})
-    ON CONFLICT (user_id) DO UPDATE SET profile = EXCLUDED.profile, updated_at = NOW()
+    ON CONFLICT (user_id) DO UPDATE
+      SET profile = EXCLUDED.profile
+            || CASE WHEN profiles.profile ? 'outreachStyle'
+                    THEN jsonb_build_object('outreachStyle', profiles.profile->'outreachStyle') ELSE '{}'::jsonb END,
+          updated_at = NOW()
   `;
+}
+
+/** Sets (or, with null, clears) how the user wants every outreach email written. False if they have no profile. */
+export async function setOutreachStyle(sql: Sql, userId: string, style: string | null): Promise<boolean> {
+  const rows = style?.trim()
+    ? await sql`
+        UPDATE profiles SET profile = profile || jsonb_build_object('outreachStyle', ${style.trim()}::text), updated_at = NOW()
+        WHERE user_id = ${userId} RETURNING 1`
+    : await sql`
+        UPDATE profiles SET profile = profile - 'outreachStyle', updated_at = NOW()
+        WHERE user_id = ${userId} RETURNING 1`;
+  return rows.length > 0;
 }
 
 /** The user's items, best score first, most recently scored first within a score. */

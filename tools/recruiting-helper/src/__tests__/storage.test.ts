@@ -16,6 +16,7 @@ import {
   saveItem,
   saveOutreach,
   saveProfile,
+  setOutreachStyle,
   type NewItem,
 } from "../storage.js";
 import { SAMPLE_PROFILE } from "../samples.js";
@@ -163,6 +164,17 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
     expect(person?.kind === "contact" && person.schools).toEqual([]);
     expect(job?.score).toBe(4); // role fit 3 + 1 Target
     expect(await rescoreItems(sql, "ivy", withNvidia)).toBe(0); // nothing left to change
+  });
+
+  it("remembers an outreach style until it's cleared, even when the profile is saved again", async () => {
+    expect(await setOutreachStyle(sql, "nobody", "Shorter")).toBe(false); // no profile yet
+    await saveProfile(sql, "jen", SAMPLE_PROFILE);
+    expect(await setOutreachStyle(sql, "jen", "  Keep it under 100 words ")).toBe(true);
+    await saveProfile(sql, "jen", { ...SAMPLE_PROFILE, targetRoles: "Corp dev" });
+    expect(await getProfile(sql, "jen")).toMatchObject({ targetRoles: "Corp dev", outreachStyle: "Keep it under 100 words" });
+
+    await setOutreachStyle(sql, "jen", null);
+    expect(await getProfile(sql, "jen")).not.toHaveProperty("outreachStyle");
   });
 
   it("removes only the user's own items", async () => {

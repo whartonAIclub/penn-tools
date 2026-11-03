@@ -46,6 +46,11 @@ export interface RecruitingProfile {
   companies: TargetCompany[];
   /** Things they share with people worth meeting, e.g. "Wharton", "speaks Japanese". */
   bonusSignals: string[];
+  /**
+   * How the student wants every outreach email written, e.g. "keep it under 100
+   * words". Set from the list's "Change all email drafts" box, not the profile editor.
+   */
+  outreachStyle?: string;
 }
 
 export const TIER_LABELS: Record<CompanyTier | "off-list", string> = {

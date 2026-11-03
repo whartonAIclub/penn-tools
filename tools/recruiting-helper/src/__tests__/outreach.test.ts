@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest, AISchema } from "@penntools/core/ai";
-import { checkOutreach, draftOutreach } from "../outreach.js";
+import { checkInstruction, checkOutreach, draftOutreach, reviseOutreach } from "../outreach.js";
 import { isPennSchool, type ScoredContact } from "../scoring.js";
 import { SAMPLE_PROFILE } from "../samples.js";
 
@@ -54,6 +54,37 @@ describe("draftOutreach", () => {
     const { ai, requests } = fakeAI({ subject: "s", body: "b" });
     await draftOutreach(ai, "openai", SAMPLE_PROFILE, { ...person, schools: null, pennAlum: null });
     expect(requests[0]?.messages[0]?.content).toContain("Schools: (not recorded)");
+  });
+});
+
+describe("a remembered style and reviseOutreach", () => {
+  it("has new drafts follow the student's remembered style", async () => {
+    const { ai, requests } = fakeAI({ subject: "s", body: "b" });
+    await draftOutreach(ai, "anthropic", { ...SAMPLE_PROFILE, outreachStyle: "Keep it under 80 words" }, person);
+    expect(requests[0]?.messages[0]?.content).toContain("Keep it under 80 words");
+  });
+
+  it("leaves the style out when there is none", async () => {
+    const { ai, requests } = fakeAI({ subject: "s", body: "b" });
+    await draftOutreach(ai, "anthropic", SAMPLE_PROFILE, person);
+    expect(requests[0]?.messages[0]?.content).not.toContain("How the student wants every email written");
+  });
+
+  it("sends the current draft and the instruction, and returns the revision", async () => {
+    const { ai, requests } = fakeAI({ subject: "Shorter", body: "Hi Jordan, short. " });
+    const revised = await reviseOutreach(ai, "openai", SAMPLE_PROFILE, person, { subject: "Long", body: "Hi Jordan, long." }, "Make it shorter");
+    expect(revised).toEqual({ subject: "Shorter", body: "Hi Jordan, short." });
+    const content = requests[0]?.messages[0]?.content as string;
+    expect(content).toContain("Subject: Long\n\nHi Jordan, long.");
+    expect(content).toContain("## The student's instruction\nMake it shorter");
+    expect(requests[0]?.system).toContain("can't override the rule against inventing facts");
+  });
+});
+
+describe("checkInstruction", () => {
+  it("accepts an instruction", () => expect(checkInstruction("make them shorter")).toBeNull());
+  it.each([["nothing", "  "], ["not text", 5], ["too long", "x".repeat(501)]])("rejects %s", (_label, value) => {
+    expect(checkInstruction(value)).toEqual(expect.any(String));
   });
 });
 
