@@ -77,6 +77,8 @@ Locally the platform signs everyone in as the same test user, so there's no seco
 pnpm --filter @penntools/tool-pennpaws seed
 ```
 
+Under `pnpm dev` the local test user also gets a small **Test** button in the bottom corner of PennPaws. **Fake people's turn** does what `seed play` does, and **Start over as a new member** wipes your profile, requests, offers and messages, brings back fresh fake people and opens first-time setup, so you can pick owner or sitter again. Real Penn accounts never see it, and it never shows on the live site.
+
 Set your role in My profile. As a sitter, Find jobs ranks their requests; tap Rank with AI to see the AI's picks. As an owner, post a request. Then, after each step you take, let the fake people take theirs: sitters offer on your requests, owners pick you, and both approve agreements.
 
 ```bash

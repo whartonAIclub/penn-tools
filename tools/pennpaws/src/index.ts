@@ -11,3 +11,4 @@ export * from "./members.js";
 export * from "./jobs.js";
 export * from "./messages.js";
 export * from "./match.js";
+export * from "./testPeople.js";

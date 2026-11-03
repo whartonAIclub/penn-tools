@@ -26,6 +26,9 @@ import {
   checkReview,
   clearPayment,
   firstName,
+  forgetMember,
+  playTestPeople,
+  seedTestPeople,
   completeBooking,
   aboutSitter,
   createRequest,
@@ -58,6 +61,7 @@ import {
 } from "@penntools/tool-pennpaws";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
+import { isPennEmail } from "@/lib/pennEmail";
 import { ALLOW_LOCAL_TEST_ACCOUNT } from "./school";
 
 export type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string; kind?: string };
@@ -365,4 +369,31 @@ export async function readNotifications(): Promise<void> {
   if (!user) return;
   await markAllRead(db(), user.id);
   revalidatePath(PATH);
+}
+
+// ── Test menu (local development only) ────────────────────────────────────────
+
+/** Only the platform's local test user, and only under `pnpm dev`. Real Penn accounts never get these. */
+async function testUser(): Promise<Person | null> {
+  const user = await signedIn();
+  return ALLOW_LOCAL_TEST_ACCOUNT && user && !isPennEmail(user.email) ? user : null;
+}
+
+const notTesting = { ok: false, error: "The test menu only works for the local test user under pnpm dev." } as const;
+
+/** Has the fake people take their next step: offer on your requests, pick you, approve agreements. */
+export async function testPlay(): Promise<ActionResult<string[]>> {
+  if (!(await testUser())) return notTesting;
+  return run(() => playTestPeople(db()));
+}
+
+/** Wipes the test user's PennPaws data and brings back a fresh set of fake people, so setup starts again. */
+export async function testStartOver(): Promise<ActionResult> {
+  const user = await testUser();
+  if (!user) return notTesting;
+  return run(async () => {
+    await forgetMember(db(), user.id);
+    await seedTestPeople(db());
+    return null;
+  });
 }

@@ -23,6 +23,7 @@ import { isPennEmail } from "@/lib/pennEmail";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { Onboarding } from "./Onboarding";
 import { PennPaws } from "./PennPaws";
+import { TestMenu } from "./TestMenu";
 import { ALLOW_LOCAL_TEST_ACCOUNT } from "./school";
 
 export const metadata: Metadata = {
@@ -46,8 +47,15 @@ export default async function PennPawsPage() {
   const userFirstName = firstName(user.name ?? "");
   const school = verifySchool(user.email, ALLOW_LOCAL_TEST_ACCOUNT);
   const member = await getMember(sql, user.id);
+  // The local test user under `pnpm dev` gets a Test menu to play the other side and start over.
+  const testMenu = ALLOW_LOCAL_TEST_ACCOUNT && !isPennEmail(user.email) ? <TestMenu /> : null;
   if (!member || !school) {
-    return <Onboarding userFirstName={userFirstName} email={user.email} school={school} initial={member?.profile ?? null} />;
+    return (
+      <>
+        <Onboarding userFirstName={userFirstName} email={user.email} school={school} initial={member?.profile ?? null} />
+        {testMenu}
+      </>
+    );
   }
 
   const isSitter = member.role === "sitter";
@@ -62,18 +70,21 @@ export default async function PennPawsPage() {
   const matches = member.profile.role === "sitter" ? await matchRequests(sql, member.profile, open.filter((r) => !r.mine)) : [];
 
   return (
-    <PennPaws
-      userFirstName={userFirstName}
-      pennVerified={isPennEmail(user.email)}
-      email={user.email}
-      member={member}
-      open={open}
-      matches={matches}
-      mine={mine}
-      jobs={jobs}
-      reviews={reviews}
-      notifications={notifications}
-      hasAI={providers.length > 0}
-    />
+    <>
+      <PennPaws
+        userFirstName={userFirstName}
+        pennVerified={isPennEmail(user.email)}
+        email={user.email}
+        member={member}
+        open={open}
+        matches={matches}
+        mine={mine}
+        jobs={jobs}
+        reviews={reviews}
+        notifications={notifications}
+        hasAI={providers.length > 0}
+      />
+      {testMenu}
+    </>
   );
 }
