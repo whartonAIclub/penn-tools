@@ -1,0 +1,146 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.intro {
+  color: var(--section-label);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.link {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.card,
+.brief {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.textarea,
+.input,
+.select {
+  padding: 9px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.button {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.button:hover:not(:disabled) { background: #163983; }
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.copy {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.error {
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+/* ── Brief ─────────────────────────────────────────────────────────────────── */
+
+.brief {
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.briefHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heading {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--penn-blue);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.why {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--section-label);
+}

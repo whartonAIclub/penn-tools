@@ -12,5 +12,6 @@ export {
   MAX_NEWS_LENGTH,
 } from "./brief.js";
 export type { StudentProfile, ChatInput } from "./brief.js";
+export { briefToText } from "./format.js";
 export { CORE_QUESTIONS, CLOSING_LINE, CHAT_TIPS } from "./framework.js";
 export type { CoreQuestion } from "./framework.js";
