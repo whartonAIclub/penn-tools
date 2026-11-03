@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildCatalog, termLabel, type PennCoursePlanCourse } from "../courses.js";
+import { buildCatalog, termLabel, type Course, type PennCoursePlanCourse } from "../courses.js";
+import { rankCourses, sanitizeRatings, setRating } from "../ratings.js";
 import { CURRENT_CATALOG } from "../currentCatalog.js";
 
 function raw(id: string, extra: Partial<PennCoursePlanCourse> = {}): PennCoursePlanCourse {
@@ -46,5 +47,38 @@ describe("CURRENT_CATALOG", () => {
     const codes = CURRENT_CATALOG.courses.map((c) => c.code);
     expect(codes.length).toBeGreaterThan(0);
     expect(new Set(codes).size).toBe(codes.length);
+  });
+});
+
+describe("ratings", () => {
+  const course = (code: string): Course => ({
+    code,
+    department: code.slice(0, 4),
+    title: code,
+    description: "",
+    credits: 1,
+    sections: 1,
+  });
+  const courses = [course("ACCT 7470"), course("FNCE 7310"), course("MGMT 6910")];
+
+  it("ranks rated courses highest first, ties by code, ignoring unknown codes", () => {
+    let ratings = setRating({}, "MGMT 6910", 5);
+    ratings = setRating(ratings, "ACCT 7470", 3);
+    ratings = setRating(ratings, "FNCE 7310", 5);
+    ratings = setRating(ratings, "STAT 9999", 4);
+    expect(rankCourses(courses, ratings).map((r) => [r.course.code, r.rating])).toEqual([
+      ["FNCE 7310", 5],
+      ["MGMT 6910", 5],
+      ["ACCT 7470", 3],
+    ]);
+  });
+
+  it("clears a rating", () => {
+    expect(setRating({ "FNCE 7310": 4 }, "FNCE 7310", null)).toEqual({});
+  });
+
+  it("drops invalid stored ratings", () => {
+    expect(sanitizeRatings({ a: 3, b: 7, c: "5", d: 1 })).toEqual({ a: 3, d: 1 });
+    expect(sanitizeRatings("nope")).toEqual({});
   });
 });
