@@ -57,8 +57,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let scored: NewItem;
   try {
-    const result = await reviewPaste((await getAI())!, provider as AIProvider, profile, paste);
-    scored = result.kind === "posting" ? { ...result, link } : result;
+    // The link is the posting's, or the person's LinkedIn profile.
+    scored = { ...(await reviewPaste((await getAI())!, provider as AIProvider, profile, paste)), link };
   } catch (error) {
     if (error instanceof UnclearPasteError) return fail(error.message, 422);
     if (isAIError(error)) return Response.json({ ok: false, error: error.toJSON() }, { status: 502 });

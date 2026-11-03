@@ -393,6 +393,49 @@
   color: var(--text);
 }
 
+.listRowWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.listRowWrap .listRow { flex: 1; min-width: 0; }
+
+.rowLink {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.rowLink:hover { text-decoration: underline; }
+
+.tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #011f5b;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.outreach {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.outreach .input,
+.outreach .textarea { align-self: stretch; }
+.outreachTitle { font-size: 0.875rem; }
+
 .listText {
   display: flex;
   flex-direction: column;

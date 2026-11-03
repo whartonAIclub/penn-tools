@@ -8,8 +8,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
-import type { CompanyTier, RecruitingProfile, SavedItem, Screenshot } from "@penntools/tool-recruiting-helper";
-import { removeMyItem, saveMyProfile } from "./actions";
+import type {
+  CompanyTier,
+  OutreachDraft,
+  RecruitingProfile,
+  SavedContact,
+  SavedItem,
+  Screenshot,
+} from "@penntools/tool-recruiting-helper";
+import { draftMyOutreach, removeMyItem, saveMyOutreach, saveMyProfile } from "./actions";
 import { Dictation } from "./Dictation";
 import { RolePicker } from "./RolePicker";
 import { ACCEPT, readScreenshot, screenshotSrc, toBase64 } from "./screenshots";
@@ -100,8 +107,9 @@ export function RecruitingHelper({
           provider={provider}
           maxResumeBytes={limits.resumeBytes}
           maxBackgroundLength={limits.backgroundLength}
-          onSaved={(saved) => {
+          onSaved={(saved, rescored) => {
             setProfile(saved);
+            setItems(rescored);
             setEditingProfile(false);
             setBrowserProfile(null);
             try {
@@ -130,7 +138,12 @@ export function RecruitingHelper({
               setItems((old) => [item, ...old.filter((i) => i.id !== item.id)].sort(byRank))
             }
           />
-          <RankedList items={items} onRemoved={(id) => setItems((old) => old.filter((i) => i.id !== id))} />
+          <RankedList
+            items={items}
+            provider={provider}
+            onRemoved={(id) => setItems((old) => old.filter((i) => i.id !== id))}
+            onUpdated={(item) => setItems((old) => old.map((i) => (i.id === item.id ? item : i)))}
+          />
         </>
       )}
     </div>
@@ -169,7 +182,8 @@ function ProfileEditor({
   provider: AIProvider;
   maxResumeBytes: number;
   maxBackgroundLength: number;
-  onSaved: (profile: RecruitingProfile) => void;
+  /** Called with the saved profile and the list, re-scored against it. */
+  onSaved: (profile: RecruitingProfile, items: SavedItem[]) => void;
   onCancel: (() => void) | null;
 }) {
   const [saving, setSaving] = useState(false);
@@ -238,7 +252,7 @@ function ProfileEditor({
     setError(null);
     try {
       const result = await saveMyProfile(profile);
-      if (result.ok) onSaved(profile);
+      if (result.ok) onSaved(profile, result.data);
       else setError(result.message);
     } catch {
       setError("Couldn't save your profile. Check your connection and try again.");
@@ -577,10 +591,10 @@ function AddCard({
         </div>
       </div>
       <input
-        aria-label="Link to the job posting"
+        aria-label="Link to the job posting or LinkedIn profile"
         className={styles.input}
         value={link}
-        placeholder="Link to the job posting (optional; skip it for people)"
+        placeholder="Link to the job posting or their LinkedIn profile (optional, saved with it)"
         onChange={(e) => setLink(e.target.value)}
       />
       <div className={styles.actions}>
@@ -632,7 +646,17 @@ function AddCard({
 
 type Filter = "all" | SavedItem["kind"];
 
-function RankedList({ items, onRemoved }: { items: SavedItem[]; onRemoved: (id: string) => void }) {
+function RankedList({
+  items,
+  provider,
+  onRemoved,
+  onUpdated,
+}: {
+  items: SavedItem[];
+  provider: AIProvider;
+  onRemoved: (id: string) => void;
+  onUpdated: (item: SavedItem) => void;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -676,20 +700,38 @@ function RankedList({ items, onRemoved }: { items: SavedItem[]; onRemoved: (id: 
         <ol className={styles.list}>
           {ranked.map((item) => (
             <li key={item.id} className={styles.listItem}>
-              <button className={styles.listRow} onClick={() => setOpen(open === item.id ? null : item.id)} aria-expanded={open === item.id}>
-                <ScoreBadge score={item.score} />
-                <span className={styles.listText}>
-                  <strong>{item.kind === "posting" ? item.title : item.name}</strong>
-                  <span className={styles.hint}>
-                    {item.kind === "posting" ? item.company : `${item.title} at ${item.company}`} ·{" "}
-                    {item.kind === "posting" ? "Job" : `${item.priority} priority`}
-                    {item.kind === "posting" && item.applyBy ? ` · apply by ${item.applyBy}` : ""}
+              <div className={styles.listRowWrap}>
+                <button className={styles.listRow} onClick={() => setOpen(open === item.id ? null : item.id)} aria-expanded={open === item.id}>
+                  <ScoreBadge score={item.score} />
+                  <span className={styles.listText}>
+                    <strong>
+                      {item.kind === "posting" ? item.title : item.name}
+                      {item.kind === "contact" && item.pennAlum && <span className={styles.tag}>Penn alum</span>}
+                    </strong>
+                    <span className={styles.hint}>
+                      {item.kind === "posting" ? item.company : `${item.title} at ${item.company}`} ·{" "}
+                      {item.kind === "posting" ? "Job" : `${item.priority} priority`}
+                      {item.kind === "posting" && item.applyBy ? ` · apply by ${item.applyBy}` : ""}
+                      {item.kind === "contact" && item.schools?.length ? ` · ${item.schools.join("; ")}` : ""}
+                    </span>
                   </span>
-                </span>
-              </button>
+                </button>
+                {item.link && (
+                  <a
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.rowLink}
+                    title={item.kind === "posting" ? "Open the posting" : "Open their LinkedIn profile"}
+                  >
+                    {item.kind === "posting" ? "Posting ↗" : "LinkedIn ↗"}
+                  </a>
+                )}
+              </div>
               {open === item.id && (
                 <div className={styles.listDetails}>
                   <ItemDetails item={item} />
+                  {item.kind === "contact" && <Outreach contact={item} provider={provider} onSaved={onUpdated} />}
                   <button className={styles.textButton} onClick={() => void remove(item.id)}>
                     Remove from list
                   </button>
@@ -770,8 +812,158 @@ function ItemDetails({ item }: { item: SavedItem }) {
         </p>
       )}
       <p>
-        <strong>Hook:</strong> {item.hook}
+        <strong>School:</strong>{" "}
+        {item.schools === null
+          ? "not recorded (scored before schools were read; paste their profile again to add it)"
+          : item.schools.length
+            ? item.schools.join("; ")
+            : "none shown on their profile"}
       </p>
+      {item.pennAlum && (
+        <p className={styles.notice}>Penn alum: look up their email in the Penn / Wharton alumni directory.</p>
+      )}
+      <p>
+        <strong>Hook:</strong> {item.hook}
+        {item.link && (
+          <>
+            {" · "}
+            <a href={item.link} target="_blank" rel="noreferrer" className={styles.link}>
+              Open LinkedIn profile
+            </a>
+          </>
+        )}
+      </p>
+      {item.tier === "off-list" && (
+        <p className={styles.hint}>{item.company} isn&apos;t on your company lists. Add it to your profile if you want it to count.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Outreach email ───────────────────────────────────────────────────────────
+
+/** A cold email to the person: drafted by the AI on request, then the student's to edit, save and copy. */
+function Outreach({
+  contact,
+  provider,
+  onSaved,
+}: {
+  contact: SavedContact;
+  provider: AIProvider;
+  onSaved: (item: SavedItem) => void;
+}) {
+  const [draft, setDraft] = useState<OutreachDraft | null>(contact.outreach ?? null);
+  const [state, setState] = useState<"idle" | "drafting" | "saving" | "saved" | "copied">("idle");
+  const [error, setError] = useState<ScoreError | null>(null);
+  const dirty = draft !== null && (draft.subject !== contact.outreach?.subject || draft.body !== contact.outreach?.body);
+
+  async function generate() {
+    if (dirty && !window.confirm("Replace your edited draft with a new one?")) return;
+    setState("drafting");
+    setError(null);
+    try {
+      const result = await draftMyOutreach(provider, contact.id);
+      if (!result.ok) {
+        setError({ message: result.message, ...(result.kind && { kind: result.kind }) });
+        setState("idle");
+        return;
+      }
+      setDraft(result.data);
+      onSaved({ ...contact, outreach: result.data });
+      setState("idle");
+    } catch {
+      setError({ message: "Couldn't reach PennTools. Check your connection and try again." });
+      setState("idle");
+    }
+  }
+
+  async function save() {
+    if (!draft) return;
+    setState("saving");
+    setError(null);
+    try {
+      const result = await saveMyOutreach(contact.id, draft);
+      if (!result.ok) {
+        setError({ message: result.message });
+        setState("idle");
+        return;
+      }
+      onSaved({ ...contact, outreach: draft });
+      setState("saved");
+    } catch {
+      setError({ message: "Couldn't save. Check your connection and try again." });
+      setState("idle");
+    }
+  }
+
+  function copy() {
+    if (!draft) return;
+    navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`).then(
+      () => setState("copied"),
+      () => setError({ message: "Couldn't copy. Select the text and copy it yourself." }),
+    );
+  }
+
+  return (
+    <div className={styles.outreach}>
+      {!draft ? (
+        <button className={styles.uploadButton} onClick={() => void generate()} disabled={state === "drafting"}>
+          {state === "drafting" ? "Drafting…" : "✉ Draft outreach email"}
+        </button>
+      ) : (
+        <>
+          <strong className={styles.outreachTitle}>Outreach email draft</strong>
+          <input
+            className={styles.input}
+            aria-label="Email subject"
+            value={draft.subject}
+            onChange={(e) => {
+              setDraft({ ...draft, subject: e.target.value });
+              setState("idle");
+            }}
+          />
+          <textarea
+            className={styles.textarea}
+            aria-label="Email body"
+            rows={10}
+            value={draft.body}
+            onChange={(e) => {
+              setDraft({ ...draft, body: e.target.value });
+              setState("idle");
+            }}
+          />
+          <div className={styles.actions}>
+            <button className={styles.button} onClick={copy}>
+              {state === "copied" ? "Copied" : "Copy email"}
+            </button>
+            {dirty && (
+              <button className={styles.uploadButton} onClick={() => void save()} disabled={state === "saving"}>
+                {state === "saving" ? "Saving…" : "Save changes"}
+              </button>
+            )}
+            {state === "saved" && !dirty && <span className={styles.hint}>Saved</span>}
+            <button className={styles.textButton} onClick={() => void generate()} disabled={state === "drafting"}>
+              {state === "drafting" ? "Drafting…" : "Write a new one"}
+            </button>
+          </div>
+          <p className={styles.hint}>
+            Nothing is sent from here. Copy it into your own email, check every detail, and make it sound like you.
+          </p>
+        </>
+      )}
+      {error && (
+        <p className={styles.error}>
+          {error.message}
+          {error.kind && KEY_PROBLEMS.has(error.kind) && (
+            <>
+              {" "}
+              <Link href="/settings" className={styles.link}>
+                Open Settings
+              </Link>
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

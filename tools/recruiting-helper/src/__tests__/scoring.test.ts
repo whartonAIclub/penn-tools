@@ -43,6 +43,7 @@ const contact: ContactReview = {
   relevantRole: true,
   matchedSignals: [],
   hook: "Ask about Google Cloud partnerships.",
+  schools: ["The Wharton School, MBA"],
 };
 
 /** An AI whose generateObject returns `object` and records the request. */

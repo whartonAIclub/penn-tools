@@ -5,6 +5,7 @@ export {
   checkPaste,
   cleanLink,
   findCompany,
+  isPennSchool,
   normalizeCompany,
   reviewPaste,
   scorePasteReview,
@@ -35,8 +36,21 @@ export type {
   Priority,
   Paste,
   Screenshot,
+  OutreachDraft,
 } from "./scoring.js";
-export { getProfile, saveProfile, listItems, saveItem, removeItem, matchKey, MAX_ITEMS } from "./storage.js";
+export {
+  getProfile,
+  saveProfile,
+  listItems,
+  saveItem,
+  removeItem,
+  getContact,
+  saveOutreach,
+  rescoreItems,
+  matchKey,
+  MAX_ITEMS,
+} from "./storage.js";
+export { checkOutreach, draftOutreach, MAX_SUBJECT_LENGTH, MAX_BODY_LENGTH } from "./outreach.js";
 export type { SavedItem, SavedPosting, SavedContact, NewItem } from "./storage.js";
 export {
   checkResume,

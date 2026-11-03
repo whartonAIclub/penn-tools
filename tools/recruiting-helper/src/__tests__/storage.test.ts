@@ -7,7 +7,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import { getProfile, listItems, removeItem, saveItem, saveProfile, type NewItem } from "../storage.js";
+import {
+  getContact,
+  getProfile,
+  listItems,
+  removeItem,
+  rescoreItems,
+  saveItem,
+  saveOutreach,
+  saveProfile,
+  type NewItem,
+} from "../storage.js";
 import { SAMPLE_PROFILE } from "../samples.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
@@ -39,9 +49,10 @@ function posting(score: number, link: string | null, title = "Partner Manager"):
   };
 }
 
-function contact(score: number, name: string | null): NewItem {
+function contact(score: number, name: string | null, link: string | null = null): NewItem {
   return {
     kind: "contact",
+    link,
     name,
     company: "Google",
     title: "Head of Partnerships",
@@ -54,6 +65,8 @@ function contact(score: number, name: string | null): NewItem {
     matchedCompany: "Google",
     points: [],
     capped: false,
+    schools: [],
+    pennAlum: false,
   };
 }
 
@@ -110,6 +123,46 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
     expect((await saveItem(sql, "dave", posting(1, null))).replaced).toBe(false);
 
     expect((await listItems(sql, "dave")).map((i) => i.score)).toEqual([5, 4, 1, 1]);
+  });
+
+  it("keeps a person's LinkedIn link and outreach draft when they're scored again without a link", async () => {
+    const { item } = await saveItem(sql, "gus", contact(3, "Pat Lee", "https://www.linkedin.com/in/patlee"));
+    expect(await saveOutreach(sql, "gus", item.id, { subject: "Hi", body: "Hello Pat" })).toBe(true);
+
+    const again = await saveItem(sql, "gus", contact(4, "Pat Lee"));
+    expect(again.replaced).toBe(true);
+    expect(again.item.link).toBe("https://www.linkedin.com/in/patlee");
+    expect(again.item.kind === "contact" && again.item.outreach).toEqual({ subject: "Hi", body: "Hello Pat" });
+
+    // A new link replaces the old one.
+    const moved = await saveItem(sql, "gus", contact(4, "Pat Lee", "https://www.linkedin.com/in/pat-lee-2"));
+    expect(moved.item.link).toBe("https://www.linkedin.com/in/pat-lee-2");
+  });
+
+  it("saves outreach drafts only on the user's own people", async () => {
+    const { item } = await saveItem(sql, "hal", contact(3, "Sam Roe"));
+    expect(await saveOutreach(sql, "mallory", item.id, { subject: "x", body: "y" })).toBe(false);
+    expect(await getContact(sql, "mallory", item.id)).toBeNull();
+    const posted = await saveItem(sql, "hal", posting(3, "https://jobs.example.com/9"));
+    expect(await saveOutreach(sql, "hal", posted.item.id, { subject: "x", body: "y" })).toBe(false);
+    expect((await getContact(sql, "hal", item.id))?.name).toBe("Sam Roe");
+  });
+
+  it("re-scores the list against a new profile without AI", async () => {
+    await saveProfile(sql, "ivy", SAMPLE_PROFILE);
+    await saveItem(sql, "ivy", { ...contact(1, "Nvidia Person"), company: "NVIDIA", tier: "off-list", points: [] } as NewItem);
+    await saveItem(sql, "ivy", { ...posting(2, "https://jobs.example.com/nv"), company: "NVIDIA", roleFit: 3, tier: "off-list" } as NewItem);
+
+    const withNvidia = { ...SAMPLE_PROFILE, companies: [{ name: "NVIDIA", tier: "target" as const }] };
+    expect(await rescoreItems(sql, "ivy", withNvidia)).toBe(2);
+
+    const items = await listItems(sql, "ivy");
+    const person = items.find((i) => i.kind === "contact");
+    const job = items.find((i) => i.kind === "posting");
+    expect(person?.score).toBe(4); // 1 + 2 Target + 1 relevant role
+    expect(person?.kind === "contact" && person.schools).toEqual([]);
+    expect(job?.score).toBe(4); // role fit 3 + 1 Target
+    expect(await rescoreItems(sql, "ivy", withNvidia)).toBe(0); // nothing left to change
   });
 
   it("removes only the user's own items", async () => {

@@ -185,6 +185,23 @@ function wordsStartWith(text: string, prefix: string): boolean {
 
 const clamp = (n: number) => Math.max(1, Math.min(5, n));
 
+/**
+ * True for the University of Pennsylvania and its schools (Wharton, Penn Law,
+ * Penn Engineering…), whose alumni are in Penn's directory. Not Penn State,
+ * which is a different university.
+ */
+export function isPennSchool(school: string): boolean {
+  const s = school.toLowerCase();
+  if (/penn(sylvania)? state/.test(s)) return false;
+  return /wharton|university of pennsylvania|\bupenn\b|\bpenn\b/.test(s);
+}
+
+/** A cold outreach email: a subject line and body, ready to edit and copy. */
+export interface OutreachDraft {
+  subject: string;
+  body: string;
+}
+
 // ── Job postings ─────────────────────────────────────────────────────────────
 
 export const PostingReview = z.object({
@@ -238,12 +255,21 @@ export const ContactReview = z.object({
     .array(z.object({ signal: z.string(), evidence: z.string() }))
     .describe("Bonus signals visibly present on the profile, copied exactly from the list, with the text that shows it"),
   hook: z.string().describe("One conversation opener based only on something stated on the profile"),
+  schools: z
+    .array(z.string())
+    .describe("Each school in the profile's education section, as written with its degree (e.g. 'The Wharton School, MBA'); empty if none is shown"),
 });
 export type ContactReview = z.infer<typeof ContactReview>;
 
 export type Priority = "High" | "Medium" | "Low";
 
-export interface ScoredContact extends ContactReview {
+export interface ScoredContact extends Omit<ContactReview, "schools"> {
+  /** The schools on their profile; null for people scored before schools were read. */
+  schools: string[] | null;
+  /** True if a school is Penn or Wharton, so their email is in the alumni directory; null if schools is null. */
+  pennAlum: boolean | null;
+  /** A cold outreach email drafted for them, once the student asks for one. */
+  outreach?: OutreachDraft;
   kind: "contact";
   score: number;
   priority: Priority;
@@ -291,6 +317,7 @@ export function scoreContactReview(
     matchedCompany: match?.name ?? null,
     points,
     capped: total > 5,
+    pennAlum: review.schools.some(isPennSchool),
   };
 }
 
@@ -331,7 +358,9 @@ Don't judge the company: the student's company list is applied separately.
 For a person, use ONLY what is stated on their profile: never infer nationality, language, school or
 anything else from a name or photo. If their name isn't clearly stated, return null for it.
 For matchedSignals, include a bonus signal only if the profile clearly shows it; copy the signal exactly.
-Base the hook on something on their profile, linked to the student's background where it fits.`;
+Base the hook on something on their profile, linked to the student's background where it fits.
+Claim something in common (a school, an employer) only if their profile shows it; never assume they share the student's school.
+List their schools only from the education section you can see; leave the list empty if there is none.`;
 
 /** Scores a paste: a job posting or a person, whichever it is. Throws UnclearPasteError if it can't tell. */
 export async function reviewPaste(
