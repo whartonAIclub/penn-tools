@@ -21,6 +21,7 @@
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-pitch-coach": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
+    "@penntools/tool-recruiting-helper": "workspace:*",
     "@penntools/tool-resume-customizer": "workspace:*",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
