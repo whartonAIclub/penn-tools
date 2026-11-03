@@ -1,7 +1,8 @@
 "use client";
 
-// Step 1 rates each course offered this term from 1 to 5; step 2 shows the
-// resulting ranking. Ratings are saved in this browser only, keyed by course
+// Step 1 rates each course offered this term from 1 to 5; step 2 recommends
+// majors from those ratings (Recommendations.tsx); step 3 shows the
+// course ranking. Ratings are saved in this browser only, keyed by course
 // code, so they carry over to next term's list for courses offered again.
 
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +14,7 @@ import {
   type Rating,
   type Ratings,
 } from "@penntools/tool-choose-mba-major";
+import { MIN_RATINGS, Recommendations } from "./Recommendations";
 import styles from "./CourseRanker.module.css";
 
 const STORAGE_KEY = "choose-mba-major:ratings";
@@ -119,6 +121,14 @@ export function CourseRanker({
           </h2>
           <span className={styles.progressText}>
             {ratedCount} of {courses.length} rated
+            {ratedCount >= MIN_RATINGS && (
+              <>
+                {" · "}
+                <a className={styles.link} href="#recommendations">
+                  See your majors
+                </a>
+              </>
+            )}
           </span>
         </div>
         <div className={styles.progress} aria-hidden>
@@ -204,12 +214,15 @@ export function CourseRanker({
         )}
       </section>
 
-      {/* ── Step 2: ranking ────────────────────────────────────────────── */}
+      {/* ── Step 2: recommended majors ─────────────────────────────────── */}
+      <Recommendations catalog={catalog} ratings={ratings} ratedCount={ratedCount} ratingLabels={ratingLabels} />
+
+      {/* ── Step 3: ranking ────────────────────────────────────────────── */}
       {ranking.length > 0 && (
         <section className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>
-              <span className={styles.step}>2</span> Your ranking
+              <span className={styles.step}>3</span> Your course ranking
             </h2>
             <button
               type="button"

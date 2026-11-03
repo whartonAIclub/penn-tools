@@ -256,3 +256,145 @@
   color: #fff;
   font-size: 0.75rem;
 }
+
+/* ── Recommended majors ────────────────────────────────────────────────────── */
+
+.link {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.major,
+.pair {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.pair {
+  background: var(--sidebar-bg);
+}
+
+.majorHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.majorName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.majorRank {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.fit {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+  white-space: nowrap;
+}
+
+.planList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.planItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.planTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planMeta {
+  font-size: 0.8rem;
+  color: var(--section-label);
+  white-space: nowrap;
+}
+
+.unrated {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  border: 1px dashed var(--input-border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.gaps {
+  font-size: 0.85rem;
+  color: #8a4b00;
+}
+
+.gaps ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.notes {
+  margin: 6px 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.pairText {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.allMajors {
+  margin: 8px 0 0;
+  padding-left: 24px;
+  font-size: 0.85rem;
+}
+
+.allMajors li {
+  padding: 3px 0;
+}
+
+.allMajors li > * {
+  vertical-align: middle;
+}
+
+.allName {
+  display: inline-block;
+  width: 45%;
+  color: var(--text);
+}
+
+.allBar {
+  display: inline-block;
+  width: 35%;
+}
+
+.allScore {
+  display: inline-block;
+  width: 15%;
+  text-align: right;
+}
