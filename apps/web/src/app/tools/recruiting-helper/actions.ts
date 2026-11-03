@@ -1,69 +1,37 @@
 "use server";
 
-// Recruiting Helper's server actions: each gets the AI API for the signed-in
-// user, checks the browser's input, and calls tools/recruiting-helper/src/scoring.ts.
-// AIErrors are returned as data, since thrown errors lose their class here.
+// Recruiting Helper's server actions for the profile and the list. Scoring goes
+// through score/route.ts instead, since screenshots are over the 1 MB that
+// Next.js allows a server action.
 
-import { isAIError } from "@penntools/core/ai";
-import type { AIProvider } from "@penntools/core/ai";
-import {
-  checkProfile,
-  checkText,
-  reviewContact,
-  reviewPosting,
-  MAX_PASTE_LENGTH,
-  type RecruitingProfile,
-  type ScoredContact,
-  type ScoredPosting,
-} from "@penntools/tool-recruiting-helper";
-import { getAI } from "@/lib/ai";
+import { toolSql } from "@penntools/platform/db";
+import { checkProfile, removeItem, saveProfile, type RecruitingProfile } from "@penntools/tool-recruiting-helper";
+import { getCurrentUser } from "@/lib/auth";
 
-export interface ActionError {
-  /** The AIError kind, when the AI API failed. */
-  kind?: string;
-  message: string;
+export type ActionResult = { ok: true } | { ok: false; message: string };
+
+function db() {
+  const sql = toolSql("recruitinghelper");
+  if (!sql) throw new Error("Recruiting Helper's database is not configured (check DATABASE_URL).");
+  return sql;
 }
 
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: ActionError };
+const signedOut: ActionResult = { ok: false, message: "Sign in with the button at the top right first." };
 
-const signedOut: ActionResult<never> = {
-  ok: false,
-  error: { message: "Sign in with the button at the top right to score this." },
-};
-
-function invalid(message: string): ActionResult<never> {
-  return { ok: false, error: { message } };
+export async function saveMyProfile(profile: RecruitingProfile): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return signedOut;
+  const problem = checkProfile(profile);
+  if (problem) return { ok: false, message: problem };
+  await saveProfile(db(), user.id, profile);
+  return { ok: true };
 }
 
-async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
-  try {
-    return { ok: true, data: await fn() };
-  } catch (error) {
-    if (isAIError(error)) return { ok: false, error: error.toJSON() };
-    throw error;
+export async function removeMyItem(itemId: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return signedOut;
+  if (typeof itemId !== "string" || !(await removeItem(db(), user.id, itemId))) {
+    return { ok: false, message: "That item was already removed." };
   }
-}
-
-export async function scorePosting(
-  provider: AIProvider,
-  profile: RecruitingProfile,
-  posting: string,
-): Promise<ActionResult<ScoredPosting>> {
-  const ai = await getAI();
-  if (!ai) return signedOut;
-  const problem = checkProfile(profile) ?? checkText(posting, "a job posting", MAX_PASTE_LENGTH);
-  if (problem) return invalid(problem);
-  return run(() => reviewPosting(ai, provider, profile, posting));
-}
-
-export async function scoreContact(
-  provider: AIProvider,
-  profile: RecruitingProfile,
-  linkedInText: string,
-): Promise<ActionResult<ScoredContact>> {
-  const ai = await getAI();
-  if (!ai) return signedOut;
-  const problem = checkProfile(profile) ?? checkText(linkedInText, "a LinkedIn profile", MAX_PASTE_LENGTH);
-  if (problem) return invalid(problem);
-  return run(() => reviewContact(ai, provider, profile, linkedInText));
+  return { ok: true };
 }

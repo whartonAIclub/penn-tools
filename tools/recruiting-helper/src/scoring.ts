@@ -5,18 +5,28 @@
 //
 // The AI makes the judgment calls (how well a role fits, what's visible on a
 // profile); the points are added up here, in plain code, so every score can be
-// explained and tested. Functions take `ai` from the tool's server actions in
-// apps/web/src/app/tools/recruiting-helper/actions.ts.
+// explained and tested. Functions take `ai` from the tool's score route in
+// apps/web/src/app/tools/recruiting-helper/score/route.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { z } from "@penntools/core/ai";
-import type { AI, AIProvider } from "@penntools/core/ai";
+import { AI_IMAGE_TYPES, base64Bytes, base64FileType, isBase64, z } from "@penntools/core/ai";
+import type { AI, AIContentPart, AIImageType, AIProvider } from "@penntools/core/ai";
 
 export const MAX_PASTE_LENGTH = 20000;
 export const MAX_BACKGROUND_LENGTH = 6000;
 export const MAX_FIELD_LENGTH = 1000;
 export const MAX_COMPANIES = 100;
 export const MAX_SIGNALS = 10;
+export const MAX_LINK_LENGTH = 2000;
+
+/** Screenshots per paste: a LinkedIn profile usually takes two or three. */
+export const MAX_SCREENSHOTS = 4;
+export const MAX_SCREENSHOT_BYTES = 7 * 1024 * 1024;
+export const MAX_SCREENSHOTS_BYTES = 16 * 1024 * 1024;
+/** The largest score request: the screenshots as base64, the text, and room for the rest. */
+export const MAX_REQUEST_BYTES = Math.ceil(MAX_SCREENSHOTS_BYTES / 3) * 4 + MAX_PASTE_LENGTH * 4 + 64 * 1024;
+
+const MB = 1024 * 1024;
 
 // ── The student's profile ────────────────────────────────────────────────────
 
@@ -70,6 +80,69 @@ export function checkProfile(value: unknown): string | null {
   }
   if (p.bonusSignals.some((s) => typeof s !== "string" || s.length > 200)) return "Keep each bonus signal short.";
   return null;
+}
+
+// ── What the student pastes ──────────────────────────────────────────────────
+
+/** A screenshot, as base64 without a data: prefix (the AI API's inline image format). */
+export interface Screenshot {
+  mediaType: AIImageType;
+  data: string;
+}
+
+/** A pasted job posting or LinkedIn profile: text, screenshots, or both. */
+export interface Paste {
+  text: string;
+  screenshots: Screenshot[];
+}
+
+/** Why the paste can't be scored, or null if it's fine. `label` names it, e.g. "a job posting". */
+export function checkPaste(value: unknown, label: string): string | null {
+  if (typeof value !== "object" || value === null) return `Paste ${label}.`;
+  const { text, screenshots } = value as Partial<Paste>;
+  if (typeof text !== "string") return `Paste ${label}.`;
+  if (text.length > MAX_PASTE_LENGTH) return `Keep the text to at most ${MAX_PASTE_LENGTH.toLocaleString()} characters.`;
+  if (text.includes("\0")) return "The text has characters that can't be read. Copy it again.";
+  if (!Array.isArray(screenshots)) return "Screenshots must be a list.";
+  if (!text.trim() && screenshots.length === 0) return `Paste ${label}, as text or screenshots.`;
+  if (screenshots.length > MAX_SCREENSHOTS) return `Add at most ${MAX_SCREENSHOTS} screenshots.`;
+
+  let total = 0;
+  for (const shot of screenshots as unknown[]) {
+    const { mediaType, data } = (shot ?? {}) as Partial<Screenshot>;
+    if (!AI_IMAGE_TYPES.includes(mediaType as AIImageType) || typeof data !== "string" || !isBase64(data)) {
+      return "Screenshots must be JPEG, PNG, GIF or WebP images.";
+    }
+    // The browser's type comes from the file name, which can be wrong; check the bytes.
+    if (base64FileType(data) !== mediaType) return "One of the screenshots isn't really the image type it says it is.";
+    const bytes = base64Bytes(data);
+    if (bytes > MAX_SCREENSHOT_BYTES) return `Each screenshot must be under ${MAX_SCREENSHOT_BYTES / MB} MB.`;
+    total += bytes;
+  }
+  if (total > MAX_SCREENSHOTS_BYTES) return `Screenshots must total under ${MAX_SCREENSHOTS_BYTES / MB} MB.`;
+  return null;
+}
+
+/** The posting's link if it's a web address, null if there's none, or undefined if it's not usable. */
+export function cleanLink(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || (typeof value === "string" && !value.trim())) return null;
+  if (typeof value !== "string" || value.length > MAX_LINK_LENGTH) return undefined;
+  try {
+    const url = new URL(value.trim());
+    // Only web links: anything else (javascript:, data:) could run in the page when clicked.
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The AI message for one paste: the student's context, the pasted text, then the screenshots. */
+function pasteMessage(context: string, heading: string, paste: Paste): AIContentPart[] {
+  const text = paste.text.trim() ? paste.text : "(No text: see the screenshots.)";
+  return [
+    { type: "text", text: `${context}\n\n## ${heading}\n${text}` },
+    ...paste.screenshots.map(({ mediaType, data }): AIContentPart => ({ type: "image", mediaType, data })),
+  ];
 }
 
 // ── Company matching ─────────────────────────────────────────────────────────
@@ -137,6 +210,7 @@ export interface ScoredPosting extends PostingReview {
 }
 
 const POSTING_SYSTEM = `You help an MBA student decide which job postings to prioritize.
+The posting comes as copied text, screenshots, or both.
 Rate roleFit from 1 to 5 using ONLY the student's background and target roles:
 5: squarely one of the target roles, and the background covers almost every stated requirement
 4: strong match with one or two gaps a story or quick upskilling can address
@@ -167,20 +241,16 @@ export async function reviewPosting(
   ai: AI,
   provider: AIProvider,
   profile: RecruitingProfile,
-  posting: string,
+  posting: Paste,
 ): Promise<ScoredPosting> {
+  const context = `## Target roles\n${profile.targetRoles}\n\n## Background\n${profile.background}`;
   const { object } = await ai.generateObject({
     provider,
     tier: "standard",
     reasoning: "low",
     schema: PostingReview,
     system: POSTING_SYSTEM,
-    messages: [
-      {
-        role: "user",
-        content: `## Target roles\n${profile.targetRoles}\n\n## Background\n${profile.background}\n\n## Job posting\n${posting}`,
-      },
-    ],
+    messages: [{ role: "user", content: pasteMessage(context, "Job posting (text and/or screenshots)", posting) }],
   });
   return scorePostingReview(object, profile.companies);
 }
@@ -214,7 +284,7 @@ export interface ScoredContact extends ContactReview {
 }
 
 const CONTACT_SYSTEM = `You help an MBA student decide which people to network with.
-You get text copied from one LinkedIn profile. Use ONLY what is stated there:
+You get one LinkedIn profile, as copied text, screenshots, or both. Use ONLY what is stated there:
 never infer nationality, language, school or anything else from a name or photo.
 If the person's name isn't clearly stated, return null for it.
 For matchedSignals, include a bonus signal only if the profile text clearly shows it; copy the signal exactly.`;
@@ -262,21 +332,17 @@ export async function reviewContact(
   ai: AI,
   provider: AIProvider,
   profile: RecruitingProfile,
-  linkedInText: string,
+  linkedIn: Paste,
 ): Promise<ScoredContact> {
   const signals = profile.bonusSignals.length ? profile.bonusSignals.map((s) => `- ${s}`).join("\n") : "(none)";
+  const context = `## Target roles\n${profile.targetRoles}\n\n## Bonus signals\n${signals}\n\n## Student's background (for the hook)\n${profile.background}`;
   const { object } = await ai.generateObject({
     provider,
     tier: "standard",
     reasoning: "low",
     schema: ContactReview,
     system: CONTACT_SYSTEM,
-    messages: [
-      {
-        role: "user",
-        content: `## Target roles\n${profile.targetRoles}\n\n## Bonus signals\n${signals}\n\n## Student's background (for the hook)\n${profile.background}\n\n## LinkedIn profile text\n${linkedInText}`,
-      },
-    ],
+    messages: [{ role: "user", content: pasteMessage(context, "LinkedIn profile (text and/or screenshots)", linkedIn) }],
   });
   return scoreContactReview(object, profile.companies, profile.bonusSignals);
 }

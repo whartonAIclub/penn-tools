@@ -4,7 +4,9 @@
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest, AISchema } from "@penntools/core/ai";
 import {
+  checkPaste,
   checkProfile,
+  cleanLink,
   findCompany,
   reviewContact,
   reviewPosting,
@@ -153,21 +155,77 @@ describe("scoreContactReview", () => {
   });
 });
 
+// A 1×1 PNG, as base64.
+const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
+
+/** The text of the request's first message, from its first content part. */
+function firstText(request: GenerateObjectRequest<AISchema> | undefined): string {
+  const content = request?.messages[0]?.content;
+  if (typeof content === "string") return content;
+  const part = content?.[0];
+  return part?.type === "text" ? part.text : "";
+}
+
 describe("reviewPosting and reviewContact", () => {
   it("send the profile and paste, and score the reply", async () => {
     const { ai, requests } = fakeAI(posting);
-    const result = await reviewPosting(ai, "anthropic", SAMPLE_PROFILE, "Partner Manager at Google");
+    const result = await reviewPosting(ai, "anthropic", SAMPLE_PROFILE, { text: "Partner Manager at Google", screenshots: [] });
     expect(result.score).toBe(5);
     expect(requests[0]?.provider).toBe("anthropic");
-    expect(requests[0]?.messages[0]?.content).toContain("Partner Manager at Google");
-    expect(requests[0]?.messages[0]?.content).toContain(SAMPLE_PROFILE.targetRoles);
+    expect(firstText(requests[0])).toContain("Partner Manager at Google");
+    expect(firstText(requests[0])).toContain(SAMPLE_PROFILE.targetRoles);
+    expect(requests[0]?.messages[0]?.content).toHaveLength(1);
   });
 
-  it("lists the bonus signals for contacts", async () => {
+  it("send screenshots after the text, as images", async () => {
     const { ai, requests } = fakeAI(contact);
-    const result = await reviewContact(ai, "openai", SAMPLE_PROFILE, "Jordan Rivera, Google");
+    const result = await reviewContact(ai, "openai", SAMPLE_PROFILE, {
+      text: "",
+      screenshots: [{ mediaType: "image/png", data: PNG }],
+    });
     expect(result.kind).toBe("contact");
-    expect(requests[0]?.messages[0]?.content).toContain("- Speaks Spanish");
+    expect(firstText(requests[0])).toContain("- Speaks Spanish");
+    expect(firstText(requests[0])).toContain("(No text: see the screenshots.)");
+    expect(requests[0]?.messages[0]?.content).toEqual([
+      expect.objectContaining({ type: "text" }),
+      { type: "image", mediaType: "image/png", data: PNG },
+    ]);
+  });
+});
+
+describe("checkPaste", () => {
+  it.each([
+    ["text only", { text: "A posting", screenshots: [] }],
+    ["a screenshot only", { text: "", screenshots: [{ mediaType: "image/png", data: PNG }] }],
+  ])("accepts %s", (_label, paste) => {
+    expect(checkPaste(paste, "a job posting")).toBeNull();
+  });
+
+  it.each([
+    ["nothing", { text: "  ", screenshots: [] }],
+    ["no screenshots list", { text: "hi" }],
+    ["too many screenshots", { text: "", screenshots: Array(5).fill({ mediaType: "image/png", data: PNG }) }],
+    ["an unsupported type", { text: "", screenshots: [{ mediaType: "image/heic", data: PNG }] }],
+    ["a mislabelled image", { text: "", screenshots: [{ mediaType: "image/jpeg", data: PNG }] }],
+    ["data that isn't base64", { text: "", screenshots: [{ mediaType: "image/png", data: "not base64!" }] }],
+    ["text over the limit", { text: "x".repeat(20001), screenshots: [] }],
+  ])("rejects %s", (_label, paste) => {
+    expect(checkPaste(paste, "a job posting")).toEqual(expect.any(String));
+  });
+});
+
+describe("cleanLink", () => {
+  it("keeps web links", () => {
+    expect(cleanLink(" https://careers.google.com/jobs/1 ")).toBe("https://careers.google.com/jobs/1");
+  });
+
+  it("treats a missing link as none", () => {
+    expect(cleanLink(undefined)).toBeNull();
+    expect(cleanLink("  ")).toBeNull();
+  });
+
+  it.each(["javascript:alert(1)", "data:text/html,hi", "not a link", 5])("rejects %s", (link) => {
+    expect(cleanLink(link)).toBeUndefined();
   });
 });
 

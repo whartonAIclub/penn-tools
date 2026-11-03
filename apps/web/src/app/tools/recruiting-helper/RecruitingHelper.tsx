@@ -1,32 +1,27 @@
 "use client";
 
 // Recruiting Helper's page: the student's profile, a box to paste a job posting
-// or LinkedIn profile, and the ranked list of everything scored so far. The
-// profile and list live in this browser's localStorage, keyed by user, so
-// nobody's contacts are stored on the server.
+// or LinkedIn profile (text or screenshots), and the ranked list of everything
+// scored so far. The profile and list are saved to the user's account by
+// actions.ts and score/route.ts, so they're the same on every device.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
-import type {
-  CompanyTier,
-  RecruitingProfile,
-  ScoredContact,
-  ScoredPosting,
-} from "@penntools/tool-recruiting-helper";
-import { scoreContact, scorePosting, type ActionError, type ActionResult } from "./actions";
+import type { CompanyTier, RecruitingProfile, SavedItem, Screenshot } from "@penntools/tool-recruiting-helper";
+import { removeMyItem, saveMyProfile } from "./actions";
+import { ACCEPT, readScreenshot, screenshotSrc } from "./screenshots";
 import styles from "./RecruitingHelper.module.css";
 
-type SavedPosting = ScoredPosting & { id: string; addedAt: string; link: string | null };
-type SavedContact = ScoredContact & { id: string; addedAt: string };
-type SavedItem = SavedPosting | SavedContact;
-
-interface Stored {
-  profile: RecruitingProfile | null;
-  items: SavedItem[];
+interface ScoreError {
+  /** The AIError kind, when the AI API failed. */
+  kind?: string;
+  message: string;
 }
 
-type Status = { state: "idle" } | { state: "loading" } | { state: "error"; error: ActionError };
+type ScoreResponse = { ok: true; item: SavedItem; replaced: boolean } | { ok: false; error: ScoreError };
+
+type Status = { state: "idle" } | { state: "loading" } | { state: "error"; error: ScoreError };
 
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 const TIERS: CompanyTier[] = ["target", "secondary", "practice"];
@@ -36,55 +31,53 @@ const TIER_HELP: Record<CompanyTier, string> = {
   practice: "Practice: interview practice or backups (-1 on jobs)",
 };
 
-const storageKey = (userId: string) => `recruiting-helper:${userId}`;
+/**
+ * A profile an earlier version of this page saved in this browser, before
+ * profiles were saved to accounts; offered once in the editor, then forgotten.
+ */
+const oldStorageKey = (userId: string) => `recruiting-helper:${userId}`;
 
-function load(userId: string): Stored {
+function oldBrowserProfile(userId: string): RecruitingProfile | null {
   try {
-    const raw = localStorage.getItem(storageKey(userId));
-    if (raw) return JSON.parse(raw) as Stored;
+    const raw = localStorage.getItem(oldStorageKey(userId));
+    const profile = raw ? (JSON.parse(raw) as { profile?: RecruitingProfile }).profile : null;
+    return profile && typeof profile.background === "string" ? profile : null;
   } catch {
-    // Unreadable data: start fresh rather than break the page.
+    return null;
   }
-  return { profile: null, items: [] };
 }
 
-const normalName = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+/** Ranked as the server ranks them: best score first, most recent first within a score. */
+const byRank = (a: SavedItem, b: SavedItem) => b.score - a.score || b.addedAt.localeCompare(a.addedAt);
 
 export function RecruitingHelper({
   userId,
+  initialProfile,
+  initialItems,
   providers,
   labels,
   samples,
-  maxPasteLength,
+  limits,
 }: {
   userId: string;
+  initialProfile: RecruitingProfile | null;
+  initialItems: SavedItem[];
   /** Providers the user has saved keys for; never empty. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   samples: { profile: RecruitingProfile; posting: string; linkedIn: string };
-  maxPasteLength: number;
+  limits: { pasteLength: number; screenshots: number };
 }) {
-  const [stored, setStored] = useState<Stored | null>(null);
-  const [editingProfile, setEditingProfile] = useState(false);
+  const [profile, setProfile] = useState(initialProfile);
+  const [items, setItems] = useState(initialItems);
+  const [editingProfile, setEditingProfile] = useState(!initialProfile);
   const [provider, setProvider] = useState(providers[0]!);
+  const [browserProfile, setBrowserProfile] = useState<RecruitingProfile | null>(null);
 
-  // localStorage only exists in the browser, so read it after the first render.
+  // localStorage only exists in the browser, so look for an old profile after the first render.
   useEffect(() => {
-    const data = load(userId);
-    setStored(data);
-    setEditingProfile(!data.profile);
-  }, [userId]);
-
-  function save(next: Stored) {
-    setStored(next);
-    try {
-      localStorage.setItem(storageKey(userId), JSON.stringify(next));
-    } catch {
-      // Storage full or blocked: the list still works until the page is closed.
-    }
-  }
-
-  if (!stored) return null;
+    if (!initialProfile) setBrowserProfile(oldBrowserProfile(userId));
+  }, [userId, initialProfile]);
 
   return (
     <div className={styles.page}>
@@ -96,48 +89,47 @@ export function RecruitingHelper({
         </p>
       </header>
 
-      {editingProfile || !stored.profile ? (
+      {editingProfile || !profile ? (
         <ProfileEditor
-          initial={stored.profile}
+          key={browserProfile ? "from-browser" : "fresh"}
+          initial={profile ?? browserProfile}
+          fromBrowser={!profile && !!browserProfile}
           sample={samples.profile}
-          onSave={(profile) => {
-            save({ ...stored, profile });
+          onSaved={(saved) => {
+            setProfile(saved);
             setEditingProfile(false);
+            setBrowserProfile(null);
+            try {
+              localStorage.removeItem(oldStorageKey(userId)); // now in the account
+            } catch {
+              // Storage blocked: nothing to forget.
+            }
           }}
-          onCancel={stored.profile ? () => setEditingProfile(false) : null}
+          onCancel={profile ? () => setEditingProfile(false) : null}
         />
       ) : (
-        <ProfileSummary profile={stored.profile} onEdit={() => setEditingProfile(true)} />
+        <ProfileSummary profile={profile} onEdit={() => setEditingProfile(true)} />
       )}
 
-      {stored.profile && (
+      {profile && (
         <>
           <AddCard
-            profile={stored.profile}
             provider={provider}
             providers={providers}
             labels={labels}
             onProvider={setProvider}
             samples={samples}
-            maxLength={maxPasteLength}
-            items={stored.items}
-            onScored={(item) => {
-              // A repeat of the same person or posting link replaces the old entry.
-              const items = stored.items.filter((old) => !isSame(old, item));
-              save({ ...stored, items: [item, ...items] });
-            }}
+            limits={limits}
+            onScored={(item) =>
+              // A repeat of the same person or posting link comes back with the old entry's id.
+              setItems((old) => [item, ...old.filter((i) => i.id !== item.id)].sort(byRank))
+            }
           />
-          <RankedList items={stored.items} onRemove={(id) => save({ ...stored, items: stored.items.filter((i) => i.id !== id) })} />
+          <RankedList items={items} onRemoved={(id) => setItems((old) => old.filter((i) => i.id !== id))} />
         </>
       )}
     </div>
   );
-}
-
-function isSame(a: SavedItem, b: SavedItem): boolean {
-  if (a.kind === "contact" && b.kind === "contact") return !!a.name && !!b.name && normalName(a.name) === normalName(b.name);
-  if (a.kind === "posting" && b.kind === "posting") return !!a.link && a.link === b.link;
-  return false;
 }
 
 // ── Profile ──────────────────────────────────────────────────────────────────
@@ -150,15 +142,20 @@ const toLines = (s: string) =>
 
 function ProfileEditor({
   initial,
+  fromBrowser,
   sample,
-  onSave,
+  onSaved,
   onCancel,
 }: {
   initial: RecruitingProfile | null;
+  /** True when `initial` is an old profile from this browser, not yet in the account. */
+  fromBrowser: boolean;
   sample: RecruitingProfile;
-  onSave: (profile: RecruitingProfile) => void;
+  onSaved: (profile: RecruitingProfile) => void;
   onCancel: (() => void) | null;
 }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const companiesIn = (p: RecruitingProfile | null, tier: CompanyTier) =>
     (p?.companies ?? [])
       .filter((c) => c.tier === tier)
@@ -179,6 +176,26 @@ function ProfileEditor({
   const companies = TIERS.flatMap((tier) => toLines(form[tier]).map((name) => ({ name, tier })));
   const ready = form.background.trim() && form.targetRoles.trim() && companies.length > 0;
 
+  async function save() {
+    const profile: RecruitingProfile = {
+      background: form.background.trim(),
+      targetRoles: form.targetRoles.trim(),
+      companies,
+      bonusSignals: toLines(form.signals).slice(0, 10),
+    };
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await saveMyProfile(profile);
+      if (result.ok) onSaved(profile);
+      else setError(result.message);
+    } catch {
+      setError("Couldn't save your profile. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section className={styles.card}>
       <div className={styles.cardHeader}>
@@ -188,9 +205,14 @@ function ProfileEditor({
         </button>
       </div>
       <p className={styles.help}>
-        Saved only in this browser. Scores use only what you write here, so include what you&apos;d want an
-        interviewer to know.
+        Saved to your account, so it&apos;s the same on every device you sign in on. Scores use only what you write
+        here, so include what you&apos;d want an interviewer to know.
       </p>
+      {fromBrowser && (
+        <p className={styles.notice}>
+          We found a profile you saved in this browser earlier. Check it, then save it to your account.
+        </p>
+      )}
 
       <label className={styles.label}>
         Your background
@@ -237,19 +259,8 @@ function ProfileEditor({
       </label>
 
       <div className={styles.actions}>
-        <button
-          className={styles.button}
-          disabled={!ready}
-          onClick={() =>
-            onSave({
-              background: form.background.trim(),
-              targetRoles: form.targetRoles.trim(),
-              companies,
-              bonusSignals: toLines(form.signals).slice(0, 10),
-            })
-          }
-        >
-          Save profile
+        <button className={styles.button} disabled={!ready || saving} onClick={() => void save()}>
+          {saving ? "Saving…" : "Save profile"}
         </button>
         {onCancel && (
           <button className={styles.textButton} onClick={onCancel}>
@@ -257,6 +268,7 @@ function ProfileEditor({
           </button>
         )}
       </div>
+      {error && <p className={styles.error}>{error}</p>}
     </section>
   );
 }
@@ -295,63 +307,103 @@ function ProfileSummary({ profile, onEdit }: { profile: RecruitingProfile; onEdi
 type Kind = "posting" | "contact";
 
 function AddCard({
-  profile,
   provider,
   providers,
   labels,
   onProvider,
   samples,
-  maxLength,
-  items,
+  limits,
   onScored,
 }: {
-  profile: RecruitingProfile;
   provider: AIProvider;
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   onProvider: (p: AIProvider) => void;
   samples: { posting: string; linkedIn: string };
-  maxLength: number;
-  items: SavedItem[];
+  limits: { pasteLength: number; screenshots: number };
   onScored: (item: SavedItem) => void;
 }) {
   const [kind, setKind] = useState<Kind>("posting");
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
+  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+  const [reading, setReading] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [status, setStatus] = useState<Status>({ state: "idle" });
   const [latest, setLatest] = useState<{ item: SavedItem; replaced: boolean } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  /** Reads image files into screenshots, up to the limit; shows the first problem. */
+  async function addFiles(files: File[]) {
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return;
+    const room = limits.screenshots - screenshots.length;
+    if (room <= 0) {
+      setStatus({ state: "error", error: { message: `You can add at most ${limits.screenshots} screenshots.` } });
+      return;
+    }
+    setReading(true);
+    try {
+      const read = await Promise.all(images.slice(0, room).map(readScreenshot));
+      setScreenshots((old) => [...old, ...read].slice(0, limits.screenshots));
+      setStatus(
+        images.length > room
+          ? { state: "error", error: { message: `Only the first ${room} were added: at most ${limits.screenshots} screenshots.` } }
+          : { state: "idle" },
+      );
+    } catch (error) {
+      setStatus({ state: "error", error: { message: error instanceof Error ? error.message : "Couldn't read that image." } });
+    } finally {
+      setReading(false);
+    }
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const files = Array.from(e.clipboardData.files);
+    if (files.some((f) => f.type.startsWith("image/"))) {
+      e.preventDefault(); // keep the image out of the text box
+      void addFiles(files);
+    }
+  }
 
   async function score() {
     setStatus({ state: "loading" });
     try {
-      const result: ActionResult<ScoredPosting | ScoredContact> =
-        kind === "posting" ? await scorePosting(provider, profile, text) : await scoreContact(provider, profile, text);
-      if (!result.ok) return setStatus({ state: "error", error: result.error });
-      const base = { id: crypto.randomUUID(), addedAt: new Date().toISOString() };
-      const item: SavedItem =
-        result.data.kind === "posting"
-          ? { ...result.data, ...base, link: link.trim() || null }
-          : { ...result.data, ...base };
-      if (item.kind === "contact" && !item.name) {
-        setStatus({
-          state: "error",
-          error: { message: "I couldn't find the person's name in that text. Copy the whole profile, including the name at the top." },
-        });
+      const res = await fetch("/tools/recruiting-helper/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, provider, text, screenshots, ...(kind === "posting" && { link }) }),
+      });
+      if (res.status === 401) {
+        setStatus({ state: "error", error: { message: "Sign in with the button at the top right first." } });
         return;
       }
-      const replaced = items.some((old) => isSame(old, item));
-      onScored(item);
-      setLatest({ item, replaced });
+      let result: ScoreResponse;
+      try {
+        result = (await res.json()) as ScoreResponse;
+      } catch {
+        setStatus({ state: "error", error: { message: `Scoring failed (HTTP ${res.status}). Try again.` } });
+        return;
+      }
+      if (!result.ok) {
+        setStatus({ state: "error", error: result.error });
+        return;
+      }
+      onScored(result.item);
+      setLatest({ item: result.item, replaced: result.replaced });
       setText("");
       setLink("");
+      setScreenshots([]);
       setStatus({ state: "idle" });
     } catch {
-      setStatus({ state: "error", error: { message: "Something went wrong. Try again." } });
+      setStatus({ state: "error", error: { message: "Couldn't reach PennTools. Check your connection and try again." } });
     }
   }
 
+  const busy = status.state === "loading" || reading;
+
   return (
-    <section className={styles.card}>
+    <section className={styles.card} onPaste={onPaste}>
       <div className={styles.cardHeader}>
         <h2 className={styles.cardTitle}>Score something</h2>
         <div className={styles.toggle} role="tablist">
@@ -370,20 +422,68 @@ function AddCard({
       </div>
       <p className={styles.help}>
         {kind === "posting"
-          ? "Copy the whole posting from the company's careers page and paste it here."
-          : "On their LinkedIn profile, select all the text (⌘A / Ctrl+A), copy, and paste it here."}{" "}
+          ? "Paste the posting's text, or screenshots of it (⌘V / Ctrl+V)."
+          : "Paste screenshots of their LinkedIn profile (⌘V / Ctrl+V), or select all the text on it, copy and paste."}{" "}
         <button className={styles.textButton} onClick={() => setText(kind === "posting" ? samples.posting : samples.linkedIn)}>
           Try an example
         </button>
       </p>
-      <textarea
-        aria-label={kind === "posting" ? "Job posting" : "LinkedIn profile text"}
-        className={styles.textarea}
-        rows={8}
-        value={text}
-        maxLength={maxLength}
-        onChange={(e) => setText(e.target.value)}
-      />
+      <div
+        className={dragging ? `${styles.dropZone} ${styles.dropping}` : styles.dropZone}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          if (e.dataTransfer.files.length === 0) return;
+          e.preventDefault();
+          setDragging(false);
+          void addFiles(Array.from(e.dataTransfer.files));
+        }}
+      >
+        <textarea
+          aria-label={kind === "posting" ? "Job posting" : "LinkedIn profile text"}
+          className={styles.textarea}
+          rows={screenshots.length ? 4 : 8}
+          value={text}
+          maxLength={limits.pasteLength}
+          placeholder={kind === "posting" ? "Paste the posting here" : "Paste screenshots or profile text here"}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <div className={styles.shots}>
+          {screenshots.map((shot, i) => (
+            <figure key={i} className={styles.shot}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- a local data: URL, nothing for next/image to optimize */}
+              <img src={screenshotSrc(shot)} alt={`Screenshot ${i + 1}`} />
+              <button
+                className={styles.shotRemove}
+                aria-label={`Remove screenshot ${i + 1}`}
+                onClick={() => setScreenshots((old) => old.filter((_, j) => j !== i))}
+              >
+                ×
+              </button>
+            </figure>
+          ))}
+          {screenshots.length < limits.screenshots && (
+            <button className={styles.addShot} onClick={() => fileInput.current?.click()} disabled={reading}>
+              {reading ? "Reading…" : "+ Add screenshots"}
+            </button>
+          )}
+          <input
+            ref={fileInput}
+            type="file"
+            accept={ACCEPT}
+            multiple
+            hidden
+            onChange={(e) => {
+              void addFiles(Array.from(e.target.files ?? []));
+              e.target.value = ""; // so picking the same file again still fires
+            }}
+          />
+        </div>
+      </div>
       {kind === "posting" && (
         <input
           aria-label="Link to the posting"
@@ -394,7 +494,7 @@ function AddCard({
         />
       )}
       <div className={styles.actions}>
-        <button className={styles.button} onClick={() => void score()} disabled={status.state === "loading" || !text.trim()}>
+        <button className={styles.button} onClick={() => void score()} disabled={busy || (!text.trim() && screenshots.length === 0)}>
           {status.state === "loading" ? "Scoring…" : "Score it"}
         </button>
         {providers.length > 1 ? (
@@ -442,17 +542,24 @@ function AddCard({
 
 type Filter = "all" | Kind;
 
-function RankedList({ items, onRemove }: { items: SavedItem[]; onRemove: (id: string) => void }) {
+function RankedList({ items, onRemoved }: { items: SavedItem[]; onRemoved: (id: string) => void }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
-  const ranked = useMemo(
-    () =>
-      items
-        .filter((i) => filter === "all" || i.kind === filter)
-        .sort((a, b) => b.score - a.score || b.addedAt.localeCompare(a.addedAt)),
-    [items, filter],
-  );
+  const ranked = useMemo(() => items.filter((i) => filter === "all" || i.kind === filter).sort(byRank), [items, filter]);
+
+  async function remove(id: string) {
+    setRemoveError(null);
+    try {
+      const result = await removeMyItem(id);
+      // Already gone (say, removed on another device) is fine: take it off this list too.
+      if (result.ok || result.message === "That item was already removed.") onRemoved(id);
+      else setRemoveError(result.message);
+    } catch {
+      setRemoveError("Couldn't remove it. Check your connection and try again.");
+    }
+  }
 
   return (
     <section className={styles.card}>
@@ -493,9 +600,10 @@ function RankedList({ items, onRemove }: { items: SavedItem[]; onRemove: (id: st
               {open === item.id && (
                 <div className={styles.listDetails}>
                   <ItemDetails item={item} />
-                  <button className={styles.textButton} onClick={() => onRemove(item.id)}>
+                  <button className={styles.textButton} onClick={() => void remove(item.id)}>
                     Remove from list
                   </button>
+                  {removeError && <p className={styles.error}>{removeError}</p>}
                 </div>
               )}
             </li>
