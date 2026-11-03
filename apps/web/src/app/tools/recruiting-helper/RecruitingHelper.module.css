@@ -78,7 +78,8 @@
 
 .tiers {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* minmax(0, …) lets columns shrink below the text boxes' default width, so they stay inside the card. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
