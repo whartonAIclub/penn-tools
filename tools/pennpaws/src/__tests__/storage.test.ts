@@ -307,7 +307,7 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     expect(await getMember(sql, priya.id)).toBeNull();
     const pals: Profile = { role: "pals", location: { area: "Fishtown", lat: 39.972, lng: -75.135 }, petName: null, bio: null };
     await saveMember(sql, priya, "upenn.edu", pals);
-    expect(await getMember(sql, priya.id)).toEqual({ userId: priya.id, school: "upenn.edu", role: "pals", profile: pals });
+    expect(await getMember(sql, priya.id)).toEqual({ userId: priya.id, name: priya.name, school: "upenn.edu", role: "pals", profile: pals });
 
     const changed: Profile = { ...pals, petName: "Biscuit" };
     await saveMember(sql, priya, "upenn.edu", changed);

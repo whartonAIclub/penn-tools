@@ -631,6 +631,11 @@
 }
 
 /* Sitters have four tabs. */
+.tabs2 {
+  composes: tabs;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .tabs4 {
   composes: tabs;
   grid-template-columns: repeat(4, minmax(0, 1fr));

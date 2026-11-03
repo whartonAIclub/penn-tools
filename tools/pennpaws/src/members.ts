@@ -8,6 +8,8 @@ import { PennPawsError, type Person } from "./requests.js";
 
 export interface Member {
   userId: string;
+  /** What they asked to be called at setup. */
+  name: string;
   school: string;
   role: MemberRole;
   profile: Profile;
@@ -15,13 +17,19 @@ export interface Member {
 
 /** The member, or null if they haven't finished setup (or their saved answers no longer pass the survey). */
 export async function getMember(sql: Sql, userId: string): Promise<Member | null> {
-  const [row] = await sql<{ user_id: string; school: string; profile: unknown }[]>`
-    SELECT user_id, school, profile FROM members WHERE user_id = ${userId}
+  const [row] = await sql<{ user_id: string; name: string; school: string; profile: unknown }[]>`
+    SELECT user_id, name, school, profile FROM members WHERE user_id = ${userId}
   `;
   if (!row) return null;
   const checked = checkProfile(row.profile);
   if (!checked.ok) return null;
-  return { userId: row.user_id, school: row.school, role: checked.value.role, profile: checked.value };
+  return { userId: row.user_id, name: row.name, school: row.school, role: checked.value.role, profile: checked.value };
+}
+
+/** The name a member chose at setup, or null before setup. */
+export async function memberName(sql: Sql, userId: string): Promise<string | null> {
+  const [row] = await sql<{ name: string }[]>`SELECT name FROM members WHERE user_id = ${userId}`;
+  return row?.name ?? null;
 }
 
 /** Saves the member's setup, replacing any earlier answers. */

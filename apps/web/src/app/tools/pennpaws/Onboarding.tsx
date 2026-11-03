@@ -64,6 +64,7 @@ import { Choices, Continue, TextField } from "./Survey";
 import styles from "./PennPaws.module.css";
 
 interface Form {
+  name: string;
   role: MemberRole | null;
   area: string;
   lat: number | null;
@@ -106,6 +107,7 @@ interface Form {
 }
 
 const EMPTY: Form = {
+  name: "",
   role: null,
   area: "",
   lat: null,
@@ -117,22 +119,22 @@ const EMPTY: Form = {
   age: null,
   energy: null,
   withPeople: null,
-  withAnimals: null,
+  withAnimals: "unknown",
   alone: null,
   specialCare: [],
   specialCareOther: "",
   bites: null,
   bitesDetails: "",
-  sitterGenderPref: null,
+  sitterGenderPref: "none",
   sitterLanguages: [],
-  languages: [],
+  languages: ["english"],
   services: [],
   petKinds: [],
   sizes: [],
-  energies: [],
+  energies: ["low", "medium", "high"],
   anxiousOk: null,
   experience: [],
-  travel: null,
+  travel: "1",
   availability: [],
   gender: null,
   showGender: false,
@@ -168,12 +170,12 @@ type Step =
 const TITLES: Record<Step, string> = {
   role: "how you'll use PennPaws",
   pet: "your pet",
-  personality: "personality",
+  personality: "personality and care",
   care: "care and safety",
   preference: "your sitter",
-  services: "what you offer",
+  services: "what you can do",
   comfort: "pets you're comfortable with",
-  experience: "experience and schedule",
+  experience: "you and your schedule",
   about: "about you",
   home: "your home",
   pals: "about you",
@@ -181,13 +183,26 @@ const TITLES: Record<Step, string> = {
   review: "review",
 };
 
+/**
+ * Questions shown together on one screen in first-time setup, so it's a few
+ * taps on a few screens. My profile still edits each part on its own.
+ */
+const SCREENS: Partial<Record<Step, readonly Step[]>> = {
+  personality: ["personality", "care"],
+  services: ["services", "comfort"],
+  experience: ["experience", "about"],
+};
+
 /** The steps for the role chosen so far. Boarding adds a step about the sitter's home. */
 function stepsFor(f: Form, editing = false): Step[] {
+  // Sitter preferences start as "no preference" and can be set on each request, so first-time setup skips them.
   const survey: Step[] =
     f.role === "owner"
-      ? ["pet", "personality", "care", "preference"]
+      ? editing
+        ? ["pet", "personality", "care", "preference"]
+        : ["pet", "personality"]
       : f.role === "sitter"
-        ? ["services", "comfort", "experience", "about", ...(f.services.includes("boarding") ? (["home"] as const) : [])]
+        ? [...(editing ? (["services", "comfort", "experience", "about"] as const) : (["services", "experience"] as const)), ...(f.services.includes("boarding") ? (["home"] as const) : [])]
         : f.role === "pals"
           ? ["pals"]
           : [];
@@ -313,6 +328,7 @@ function problem(step: Step, f: Form, school: string | null): string | null {
   const all = "Answer each question to continue.";
   switch (step) {
     case "role":
+      if (!f.name.trim()) return "Tell us what to call you.";
       return f.role ? null : "Choose one to continue.";
     case "pet":
       if (!f.petName.trim()) return "Add your pet's name.";
@@ -358,6 +374,7 @@ function problem(step: Step, f: Form, school: string | null): string | null {
 /** The review card's lines for the chosen role, each with the step that asks it (null when it can't be edited). */
 function summary(f: Form, school: string): [string, string, Step | null][] {
   const lines: [string, string, Step | null][] = [
+    ["Name", f.name.trim(), "role"],
     ["Role", labelOf(ROLES, f.role ?? ""), "role"],
     ["School", school, null],
   ];
@@ -408,13 +425,14 @@ function schoolBadge(school: string): string {
 }
 
 export function Onboarding({
-  userFirstName,
+  name,
   email,
   school,
   initial,
   onDone,
 }: {
-  userFirstName: string;
+  /** What to call them: their saved choice, else their Google name (empty for the local test account). */
+  name: string;
   email: string | null;
   /** The verified school, or null when the sign-in email isn't a school one. */
   school: string | null;
@@ -424,7 +442,7 @@ export function Onboarding({
   onDone?: () => void;
 }) {
   const router = useRouter();
-  const [f, setF] = useState<Form>(() => fromProfile(initial));
+  const [f, setF] = useState<Form>(() => ({ ...fromProfile(initial), name }));
   // My profile opens on the saved answers; first-time setup starts at the role.
   const [step, setStep] = useState<Step>(initial && onDone ? "review" : "role");
   // Set when editing one answer from the review: Continue goes back there.
@@ -439,6 +457,9 @@ export function Onboarding({
   const steps = stepsFor(f, !!onDone);
   const index = Math.max(0, steps.indexOf(step));
   const questionCount = steps.filter((s) => s !== "review").length;
+  const onScreen: readonly Step[] = !onDone && !editingOne ? (SCREENS[step] ?? [step]) : [step];
+  const shows = (s: Step) => onScreen.includes(s);
+  const endsScreen = (s: Step) => onScreen[onScreen.length - 1] === s;
 
   const set = (patch: Partial<Form>) => {
     setF((prev) => ({ ...prev, ...patch }));
@@ -469,7 +490,7 @@ export function Onboarding({
     goTo(next);
   };
   const goOn = () => {
-    const wrong = problem(step, f, school);
+    const wrong = onScreen.map((s) => problem(s, f, school)).find((p) => p !== null) ?? null;
     if (wrong) {
       setError(wrong);
       return;
@@ -549,7 +570,7 @@ export function Onboarding({
     }
     setBusy(true);
     setError(null);
-    const result = await saveProfile(checked.value);
+    const result = await saveProfile(checked.value, f.name);
     setBusy(false);
     if (!result.ok) {
       setError(result.error);
@@ -595,9 +616,21 @@ export function Onboarding({
       )}
 
       {step === "role" && (
-        <Ask title={`Welcome, ${userFirstName}. How will you use PennPaws?`} lead="You can change this any time from your profile.">
-          {/* Pet Pals (following friends' pets, meetups) isn't built yet, so only members who already chose it see it. */}
-          <Choices rows options={f.role === "pals" ? ROLES : ROLES.filter((r) => r.value !== "pals")} selected={f.role} onPick={(role) => answer({ role })} />
+        <Ask title={f.name.trim() ? `Welcome, ${f.name.trim().split(/\s+/)[0]}` : "Welcome to PennPaws"} lead="About a minute of taps. You can change anything later in My profile.">
+          <TextField id="pp-name" label="What should we call you?" value={f.name} placeholder="Your first name" maxLength={LIMITS.name} onChange={(value) => set({ name: value })} />
+          <Question label="How will you use PennPaws?">
+            {/* Pet Pals (following friends' pets, meetups) isn't built yet, so only members who already chose it see it. */}
+            <Choices
+              rows
+              options={f.role === "pals" ? ROLES : ROLES.filter((r) => r.value !== "pals")}
+              selected={f.role}
+              onPick={(role) => {
+                if (f.name.trim()) return answer({ role });
+                set({ role });
+                setError("Tell us what to call you first.");
+              }}
+            />
+          </Question>
         </Ask>
       )}
 
@@ -605,7 +638,7 @@ export function Onboarding({
         <Ask title="Tell us about your pet" lead="Sitters see this when you post a request, so they know who they're meeting.">
           <TextField id="pp-pet-name" label="Name" value={f.petName} placeholder="Mochi" maxLength={LIMITS.name} onChange={(petName) => set({ petName })} />
           <Question label="Kind of pet">
-            <Choices columns options={PET_KINDS} selected={f.petKind} onPick={(petKind) => set({ petKind })} />
+            <Choices columns options={PET_KINDS} selected={f.petKind} onPick={(petKind) => set({ petKind, size: f.size ?? (petKind === "cat" ? "small" : null) })} />
           </Question>
           {needsKindText(f.petKind) && (
             <TextField
@@ -626,7 +659,7 @@ export function Onboarding({
         </Ask>
       )}
 
-      {step === "personality" && (
+      {shows("personality") && (
         <Ask title={`What is ${petWord} like?`} lead="This helps us find a sitter who suits their personality.">
           <Question label="Energy">
             <Choices options={ENERGY} selected={f.energy} onPick={(energy) => set({ energy })} />
@@ -640,12 +673,12 @@ export function Onboarding({
           <Question label="When left alone">
             <Choices options={ALONE} selected={f.alone} onPick={(alone) => set({ alone })} />
           </Question>
-          <Continue onClick={goOn} />
+          {endsScreen("personality") && <Continue onClick={goOn} />}
         </Ask>
       )}
 
-      {step === "care" && (
-        <Ask title="Care and safety" lead="Honest answers keep your pet and your sitter safe.">
+      {shows("care") && (
+        <Ask title="Care and safety" lead="Honest answers keep your pet and your sitter safe. Only sitters who offer see these.">
           <Question label="Special care (optional)">
             <MultiChoice options={SPECIAL_CARE} selected={f.specialCare} onToggle={(care) => set({ specialCare: toggle(f.specialCare, care) })} />
           </Question>
@@ -665,7 +698,7 @@ export function Onboarding({
               onChange={(bitesDetails) => set({ bitesDetails })}
             />
           )}
-          <Continue onClick={goOn} />
+          {endsScreen("care") && <Continue onClick={goOn} />}
         </Ask>
       )}
 
@@ -681,7 +714,7 @@ export function Onboarding({
         </Ask>
       )}
 
-      {step === "services" && (
+      {shows("services") && (
         <Ask title="What can you offer?" lead="Pick everything you'd be happy to do.">
           <Question label="Services">
             <MultiChoice rows options={SERVICES} selected={f.services} onToggle={(service) => set({ services: toggle(f.services, service) })} />
@@ -689,11 +722,11 @@ export function Onboarding({
           <Question label="Pets">
             <MultiChoice options={SITTER_PET_KINDS} selected={f.petKinds} onToggle={(kind) => set({ petKinds: toggle(f.petKinds, kind) })} />
           </Question>
-          <Continue onClick={goOn} />
+          {endsScreen("services") && <Continue onClick={goOn} />}
         </Ask>
       )}
 
-      {step === "comfort" && (
+      {shows("comfort") && (
         <Ask title="Which pets are you comfortable with?" lead="We only suggest you for pets that fit.">
           <Question label="Sizes" info={SIZE_GUIDE}>
             <MultiChoice options={PET_SIZES} selected={f.sizes} onToggle={(size) => set({ sizes: toggle(f.sizes, size) })} />
@@ -704,11 +737,11 @@ export function Onboarding({
           <Question label="Anxious or reactive pets?">
             <Choices options={YES_NO} selected={yesNo(f.anxiousOk)} onPick={(value) => set({ anxiousOk: value === "yes" })} />
           </Question>
-          <Continue onClick={goOn} />
+          {endsScreen("comfort") && <Continue onClick={goOn} />}
         </Ask>
       )}
 
-      {step === "experience" && (
+      {shows("experience") && (
         <Ask title="Your experience and schedule">
           <Question label="Experience (optional)">
             <MultiChoice options={EXPERIENCE} selected={f.experience} onToggle={(item) => set({ experience: toggle(f.experience, item) })} />
@@ -719,11 +752,11 @@ export function Onboarding({
           <Question label="When are you usually free?">
             <MultiChoice options={AVAILABILITY} selected={f.availability} onToggle={(time) => set({ availability: toggle(f.availability, time) })} />
           </Question>
-          <Continue onClick={goOn} />
+          {endsScreen("experience") && <Continue onClick={goOn} />}
         </Ask>
       )}
 
-      {step === "about" && (
+      {shows("about") && (
         <Ask title="About you" lead="Owners read this before they invite you.">
           <Question label="Gender">
             <Choices options={GENDERS} selected={f.gender} onPick={(gender) => set({ gender, showGender: gender === "prefer_not" ? false : f.showGender })} />
@@ -749,7 +782,7 @@ export function Onboarding({
             onChange={(e) => set({ bio: e.target.value })}
             placeholder="Second-year at Wharton, grew up with two labs, and I miss having a dog around."
           />
-          <Continue onClick={goOn} />
+          {endsScreen("about") && <Continue onClick={goOn} />}
         </Ask>
       )}
 

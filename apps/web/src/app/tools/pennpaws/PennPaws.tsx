@@ -22,8 +22,8 @@ import styles from "./PennPaws.module.css";
 type ListTab = "find" | "mine" | "alerts" | "tasks" | "done" | "earnings";
 type View = { tab: ListTab | "post" | "profile" | "team" } | { tab: "request"; id: string; back: ListTab };
 
+// Only sitters browse open requests; owners post and follow their own.
 const OWNER_TABS = [
-  ["find", "Browse", "Find a request"],
   ["post", "Post", "Post a request"],
   ["mine", "Mine", "My requests"],
 ] as const;
@@ -80,7 +80,7 @@ export function PennPaws({
   const router = useRouter();
   const isSitter = member.role === "sitter";
   // Owners start with their own requests (or posting one); sitters and Pet Pals start browsing.
-  const home: View = { tab: member.role === "owner" ? (mine.length > 0 ? "mine" : "post") : "find" };
+  const home: View = { tab: member.role === "sitter" ? "find" : mine.length > 0 ? "mine" : "post" };
   const [view, setView] = useState<View>(home);
   const [kind, setKind] = useState<"all" | "dog" | "cat">("all");
   const unread = notifications.filter((n) => !n.read).length;
@@ -138,7 +138,7 @@ export function PennPaws({
         </div>
       </header>
 
-      <nav className={isSitter ? styles.tabs4 : styles.tabs} aria-label="PennPaws">
+      <nav className={isSitter ? styles.tabs4 : styles.tabs2} aria-label="PennPaws">
         {(isSitter ? SITTER_TABS : OWNER_TABS).map(([tab, short, full]) => (
           <button
             key={tab}
@@ -159,8 +159,8 @@ export function PennPaws({
             Your account is paused while the PennPaws team looks into a report. You can look around, but you can&apos;t post, offer or message for now.
           </p>
         )}
-        {view.tab === "team" && isTeam && <TeamView onOpenRequest={(id) => openRequest(id, "find")} />}
-        {view.tab === "find" && (
+        {view.tab === "team" && isTeam && <TeamView onOpenRequest={(id) => openRequest(id, isSitter ? "find" : "mine")} />}
+        {view.tab === "find" && isSitter && (
           <section className={styles.section}>
             <p className={styles.lead}>Hi {userFirstName}. These Penn students need a hand with their pets.</p>
             <div className={styles.filters} role="group" aria-label="Filter by pet">
@@ -228,8 +228,8 @@ export function PennPaws({
             {mine.length === 0 ? (
               <Empty
                 title="Nothing here yet"
-                body="Requests you post and offers you make show up here."
-                action={{ label: "Find a request", onClick: () => setView({ tab: "find" }) }}
+                body="Requests you post show up here, with every offer you get."
+                action={{ label: "Post a request", onClick: () => setView({ tab: "post" }) }}
               />
             ) : (
               <ul className={styles.list}>
@@ -286,7 +286,7 @@ export function PennPaws({
         )}
 
         {view.tab === "profile" && (
-          <Onboarding userFirstName={userFirstName} email={email} school={member.school} initial={member.profile} onDone={() => setView(home)} />
+          <Onboarding name={member.name} email={email} school={member.school} initial={member.profile} onDone={() => setView(home)} />
         )}
       </main>
     </div>

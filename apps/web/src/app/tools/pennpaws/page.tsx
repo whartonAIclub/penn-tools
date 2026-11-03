@@ -46,15 +46,18 @@ export default async function PennPawsPage() {
   const sql = toolSql("pennpaws");
   if (!sql) throw new Error("PennPaws's database is not configured (check DATABASE_URL).");
 
-  const userFirstName = firstName(user.name ?? "");
   const school = verifySchool(user.email, ALLOW_LOCAL_TEST_ACCOUNT);
   const member = await getMember(sql, user.id);
+  // Members are called what they chose at setup; before that, their Google first name (the local test account's "Local Developer" isn't a name).
+  const googleName = user.email === "dev@localhost" ? "" : (user.name ?? "");
+  const shownName = member?.name ?? googleName;
+  const userFirstName = shownName.trim() ? firstName(shownName) : "there";
   // The local test user under `pnpm dev` gets a Test menu to play the other side and start over.
   const testMenu = ALLOW_LOCAL_TEST_ACCOUNT && !isPennEmail(user.email) ? <TestMenu /> : null;
   if (!member || !school) {
     return (
       <>
-        <Onboarding userFirstName={userFirstName} email={user.email} school={school} initial={member?.profile ?? null} />
+        <Onboarding name={member?.name ?? googleName} email={user.email} school={school} initial={member?.profile ?? null} />
         {testMenu}
       </>
     );
@@ -62,7 +65,8 @@ export default async function PennPawsPage() {
 
   const isSitter = member.role === "sitter";
   const [open, mine, notifications, providers, jobs, reviews, paused] = await Promise.all([
-    listOpenRequests(sql, user.id),
+    // Only sitters browse open requests, so nobody else is even sent them.
+    isSitter ? listOpenRequests(sql, user.id) : [],
     listMyRequests(sql, user.id),
     listNotifications(sql, user.id),
     getAI().then((ai) => ai?.providers() ?? []),

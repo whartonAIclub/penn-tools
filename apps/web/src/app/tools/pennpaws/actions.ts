@@ -26,6 +26,7 @@ import {
   checkReview,
   clearPayment,
   firstName,
+  memberName,
   withdrawOffer,
   addressFrom,
   checkHandoff,
@@ -90,9 +91,12 @@ function db() {
   return sql;
 }
 
+/** The signed-in user, named as they asked at setup (else their Google name). */
 async function signedIn(): Promise<Person | null> {
   const user = await getCurrentUser();
-  return user ? { id: user.id, name: user.name ?? "A Penn student", email: user.email } : null;
+  if (!user) return null;
+  const chosen = await memberName(db(), user.id);
+  return { id: user.id, name: chosen ?? user.name ?? "A Penn student", email: user.email };
 }
 
 const signedOut = { ok: false, error: "Sign in with your Penn account first." } as const;
@@ -120,15 +124,18 @@ async function userAI(): Promise<{ ai: AI; provider: AIProvider } | null> {
 // ── First-time setup ──────────────────────────────────────────────────────────
 
 /** Saves the role and survey answers. Only members signed in with a Penn email (the pilot school) may join. */
-export async function saveProfile(input: unknown): Promise<ActionResult> {
+export async function saveProfile(input: unknown, name: unknown): Promise<ActionResult> {
   const user = await signedIn();
   if (!user) return signedOut;
   const school = verifySchool(user.email, ALLOW_LOCAL_TEST_ACCOUNT);
   if (!school) return { ok: false, error: "PennPaws is open to Penn for now. Log out, then sign in with your Penn account." };
   const checked = checkProfile(input);
   if (!checked.ok) return { ok: false, error: checked.error };
+  const chosen = typeof name === "string" ? name.trim().replace(/\s+/g, " ") : "";
+  if (!chosen) return { ok: false, error: "Tell us what to call you." };
+  if (chosen.length > LIMITS.name) return { ok: false, error: `Keep your name under ${LIMITS.name} characters.` };
   return run(async () => {
-    await saveMember(db(), user, school, checked.value);
+    await saveMember(db(), { ...user, name: chosen }, school, checked.value);
     return null;
   });
 }
@@ -269,12 +276,13 @@ export async function offer(requestId: string, message: string): Promise<ActionR
   if (!user) return signedOut;
   return run(async () => {
     const sql = db();
+    const sitter = await getMember(sql, user.id);
+    if (sitter?.role !== "sitter") throw new PennPawsError("Only sitters can offer. Switch to sitter in My profile first.");
     await offerHelp(sql, user, String(requestId), String(message ?? ""));
     // Keep the match score, so the team can see whether sitters act on good matches.
-    const member = await getMember(sql, user.id);
-    if (member?.profile.role === "sitter") {
+    if (sitter.profile.role === "sitter") {
       const request = (await listOpenRequests(sql, user.id)).find((r) => r.id === String(requestId));
-      const [match] = request ? await matchRequests(sql, member.profile, [request]) : [];
+      const [match] = request ? await matchRequests(sql, sitter.profile, [request]) : [];
       if (match) await recordMatchScore(sql, match.requestId, user.id, match.score);
     }
     return null;
@@ -312,7 +320,13 @@ export async function loadRequest(requestId: string): Promise<RequestPage | null
   if (!user) return null;
   const sql = db();
   const [view, threads] = await Promise.all([getRequestView(sql, user.id, String(requestId)), listThreads(sql, user.id, String(requestId))]);
-  return view ? { ...view, threads } : null;
+  if (!view) return null;
+  // Other people's requests are for sitters (and the team, to check reports); owners only open their own and ones they're part of.
+  if (!view.mine && view.role === null && !isTeamEmail(user.email, ALLOW_LOCAL_TEST_ACCOUNT)) {
+    const member = await getMember(sql, user.id);
+    if (member?.role !== "sitter") return null;
+  }
+  return { ...view, threads };
 }
 
 /** Sends a message: a sitter in their own thread, the owner in the thread they reply to. */
