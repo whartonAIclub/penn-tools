@@ -8,8 +8,9 @@ import {
   checkProfile,
   cleanLink,
   findCompany,
-  reviewContact,
-  reviewPosting,
+  reviewPaste,
+  scorePasteReview,
+  UnclearPasteError,
   scoreContactReview,
   scorePostingReview,
   type ContactReview,
@@ -166,10 +167,14 @@ function firstText(request: GenerateObjectRequest<AISchema> | undefined): string
   return part?.type === "text" ? part.text : "";
 }
 
-describe("reviewPosting and reviewContact", () => {
-  it("send the profile and paste, and score the reply", async () => {
-    const { ai, requests } = fakeAI(posting);
-    const result = await reviewPosting(ai, "anthropic", SAMPLE_PROFILE, { text: "Partner Manager at Google", screenshots: [] });
+const asPosting = { kind: "posting", posting, contact: null, unclearReason: null } as const;
+const asContact = { kind: "contact", posting: null, contact, unclearReason: null } as const;
+
+describe("reviewPaste", () => {
+  it("sends the profile and paste, and scores a posting", async () => {
+    const { ai, requests } = fakeAI(asPosting);
+    const result = await reviewPaste(ai, "anthropic", SAMPLE_PROFILE, { text: "Partner Manager at Google", screenshots: [] });
+    expect(result.kind).toBe("posting");
     expect(result.score).toBe(5);
     expect(requests[0]?.provider).toBe("anthropic");
     expect(firstText(requests[0])).toContain("Partner Manager at Google");
@@ -177,9 +182,9 @@ describe("reviewPosting and reviewContact", () => {
     expect(requests[0]?.messages[0]?.content).toHaveLength(1);
   });
 
-  it("send screenshots after the text, as images", async () => {
-    const { ai, requests } = fakeAI(contact);
-    const result = await reviewContact(ai, "openai", SAMPLE_PROFILE, {
+  it("sends screenshots after the text, as images, and scores a person", async () => {
+    const { ai, requests } = fakeAI(asContact);
+    const result = await reviewPaste(ai, "openai", SAMPLE_PROFILE, {
       text: "",
       screenshots: [{ mediaType: "image/png", data: PNG }],
     });
@@ -190,6 +195,17 @@ describe("reviewPosting and reviewContact", () => {
       expect.objectContaining({ type: "text" }),
       { type: "image", mediaType: "image/png", data: PNG },
     ]);
+  });
+});
+
+describe("scorePasteReview", () => {
+  it("asks instead of guessing when the model can't tell", () => {
+    const unclear = { kind: "unclear", posting: null, contact: null, unclearReason: "That's a news article." } as const;
+    expect(() => scorePasteReview(unclear, SAMPLE_PROFILE)).toThrow(new UnclearPasteError("That's a news article."));
+  });
+
+  it("treats a kind without its review as unclear", () => {
+    expect(() => scorePasteReview({ ...asPosting, posting: null }, SAMPLE_PROFILE)).toThrow(UnclearPasteError);
   });
 });
 

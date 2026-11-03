@@ -19,7 +19,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@penntools/core": "workspace:*"
+    "@penntools/core": "workspace:*",
+    "mammoth": "^1.8.0"
   },
   "devDependencies": {
     "postgres": "^3.4.5",

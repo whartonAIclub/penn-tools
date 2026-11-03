@@ -6,12 +6,14 @@ export {
   cleanLink,
   findCompany,
   normalizeCompany,
-  reviewPosting,
-  reviewContact,
+  reviewPaste,
+  scorePasteReview,
   scorePostingReview,
   scoreContactReview,
+  PasteReview,
   PostingReview,
   ContactReview,
+  UnclearPasteError,
   TIER_LABELS,
   MAX_PASTE_LENGTH,
   MAX_BACKGROUND_LENGTH,
@@ -36,4 +38,13 @@ export type {
 } from "./scoring.js";
 export { getProfile, saveProfile, listItems, saveItem, removeItem, matchKey, MAX_ITEMS } from "./storage.js";
 export type { SavedItem, SavedPosting, SavedContact, NewItem } from "./storage.js";
+export {
+  checkResume,
+  readDocx,
+  readPdfResume,
+  MAX_RESUME_BYTES,
+  MAX_RESUME_PAGES,
+  MAX_RESUME_REQUEST_BYTES,
+} from "./resume.js";
+export type { ResumeFile, ResumeType } from "./resume.js";
 export { SAMPLE_PROFILE, SAMPLE_POSTING, SAMPLE_LINKEDIN } from "./samples.js";

@@ -76,6 +76,27 @@
   font-weight: 600;
 }
 
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.uploadButton {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--penn-blue);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.uploadButton:hover:not(:disabled) { background: #f5f7ff; }
+.uploadButton:disabled { opacity: 0.6; cursor: wait; }
+
 .tiers {
   display: grid;
   /* minmax(0, …) lets columns shrink below the text boxes' default width, so they stay inside the card. */

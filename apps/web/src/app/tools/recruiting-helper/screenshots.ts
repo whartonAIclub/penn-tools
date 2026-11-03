@@ -10,7 +10,7 @@ import type { Screenshot } from "@penntools/tool-recruiting-helper";
 export const ACCEPT = "image/*";
 
 /** The blob's bytes as base64, without the data: prefix. */
-function toBase64(blob: Blob): Promise<string> {
+export function toBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).slice(String(reader.result).indexOf(",") + 1));

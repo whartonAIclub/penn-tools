@@ -10,7 +10,7 @@ import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { CompanyTier, RecruitingProfile, SavedItem, Screenshot } from "@penntools/tool-recruiting-helper";
 import { removeMyItem, saveMyProfile } from "./actions";
-import { ACCEPT, readScreenshot, screenshotSrc } from "./screenshots";
+import { ACCEPT, readScreenshot, screenshotSrc, toBase64 } from "./screenshots";
 import styles from "./RecruitingHelper.module.css";
 
 interface ScoreError {
@@ -66,7 +66,7 @@ export function RecruitingHelper({
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   samples: { profile: RecruitingProfile; posting: string; linkedIn: string };
-  limits: { pasteLength: number; screenshots: number };
+  limits: { pasteLength: number; screenshots: number; resumeBytes: number };
 }) {
   const [profile, setProfile] = useState(initialProfile);
   const [items, setItems] = useState(initialItems);
@@ -95,6 +95,8 @@ export function RecruitingHelper({
           initial={profile ?? browserProfile}
           fromBrowser={!profile && !!browserProfile}
           sample={samples.profile}
+          provider={provider}
+          maxResumeBytes={limits.resumeBytes}
           onSaved={(saved) => {
             setProfile(saved);
             setEditingProfile(false);
@@ -140,10 +142,18 @@ const toLines = (s: string) =>
     .map((line) => line.trim())
     .filter(Boolean);
 
+type Upload =
+  | { state: "idle" }
+  | { state: "reading" }
+  | { state: "done"; name: string }
+  | { state: "error"; error: ScoreError };
+
 function ProfileEditor({
   initial,
   fromBrowser,
   sample,
+  provider,
+  maxResumeBytes,
   onSaved,
   onCancel,
 }: {
@@ -151,11 +161,46 @@ function ProfileEditor({
   /** True when `initial` is an old profile from this browser, not yet in the account. */
   fromBrowser: boolean;
   sample: RecruitingProfile;
+  /** The AI provider that reads PDF résumés. */
+  provider: AIProvider;
+  maxResumeBytes: number;
   onSaved: (profile: RecruitingProfile) => void;
   onCancel: (() => void) | null;
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upload, setUpload] = useState<Upload>({ state: "idle" });
+  const resumeInput = useRef<HTMLInputElement>(null);
+
+  /** Reads the résumé on the server (resume/route.ts) and puts its text in the background box. */
+  async function uploadResume(file: File) {
+    if (file.size > maxResumeBytes) {
+      setUpload({ state: "error", error: { message: `${file.name} is over ${maxResumeBytes / 1024 / 1024} MB.` } });
+      return;
+    }
+    setUpload({ state: "reading" });
+    try {
+      const res = await fetch("/tools/recruiting-helper/resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, name: file.name, data: await toBase64(file) }),
+      });
+      const result = (await res.json().catch(() => null)) as
+        | { ok: true; text: string }
+        | { ok: false; error: ScoreError }
+        | null;
+      if (!result) {
+        setUpload({ state: "error", error: { message: `Couldn't read ${file.name} (HTTP ${res.status}). Try again.` } });
+      } else if (!result.ok) {
+        setUpload({ state: "error", error: result.error });
+      } else {
+        setForm((old) => ({ ...old, background: result.text }));
+        setUpload({ state: "done", name: file.name });
+      }
+    } catch {
+      setUpload({ state: "error", error: { message: "Couldn't reach PennTools. Check your connection and try again." } });
+    }
+  }
   const companiesIn = (p: RecruitingProfile | null, tier: CompanyTier) =>
     (p?.companies ?? [])
       .filter((c) => c.tier === tier)
@@ -214,11 +259,52 @@ function ProfileEditor({
         </p>
       )}
 
-      <label className={styles.label}>
-        Your background
-        <span className={styles.hint}>Paste your résumé or a summary: roles, results, skills, schools, languages.</span>
-        <textarea className={styles.textarea} rows={7} value={form.background} onChange={set("background")} />
-      </label>
+      <div className={styles.label}>
+        <div className={styles.labelRow}>
+          <label htmlFor="rh-background">Your background</label>
+          <button className={styles.uploadButton} onClick={() => resumeInput.current?.click()} disabled={upload.state === "reading"}>
+            {upload.state === "reading" ? "Reading your résumé…" : "Upload résumé (PDF or Word)"}
+          </button>
+          <input
+            ref={resumeInput}
+            type="file"
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = ""; // so picking the same file again still fires
+              if (file) void uploadResume(file);
+            }}
+          />
+        </div>
+        <span className={styles.hint}>
+          Upload your résumé, or paste or type a summary: roles, results, skills, schools, languages. Add anything
+          your résumé leaves out.
+        </span>
+        <textarea
+          id="rh-background"
+          className={styles.textarea}
+          rows={form.background ? 14 : 7}
+          value={form.background}
+          onChange={set("background")}
+        />
+        {upload.state === "done" && (
+          <p className={styles.notice}>Filled in from {upload.name}. Check it, add anything missing, then save.</p>
+        )}
+        {upload.state === "error" && (
+          <p className={styles.error}>
+            {upload.error.message}
+            {upload.error.kind && KEY_PROBLEMS.has(upload.error.kind) && (
+              <>
+                {" "}
+                <Link href="/settings" className={styles.link}>
+                  Open Settings
+                </Link>
+              </>
+            )}
+          </p>
+        )}
+      </div>
 
       <label className={styles.label}>
         Roles you&apos;re targeting
@@ -304,7 +390,6 @@ function ProfileSummary({ profile, onEdit }: { profile: RecruitingProfile; onEdi
 
 // ── Paste and score ──────────────────────────────────────────────────────────
 
-type Kind = "posting" | "contact";
 
 function AddCard({
   provider,
@@ -323,7 +408,6 @@ function AddCard({
   limits: { pasteLength: number; screenshots: number };
   onScored: (item: SavedItem) => void;
 }) {
-  const [kind, setKind] = useState<Kind>("posting");
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
@@ -372,7 +456,7 @@ function AddCard({
       const res = await fetch("/tools/recruiting-helper/score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, provider, text, screenshots, ...(kind === "posting" && { link }) }),
+        body: JSON.stringify({ provider, text, screenshots, link }),
       });
       if (res.status === 401) {
         setStatus({ state: "error", error: { message: "Sign in with the button at the top right first." } });
@@ -404,28 +488,16 @@ function AddCard({
 
   return (
     <section className={styles.card} onPaste={onPaste}>
-      <div className={styles.cardHeader}>
-        <h2 className={styles.cardTitle}>Score something</h2>
-        <div className={styles.toggle} role="tablist">
-          {(["posting", "contact"] as const).map((k) => (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={kind === k}
-              className={kind === k ? styles.toggleOn : styles.toggleOff}
-              onClick={() => setKind(k)}
-            >
-              {k === "posting" ? "Job posting" : "LinkedIn profile"}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h2 className={styles.cardTitle}>Score a job or a person</h2>
       <p className={styles.help}>
-        {kind === "posting"
-          ? "Paste the posting's text, or screenshots of it (⌘V / Ctrl+V)."
-          : "Paste screenshots of their LinkedIn profile (⌘V / Ctrl+V), or select all the text on it, copy and paste."}{" "}
-        <button className={styles.textButton} onClick={() => setText(kind === "posting" ? samples.posting : samples.linkedIn)}>
-          Try an example
+        Paste a job posting or someone&apos;s LinkedIn profile, as text or screenshots (⌘V / Ctrl+V). It figures out
+        which it is. Try an example:{" "}
+        <button className={styles.textButton} onClick={() => setText(samples.posting)}>
+          job posting
+        </button>{" "}
+        or{" "}
+        <button className={styles.textButton} onClick={() => setText(samples.linkedIn)}>
+          LinkedIn profile
         </button>
       </p>
       <div
@@ -444,12 +516,12 @@ function AddCard({
         }}
       >
         <textarea
-          aria-label={kind === "posting" ? "Job posting" : "LinkedIn profile text"}
+          aria-label="Job posting or LinkedIn profile"
           className={styles.textarea}
           rows={screenshots.length ? 4 : 8}
           value={text}
           maxLength={limits.pasteLength}
-          placeholder={kind === "posting" ? "Paste the posting here" : "Paste screenshots or profile text here"}
+          placeholder="Paste a job posting or LinkedIn profile here: text, or screenshots with ⌘V"
           onChange={(e) => setText(e.target.value)}
         />
         <div className={styles.shots}>
@@ -484,15 +556,13 @@ function AddCard({
           />
         </div>
       </div>
-      {kind === "posting" && (
-        <input
-          aria-label="Link to the posting"
-          className={styles.input}
-          value={link}
-          placeholder="Link to the posting (optional)"
-          onChange={(e) => setLink(e.target.value)}
-        />
-      )}
+      <input
+        aria-label="Link to the job posting"
+        className={styles.input}
+        value={link}
+        placeholder="Link to the job posting (optional; skip it for people)"
+        onChange={(e) => setLink(e.target.value)}
+      />
       <div className={styles.actions}>
         <button className={styles.button} onClick={() => void score()} disabled={busy || (!text.trim() && screenshots.length === 0)}>
           {status.state === "loading" ? "Scoring…" : "Score it"}
@@ -540,7 +610,7 @@ function AddCard({
 
 // ── Ranked list ──────────────────────────────────────────────────────────────
 
-type Filter = "all" | Kind;
+type Filter = "all" | SavedItem["kind"];
 
 function RankedList({ items, onRemoved }: { items: SavedItem[]; onRemoved: (id: string) => void }) {
   const [filter, setFilter] = useState<Filter>("all");

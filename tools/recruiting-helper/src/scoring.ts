@@ -13,7 +13,8 @@ import { AI_IMAGE_TYPES, base64Bytes, base64FileType, isBase64, z } from "@pennt
 import type { AI, AIContentPart, AIImageType, AIProvider } from "@penntools/core/ai";
 
 export const MAX_PASTE_LENGTH = 20000;
-export const MAX_BACKGROUND_LENGTH = 6000;
+/** Room for a full two-page résumé. */
+export const MAX_BACKGROUND_LENGTH = 12000;
 export const MAX_FIELD_LENGTH = 1000;
 export const MAX_COMPANIES = 100;
 export const MAX_SIGNALS = 10;
@@ -209,17 +210,6 @@ export interface ScoredPosting extends PostingReview {
   adjustment: string;
 }
 
-const POSTING_SYSTEM = `You help an MBA student decide which job postings to prioritize.
-The posting comes as copied text, screenshots, or both.
-Rate roleFit from 1 to 5 using ONLY the student's background and target roles:
-5: squarely one of the target roles, and the background covers almost every stated requirement
-4: strong match with one or two gaps a story or quick upskilling can address
-3: adjacent to the target roles, or several real gaps
-2: major gaps (a required degree, technical skills, or years of experience the background lacks)
-1: not a real match
-Never claim experience the background doesn't state; if something isn't there, it's a gap.
-Don't judge the company: the student's company list is applied separately.`;
-
 /** Score: roleFit from the AI, then +1 Target, +0 Secondary, -1 Practice or off-list, kept 1-5. */
 export function scorePostingReview(review: PostingReview, companies: TargetCompany[]): ScoredPosting {
   const match = findCompany(review.company, companies);
@@ -235,24 +225,6 @@ export function scorePostingReview(review: PostingReview, companies: TargetCompa
     matchedCompany: match?.name ?? null,
     adjustment: `${points >= 0 ? "+" : ""}${points} ${tier === "off-list" ? "not on your list" : TIER_LABELS[tier]}`,
   };
-}
-
-export async function reviewPosting(
-  ai: AI,
-  provider: AIProvider,
-  profile: RecruitingProfile,
-  posting: Paste,
-): Promise<ScoredPosting> {
-  const context = `## Target roles\n${profile.targetRoles}\n\n## Background\n${profile.background}`;
-  const { object } = await ai.generateObject({
-    provider,
-    tier: "standard",
-    reasoning: "low",
-    schema: PostingReview,
-    system: POSTING_SYSTEM,
-    messages: [{ role: "user", content: pasteMessage(context, "Job posting (text and/or screenshots)", posting) }],
-  });
-  return scorePostingReview(object, profile.companies);
 }
 
 // ── LinkedIn profiles ────────────────────────────────────────────────────────
@@ -282,12 +254,6 @@ export interface ScoredContact extends ContactReview {
   /** True when the points added up to more than 5. */
   capped: boolean;
 }
-
-const CONTACT_SYSTEM = `You help an MBA student decide which people to network with.
-You get one LinkedIn profile, as copied text, screenshots, or both. Use ONLY what is stated there:
-never infer nationality, language, school or anything else from a name or photo.
-If the person's name isn't clearly stated, return null for it.
-For matchedSignals, include a bonus signal only if the profile text clearly shows it; copy the signal exactly.`;
 
 /** Score: 1, +2 Target or +1 Secondary company, +1 relevant role, +1 per bonus signal, capped at 5. */
 export function scoreContactReview(
@@ -328,21 +294,73 @@ export function scoreContactReview(
   };
 }
 
-export async function reviewContact(
+// ── Any paste: a job posting or a person ─────────────────────────────────────
+
+/**
+ * One review of whatever was pasted: the model says which kind it is and fills
+ * that kind's review, leaving the other null. "unclear" when it can't tell
+ * (both, neither, or unreadable), so the student is asked instead of guessed for.
+ */
+export const PasteReview = z.object({
+  kind: z.enum(["posting", "contact", "unclear"]),
+  posting: PostingReview.nullable().describe("Filled when kind is posting, else null"),
+  contact: ContactReview.nullable().describe("Filled when kind is contact, else null"),
+  unclearReason: z.string().nullable().describe("When kind is unclear, one short sentence saying why, else null"),
+});
+export type PasteReview = z.infer<typeof PasteReview>;
+
+/** Thrown when the paste isn't clearly one job posting or one person's profile. */
+export class UnclearPasteError extends Error {}
+
+const PASTE_SYSTEM = `You help an MBA student decide which job postings and people to prioritize.
+You get one paste, as copied text, screenshots, or both. First decide what it is:
+- "posting": a job posting or job description
+- "contact": one person's profile (usually LinkedIn)
+- "unclear": neither, several different things at once, or unreadable
+Fill only the review for that kind.
+
+For a posting, rate roleFit from 1 to 5 using ONLY the student's background and target roles:
+5: squarely one of the target roles, and the background covers almost every stated requirement
+4: strong match with one or two gaps a story or quick upskilling can address
+3: adjacent to the target roles, or several real gaps
+2: major gaps (a required degree, technical skills, or years of experience the background lacks)
+1: not a real match
+Never claim experience the background doesn't state; if something isn't there, it's a gap.
+Don't judge the company: the student's company list is applied separately.
+
+For a person, use ONLY what is stated on their profile: never infer nationality, language, school or
+anything else from a name or photo. If their name isn't clearly stated, return null for it.
+For matchedSignals, include a bonus signal only if the profile clearly shows it; copy the signal exactly.
+Base the hook on something on their profile, linked to the student's background where it fits.`;
+
+/** Scores a paste: a job posting or a person, whichever it is. Throws UnclearPasteError if it can't tell. */
+export async function reviewPaste(
   ai: AI,
   provider: AIProvider,
   profile: RecruitingProfile,
-  linkedIn: Paste,
-): Promise<ScoredContact> {
+  paste: Paste,
+): Promise<ScoredPosting | ScoredContact> {
   const signals = profile.bonusSignals.length ? profile.bonusSignals.map((s) => `- ${s}`).join("\n") : "(none)";
-  const context = `## Target roles\n${profile.targetRoles}\n\n## Bonus signals\n${signals}\n\n## Student's background (for the hook)\n${profile.background}`;
+  const context = `## Target roles\n${profile.targetRoles}\n\n## Bonus signals (for people)\n${signals}\n\n## Student's background\n${profile.background}`;
   const { object } = await ai.generateObject({
     provider,
     tier: "standard",
     reasoning: "low",
-    schema: ContactReview,
-    system: CONTACT_SYSTEM,
-    messages: [{ role: "user", content: pasteMessage(context, "LinkedIn profile (text and/or screenshots)", linkedIn) }],
+    schema: PasteReview,
+    system: PASTE_SYSTEM,
+    messages: [{ role: "user", content: pasteMessage(context, "The paste (text and/or screenshots)", paste) }],
   });
-  return scoreContactReview(object, profile.companies, profile.bonusSignals);
+  return scorePasteReview(object, profile);
+}
+
+/** The score for the paste's kind; throws UnclearPasteError when the model couldn't tell. */
+export function scorePasteReview(review: PasteReview, profile: RecruitingProfile): ScoredPosting | ScoredContact {
+  if (review.kind === "posting" && review.posting) return scorePostingReview(review.posting, profile.companies);
+  if (review.kind === "contact" && review.contact) {
+    return scoreContactReview(review.contact, profile.companies, profile.bonusSignals);
+  }
+  throw new UnclearPasteError(
+    review.unclearReason ??
+      "I couldn't tell whether that's a job posting or a person's profile. Paste just one of them and try again.",
+  );
 }
