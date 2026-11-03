@@ -26,8 +26,10 @@ export interface Trip {
   id: string;
   name: string;
   type: TripType;
-  /** Where it goes, e.g. "Tokyo & Kyoto, Japan". */
-  destination: string;
+  /** Where it goes, e.g. "Japan" or "Italy & France". */
+  country: string;
+  /** The places it visits, e.g. ["Tokyo", "Kyoto"]. */
+  cities: string[];
   region: Region;
   /** ISO dates (YYYY-MM-DD), first and last day of the trip. */
   startDate: string;
@@ -45,10 +47,23 @@ export interface Trip {
   applicationDeadline: string | null;
   /** Sign-up or info page, or null. */
   link: string | null;
+  /** The card's image, or null to show a blank placeholder. */
+  photo: TripPhoto | null;
+}
+
+/** A trip's image and the credit its license asks for. */
+export interface TripPhoto {
+  url: string;
+  author: string;
+  license: string;
+  /** Null for licenses with no page to link to. */
+  licenseUrl: string | null;
+  /** The page the photo came from. */
+  source: string;
 }
 
 export interface TripFilters {
-  /** Matches name, destination, organizer and description, ignoring case. */
+  /** Matches name, country, cities, organizer and description, ignoring case. */
   query?: string;
   type?: TripType | null;
   region?: Region | null;
@@ -65,7 +80,7 @@ export function filterTrips(trips: readonly Trip[], filters: TripFilters = {}): 
     .filter(
       (trip) =>
         !query ||
-        [trip.name, trip.destination, trip.organizer, trip.description].some((field) =>
+        [trip.name, trip.country, ...trip.cities, trip.organizer, trip.description].some((field) =>
           field.toLowerCase().includes(query),
         ),
     )
@@ -102,4 +117,14 @@ export function formatDateRange(startIso: string, endIso: string): string {
   if (start.month !== end.month) return `${start.month} ${start.day} – ${end.month} ${end.day}, ${end.year}`;
   if (start.day !== end.day) return `${start.month} ${start.day} – ${end.day}, ${end.year}`;
   return formatDate(startIso);
+}
+
+function utcDay(iso: string): number {
+  const [year, month, day] = iso.split("-").map(Number);
+  return Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1);
+}
+
+/** How many days a trip runs, counting both the first and the last day. */
+export function tripDays(startIso: string, endIso: string): number {
+  return Math.round((utcDay(endIso) - utcDay(startIso)) / 86_400_000) + 1;
 }

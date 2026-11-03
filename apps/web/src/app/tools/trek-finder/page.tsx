@@ -4,6 +4,7 @@
 
 import type { Metadata } from "next";
 import { SAMPLE_TRIPS } from "@penntools/tool-trek-finder";
+import { SAMPLE_PHOTOS } from "./samplePhotos";
 import { TripCatalog } from "./TripCatalog";
 
 export const metadata: Metadata = {
@@ -11,5 +12,6 @@ export const metadata: Metadata = {
 };
 
 export default function TrekFinderPage() {
-  return <TripCatalog trips={SAMPLE_TRIPS} sample />;
+  const trips = SAMPLE_TRIPS.map((trip) => ({ ...trip, photo: SAMPLE_PHOTOS[trip.id] ?? null }));
+  return <TripCatalog trips={trips} sample />;
 }

@@ -11,6 +11,7 @@ import {
   formatDate,
   formatDateRange,
   listPeriods,
+  tripDays,
   type Region,
   type Trip,
   type TripType,
@@ -105,55 +106,65 @@ export function TripCatalog({ trips, sample = false }: { trips: Trip[]; sample?:
 function TripCard({ trip }: { trip: Trip }) {
   const [open, setOpen] = useState(false);
   const detailsId = `trip-${trip.id}-details`;
+  const days = tripDays(trip.startDate, trip.endDate);
 
   return (
     <li className={styles.card}>
-      <div className={styles.badges}>
-        <span className={styles.badge}>{trip.type}</span>
-        {trip.credit && <span className={`${styles.badge} ${styles.credit}`}>Course credit</span>}
+      <div className={styles.photo}>
+        {trip.photo && <img src={trip.photo.url} alt="" loading="lazy" />}
+        {trip.credit && <span className={styles.credit}>Course credit</span>}
       </div>
-      <h2 className={styles.cardTitle}>{trip.name}</h2>
-      <p className={styles.destination}>{trip.destination}</p>
 
-      <dl className={styles.facts}>
-        <div>
-          <dt>Dates</dt>
-          <dd>{formatDateRange(trip.startDate, trip.endDate)}</dd>
-        </div>
-        <div>
-          <dt>Period</dt>
-          <dd>{trip.period}</dd>
-        </div>
-        <div>
-          <dt>Cost</dt>
-          <dd>{trip.costUsd === null ? "TBA" : `~${usd.format(trip.costUsd)}`}</dd>
-        </div>
-      </dl>
+      <div className={styles.body}>
+        <h2 className={styles.cardTitle}>{trip.name}</h2>
+        <p className={styles.country}>{trip.country}</p>
+        <p className={styles.dates}>
+          {formatDateRange(trip.startDate, trip.endDate)} ({days} {days === 1 ? "day" : "days"})
+        </p>
+        <p className={styles.period}>{trip.period}</p>
+        <p className={styles.cost}>{trip.costUsd === null ? "TBA" : usd.format(trip.costUsd)}</p>
 
-      {open && (
-        <div id={detailsId} className={styles.details}>
-          <p>{trip.description}</p>
-          <dl className={styles.facts}>
-            <div>
-              <dt>Organizer</dt>
-              <dd>{trip.organizer}</dd>
-            </div>
-            <div>
-              <dt>Apply by</dt>
-              <dd>{trip.applicationDeadline ? formatDate(trip.applicationDeadline) : "No deadline"}</dd>
-            </div>
-          </dl>
-          {trip.link && (
-            <a className={styles.link} href={trip.link} target="_blank" rel="noreferrer">
-              More info ↗
-            </a>
-          )}
-        </div>
-      )}
+        <button className={styles.toggle} aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
+          {open ? "Hide details" : "More details"}
+        </button>
 
-      <button className={styles.toggle} aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
-        {open ? "Hide details" : "Details"}
-      </button>
+        {open && (
+          <div id={detailsId} className={styles.details}>
+            <dl className={styles.facts}>
+              <div>
+                <dt>Application deadline</dt>
+                <dd>{trip.applicationDeadline ? formatDate(trip.applicationDeadline) : "No deadline"}</dd>
+              </div>
+              <div>
+                <dt>Cities</dt>
+                <dd>{trip.cities.join(", ")}</dd>
+              </div>
+            </dl>
+            <p>{trip.description}</p>
+            {trip.link && (
+              <a className={styles.link} href={trip.link} target="_blank" rel="noreferrer">
+                More info ↗
+              </a>
+            )}
+            {trip.photo && (
+              <p className={styles.photoCredit}>
+                Photo:{" "}
+                <a href={trip.photo.source} target="_blank" rel="noreferrer">
+                  {trip.photo.author}
+                </a>
+                {", "}
+                {trip.photo.licenseUrl ? (
+                  <a href={trip.photo.licenseUrl} target="_blank" rel="noreferrer">
+                    {trip.photo.license}
+                  </a>
+                ) : (
+                  trip.photo.license
+                )}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </li>
   );
 }

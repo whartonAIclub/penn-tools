@@ -91,36 +91,47 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* Opening one card's details doesn't stretch the others in its row. */
+  align-items: start;
   gap: 12px;
 }
 
 .card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
   border: 1px solid var(--border);
   border-radius: 12px;
+  overflow: hidden;
 }
 
-.badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.badge {
-  padding: 2px 8px;
-  border-radius: 999px;
+.photo {
+  position: relative;
+  aspect-ratio: 16 / 9;
   background: var(--nav-hover);
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--section-label);
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .credit {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
   background: var(--penn-blue);
+  font-size: 0.72rem;
+  font-weight: 600;
   color: #fff;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px 14px;
 }
 
 .cardTitle {
@@ -129,9 +140,25 @@
   font-weight: 600;
 }
 
-.destination {
+.country {
   font-size: 0.85rem;
   color: var(--section-label);
+}
+
+.dates {
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
+.period {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.cost {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .facts {
@@ -158,7 +185,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
   font-size: 0.85rem;
   line-height: 1.55;
@@ -169,8 +197,18 @@
   text-decoration: underline;
 }
 
+.photoCredit {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.photoCredit a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .toggle {
-  margin-top: auto;
+  margin-top: 6px;
   align-self: flex-start;
   font-size: 0.82rem;
   font-weight: 600;

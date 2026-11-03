@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterTrips, formatDateRange, listPeriods, type Trip } from "../trips.js";
+import { filterTrips, formatDateRange, listPeriods, tripDays, type Trip } from "../trips.js";
 import { SAMPLE_TRIPS } from "../samples.js";
 
 function trip(overrides: Partial<Trip>): Trip {
@@ -7,7 +7,8 @@ function trip(overrides: Partial<Trip>): Trip {
     id: "t",
     name: "Trip",
     type: "Club trek",
-    destination: "Somewhere",
+    country: "Somewhere",
+    cities: [],
     region: "Europe",
     startDate: "2027-03-06",
     endDate: "2027-03-14",
@@ -18,6 +19,7 @@ function trip(overrides: Partial<Trip>): Trip {
     description: "",
     applicationDeadline: null,
     link: null,
+    photo: null,
     ...overrides,
   };
 }
@@ -26,7 +28,7 @@ describe("filterTrips", () => {
   const trips = [
     trip({ id: "japan", name: "Japan Trek", region: "Asia", startDate: "2027-03-06" }),
     trip({ id: "nyc", name: "NYC Finance Trek", type: "Career trek", region: "North America", startDate: "2026-11-30", period: "Fall 2026" }),
-    trip({ id: "iceland", name: "Iceland", destination: "Reykjavík", startDate: "2027-01-06", period: "Winter Break" }),
+    trip({ id: "iceland", name: "Northern Lights", country: "Iceland", cities: ["Reykjavík"], startDate: "2027-01-06", period: "Winter Break" }),
   ];
   const ids = (result: Trip[]) => result.map((t) => t.id);
 
@@ -44,6 +46,7 @@ describe("filterTrips", () => {
   it("searches text fields, ignoring case and surrounding spaces", () => {
     expect(ids(filterTrips(trips, { query: "  REYKJ " }))).toEqual(["iceland"]);
     expect(ids(filterTrips(trips, { query: "trek" }))).toEqual(["nyc", "japan"]);
+    expect(ids(filterTrips(trips, { query: "iceland" }))).toEqual(["iceland"]);
   });
 
   it("treats null filters as unset", () => {
@@ -63,6 +66,19 @@ describe("formatDateRange", () => {
     expect(formatDateRange("2027-05-28", "2027-06-02")).toBe("May 28 – Jun 2, 2027");
     expect(formatDateRange("2026-12-27", "2027-01-04")).toBe("Dec 27, 2026 – Jan 4, 2027");
     expect(formatDateRange("2027-03-06", "2027-03-06")).toBe("Mar 6, 2027");
+  });
+});
+
+describe("tripDays", () => {
+  it("counts both the first and last day, across months and years", () => {
+    expect(tripDays("2027-03-06", "2027-03-14")).toBe(9);
+    expect(tripDays("2027-03-06", "2027-03-06")).toBe(1);
+    expect(tripDays("2027-05-28", "2027-06-02")).toBe(6);
+    expect(tripDays("2026-12-27", "2027-01-04")).toBe(9);
+  });
+
+  it("isn't thrown off by daylight saving changes", () => {
+    expect(tripDays("2027-03-13", "2027-03-15")).toBe(3);
   });
 });
 
