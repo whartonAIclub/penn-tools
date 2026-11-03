@@ -16,7 +16,8 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "update-courses": "tsc && node scripts/update-courses.mjs"
   },
   "dependencies": {
     "@penntools/core": "workspace:*"
