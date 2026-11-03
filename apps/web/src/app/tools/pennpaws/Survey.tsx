@@ -119,6 +119,22 @@ const REVIEW = STEPS.length;
 const orNull = (text: string) => (text.trim() ? text.trim() : null);
 const needsKindText = (kind: PetKind | null) => kind === OTHER || kind === "several";
 
+const VISITS_PER_DAY: Partial<Record<RequestDraft["frequency"], number>> = { once_daily: 1, twice_daily: 2, every_other_day: 0.5 };
+
+/** How many visits or nights the owner is paying for, so the rate reads as a total too. Null when it can't be counted (weekly, or a schedule in their own words). */
+function countPaid(draft: RequestDraft): { count: number; label: string } | null {
+  if (draft.weekly || !draft.startsOn || !draft.endsOn || draft.endsOn < draft.startsOn) return null;
+  const days = Math.round((Date.parse(draft.endsOn) - Date.parse(draft.startsOn)) / 86_400_000) + 1;
+  if (draft.frequency === "overnight") {
+    const nights = Math.max(1, days - 1);
+    return { count: nights, label: `${nights} ${nights === 1 ? "night" : "nights"}` };
+  }
+  const perDay = VISITS_PER_DAY[draft.frequency];
+  if (!perDay) return null;
+  const visits = Math.max(1, Math.ceil(days * perDay));
+  return { count: visits, label: `${visits} ${visits === 1 ? "visit" : "visits"} over ${days} ${days === 1 ? "day" : "days"}` };
+}
+
 function toDraft(a: Answers): RequestDraft {
   const weekly = a.dateMode === "weekly";
   const visits = (a.careType ?? "visits") === "visits";
@@ -306,6 +322,7 @@ export function Survey({
   // A stay or boarding is paid by the night, visits by the visit.
   const nightly = a.careType === "stay" || boarding;
   const payUnit = nightly ? "a night" : "a visit";
+  const payCount = countPaid(toDraft(a));
   const toggle = <T,>(list: readonly T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
   // The conversation so far: each question asked and its answer. After AI
@@ -316,7 +333,7 @@ export function Survey({
     "When will you be away?",
     `What kind of care does ${a.petName || "your pet"} need, and what should the sitter do?`,
     boarding ? `How will you hand ${a.petName || "them"} over to your sitter?` : "How will your sitter get in?",
-    "What would you like to pay? Pick a rate, or I can suggest one.",
+    `What would you like to pay ${nightly ? "per night" : "per visit"}? Pick a rate, or I can suggest one.`,
     "Last one. Roughly where are you, who is your vet, what matters in a sitter, and is there anything else they should know?",
     "Here is your request. Look it over, then post it.",
   ];
@@ -634,11 +651,16 @@ export function Survey({
                 const value = `$${amount} ${payUnit}`;
                 return (
                   <button key={amount} type="button" className={a.pay === value ? styles.tileOn : styles.tile} aria-pressed={a.pay === value} onClick={() => answer({ pay: value, payOwn: false })}>
-                    ${amount}
+                    ${amount} <span className={styles.hint}>{payUnit}</span>
                   </button>
                 );
               })}
             </div>
+            {payCount && (
+              <p className={styles.hint}>
+                {payCount.label}. At ${nightly ? SUGGESTED_NIGHT_PAY : SUGGESTED_PAY} {payUnit} that's about ${payCount.count * (nightly ? SUGGESTED_NIGHT_PAY : SUGGESTED_PAY)} in total.
+              </p>
+            )}
             <button type="button" className={styles.secondary} onClick={() => answer({ pay: `$${nightly ? SUGGESTED_NIGHT_PAY : SUGGESTED_PAY} ${payUnit}, suggested`, payOwn: false })}>
               Suggest a fair rate for me
             </button>
