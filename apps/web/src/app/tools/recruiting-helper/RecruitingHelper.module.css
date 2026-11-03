@@ -76,6 +76,84 @@
   font-weight: 600;
 }
 
+/* ── Role keywords ─────────────────────────────────────────────────────────── */
+
+.roles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 400;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+.row .input { flex: 1; min-width: 0; }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip,
+.chipOn {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--input-border);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.chip { background: var(--bg); color: var(--text); }
+.chip:hover { border-color: var(--penn-blue); color: var(--penn-blue); }
+.chipOn { background: var(--penn-blue); border-color: var(--penn-blue); color: #fff; }
+
+/* ── Voice typing ──────────────────────────────────────────────────────────── */
+
+.textareaWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+/* Room at the bottom so text never runs under the microphone. */
+.textareaWrap .textarea { padding-bottom: 40px; }
+
+.mic {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--input-border);
+  background: var(--bg);
+  color: var(--section-label);
+}
+.mic:hover { color: var(--penn-blue); border-color: var(--penn-blue); }
+.micOn,
+.micOn:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+  animation: micPulse 1.4s ease-in-out infinite;
+}
+@keyframes micPulse {
+  50% { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0.2); }
+}
+
+/* The status line goes under the box, so the box keeps its shape. */
+.micStatus {
+  order: 1;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--section-label);
+}
+
 .count,
 .countOver {
   align-self: flex-end;

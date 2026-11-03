@@ -10,6 +10,8 @@ import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { CompanyTier, RecruitingProfile, SavedItem, Screenshot } from "@penntools/tool-recruiting-helper";
 import { removeMyItem, saveMyProfile } from "./actions";
+import { Dictation } from "./Dictation";
+import { RolePicker } from "./RolePicker";
 import { ACCEPT, readScreenshot, screenshotSrc, toBase64 } from "./screenshots";
 import styles from "./RecruitingHelper.module.css";
 
@@ -285,14 +287,26 @@ function ProfileEditor({
           Upload your résumé, or paste or type a summary: roles, results, skills, schools, languages. Add anything
           your résumé leaves out.
         </span>
-        <textarea
-          id="rh-background"
-          className={styles.textarea}
-          rows={form.background ? 14 : 7}
-          value={form.background}
-          onChange={set("background")}
-          aria-describedby="rh-background-count"
-        />
+        <div className={styles.textareaWrap}>
+          <textarea
+            id="rh-background"
+            className={styles.textarea}
+            rows={form.background ? 14 : 7}
+            value={form.background}
+            onChange={set("background")}
+            aria-describedby="rh-background-count"
+          />
+          <Dictation
+            label="Add to your background by voice"
+            onText={(spoken) =>
+              setForm((old) => ({
+                ...old,
+                // Each spoken phrase goes on the end, after a space (or straight after a new line).
+                background: !old.background ? spoken : /\s$/.test(old.background) ? old.background + spoken : `${old.background} ${spoken}`,
+              }))
+            }
+          />
+        </div>
         <span id="rh-background-count" className={tooLong ? styles.countOver : styles.count}>
           {form.background.length.toLocaleString()} / {maxBackgroundLength.toLocaleString()} characters
           {tooLong &&
@@ -316,15 +330,11 @@ function ProfileEditor({
         )}
       </div>
 
-      <label className={styles.label}>
+      <div className={styles.label}>
         Roles you&apos;re targeting
-        <input
-          className={styles.input}
-          value={form.targetRoles}
-          placeholder="e.g. strategic partnerships, business development"
-          onChange={set("targetRoles")}
-        />
-      </label>
+        <span className={styles.hint}>Click all that apply, and add your own.</span>
+        <RolePicker value={form.targetRoles} onChange={(targetRoles) => setForm((old) => ({ ...old, targetRoles }))} />
+      </div>
 
       <div className={styles.tiers}>
         {TIERS.map((tier) => (
