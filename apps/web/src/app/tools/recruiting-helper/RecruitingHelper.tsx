@@ -66,7 +66,7 @@ export function RecruitingHelper({
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   samples: { profile: RecruitingProfile; posting: string; linkedIn: string };
-  limits: { pasteLength: number; screenshots: number; resumeBytes: number };
+  limits: { pasteLength: number; screenshots: number; resumeBytes: number; backgroundLength: number };
 }) {
   const [profile, setProfile] = useState(initialProfile);
   const [items, setItems] = useState(initialItems);
@@ -97,6 +97,7 @@ export function RecruitingHelper({
           sample={samples.profile}
           provider={provider}
           maxResumeBytes={limits.resumeBytes}
+          maxBackgroundLength={limits.backgroundLength}
           onSaved={(saved) => {
             setProfile(saved);
             setEditingProfile(false);
@@ -154,6 +155,7 @@ function ProfileEditor({
   sample,
   provider,
   maxResumeBytes,
+  maxBackgroundLength,
   onSaved,
   onCancel,
 }: {
@@ -164,6 +166,7 @@ function ProfileEditor({
   /** The AI provider that reads PDF résumés. */
   provider: AIProvider;
   maxResumeBytes: number;
+  maxBackgroundLength: number;
   onSaved: (profile: RecruitingProfile) => void;
   onCancel: (() => void) | null;
 }) {
@@ -219,7 +222,8 @@ function ProfileEditor({
     setForm({ ...form, [field]: e.target.value });
 
   const companies = TIERS.flatMap((tier) => toLines(form[tier]).map((name) => ({ name, tier })));
-  const ready = form.background.trim() && form.targetRoles.trim() && companies.length > 0;
+  const tooLong = form.background.length > maxBackgroundLength;
+  const ready = form.background.trim() && !tooLong && form.targetRoles.trim() && companies.length > 0;
 
   async function save() {
     const profile: RecruitingProfile = {
@@ -287,7 +291,13 @@ function ProfileEditor({
           rows={form.background ? 14 : 7}
           value={form.background}
           onChange={set("background")}
+          aria-describedby="rh-background-count"
         />
+        <span id="rh-background-count" className={tooLong ? styles.countOver : styles.count}>
+          {form.background.length.toLocaleString()} / {maxBackgroundLength.toLocaleString()} characters
+          {tooLong &&
+            ` — ${(form.background.length - maxBackgroundLength).toLocaleString()} too many. Cut older roles or details to save.`}
+        </span>
         {upload.state === "done" && (
           <p className={styles.notice}>Filled in from {upload.name}. Check it, add anything missing, then save.</p>
         )}

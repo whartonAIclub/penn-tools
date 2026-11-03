@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
 import { toolSql } from "@penntools/platform/db";
 import {
+  MAX_BACKGROUND_LENGTH,
   MAX_PASTE_LENGTH,
   MAX_RESUME_BYTES,
   MAX_SCREENSHOTS,
@@ -46,7 +47,12 @@ export default async function RecruitingHelperPage() {
       providers={providers}
       labels={PROVIDER_LABELS}
       samples={{ profile: SAMPLE_PROFILE, posting: SAMPLE_POSTING, linkedIn: SAMPLE_LINKEDIN }}
-      limits={{ pasteLength: MAX_PASTE_LENGTH, screenshots: MAX_SCREENSHOTS, resumeBytes: MAX_RESUME_BYTES }}
+      limits={{
+        pasteLength: MAX_PASTE_LENGTH,
+        screenshots: MAX_SCREENSHOTS,
+        resumeBytes: MAX_RESUME_BYTES,
+        backgroundLength: MAX_BACKGROUND_LENGTH,
+      }}
     />
   );
 }

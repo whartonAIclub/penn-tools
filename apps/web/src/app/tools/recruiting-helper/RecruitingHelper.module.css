@@ -76,6 +76,15 @@
   font-weight: 600;
 }
 
+.count,
+.countOver {
+  align-self: flex-end;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--section-label);
+}
+.countOver { color: #b91c1c; font-weight: 600; }
+
 .labelRow {
   display: flex;
   align-items: center;
