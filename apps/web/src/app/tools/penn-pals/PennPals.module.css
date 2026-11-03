@@ -1,0 +1,281 @@
+.page {
+  --overdue: #b42318;
+  --overdue-bg: #fef3f2;
+  --today: #b54708;
+  --today-bg: #fffaeb;
+  --penn-blue-bg: #eef2f9;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.intro {
+  margin: 6px 0 0;
+  color: var(--section-label);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.sample {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nav-hover);
+  color: var(--section-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Lanes ─────────────────────────────────────────────────────────────────── */
+
+.lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .lanes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.laneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.laneTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.count {
+  margin-left: 4px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.chip {
+  padding: 4px 10px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 999px;
+  background: var(--penn-blue-bg);
+  color: var(--penn-blue);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.groupLabel {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--section-label);
+}
+
+.overdueLabel {
+  color: var(--overdue);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.empty,
+.doneNote {
+  margin: 0;
+  color: var(--section-label);
+  font-size: 0.875rem;
+}
+
+.meta {
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+
+/* ── Follow-ups ────────────────────────────────────────────────────────────── */
+
+.followUp {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.check {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--penn-blue);
+  cursor: pointer;
+}
+
+.followUpBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.action {
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.followUpBody .meta {
+  margin: 0;
+}
+
+.due {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nav-hover);
+  color: var(--section-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dueOverdue {
+  background: var(--overdue-bg);
+  color: var(--overdue);
+}
+
+.dueToday {
+  background: var(--today-bg);
+  color: var(--today);
+}
+
+/* ── People ────────────────────────────────────────────────────────────────── */
+
+.search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.person {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.person:hover {
+  background: var(--sidebar-bg);
+}
+
+.personSelected,
+.personSelected:hover {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue-bg);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.personBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.personName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.classYear {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.note {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.personSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--penn-blue-bg);
+  color: var(--penn-blue);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}

@@ -1,12 +1,18 @@
-// A placeholder page. To build the tool, see section 4 of CLAUDE.md: AskPenn
-// (tools/askpenn) and the Platform Playground (tools/platform-playground) are
-// the reference tools.
+// Penn Pals landing page: follow-ups on the left, everyone the student has
+// talked to on the right. Shows sample data until the tool has its own
+// database (section 4 of CLAUDE.md).
+
+import type { Metadata } from "next";
+import { sampleNetwork } from "@penntools/tool-penn-pals";
+import { PennPals } from "./PennPals";
+
+export const metadata: Metadata = {
+  title: "Penn Pals: Network Tracker",
+};
 
 export default function PennPalsPage() {
-  return (
-    <div>
-      <h1>{"Penn Pals: Network Tracker"}</h1>
-      <p>{"Too many coffee chats, not enough memory? Debrief each conversation in plain language and get organized notes, next steps, and a reminder of who to follow up with this week. Networking, minus the spreadsheet."}</p>
-    </div>
-  );
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return <PennPals network={sampleNetwork(now)} today={today} />;
 }
