@@ -13,6 +13,8 @@ import {
   listMyReviews,
   listNotifications,
   listOpenRequests,
+  isPaused,
+  isTeamEmail,
   listSitterJobs,
   matchRequests,
   verifySchool,
@@ -59,13 +61,14 @@ export default async function PennPawsPage() {
   }
 
   const isSitter = member.role === "sitter";
-  const [open, mine, notifications, providers, jobs, reviews] = await Promise.all([
+  const [open, mine, notifications, providers, jobs, reviews, paused] = await Promise.all([
     listOpenRequests(sql, user.id),
     listMyRequests(sql, user.id),
     listNotifications(sql, user.id),
     getAI().then((ai) => ai?.providers() ?? []),
     isSitter ? listSitterJobs(sql, user.id) : [],
     isSitter ? listMyReviews(sql, user.id) : [],
+    isPaused(sql, user.id),
   ]);
   const matches = member.profile.role === "sitter" ? await matchRequests(sql, member.profile, open.filter((r) => !r.mine)) : [];
 
@@ -83,6 +86,8 @@ export default async function PennPawsPage() {
         reviews={reviews}
         notifications={notifications}
         hasAI={providers.length > 0}
+        isTeam={isTeamEmail(user.email, ALLOW_LOCAL_TEST_ACCOUNT)}
+        paused={paused}
       />
       {testMenu}
     </>

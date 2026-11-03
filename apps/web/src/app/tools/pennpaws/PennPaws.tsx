@@ -16,10 +16,11 @@ import { Onboarding } from "./Onboarding";
 import { RequestDetail } from "./RequestDetail";
 import { Completed, Earnings, MyTasks } from "./SitterViews";
 import { Survey } from "./Survey";
+import { TeamView } from "./TeamView";
 import styles from "./PennPaws.module.css";
 
 type ListTab = "find" | "mine" | "alerts" | "tasks" | "done" | "earnings";
-type View = { tab: ListTab | "post" | "profile" } | { tab: "request"; id: string; back: ListTab };
+type View = { tab: ListTab | "post" | "profile" | "team" } | { tab: "request"; id: string; back: ListTab };
 
 const OWNER_TABS = [
   ["find", "Browse", "Find a request"],
@@ -54,6 +55,8 @@ export function PennPaws({
   reviews,
   notifications,
   hasAI,
+  isTeam,
+  paused,
 }: {
   userFirstName: string;
   /** False for the local development user, who has no Penn email. */
@@ -69,6 +72,10 @@ export function PennPaws({
   reviews: Review[];
   notifications: Notification[];
   hasAI: boolean;
+  /** The PennPaws team, who get the Team view. */
+  isTeam: boolean;
+  /** Paused by the team: they can look around but not post, offer or message. */
+  paused: boolean;
 }) {
   const router = useRouter();
   const isSitter = member.role === "sitter";
@@ -116,6 +123,11 @@ export function PennPaws({
           </span>
         </div>
         <div className={styles.headerActions}>
+          {isTeam && (
+            <button type="button" className={styles.profileButton} aria-current={view.tab === "team" ? "page" : undefined} onClick={() => setView({ tab: "team" })}>
+              Team
+            </button>
+          )}
           <button type="button" className={styles.profileButton} aria-current={view.tab === "profile" ? "page" : undefined} onClick={() => setView({ tab: "profile" })}>
             My profile
           </button>
@@ -142,6 +154,12 @@ export function PennPaws({
       </nav>
 
       <main className={styles.main}>
+        {paused && (
+          <p className={styles.pausedNotice}>
+            Your account is paused while the PennPaws team looks into a report. You can look around, but you can&apos;t post, offer or message for now.
+          </p>
+        )}
+        {view.tab === "team" && isTeam && <TeamView onOpenRequest={(id) => openRequest(id, "find")} />}
         {view.tab === "find" && (
           <section className={styles.section}>
             <p className={styles.lead}>Hi {userFirstName}. These Penn students need a hand with their pets.</p>

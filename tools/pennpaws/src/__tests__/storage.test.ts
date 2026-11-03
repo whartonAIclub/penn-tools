@@ -10,6 +10,7 @@ import type { Sql } from "postgres";
 import { agreementTemplate } from "../agreement.js";
 import { clearPayment, leaveReview, listMyReviews, recordPayment } from "../jobs.js";
 import { getMember, saveMember } from "../members.js";
+import { fileReport, listOpenReports, listTeamMembers, recordMatchScore, resolveReport, setMemberPaused, setRequestHidden, teamOverview } from "../team.js";
 import { listThreads, sendMessage } from "../messages.js";
 import { listNotifications, markAllRead } from "../notifications.js";
 import type { Profile } from "../profile.js";
@@ -287,5 +288,44 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     const changed: Profile = { ...pals, petName: "Biscuit" };
     await saveMember(sql, priya, "upenn.edu", changed);
     expect((await getMember(sql, priya.id))?.profile).toEqual(changed);
+  });
+
+  it("lets members report, and the team hide requests and pause members", async () => {
+    const requestId = await createRequest(sql, lu, { ...draft, petName: "Pepper" });
+    await offerHelp(sql, sam, requestId, "Pick me.");
+    await recordMatchScore(sql, requestId, sam.id, 71);
+    const samOffer = (await getRequestView(sql, lu.id, requestId))!.offers.find((o) => o.sitterFirstName === "Sam")!;
+
+    // Reports name the request's owner or the offer's sitter, never the reporter's own choice of person.
+    await fileReport(sql, priya.id, { kind: "request", targetId: requestId, reason: "fake", details: null });
+    await fileReport(sql, lu.id, { kind: "offer", targetId: samOffer.id, reason: "rude", details: "Pushy in messages" });
+    await expect(fileReport(sql, lu.id, { kind: "request", targetId: requestId, reason: "fake", details: null })).rejects.toThrow("You can't report yourself.");
+    const reports = await listOpenReports(sql);
+    expect(reports.map((r) => [r.kind, r.subject.firstName, r.reporterFirstName])).toEqual(
+      expect.arrayContaining([
+        ["request", "Lu", "Priya"],
+        ["offer", "Sam", "Lu"],
+      ]),
+    );
+
+    // Hiding drops it from Find for everyone but the owner.
+    await setRequestHidden(sql, requestId, true);
+    expect((await listOpenRequests(sql, priya.id)).map((r) => r.id)).not.toContain(requestId);
+    expect((await listOpenRequests(sql, lu.id)).map((r) => r.id)).toContain(requestId);
+    await setRequestHidden(sql, requestId, false);
+
+    // A paused member can't post or offer, and their requests leave Find.
+    await saveMember(sql, sam, "upenn.edu", { role: "pals", location: { area: "Fishtown", lat: null, lng: null }, petName: null, bio: null });
+    await setMemberPaused(sql, sam.id, true);
+    await expect(createRequest(sql, sam, draft)).rejects.toThrow("paused");
+    await expect(offerHelp(sql, sam, await createRequest(sql, priya, draft), "Hi")).rejects.toThrow("paused");
+    expect((await listTeamMembers(sql)).find((m) => m.userId === sam.id)).toMatchObject({ paused: true, reports: 1 });
+    await setMemberPaused(sql, sam.id, false);
+
+    const overview = await teamOverview(sql);
+    expect(overview.openReports).toBe(2);
+    expect(overview.offers.onGoodMatches).toBeGreaterThanOrEqual(1);
+    await resolveReport(sql, reports[0]!.id);
+    expect((await teamOverview(sql)).openReports).toBe(1);
   });
 });

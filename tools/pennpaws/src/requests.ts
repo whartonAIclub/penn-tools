@@ -4,6 +4,7 @@
 // so two people acting at once can't both win.
 
 import type { Sql } from "postgres";
+import { assertActive } from "./members.js";
 import { AgreementTerms, type AgreementTerms as Terms } from "./agreement.js";
 import { allowedFrom, bothApproved, canSeeContacts, type OfferStatus, type RequestStatus, type Role } from "./booking.js";
 import type { PaymentMethod, SitterJob } from "./jobs.js";
@@ -161,6 +162,7 @@ export async function listOpenRequests(sql: Sql, viewerId: string): Promise<Requ
   const rows = await sql<RequestRow[]>`
     ${selectRequests(sql)}
     WHERE r.status = 'open' AND (r.weekly OR r.ends_on >= CURRENT_DATE)
+      AND (r.owner_id = ${viewerId} OR (r.hidden_at IS NULL AND NOT EXISTS (SELECT 1 FROM members m WHERE m.user_id = r.owner_id AND m.paused_at IS NOT NULL)))
     ORDER BY r.weekly, r.starts_on, r.created_at DESC
     LIMIT 100
   `;
@@ -270,6 +272,7 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
 
 /** Posts the request (already checked with checkDraft) and returns its id. */
 export async function createRequest(sql: Sql, owner: Person, draft: RequestDraft): Promise<string> {
+  await assertActive(sql, owner.id);
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO requests (
       owner_id, owner_name, owner_email, pet_name, pet_kind, pet_kind_other, pet_details, photo,
@@ -371,6 +374,7 @@ export async function offerHelp(
 ): Promise<void> {
   const text = message.trim().slice(0, LIMITS.message);
   if (!text) throw new PennPawsError("Say a line about yourself so the owner can decide.");
+  await assertActive(sql, sitter.id);
   if (!UUID_RE.test(requestId)) throw new PennPawsError("That request doesn't exist.");
   const [request] = await sql<{ owner_id: string; pet_name: string; status: RequestStatus }[]>`
     SELECT owner_id, pet_name, status FROM requests WHERE id = ${requestId}

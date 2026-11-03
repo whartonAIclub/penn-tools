@@ -8,8 +8,8 @@
 // anonymously, in Completed.
 
 import { useCallback, useEffect, useState } from "react";
-import { FIT_LABELS, describe, type AgreementTerms, type AskCheck, type Match } from "@penntools/tool-pennpaws";
-import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, type ActionResult, type RequestPage } from "./actions";
+import { FIT_LABELS, REPORT_REASONS, describe, type AgreementTerms, type AskCheck, type Match } from "@penntools/tool-pennpaws";
+import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, report, type ActionResult, type RequestPage } from "./actions";
 import { Conversation } from "./Conversation";
 import { CheckIcon, PetAvatar } from "./PennPaws";
 import styles from "./PennPaws.module.css";
@@ -233,6 +233,7 @@ export function RequestDetail({
                 <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => accept(o.id))}>
                   Choose {o.sitterFirstName}
                 </button>
+                <ReportLink kind="offer" targetId={o.id} what={`${o.sitterFirstName}'s offer`} />
               </div>
             ))
           )}
@@ -395,7 +396,70 @@ export function RequestDetail({
             Cancel this request
           </button>
         ))}
+
+      {!request.mine && <ReportLink kind="request" targetId={request.id} what="this request" />}
     </section>
+  );
+}
+
+/** "Report", which opens a short form and sends it to the PennPaws team. */
+function ReportLink({ kind, targetId, what }: { kind: "request" | "offer"; targetId: string; what: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<(typeof REPORT_REASONS)[number]["value"] | null>(null);
+  const [details, setDetails] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  if (state === "sent") return <p className={styles.hint}>Thanks. The PennPaws team will look into it. The other person isn&apos;t told who reported.</p>;
+  if (!open) {
+    return (
+      <button type="button" className={styles.reportLink} onClick={() => setOpen(true)}>
+        Report {what}
+      </button>
+    );
+  }
+  const send = async () => {
+    if (!reason) return setError("Pick a reason.");
+    setState("sending");
+    const result = await report({ kind, targetId, reason, details: details.trim() || null });
+    if (result.ok) setState("sent");
+    else {
+      setState("idle");
+      setError(result.error);
+    }
+  };
+  return (
+    <div className={styles.panel}>
+      <p>
+        <strong>Report {what}</strong>
+      </p>
+      <p className={styles.hint}>Only the PennPaws team sees reports. If anyone is in danger, call 911 or Penn Public Safety at 215-573-3333.</p>
+      <div className={styles.chips}>
+        {REPORT_REASONS.map((r) => (
+          <button key={r.value} type="button" className={reason === r.value ? styles.chipOn : styles.chip} aria-pressed={reason === r.value} onClick={() => setReason(r.value)}>
+            {r.label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        className={styles.input}
+        rows={3}
+        maxLength={500}
+        placeholder={reason === "other" ? "What happened?" : "Anything that helps us understand (optional)"}
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        aria-label="Details"
+      />
+      {error && <p className={styles.error}>{error}</p>}
+      <div className={styles.testRow}>
+        <button type="button" className={styles.secondary} onClick={() => setOpen(false)} disabled={state === "sending"}>
+          Never mind
+        </button>
+        <button type="button" className={styles.primary} onClick={send} disabled={state === "sending"}>
+          {state === "sending" ? "Sending..." : "Send report"}
+        </button>
+      </div>
+    </div>
   );
 }
 

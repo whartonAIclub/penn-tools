@@ -4,7 +4,7 @@
 
 import type { Sql } from "postgres";
 import { checkProfile, type MemberRole, type Profile } from "./profile.js";
-import type { Person } from "./requests.js";
+import { PennPawsError, type Person } from "./requests.js";
 
 export interface Member {
   userId: string;
@@ -34,4 +34,16 @@ export async function saveMember(sql: Sql, person: Person, school: string, profi
       name = EXCLUDED.name, email = EXCLUDED.email, school = EXCLUDED.school, role = EXCLUDED.role,
       profile = EXCLUDED.profile, lat = EXCLUDED.lat, lng = EXCLUDED.lng, area = EXCLUDED.area, updated_at = NOW()
   `;
+}
+
+/** Throws for a member the team has paused, so they can't post, offer or message (team.ts). */
+export async function assertActive(sql: Sql, userId: string): Promise<void> {
+  if (await isPaused(sql, userId)) {
+    throw new PennPawsError("Your PennPaws account is paused while the team looks into a report. Reply to the team's email to sort it out.");
+  }
+}
+
+export async function isPaused(sql: Sql, userId: string): Promise<boolean> {
+  const [row] = await sql<{ paused: boolean }[]>`SELECT paused_at IS NOT NULL AS paused FROM members WHERE user_id = ${userId}`;
+  return row?.paused ?? false;
 }

@@ -26,6 +26,19 @@ import {
   checkReview,
   clearPayment,
   firstName,
+  checkReport,
+  fileReport,
+  isTeamEmail,
+  listOpenReports,
+  listTeamMembers,
+  recordMatchScore,
+  resolveReport,
+  setMemberPaused,
+  setRequestHidden,
+  teamOverview,
+  type TeamMember,
+  type TeamOverview,
+  type TeamReport,
   forgetMember,
   playTestPeople,
   seedTestPeople,
@@ -242,7 +255,15 @@ export async function offer(requestId: string, message: string): Promise<ActionR
   const user = await signedIn();
   if (!user) return signedOut;
   return run(async () => {
-    await offerHelp(db(), user, String(requestId), String(message ?? ""));
+    const sql = db();
+    await offerHelp(sql, user, String(requestId), String(message ?? ""));
+    // Keep the match score, so the team can see whether sitters act on good matches.
+    const member = await getMember(sql, user.id);
+    if (member?.profile.role === "sitter") {
+      const request = (await listOpenRequests(sql, user.id)).find((r) => r.id === String(requestId));
+      const [match] = request ? await matchRequests(sql, member.profile, [request]) : [];
+      if (match) await recordMatchScore(sql, match.requestId, user.id, match.score);
+    }
     return null;
   });
 }
@@ -396,4 +417,53 @@ export async function testStartOver(): Promise<ActionResult> {
     await seedTestPeople(db());
     return null;
   });
+}
+
+// ── Reports and the team view ─────────────────────────────────────────────────
+
+/** Reports a request (its owner) or an offer (its sitter) to the PennPaws team. */
+export async function report(input: unknown): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  const checked = checkReport(input);
+  if (!checked.ok) return { ok: false, error: checked.error };
+  return run(async () => {
+    await fileReport(db(), user.id, checked.value);
+    return null;
+  });
+}
+
+async function teamUser(): Promise<Person | null> {
+  const user = await signedIn();
+  return user && isTeamEmail(user.email, ALLOW_LOCAL_TEST_ACCOUNT) ? user : null;
+}
+
+const notTeam = { ok: false, error: "Only the PennPaws team can see this." } as const;
+
+export interface TeamData {
+  overview: TeamOverview;
+  members: TeamMember[];
+  reports: TeamReport[];
+}
+
+export async function loadTeam(): Promise<ActionResult<TeamData>> {
+  if (!(await teamUser())) return notTeam;
+  const sql = db();
+  const [overview, members, reports] = await Promise.all([teamOverview(sql), listTeamMembers(sql), listOpenReports(sql)]);
+  return { ok: true, data: { overview, members, reports } };
+}
+
+export async function teamResolve(reportId: string): Promise<ActionResult> {
+  if (!(await teamUser())) return notTeam;
+  return run(async () => resolveReport(db(), String(reportId)).then(() => null));
+}
+
+export async function teamHide(requestId: string, hidden: boolean): Promise<ActionResult> {
+  if (!(await teamUser())) return notTeam;
+  return run(async () => setRequestHidden(db(), String(requestId), hidden === true).then(() => null));
+}
+
+export async function teamPause(userId: string, paused: boolean): Promise<ActionResult> {
+  if (!(await teamUser())) return notTeam;
+  return run(async () => setMemberPaused(db(), String(userId), paused === true).then(() => null));
 }

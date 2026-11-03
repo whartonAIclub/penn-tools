@@ -170,3 +170,31 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS messages_thread_idx ON messages (thread_id, id);
+
+-- Team moderation. A hidden request drops out of Find for everyone but its
+-- owner; a paused member can still sign in but can't post, offer or message
+-- until the team unpauses them. See team.ts.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ;
+
+-- What members report about a request or a sitter's offer. subject_id is the
+-- member the report is about (the request's owner or the offer's sitter),
+-- worked out on the server so reporters never see anyone's id.
+CREATE TABLE IF NOT EXISTS reports (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id  TEXT        NOT NULL,
+  target_kind  TEXT        NOT NULL CHECK (target_kind IN ('request', 'offer')),
+  request_id   UUID        NOT NULL REFERENCES requests (id) ON DELETE CASCADE,
+  subject_id   TEXT        NOT NULL,
+  reason       TEXT        NOT NULL CHECK (reason IN ('unsafe', 'fake', 'rude', 'other')),
+  details      TEXT,
+  resolved_at  TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (reporter_id, target_kind, request_id, subject_id)
+);
+
+CREATE INDEX IF NOT EXISTS reports_open_idx ON reports (created_at DESC) WHERE resolved_at IS NULL;
+
+-- The rules' match score when the sitter offered, so the team can see whether
+-- people act on good matches.
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS match_score SMALLINT;

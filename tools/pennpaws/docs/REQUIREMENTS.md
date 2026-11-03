@@ -59,6 +59,8 @@ How to use this page: pick an unowned row, put your name in Owner, build it on `
 | R32 | P0 | Rank with AI | With a key, Rank with AI re-ranks the rules' best 10. The AI reads the owner's own words in any language (for example "女生优先" or "8 a.m. insulin") and writes one reason and one concern per job. Errors show on the page and leave the rules ranking in place. | Lu | 11/10 | Done |
 | R33 | P1 | Test with fake people | `seed` adds 4 fake sitters and 6 fake owners (ids start with `seed-`); `seed play` has them offer, pick and approve; `seed reset` removes them. Lets one local account walk both sides. | Lu | 11/3 | Done |
 | R34 | P2 | Owners see offers ranked by fit | The same match reasons on each offer an owner gets. | | 11/12 | To do |
+| R38 | P1 | Team view | A Team button for emails in `TEAM_EMAILS` (team.ts), plus the local test user under `pnpm dev`. Shows members by role, requests by status, offers and the share on Great or Good matches, open reports, and the member list (first names, role, area, join date, activity), with fake test people hidden by default. Every action checks the email again on the server. | Lu | 11/10 | Built |
+| R39 | P1 | Report and moderate | Members report a request (its owner) or an offer (its sitter) with a reason. The team can hide a request from Find, pause a member (no posting, offering or messaging) and mark reports resolved. Setup tells members the team can see profiles, requests and reports. | Lu | 11/10 | Built |
 
 ### Agreement and booking
 

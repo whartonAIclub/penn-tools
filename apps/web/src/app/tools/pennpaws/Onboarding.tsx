@@ -858,7 +858,11 @@ export function Onboarding({
       {step === "review" && (
         <Ask
           title={onDone ? "My profile" : "Here's your profile"}
-          lead={onDone ? "Your answers from setup. Tap Edit next to anything to change it, then save." : "Look it over, then save. You can change it any time."}
+          lead={
+            onDone
+              ? "Your answers from setup. Tap Edit next to anything to change it, then save."
+              : "Look it over, then save. You can change it any time. The PennPaws team can see profiles, requests and reports to keep the community safe."
+          }
         >
           <dl className={styles.panel}>
             {summary(f, school ?? "").map(([label, value, target], i) => (

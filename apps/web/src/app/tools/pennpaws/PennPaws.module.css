@@ -822,3 +822,30 @@
 }
 .suggestion p { margin: 0; }
 .suggestion .editLink { align-self: flex-start; }
+
+/* ── Team view ───────────────────────────────────────────────────────────── */
+
+.subhead { margin: 8px 0 0; font-size: 1rem; }
+.statGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.stat,
+.statAlert {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+.stat strong,
+.statAlert strong { font-size: 1.5rem; }
+.statAlert { border-color: var(--pp-gold); background: var(--pp-gold-soft); }
+.teamActions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px; }
+.checkRow { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.table th { text-align: left; font-weight: 600; color: var(--pp-muted); padding: 6px 8px; border-bottom: 1px solid var(--pp-line); }
+.table td { padding: 8px; border-bottom: 1px solid var(--pp-line); vertical-align: top; }
+.table .pill { margin-left: 6px; }
+.pausedNotice { padding: 12px 14px; border-radius: 12px; background: var(--pp-gold-soft); color: var(--pp-gold-text); font-size: 0.9rem; }
+.reportLink { align-self: flex-start; font-size: 0.8rem; color: var(--pp-muted); text-decoration: underline; }

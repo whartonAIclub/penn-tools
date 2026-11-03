@@ -4,6 +4,7 @@
 // done. Emails stay hidden, so people sort out details here.
 
 import type { Sql } from "postgres";
+import { assertActive } from "./members.js";
 import type { RequestStatus } from "./booking.js";
 import { notify, type NotificationChannel } from "./notifications.js";
 import { PennPawsError, UUID_RE, firstName, type Person } from "./requests.js";
@@ -104,6 +105,7 @@ export async function sendMessage(
 ): Promise<void> {
   const text = body.trim().slice(0, LIMITS.message);
   if (!text) throw new PennPawsError("Write a message first.");
+  await assertActive(sql, sender.id);
   const facts = await requestFacts(sql, requestId);
   if (!facts) throw new PennPawsError("That request doesn't exist.");
 
