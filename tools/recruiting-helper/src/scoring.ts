@@ -219,10 +219,28 @@ export const PostingReview = z.object({
   gaps: z.array(z.string()).describe("Honest gaps against the posting's requirements"),
   applyBy: z.string().nullable().describe("YYYY-MM-DD if the posting gives a deadline, else null"),
   level: z.string().nullable().describe("Seniority, e.g. Manager, Director; null if unclear"),
+  summary: z.string().describe("50-100 words, plain English: what the person in this role would actually do day to day"),
+  team: z
+    .string()
+    .describe("Just the name of the team or org the role sits in, as specific as the posting allows, e.g. 'Google Cloud, Partner Ecosystem'; no notes or caveats (teamStated says whether it's inferred)"),
+  teamStated: z.boolean().describe("True if the posting names the team; false if you inferred it from the work described"),
+  searchKeywords: z
+    .array(z.string())
+    .describe("4-6 short LinkedIn people-search phrases for finding people on that team, each including the company name"),
 });
 export type PostingReview = z.infer<typeof PostingReview>;
 
-export interface ScoredPosting extends PostingReview {
+/** Fields added after the first postings were saved; those postings have none of them. */
+type PostingExtras = "summary" | "team" | "teamStated" | "searchKeywords";
+
+export interface ScoredPosting extends Omit<PostingReview, PostingExtras> {
+  /** What the role would do; null for postings scored before summaries were written. */
+  summary: string | null;
+  team: string | null;
+  /** Whether the posting names the team (true) or it was inferred (false); null if unknown. */
+  teamStated: boolean | null;
+  /** LinkedIn people-search phrases for the team; empty if none. */
+  searchKeywords: string[];
   kind: "posting";
   score: number;
   tier: CompanyTier | "off-list";
@@ -233,13 +251,21 @@ export interface ScoredPosting extends PostingReview {
 }
 
 /** Score: roleFit from the AI, then +1 Target, +0 Secondary, -1 Practice or off-list, kept 1-5. */
-export function scorePostingReview(review: PostingReview, companies: TargetCompany[]): ScoredPosting {
+export function scorePostingReview(
+  // A fresh review, or a saved posting being re-scored, which may predate the summary fields.
+  review: Omit<PostingReview, PostingExtras> & Partial<Pick<ScoredPosting, PostingExtras>>,
+  companies: TargetCompany[],
+): ScoredPosting {
   const match = findCompany(review.company, companies);
   const tier = match?.tier ?? "off-list";
   const points = tier === "target" ? 1 : tier === "secondary" ? 0 : -1;
   return {
     ...review,
     kind: "posting",
+    summary: review.summary?.trim() || null,
+    team: review.team?.trim() || null,
+    teamStated: review.team?.trim() ? (review.teamStated ?? null) : null,
+    searchKeywords: (review.searchKeywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 6),
     roleFit: clamp(review.roleFit),
     leadWith: review.leadWith.slice(0, 3),
     score: clamp(review.roleFit + points),
@@ -273,8 +299,10 @@ export interface ScoredContact extends Omit<ContactReview, "schools"> {
   schools: string[] | null;
   /** True if a school is Penn or Wharton, so their email is in the alumni directory; null if schools is null. */
   pennAlum: boolean | null;
-  /** A cold outreach email drafted for them, once the student asks for one. */
+  /** A cold outreach email drafted for them. */
   outreach?: OutreachDraft;
+  /** Their email address, typed in by the student (e.g. from the alumni directory). */
+  email?: string;
   kind: "contact";
   score: number;
   priority: Priority;
@@ -324,6 +352,19 @@ export function scoreContactReview(
     capped: total > 5,
     pennAlum: review.schools.some(isPennSchool),
   };
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** The email address the student typed, cleaned up (null when blank), or why it can't be saved. */
+export function checkEmail(value: unknown): { email: string | null } | { problem: string } {
+  if (value === null || value === undefined) return { email: null };
+  if (typeof value !== "string") return { problem: "Enter an email address." };
+  // Pasted addresses often come wrapped, as "Name <a@b.com>" or "mailto:a@b.com".
+  const email = value.trim().replace(/^mailto:/i, "").replace(/^.*<([^>]+)>.*$/, "$1").trim();
+  if (!email) return { email: null };
+  if (email.length > 254 || !EMAIL_RE.test(email)) return { problem: `"${email.slice(0, 60)}" doesn't look like an email address.` };
+  return { email };
 }
 
 export const MAX_SCHOOLS = 5;
@@ -401,6 +442,10 @@ For a posting, rate roleFit from 1 to 5 using ONLY the student's background and 
 1: not a real match
 Never claim experience the background doesn't state; if something isn't there, it's a gap.
 Don't judge the company: the student's company list is applied separately.
+Also summarize the role and name its team. Say teamStated is false whenever the posting doesn't name the team
+outright and you are inferring it from the work, product or org described; never present a guess as fact.
+For searchKeywords, write phrases a student could type into LinkedIn's people search to find people on that
+team or doing similar work there (e.g. "Google Cloud partner manager", "Google ISV partnerships").
 
 For a person, use ONLY what is stated on their profile: never infer nationality, language, school or
 anything else from a name or photo. If their name isn't clearly stated, return null for it.

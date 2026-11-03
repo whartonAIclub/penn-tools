@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest, AISchema } from "@penntools/core/ai";
 import { checkInstruction, checkOutreach, draftOutreach, reviseOutreach } from "../outreach.js";
-import { checkSchools, isPennSchool, withSchools, type ScoredContact } from "../scoring.js";
+import { checkEmail, checkSchools, isPennSchool, withSchools, type ScoredContact } from "../scoring.js";
 import { SAMPLE_PROFILE } from "../samples.js";
 
 const person: ScoredContact = {
@@ -128,6 +128,22 @@ describe("withSchools", () => {
     expect(changed.pennAlum).toBe(false);
     expect(changed.points).not.toContain("+1 Wharton");
     expect(changed.score).toBe(4);
+  });
+});
+
+describe("checkEmail", () => {
+  it.each([
+    [" pat@wharton.upenn.edu ", "pat@wharton.upenn.edu"],
+    ["mailto:pat@alumni.upenn.edu", "pat@alumni.upenn.edu"],
+    ["Pat Lee <pat@example.com>", "pat@example.com"],
+  ])("cleans up %s", (value, email) => expect(checkEmail(value)).toEqual({ email }));
+
+  it("treats a blank box as clearing the address", () => {
+    expect(checkEmail("  ")).toEqual({ email: null });
+  });
+
+  it.each(["pat", "pat@", "pat@upenn", "two words@upenn.edu", 5])("rejects %s", (value) => {
+    expect(checkEmail(value)).toEqual({ problem: expect.any(String) });
   });
 });
 

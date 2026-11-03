@@ -5,7 +5,7 @@
 // scored so far. The profile and list are saved to the user's account by
 // actions.ts and score/route.ts, so they're the same on every device.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type {
@@ -22,6 +22,7 @@ import {
   draftMyOutreach,
   removeMyItem,
   reviseAllMyOutreach,
+  saveMyEmail,
   saveMySchools,
   saveMyOutreach,
   saveMyProfile,
@@ -873,79 +874,111 @@ function ScoreBadge({ score }: { score: number }) {
 const tierLabel = (tier: CompanyTier | "off-list") =>
   tier === "off-list" ? "not on your list" : `${tier[0]!.toUpperCase() + tier.slice(1)} company`;
 
-/** A person's schools, which the student can add or correct when a screenshot missed them. */
-function SchoolEditor({ contact, onSaved }: { contact: SavedContact; onSaved: (item: SavedItem) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+/**
+ * A text box that saves itself when the student presses Enter or leaves it,
+ * if the text changed. `save` returns the text as saved (it may be cleaned up)
+ * or why it couldn't be.
+ */
+function AutosaveField({
+  label,
+  initial,
+  placeholder,
+  type = "text",
+  hint,
+  save,
+}: {
+  label: string;
+  initial: string;
+  placeholder: string;
+  type?: "text" | "email";
+  hint?: string;
+  save: (value: string) => Promise<{ ok: true; value: string } | { ok: false; message: string }>;
+}) {
+  const [value, setValue] = useState(initial);
+  const [saved, setSaved] = useState(initial);
+  const [status, setStatus] = useState<{ state: "idle" | "saving" | "saved" } | { state: "error"; message: string }>({
+    state: "idle",
+  });
+  const id = `rh-field-${label.toLowerCase()}-${useId()}`;
 
-  function start() {
-    setValue((contact.schools ?? []).join("; "));
-    setError(null);
-    setEditing(true);
-  }
-
-  async function save() {
-    setSaving(true);
-    setError(null);
+  async function commit() {
+    if (value.trim() === saved.trim() || status.state === "saving") return;
+    setStatus({ state: "saving" });
     try {
-      const result = await saveMySchools(contact.id, value.split(/[;\n]/));
+      const result = await save(value);
       if (result.ok) {
-        onSaved(result.data);
-        setEditing(false);
+        setValue(result.value);
+        setSaved(result.value);
+        setStatus({ state: "saved" });
       } else {
-        setError(result.message);
+        setStatus({ state: "error", message: result.message });
       }
     } catch {
-      setError("Couldn't save. Check your connection and try again.");
-    } finally {
-      setSaving(false);
+      setStatus({ state: "error", message: "Couldn't save. Check your connection and try again." });
     }
   }
 
-  if (editing) {
-    return (
-      <div className={styles.schoolEdit}>
-        <strong>School:</strong>
-        <div className={styles.row}>
-          <input
-            className={styles.input}
-            aria-label="Their schools"
-            value={value}
-            autoFocus
-            placeholder="e.g. The Wharton School, MBA; Wellesley College, BA"
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void save();
-              if (e.key === "Escape") setEditing(false);
-            }}
-          />
-          <button className={styles.uploadButton} onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button className={styles.textButton} onClick={() => setEditing(false)}>
-            Cancel
-          </button>
-        </div>
-        <span className={styles.hint}>Separate schools with a semicolon. A school that matches one of your bonus signals adds a point.</span>
-        {error && <p className={styles.error}>{error}</p>}
-      </div>
-    );
-  }
-
   return (
-    <p>
-      <strong>School:</strong>{" "}
-      {contact.schools === null
-        ? "not recorded"
-        : contact.schools.length
-          ? contact.schools.join("; ")
-          : "none shown on their profile"}{" "}
-      <button className={styles.textButton} onClick={start}>
-        {contact.schools?.length ? "Edit" : "Add"}
-      </button>
-    </p>
+    <div className={styles.field}>
+      <label htmlFor={id} className={styles.fieldLabel}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
+        className={styles.input}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => {
+          setValue(e.target.value);
+          if (status.state !== "saving") setStatus({ state: "idle" });
+        }}
+        onBlur={() => void commit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") void commit();
+          if (e.key === "Escape") {
+            setValue(saved);
+            setStatus({ state: "idle" });
+          }
+        }}
+      />
+      <span className={status.state === "error" ? styles.fieldError : styles.fieldStatus} role="status">
+        {status.state === "saving" ? "Saving…" : status.state === "saved" ? "Saved" : status.state === "error" ? status.message : hint ?? ""}
+      </span>
+    </div>
+  );
+}
+
+/** A person's school and email: boxes the student types or pastes into, saved as they go. */
+function ContactFields({ contact, onSaved }: { contact: SavedContact; onSaved: (item: SavedItem) => void }) {
+  return (
+    <div className={styles.contactFields}>
+      <AutosaveField
+        label="School"
+        initial={(contact.schools ?? []).join("; ")}
+        placeholder={contact.schools === null ? "Not recorded: type their school(s)" : "e.g. The Wharton School, MBA; Wellesley College"}
+        hint="Separate schools with a semicolon. A school named in your bonus signals adds a point."
+        save={async (value) => {
+          const result = await saveMySchools(contact.id, value.split(/[;\n]/));
+          if (!result.ok) return result;
+          onSaved(result.data);
+          return { ok: true, value: (result.data.schools ?? []).join("; ") };
+        }}
+      />
+      <AutosaveField
+        label="Email"
+        type="email"
+        initial={contact.email ?? ""}
+        placeholder="Paste their email from the alumni directory"
+        save={async (value) => {
+          const result = await saveMyEmail(contact.id, value);
+          if (!result.ok) return result;
+          const { email: _old, ...rest } = contact;
+          onSaved(result.data ? { ...rest, email: result.data } : rest);
+          return { ok: true, value: result.data ?? "" };
+        }}
+      />
+    </div>
   );
 }
 
@@ -956,6 +989,43 @@ function ItemDetails({ item, onUpdated }: { item: SavedItem; onUpdated: (item: S
         <p>
           <ScoreBadge score={item.score} /> <strong>{item.title}</strong> at {item.company} ({tierLabel(item.tier)})
         </p>
+        {item.summary ? (
+          <p>
+            <strong>What you&apos;d do:</strong> {item.summary}
+          </p>
+        ) : (
+          <p className={styles.hint}>
+            Scored before role summaries existed: paste this posting again to see what the role does, its team and
+            LinkedIn search phrases.
+          </p>
+        )}
+        {item.team && (
+          <p>
+            <strong>Team:</strong> {item.team}{" "}
+            <span className={styles.inlineHint}>
+              ({item.teamStated ? "named in the posting" : "likely, inferred from the posting"})
+            </span>
+          </p>
+        )}
+        {item.searchKeywords.length > 0 && (
+          <div className={styles.searchRow}>
+            <strong>Find people on LinkedIn:</strong>
+            <div className={styles.chips}>
+              {item.searchKeywords.map((keyword) => (
+                <a
+                  key={keyword}
+                  className={styles.chip}
+                  href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(keyword)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Opens a LinkedIn people search in a new tab"
+                >
+                  {keyword} ↗
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
         <p>
           <strong>Why:</strong> Role fit {item.roleFit}/5, {item.adjustment}. {item.reason}
         </p>
@@ -1000,7 +1070,7 @@ function ItemDetails({ item, onUpdated }: { item: SavedItem; onUpdated: (item: S
           Seen on profile: {item.matchedSignals.map((m) => `${m.signal} (“${m.evidence}”)`).join("; ")}
         </p>
       )}
-      <SchoolEditor contact={item} onSaved={onUpdated} />
+      <ContactFields key={item.id} contact={item} onSaved={onUpdated} />
       {item.pennAlum && (
         <p className={styles.notice}>Penn alum: look up their email in the Penn / Wharton alumni directory.</p>
       )}

@@ -16,6 +16,7 @@ import {
   saveItem,
   saveOutreach,
   saveProfile,
+  saveEmail,
   saveSchools,
   setOutreachStyle,
   type NewItem,
@@ -43,6 +44,10 @@ function posting(score: number, link: string | null, title = "Partner Manager"):
     gaps: [],
     applyBy: null,
     level: null,
+    summary: null,
+    team: null,
+    teamStated: null,
+    searchKeywords: [],
     score,
     tier: "target",
     matchedCompany: "Google",
@@ -187,6 +192,18 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
     expect(updated).toMatchObject({ pennAlum: true, score: 5, link: "https://www.linkedin.com/in/lee" });
     const [listed] = await listItems(sql, "kim");
     expect(listed).toMatchObject({ schools: ["The Wharton School, MBA"], score: 5 });
+  });
+
+  it("saves and clears a person's email, keeps it when they're scored again, and only for the user", async () => {
+    const { item } = await saveItem(sql, "lou", contact(3, "Ana Diaz"));
+    expect(await saveEmail(sql, "mallory", item.id, "ana@upenn.edu")).toBe(false);
+    expect(await saveEmail(sql, "lou", item.id, "ana@upenn.edu")).toBe(true);
+
+    const again = await saveItem(sql, "lou", contact(4, "Ana Diaz"));
+    expect(again.item.kind === "contact" && again.item.email).toBe("ana@upenn.edu");
+
+    await saveEmail(sql, "lou", item.id, null);
+    expect(await getContact(sql, "lou", item.id)).not.toHaveProperty("email");
   });
 
   it("removes only the user's own items", async () => {

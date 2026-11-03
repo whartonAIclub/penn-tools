@@ -8,7 +8,9 @@ import { AI_PROVIDERS, isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
 import { toolSql } from "@penntools/platform/db";
 import {
+  checkEmail,
   checkSchools,
+  saveEmail,
   saveSchools,
   checkInstruction,
   checkOutreach,
@@ -195,6 +197,18 @@ export async function saveMySchools(itemId: string, schools: string[]): Promise<
   if (!profile) return { ok: false, message: "Save your profile first." };
   const updated = await saveSchools(sql, user.id, String(itemId), checked.schools, profile);
   return updated ? { ok: true, data: updated } : { ok: false, message: "That person isn't on your list anymore." };
+}
+
+/** Sets (or, when blank, clears) a person's email address; returns it as saved. */
+export async function saveMyEmail(itemId: string, email: string): Promise<ActionResult<string | null>> {
+  const user = await getCurrentUser();
+  if (!user) return signedOut;
+  const checked = checkEmail(email);
+  if ("problem" in checked) return { ok: false, message: checked.problem };
+  if (!(await saveEmail(db(), user.id, String(itemId), checked.email))) {
+    return { ok: false, message: "That person isn't on your list anymore." };
+  }
+  return { ok: true, data: checked.email };
 }
 
 /** Saves the student's edits to an outreach draft. */

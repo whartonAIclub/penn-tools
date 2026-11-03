@@ -436,11 +436,42 @@
 .outreach .textarea { align-self: stretch; }
 .outreachTitle { font-size: 0.875rem; }
 
-.schoolEdit {
+.contactFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 2px 0;
+}
+@media (max-width: 640px) {
+  .contactFields { grid-template-columns: minmax(0, 1fr); }
+}
+
+.searchRow {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+.searchRow .chip { text-decoration: none; }
+
+.inlineHint {
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.fieldLabel { font-size: 0.8rem; font-weight: 600; }
+.fieldStatus,
+.fieldError {
+  min-height: 1.1em;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--section-label);
+}
+.fieldError { color: #b91c1c; }
 
 .reviseAll {
   display: flex;

@@ -85,7 +85,7 @@ export async function listItems(sql: Sql, userId: string): Promise<SavedItem[]> 
 /**
  * Saves a scored item. A repeat of one the user already has (same posting link,
  * same person) replaces it, and `replaced` says so. A repeat keeps the earlier
- * link when this one has none, and the person's outreach draft.
+ * link when this one has none, and the person's outreach draft and email address.
  */
 export async function saveItem(sql: Sql, userId: string, item: NewItem): Promise<{ item: SavedItem; replaced: boolean }> {
   // xmax is 0 for a freshly inserted row and set when ON CONFLICT updated one.
@@ -98,7 +98,9 @@ export async function saveItem(sql: Sql, userId: string, item: NewItem): Promise
             || CASE WHEN EXCLUDED.result->'link' = 'null'::jsonb AND items.result->'link' <> 'null'::jsonb
                     THEN jsonb_build_object('link', items.result->'link') ELSE '{}'::jsonb END
             || CASE WHEN items.result ? 'outreach'
-                    THEN jsonb_build_object('outreach', items.result->'outreach') ELSE '{}'::jsonb END,
+                    THEN jsonb_build_object('outreach', items.result->'outreach') ELSE '{}'::jsonb END
+            || CASE WHEN items.result ? 'email'
+                    THEN jsonb_build_object('email', items.result->'email') ELSE '{}'::jsonb END,
           updated_at = NOW()
     RETURNING id, result, updated_at, (xmax <> 0) AS replaced
   `;
@@ -187,6 +189,22 @@ export async function saveSchools(
   return row ? (toSaved(itemId, updated, row.updated_at) as SavedContact) : null;
 }
 
+/**
+ * Sets (or, with null, clears) a person's email address; check it with
+ * checkEmail first. False if they don't exist or aren't the user's.
+ */
+export async function saveEmail(sql: Sql, userId: string, itemId: string, email: string | null): Promise<boolean> {
+  if (!UUID_RE.test(itemId)) return false;
+  const rows = email
+    ? await sql`
+        UPDATE items SET result = result || jsonb_build_object('email', ${email}::text)
+        WHERE id = ${itemId} AND user_id = ${userId} AND kind = 'contact' RETURNING 1`
+    : await sql`
+        UPDATE items SET result = result - 'email'
+        WHERE id = ${itemId} AND user_id = ${userId} AND kind = 'contact' RETURNING 1`;
+  return rows.length > 0;
+}
+
 /** Deletes one of the user's items; false if it doesn't exist or isn't theirs. */
 export async function removeItem(sql: Sql, userId: string, itemId: string): Promise<boolean> {
   if (!UUID_RE.test(itemId)) return false;
@@ -198,5 +216,9 @@ function toSaved(id: string, result: NewItem, updatedAt: Date): SavedItem {
   // People saved before links and schools were kept for them have none of these fields.
   const saved = { link: null, ...(result as Partial<NewItem>), id, addedAt: updatedAt.toISOString() } as SavedItem;
   if (saved.kind === "contact" && saved.schools === undefined) return { ...saved, schools: null, pennAlum: null };
+  // Postings saved before summaries, teams and search phrases were written.
+  if (saved.kind === "posting" && saved.summary === undefined) {
+    return { ...saved, summary: null, team: null, teamStated: null, searchKeywords: [] };
+  }
   return saved;
 }

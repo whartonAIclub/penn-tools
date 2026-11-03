@@ -34,6 +34,10 @@ const posting: PostingReview = {
   gaps: [],
   applyBy: null,
   level: null,
+  summary: "Recruits and manages partners.",
+  team: "Google Cloud, Partner Ecosystem",
+  teamStated: false,
+  searchKeywords: ["Google Cloud partner manager", " ", "Google ISV partnerships"],
 };
 
 const contact: ContactReview = {
@@ -98,6 +102,20 @@ describe("scorePostingReview", () => {
 
   it("keeps at most three lead-with points", () => {
     expect(scorePostingReview(posting, companies).leadWith).toEqual(["a", "b", "c"]);
+  });
+
+  it("keeps the summary, the team and whether it was inferred, and non-blank search phrases", () => {
+    expect(scorePostingReview(posting, companies)).toMatchObject({
+      summary: "Recruits and manages partners.",
+      team: "Google Cloud, Partner Ecosystem",
+      teamStated: false,
+      searchKeywords: ["Google Cloud partner manager", "Google ISV partnerships"],
+    });
+  });
+
+  it("re-scores a posting saved before summaries, marking them unknown", () => {
+    const { summary: _s, team: _t, teamStated: _ts, searchKeywords: _k, ...old } = posting;
+    expect(scorePostingReview(old, companies)).toMatchObject({ summary: null, team: null, teamStated: null, searchKeywords: [] });
   });
 });
 
