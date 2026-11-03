@@ -11,5 +11,7 @@ export {
   majorIncludes,
 } from "./majors.js";
 export type { Major, CourseGroup, DepartmentSelector } from "./majors.js";
+export { fitMajor, recommendMajors, bestPair, MAX_SHARED_CREDITS } from "./recommend.js";
+export type { MajorFit, MajorPair, PlannedCourse, Gap } from "./recommend.js";
 export { rankCourses, setRating, sanitizeRatings, isRating, RATING_LABELS } from "./ratings.js";
 export type { Rating, Ratings, RankedCourse } from "./ratings.js";
