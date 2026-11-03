@@ -6,14 +6,16 @@
 // so matching can compare them later. My profile opens it on the saved
 // answers, where each line has an Edit link back to its question.
 
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ALONE,
   AVAILABILITY,
   ENERGY,
   EXPERIENCE,
-  GPS_AREA,
+  gpsArea,
+  isGpsArea,
+  nearCampus,
   GENDERS,
   GENDER_PREFS,
   HOME_TYPES,
@@ -430,8 +432,10 @@ export function Onboarding({
   const [step, setStep] = useState<Step>(initial && onDone ? "review" : "role");
   // Set when editing one answer from the review: Continue goes back there.
   const [editingOne, setEditingOne] = useState(false);
-  const [ownPlace, setOwnPlace] = useState(() => initial !== null && initial.location.area !== GPS_AREA && !NEIGHBORHOODS.some((n) => n.value === initial.location.area));
+  const [ownPlace, setOwnPlace] = useState(() => initial !== null && !isGpsArea(initial.location.area) && !NEIGHBORHOODS.some((n) => n.value === initial.location.area));
   const [locating, setLocating] = useState(false);
+  const [awayFromCampus, setAwayFromCampus] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -488,24 +492,46 @@ export function Onboarding({
 
   const shareLocation = () => {
     if (!("geolocation" in navigator)) {
-      setError("This browser can't share your location. Pick a neighborhood instead.");
+      setLocationError("This browser can't share your location. Pick a neighborhood below.");
       return;
     }
     setLocating(true);
-    setError(null);
+    setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const lat = roundCoord(position.coords.latitude);
+        const lng = roundCoord(position.coords.longitude);
         setLocating(false);
         setOwnPlace(false);
-        set({ area: GPS_AREA, lat: roundCoord(position.coords.latitude), lng: roundCoord(position.coords.longitude) });
+        setAwayFromCampus(!nearCampus(lat, lng));
+        set({ area: gpsArea(lat, lng), lat, lng });
       },
-      () => {
+      (problem) => {
         setLocating(false);
-        setError("We couldn't get your location. Allow it in your browser, or pick a neighborhood instead.");
+        setLocationError(
+          problem.code === problem.PERMISSION_DENIED
+            ? "Location is turned off for this site. Click the icon at the left end of the address bar, allow location, then try again. Or pick a neighborhood below."
+            : problem.code === problem.TIMEOUT
+              ? "Finding you took too long. Try again, or pick a neighborhood below."
+              : "Your device couldn't find you. On a Mac, turn on Location Services for your browser in System Settings, Privacy & Security. Or pick a neighborhood below.",
+        );
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 600_000 },
     );
   };
+
+  // If this browser already lets PennPaws see the location, fill it in without a tap.
+  useEffect(() => {
+    if (step !== "location" || f.area || !navigator.permissions) return;
+    navigator.permissions
+      .query({ name: "geolocation" })
+      .then((status) => {
+        if (status.state === "granted") shareLocation();
+      })
+      .catch(() => {});
+    // Only when the step opens; shareLocation reads the latest state itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   const save = async () => {
     const checked = checkProfile(toProfile(f));
@@ -771,9 +797,24 @@ export function Onboarding({
 
       {step === "location" && (
         <Ask title="Where are you?" lead="We use this to match people nearby.">
-          <button type="button" className={f.area === GPS_AREA ? styles.tileOn : styles.secondary} disabled={locating} onClick={shareLocation}>
-            {locating ? "Finding you…" : f.area === GPS_AREA ? "Using your current location" : "Use my current location"}
-          </button>
+          {isGpsArea(f.area) ? (
+            <div className={styles.suggestion}>
+              <p>
+                <strong>{f.area === "Near my current location" ? "Found you" : `Found you: ${f.area}`}</strong>
+              </p>
+              {awayFromCampus && (
+                <p className={styles.hint}>You seem to be away from Penn. If your pet lives at your Penn place, pick that neighborhood below instead.</p>
+              )}
+              <button type="button" className={styles.editLink} disabled={locating} onClick={shareLocation}>
+                {locating ? "Finding you..." : "Find me again"}
+              </button>
+            </div>
+          ) : (
+            <button type="button" className={styles.primary} disabled={locating} onClick={shareLocation}>
+              {locating ? "Finding you..." : "Use my current location"}
+            </button>
+          )}
+          {locationError && <p className={styles.error}>{locationError}</p>}
           <Question label="Or pick a neighborhood">
             <div className={styles.chips}>
               {NEIGHBORHOODS.map((place) => {
@@ -786,6 +827,8 @@ export function Onboarding({
                     aria-pressed={on}
                     onClick={() => {
                       setOwnPlace(false);
+                      setAwayFromCampus(false);
+                      setLocationError(null);
                       set({ area: place.value, lat: place.lat, lng: place.lng });
                     }}
                   >

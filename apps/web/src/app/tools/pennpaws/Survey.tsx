@@ -19,11 +19,11 @@ import {
   LIMITS,
   MUST_HAVES,
   NIGHT_PAY_PRESETS,
+  explainPay,
+  suggestPay,
   OTHER,
   PAY_PRESETS,
   PET_KINDS,
-  SUGGESTED_NIGHT_PAY,
-  SUGGESTED_PAY,
   TASKS,
   TASKS_BY_KIND,
   describe,
@@ -323,6 +323,8 @@ export function Survey({
   const nightly = a.careType === "stay" || boarding;
   const payUnit = nightly ? "a night" : "a visit";
   const payCount = countPaid(toDraft(a));
+  const suggested = suggestPay(toDraft(a));
+  const suggestedPay = `$${suggested.amount} ${payUnit}`;
   const toggle = <T,>(list: readonly T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
   // The conversation so far: each question asked and its answer. After AI
@@ -656,14 +658,16 @@ export function Survey({
                 );
               })}
             </div>
-            {payCount && (
-              <p className={styles.hint}>
-                {payCount.label}. At ${nightly ? SUGGESTED_NIGHT_PAY : SUGGESTED_PAY} {payUnit} that's about ${payCount.count * (nightly ? SUGGESTED_NIGHT_PAY : SUGGESTED_PAY)} in total.
+            <div className={styles.suggestion}>
+              <p>
+                <strong>Suggested: {suggestedPay}</strong>
+                {payCount && <>, about ${payCount.count * suggested.amount} for {payCount.label}</>}
               </p>
-            )}
-            <button type="button" className={styles.secondary} onClick={() => answer({ pay: `$${nightly ? SUGGESTED_NIGHT_PAY : SUGGESTED_PAY} ${payUnit}, suggested`, payOwn: false })}>
-              Suggest a fair rate for me
-            </button>
+              <p className={styles.hint}>{explainPay(suggested)}. Based on your pet, care and dates.</p>
+              <button type="button" className={styles.secondary} onClick={() => answer({ pay: `${suggestedPay}, suggested`, payOwn: false })}>
+                Use {suggestedPay}
+              </button>
+            </div>
             <button type="button" className={a.payOwn ? styles.tileOn : styles.secondary} aria-pressed={a.payOwn} onClick={() => set({ payOwn: true, pay: "" })}>
               Set my own amount
             </button>

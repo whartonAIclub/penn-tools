@@ -188,8 +188,25 @@ export const NEIGHBORHOODS = [
   { value: "South Philly", lat: 39.925, lng: -75.169 },
 ] as const;
 
-/** The area saved when a member shares their GPS location. */
+/** The area saved for a shared GPS location with no listed neighborhood close by. */
 export const GPS_AREA = "Near my current location";
+
+/** The area saved for a shared GPS location: "Near Spruce Hill", so others see a place, not a phrase. */
+export function gpsArea(lat: number, lng: number): string {
+  const place = nearestNeighborhood(lat, lng);
+  return place ? `Near ${place}` : GPS_AREA;
+}
+
+/** Whether an area came from sharing GPS rather than picking or typing a place. */
+export function isGpsArea(area: string): boolean {
+  return area === GPS_AREA || NEIGHBORHOODS.some((n) => area === `Near ${n.value}`);
+}
+
+/** Whether a point is within about 8 km of campus, so a member who shares GPS from home over break can be warned. */
+export function nearCampus(lat: number, lng: number): boolean {
+  const campus = NEIGHBORHOODS[0];
+  return Math.hypot((campus.lat - lat) * 111, (campus.lng - lng) * 111 * Math.cos((lat * Math.PI) / 180)) <= 8;
+}
 
 /** The closest listed neighborhood within about 2 km, or null when none is that close. */
 export function nearestNeighborhood(lat: number, lng: number): string | null {
@@ -333,7 +350,7 @@ export function requestStart(profile: OwnerProfile): RequestStart {
     pet.bites ? `Has bitten or scratched someone before: ${pet.bitesDetails ?? ""}` : null,
   ];
   const area =
-    location.area === GPS_AREA ? (location.lat !== null && location.lng !== null ? nearestNeighborhood(location.lat, location.lng) : null) : location.area;
+    isGpsArea(location.area) ? (location.lat !== null && location.lng !== null ? nearestNeighborhood(location.lat, location.lng) : null) : location.area;
   return {
     petName: pet.name,
     petKind: pet.kind,

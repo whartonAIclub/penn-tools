@@ -811,3 +811,14 @@
 .testRow { display: flex; gap: 8px; }
 .testRow button { flex: 1; }
 .testLog { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--pp-green-soft);
+}
+.suggestion p { margin: 0; }
+.suggestion .editLink { align-self: flex-start; }
