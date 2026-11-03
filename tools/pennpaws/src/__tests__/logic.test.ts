@@ -122,9 +122,12 @@ describe("booking rules", () => {
   it("refuses the wrong person or the wrong moment", () => {
     expect(nextStatus("open", "accept_offer", "sitter")).toBeNull();
     expect(nextStatus("matched", "accept_offer", "owner")).toBeNull();
-    expect(nextStatus("agreed", "cancel", "owner")).toBeNull();
+    expect(nextStatus("agreed", "cancel", "owner")).toBe("cancelled");
+    expect(nextStatus("completed", "cancel", "owner")).toBeNull();
+    expect(nextStatus("agreed", "sitter_withdraw", "sitter")).toBe("open");
+    expect(nextStatus("agreed", "sitter_withdraw", "owner")).toBeNull();
     expect(nextStatus("open", "cancel", "sitter")).toBeNull();
-    expect(allowedFrom("cancel")).toEqual(["open", "matched"]);
+    expect(allowedFrom("cancel")).toEqual(["open", "matched", "agreed"]);
   });
 
   it("books only when both approve, and only then shares contacts", () => {

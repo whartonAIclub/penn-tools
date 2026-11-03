@@ -26,6 +26,9 @@ import {
   checkReview,
   clearPayment,
   firstName,
+  withdrawOffer,
+  addressFrom,
+  checkHandoff,
   checkReport,
   fileReport,
   isTeamEmail,
@@ -169,11 +172,21 @@ export async function accept(offerId: string): Promise<ActionResult<string>> {
   );
 }
 
-export async function cancel(requestId: string): Promise<ActionResult> {
+export async function cancel(requestId: string, reason: string | null): Promise<ActionResult> {
   const user = await signedIn();
   if (!user) return signedOut;
   return run(async () => {
-    await cancelRequest(db(), user.id, String(requestId));
+    await cancelRequest(db(), user.id, String(requestId), typeof reason === "string" ? reason : null);
+    return null;
+  });
+}
+
+/** The sitter takes back their offer, or backs out after being picked. */
+export async function withdraw(requestId: string, reason: string | null): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  return run(async () => {
+    await withdrawOffer(db(), user, String(requestId), typeof reason === "string" ? reason : null);
     return null;
   });
 }
@@ -341,12 +354,18 @@ export async function draftNextMessage(requestId: string, threadId: string | nul
   );
 }
 
-export async function approve(requestId: string, version: number): Promise<ActionResult> {
+/** Approves the agreement, sharing a phone number (and the address, for whoever hosts the care) for once both approve. */
+export async function approve(requestId: string, version: number, handoff: unknown): Promise<ActionResult> {
   const user = await signedIn();
   if (!user) return signedOut;
   if (!Number.isInteger(version)) return { ok: false, error: "Reload the page and try again." };
+  const sql = db();
+  const view = await getRequestView(sql, user.id, String(requestId));
+  if (!view?.role) return { ok: false, error: "This agreement can't be approved now." };
+  const checked = checkHandoff(handoff, addressFrom(view.draft.careType) === view.role);
+  if (!checked.ok) return { ok: false, error: checked.error };
   return run(async () => {
-    await approveAgreement(db(), user.id, String(requestId), version);
+    await approveAgreement(sql, user.id, String(requestId), version, checked.value);
     return null;
   });
 }
@@ -380,7 +399,7 @@ export async function askForChange(requestId: string, change: string): Promise<A
         if (!isAIError(error)) throw error;
       }
     }
-    await changeAgreement(sql, user.id, String(requestId), terms);
+    await changeAgreement(sql, user.id, String(requestId), terms, text);
     return null;
   });
 }

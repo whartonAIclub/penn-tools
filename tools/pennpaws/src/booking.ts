@@ -6,13 +6,16 @@ export type RequestStatus = "open" | "matched" | "agreed" | "completed" | "cance
 export type OfferStatus = "pending" | "accepted" | "declined" | "withdrawn";
 export type Role = "owner" | "sitter";
 
-export type RequestAction = "accept_offer" | "both_approved" | "cancel" | "complete";
+export type RequestAction = "accept_offer" | "both_approved" | "cancel" | "complete" | "sitter_withdraw";
 
 const TRANSITIONS: Record<RequestAction, { from: readonly RequestStatus[]; to: RequestStatus; by: readonly Role[] }> = {
   accept_offer: { from: ["open"], to: "matched", by: ["owner"] },
   both_approved: { from: ["matched"], to: "agreed", by: ["owner", "sitter"] },
-  cancel: { from: ["open", "matched"], to: "cancelled", by: ["owner"] },
+  // Either person can back out before the care is done; the other is told why.
+  cancel: { from: ["open", "matched", "agreed"], to: "cancelled", by: ["owner"] },
   complete: { from: ["agreed"], to: "completed", by: ["owner", "sitter"] },
+  // The picked sitter backing out reopens the request for other sitters.
+  sitter_withdraw: { from: ["matched", "agreed"], to: "open", by: ["sitter"] },
 };
 
 /** The status after `action`, or null when it isn't allowed from `status` for `role`. */

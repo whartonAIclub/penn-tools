@@ -344,11 +344,8 @@ export function requestStart(profile: OwnerProfile): RequestStart {
   const lower = (options: readonly Option[], value: string) => labelOf(options, value).toLowerCase();
   const care = pet.specialCare.filter((c) => c !== OTHER).map((c) => labelOf(SPECIAL_CARE, c));
   if (pet.specialCareOther) care.push(pet.specialCareOther);
-  const notes = [
-    `With new people: ${lower(WITH_PEOPLE, pet.withPeople)}. With other animals: ${lower(WITH_ANIMALS, pet.withAnimals)}. Alone: ${lower(ALONE, pet.alone)}.`,
-    care.length ? `Special care: ${care.join(", ")}.` : null,
-    pet.bites ? `Has bitten or scratched someone before: ${pet.bitesDetails ?? ""}` : null,
-  ];
+  // Only special care goes on the public request; temperament and bite history are shown to sitters who offer (petNotes).
+  const notes = [care.length ? `Special care: ${care.join(", ")}.` : null];
   const area =
     isGpsArea(location.area) ? (location.lat !== null && location.lng !== null ? nearestNeighborhood(location.lat, location.lng) : null) : location.area;
   return {
@@ -361,6 +358,18 @@ export function requestStart(profile: OwnerProfile): RequestStart {
     sitterGender: profile.sitterGenderPref,
     languages: [...profile.sitterLanguages],
   };
+}
+
+/** The pet's temperament and any bite history, in plain words. Shown only to the owner and sitters who have offered, never on the public request. */
+export function petNotes(profile: OwnerProfile): string {
+  const { pet } = profile;
+  const lower = (options: readonly Option[], value: string) => labelOf(options, value).toLowerCase();
+  return [
+    `With new people: ${lower(WITH_PEOPLE, pet.withPeople)}. With other animals: ${lower(WITH_ANIMALS, pet.withAnimals)}. Alone: ${lower(ALONE, pet.alone)}.`,
+    pet.bites ? `Has bitten or scratched someone before: ${pet.bitesDetails ?? ""}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** A sitter's profile in plain words, for AI to introduce them in a message. Leaves out gender and location. */

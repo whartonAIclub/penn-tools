@@ -152,7 +152,6 @@ const YES_NO = [
 
 type Step =
   | "role"
-  | "verify"
   | "pet"
   | "personality"
   | "care"
@@ -168,7 +167,6 @@ type Step =
 
 const TITLES: Record<Step, string> = {
   role: "how you'll use PennPaws",
-  verify: "school email",
   pet: "your pet",
   personality: "personality",
   care: "care and safety",
@@ -184,7 +182,7 @@ const TITLES: Record<Step, string> = {
 };
 
 /** The steps for the role chosen so far. Boarding adds a step about the sitter's home. */
-function stepsFor(f: Form): Step[] {
+function stepsFor(f: Form, editing = false): Step[] {
   const survey: Step[] =
     f.role === "owner"
       ? ["pet", "personality", "care", "preference"]
@@ -193,7 +191,8 @@ function stepsFor(f: Form): Step[] {
         : f.role === "pals"
           ? ["pals"]
           : [];
-  return ["role", "verify", ...survey, "location", "review"];
+  // Google already checked the Penn email, and first-time setup saves straight from the last question; My profile adds the review.
+  return ["role", ...survey, "location", ...(editing ? (["review"] as const) : [])];
 }
 
 const orNull = (text: string) => (text.trim() ? text.trim() : null);
@@ -315,8 +314,6 @@ function problem(step: Step, f: Form, school: string | null): string | null {
   switch (step) {
     case "role":
       return f.role ? null : "Choose one to continue.";
-    case "verify":
-      return school ? null : "Sign in with your school email to continue.";
     case "pet":
       if (!f.petName.trim()) return "Add your pet's name.";
       if (!f.petKind) return "Choose what kind of pet.";
@@ -439,15 +436,16 @@ export function Onboarding({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const steps = stepsFor(f);
+  const steps = stepsFor(f, !!onDone);
   const index = Math.max(0, steps.indexOf(step));
+  const questionCount = steps.filter((s) => s !== "review").length;
 
   const set = (patch: Partial<Form>) => {
     setF((prev) => ({ ...prev, ...patch }));
     setError(null);
   };
   const goTo = (next: Form) => {
-    const nextSteps = stepsFor(next);
+    const nextSteps = stepsFor(next, !!onDone);
     if (editingOne) {
       // Back to the review, unless the change opened a question that still needs answering (like boarding's home step).
       const open = nextSteps.find((s) => s !== "review" && problem(s, next, school) !== null);
@@ -533,6 +531,16 @@ export function Onboarding({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  /** The last question of first-time setup: check it, then save. */
+  const finish = () => {
+    const wrong = problem(step, f, school);
+    if (wrong) {
+      setError(wrong);
+      return;
+    }
+    void save();
+  };
+
   const save = async () => {
     const checked = checkProfile(toProfile(f));
     if (!checked.ok) {
@@ -553,6 +561,24 @@ export function Onboarding({
 
   const petWord = f.petName.trim() || "your pet";
 
+  // Not a Penn sign-in: say so once, before asking anything.
+  if (!school) {
+    return (
+      <div className={styles.app}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>PennPaws</h1>
+        </header>
+        <div className={styles.notice}>
+          <strong>PennPaws is open to Penn students for now</strong>
+          <span>
+            You're signed in as {email ?? "an account without an email"}. Log out with the button at the top right, then sign in with your Penn Google account
+            (an email ending in upenn.edu).
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   const body = (
     <section className={styles.survey}>
       {editingOne && step !== "review" ? (
@@ -560,9 +586,9 @@ export function Onboarding({
       ) : (
         step !== "review" || !onDone ? (
           <>
-            <div className={styles.progressLabel}>{step === "review" ? "Review your answers" : `Step ${index + 1} of ${steps.length - 1}, ${TITLES[step]}`}</div>
+            <div className={styles.progressLabel}>{step === "review" ? "Review your answers" : `Step ${index + 1} of ${questionCount}, ${TITLES[step]}`}</div>
             <div className={styles.progress} aria-hidden="true">
-              <span style={{ width: `${Math.round((index / (steps.length - 1)) * 100)}%` }} />
+              <span style={{ width: `${Math.round((index / questionCount) * 100)}%` }} />
             </div>
           </>
         ) : null
@@ -570,37 +596,8 @@ export function Onboarding({
 
       {step === "role" && (
         <Ask title={`Welcome, ${userFirstName}. How will you use PennPaws?`} lead="You can change this any time from your profile.">
-          <Choices rows options={ROLES} selected={f.role} onPick={(role) => answer({ role })} />
-        </Ask>
-      )}
-
-      {step === "verify" && (
-        <Ask title="Check your Penn email" lead="PennPaws is starting at Penn, so everyone you meet here has a verified Penn email.">
-          {school === LOCAL_TEST_SCHOOL ? (
-            <div className={styles.notice}>
-              <strong>Local test account</strong>
-              <span>
-                You're signed in as the local development user, so the Penn check is skipped while PennPaws runs on your computer. On the live site,
-                people sign in with their Penn Google account.
-              </span>
-            </div>
-          ) : school ? (
-            <div className={styles.noticeGood}>
-              <strong>
-                <CheckIcon /> Penn verified
-              </strong>
-              <span>You signed in with {email}, a Penn email. Google has confirmed it's yours.</span>
-            </div>
-          ) : (
-            <div className={styles.notice}>
-              <strong>We couldn't verify a Penn email</strong>
-              <span>
-                You're signed in as {email ?? "an account without an email"}. PennPaws is open to Penn for now, so it needs an email ending in upenn.edu.
-                Log out with the button at the top right, then sign in with your Penn Google account.
-              </span>
-            </div>
-          )}
-          {school && <Continue onClick={goOn} />}
+          {/* Pet Pals (following friends' pets, meetups) isn't built yet, so only members who already chose it see it. */}
+          <Choices rows options={f.role === "pals" ? ROLES : ROLES.filter((r) => r.value !== "pals")} selected={f.role} onPick={(role) => answer({ role })} />
         </Ask>
       )}
 
@@ -851,7 +848,16 @@ export function Onboarding({
           </Question>
           {ownPlace && <TextField id="pp-area" label="Your neighborhood or campus" value={f.area} placeholder="Near Drexel" onChange={(area) => set({ area })} />}
           <span className={styles.hint}>We save an approximate spot (about 300 m), never your address. Others only see roughly how far away you are.</span>
-          <Continue onClick={goOn} />
+          {onDone ? (
+            <Continue onClick={goOn} />
+          ) : (
+            <>
+              <span className={styles.hint}>The PennPaws team can see profiles, requests and reports to keep the community safe. You can change any answer later in My profile.</span>
+              <button type="button" className={styles.primary} disabled={busy} onClick={finish}>
+                {busy ? "Saving..." : "Finish setup"}
+              </button>
+            </>
+          )}
         </Ask>
       )}
 
@@ -861,7 +867,7 @@ export function Onboarding({
           lead={
             onDone
               ? "Your answers from setup. Tap Edit next to anything to change it, then save."
-              : "Look it over, then save. You can change it any time. The PennPaws team can see profiles, requests and reports to keep the community safe."
+              : "Look it over, then save. You can change it any time."
           }
         >
           <dl className={styles.panel}>

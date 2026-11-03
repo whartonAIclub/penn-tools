@@ -106,7 +106,7 @@ export function Conversation({
             </button>
           </div>
           <span className={styles.hint}>
-            {hasAI ? "AI drafts, you edit and send. " : ""}Keep your address and phone number here until you both approve the booking.
+            {hasAI ? "AI drafts, you edit and send. " : ""}Don't share your address or phone number in messages. You each add them when you approve, and they show once you're both booked.
           </span>
         </form>
       ) : (

@@ -69,6 +69,17 @@ export function checkDraft(input: unknown): Checked<RequestDraft> {
   return { ok: false, error: result.error.issues[0]?.message ?? "Check your answers and try again." };
 }
 
+/**
+ * The pasted post with phone numbers, emails and chat handles blanked out, for
+ * everyone but the owner: contact details are shared only once both approve.
+ */
+export function hideContacts(text: string): string {
+  return text
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email hidden]")
+    .replace(/(微信|wechat|weixin|vx|wx|whatsapp|line|telegram|ig|instagram)\s*(号|id)?\s*[:：]?\s*[\w.-]{3,}/gi, "$1 [hidden]")
+    .replace(/\+?\d[\d\s().-]{6,}\d/g, "[number hidden]");
+}
+
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const VISITS_BY_CARE_TYPE = {

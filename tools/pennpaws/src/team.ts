@@ -14,7 +14,7 @@ import { LIMITS, type Option } from "./survey.js";
 import type { RequestStatus } from "./booking.js";
 
 /** The team's Penn emails. Add a teammate's here; anyone else never sees team data. */
-export const TEAM_EMAILS: readonly string[] = ["lu16@wharton.upenn.edu"];
+export const TEAM_EMAILS: readonly string[] = ["lu16@wharton.upenn.edu", "li717@wharton.upenn.edu"];
 
 /** Whether this sign-in email belongs to the team. `allowLocalTest` lets the local test user in under `pnpm dev`. */
 export function isTeamEmail(email: string | null | undefined, allowLocalTest: boolean): boolean {

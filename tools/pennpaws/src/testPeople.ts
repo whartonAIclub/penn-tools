@@ -426,8 +426,8 @@ export async function playTestPeople(sql: Sql): Promise<string[]> {
   }
 
   // Fake people approve agreements waiting on them.
-  const waiting = await sql<{ request_id: string; version: number; pet_name: string; owner_id: string | null; sitter_id: string | null }[]>`
-    SELECT a.request_id, a.version, r.pet_name,
+  const waiting = await sql<{ request_id: string; version: number; pet_name: string; boarding: boolean; owner_id: string | null; sitter_id: string | null }[]>`
+    SELECT a.request_id, a.version, r.pet_name, r.care_type = 'boarding' AS boarding,
            CASE WHEN r.owner_id LIKE 'seed-%' AND a.owner_approved_at IS NULL THEN r.owner_id END AS owner_id,
            CASE WHEN o.sitter_id LIKE 'seed-%' AND a.sitter_approved_at IS NULL THEN o.sitter_id END AS sitter_id
     FROM agreements a JOIN requests r ON r.id = a.request_id JOIN offers o ON o.id = a.offer_id
@@ -436,7 +436,8 @@ export async function playTestPeople(sql: Sql): Promise<string[]> {
   for (const w of waiting) {
     for (const userId of [w.owner_id, w.sitter_id]) {
       if (!userId) continue;
-      await approveAgreement(sql, userId, w.request_id, w.version);
+      const hostsCare = w.boarding === (userId === w.sitter_id);
+      await approveAgreement(sql, userId, w.request_id, w.version, { phone: "215-555-0100", address: hostsCare ? "3900 Spruce St, Apt 2B (fake)" : null });
       done.push(`${userId.startsWith("seed-owner") ? "The owner" : "The sitter"} approved the agreement for ${w.pet_name}.`);
     }
   }

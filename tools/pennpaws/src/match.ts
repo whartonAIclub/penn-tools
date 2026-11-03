@@ -76,7 +76,8 @@ export function milesBetween(a: Point, b: Point): number {
   return km / 1.609;
 }
 
-const formatMiles = (miles: number) => (miles < 0.1 ? "Under 0.1 mi away" : `${miles.toFixed(1)} mi away`);
+// Rounded to half a mile, so a distance plus a neighborhood can't narrow down someone's home.
+const formatMiles = (miles: number) => (miles < 0.5 ? "Under half a mile away" : `About ${Math.round(miles * 2) / 2} mi away`);
 
 /** Days of the week (0 is Sunday) the request covers, or null for weekly requests. */
 function daysCovered(draft: RequestDraft): Set<number> | null {
@@ -245,8 +246,8 @@ export function checkAsks(draft: RequestDraft, sitter: SitterProfile): AskCheck 
   if (draft.mustHaves.includes("cat_experience")) check(sitter.experience.includes("owned_cats"), "Has owned cats", "No cat experience listed");
   if (draft.mustHaves.includes("dog_experience")) check(sitter.experience.includes("owned_dogs"), "Has owned dogs", "No dog experience listed");
   if (draft.mustHaves.includes("home_most_days")) check(sitter.availability.includes("weekday_daytime"), "Free weekday daytimes", "Not free weekday daytimes");
-  // Sitters agreed their gender is used for matching, even when it isn't shown.
-  if (draft.sitterGender !== "none") check(sitter.gender === draft.sitterGender, "Matches your gender preference", "Doesn't match your gender preference");
+  // Gender still counts in the sitter's own ranking, but the owner only sees this line when the sitter chose to show their gender.
+  if (draft.sitterGender !== "none" && sitter.showGender) check(sitter.gender === draft.sitterGender, "Matches your gender preference", "Doesn't match your gender preference");
   if (draft.languages.length) {
     const shared = draft.languages.filter((l) => sitter.languages.includes(l));
     check(shared.length > 0, `Speaks ${listLabels(LANGUAGES, shared)}`, `Doesn't speak ${listLabels(LANGUAGES, draft.languages).replace(/ and /, " or ")}`);

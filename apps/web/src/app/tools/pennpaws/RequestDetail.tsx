@@ -8,8 +8,8 @@
 // anonymously, in Completed.
 
 import { useCallback, useEffect, useState } from "react";
-import { FIT_LABELS, REPORT_REASONS, describe, type AgreementTerms, type AskCheck, type Match } from "@penntools/tool-pennpaws";
-import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, report, type ActionResult, type RequestPage } from "./actions";
+import { FIT_LABELS, REPORT_REASONS, addressFrom, describe, type AgreementTerms, type Contact, type SitterCard, type AskCheck, type Match } from "@penntools/tool-pennpaws";
+import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, report, withdraw, type ActionResult, type RequestPage } from "./actions";
 import { Conversation } from "./Conversation";
 import { CheckIcon, PetAvatar } from "./PennPaws";
 import styles from "./PennPaws.module.css";
@@ -46,7 +46,6 @@ export function RequestDetail({
   const [message, setMessage] = useState("");
   const [change, setChange] = useState("");
   const [changing, setChanging] = useState(false);
-  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const reload = useCallback(async () => setRequest(await loadRequest(requestId)), [requestId]);
   useEffect(() => {
@@ -140,6 +139,14 @@ export function RequestDetail({
         </dd>
       </dl>
 
+      {request.petNotes && (
+        <div className={styles.panelPlain}>
+          <strong>{request.mine ? "What sitters see once they offer" : `About ${request.draft.petName}`}</strong>
+          <span className={styles.preLine}>{request.petNotes}</span>
+          {!request.mine && <span className={styles.hint}>Shared with you because you offered. Not shown on the public request.</span>}
+        </div>
+      )}
+
       {request.draft.original && (
         <details className={styles.original}>
           <summary>
@@ -185,7 +192,7 @@ export function RequestDetail({
             placeholder="I have pets at home, live nearby and I'm free mornings and evenings."
           />
           <button type="submit" className={styles.primary} disabled={busy || !message.trim()}>
-            Accept this job
+            Offer to help
           </button>
           <span className={styles.hint}>
             {request.ownerFirstName} picks one sitter from everyone who accepts, and sees your first name and this note. Emails are shared only after you both
@@ -197,7 +204,7 @@ export function RequestDetail({
 
       {/* A sitter who offered */}
       {role === "sitter" && request.myOffer?.status === "pending" && (
-        <div className={styles.notice}>You accepted this job. We'll let you know when {request.ownerFirstName} picks a sitter.</div>
+        <div className={styles.notice}>You offered to help. We'll let you know when {request.ownerFirstName} picks a sitter.</div>
       )}
 
       {/* A sitter's conversation with the owner */}
@@ -228,6 +235,7 @@ export function RequestDetail({
                 <strong>
                   <CheckIcon /> {o.sitterFirstName}, Penn
                 </strong>
+                {o.sitter && <SitterCardView card={o.sitter} />}
                 <p className={styles.preLine}>{o.message}</p>
                 {o.match && <MatchList match={o.match} />}
                 <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => accept(o.id))}>
@@ -270,12 +278,20 @@ export function RequestDetail({
             <dd>{request.sitterFirstName}</dd>
             {TERM_LABELS.map(([key, label]) =>
               agreement.terms[key] ? (
-                <Term key={key} label={label} value={agreement.terms[key]!} />
+                <Term key={key} label={label} value={agreement.terms[key]!} changed={!!agreement.lastChange?.fields.includes(key)} />
               ) : key === "vet" && request.status === "matched" ? (
-                <Term key={key} label={label} value="Add the vet's name and phone with Ask for a change" muted />
+                <Term key={key} label={label} value="Not given yet. Use Ask for a change to add the vet's name and phone." muted />
               ) : null,
             )}
           </dl>
+          {agreement.lastChange && request.status === "matched" && (
+            <p className={styles.changeNote}>
+              {agreement.lastChange.byFirstName} asked: &ldquo;{agreement.lastChange.text}&rdquo;
+              {agreement.lastChange.fields.length > 0 && (
+                <> Changed: {agreement.lastChange.fields.map((f) => TERM_LABELS.find(([k]) => k === f)?.[1] ?? f).join(", ")}.</>
+              )}
+            </p>
+          )}
 
           <ul className={styles.approvals}>
             <Approval name={request.ownerFirstName} done={agreement.ownerApproved} isYou={role === "owner"} />
@@ -287,12 +303,17 @@ export function RequestDetail({
               <button type="button" className={styles.secondary} disabled={busy} onClick={() => setChanging(true)}>
                 Ask for a change
               </button>
-              {!myApproval && (
-                <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => approve(request.id, agreement.version))}>
-                  Approve
-                </button>
-              )}
             </div>
+          )}
+          {request.status === "matched" && !myApproval && !changing && role && (
+            <ApproveForm
+              key={agreement.version}
+              hostsCare={addressFrom(request.draft.careType) === role}
+              boarding={request.draft.careType === "boarding"}
+              savedPhone={request.savedPhone}
+              busy={busy}
+              onApprove={(handoff) => act(() => approve(request.id, agreement.version, handoff))}
+            />
           )}
           {request.status === "matched" && myApproval && !changing && <p className={styles.muted}>You approved. Waiting for {otherName}.</p>}
 
@@ -336,13 +357,9 @@ export function RequestDetail({
       {request.contacts && (
         <div className={styles.noticeGood}>
           <strong>You're booked</strong>
-          <span>Reach each other directly to sort out the last details.</span>
-          <span>
-            {request.ownerFirstName}: {request.contacts.owner ?? "email not available"}
-          </span>
-          <span>
-            {request.sitterFirstName}: {request.contacts.sitter ?? "email not available"}
-          </span>
+          <span>Text each other to plan a quick meet-and-greet and the key handoff.</span>
+          <ContactLines name={request.ownerFirstName} contact={request.contacts.owner} />
+          <ContactLines name={request.sitterFirstName ?? "Sitter"} contact={request.contacts.sitter} />
         </div>
       )}
 
@@ -378,27 +395,147 @@ export function RequestDetail({
         <div className={styles.notice}>{request.mine ? "You cancelled this request." : "The owner cancelled this request."}</div>
       )}
 
-      {role === "owner" && (request.status === "open" || request.status === "matched") &&
-        (confirmingCancel ? (
-          <div className={styles.panelPlain}>
-            <span>Cancel this request? Anyone who offered will be told.</span>
-            <div className={styles.row}>
-              <button type="button" className={styles.secondary} onClick={() => setConfirmingCancel(false)}>
-                Keep it
-              </button>
-              <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => cancel(request.id))}>
-                Yes, cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" className={styles.link} onClick={() => setConfirmingCancel(true)}>
-            Cancel this request
-          </button>
-        ))}
+      {role === "owner" && (request.status === "open" || request.status === "matched" || request.status === "agreed") && (
+        <BackOut
+          label={request.status === "agreed" ? "Cancel this booking" : "Cancel this request"}
+          question={
+            request.status === "agreed"
+              ? `Cancel this booking? ${request.sitterFirstName ?? "Your sitter"} is told right away, so say why.`
+              : "Cancel this request? Anyone who offered is told."
+          }
+          confirm="Yes, cancel"
+          busy={busy}
+          onConfirm={(reason) => act(() => cancel(request.id, reason))}
+        />
+      )}
+      {role === "sitter" && request.myOffer?.status === "pending" && request.status === "open" && (
+        <BackOut
+          label="Take back my offer"
+          question={`Take back your offer? ${request.ownerFirstName} is told.`}
+          confirm="Yes, take it back"
+          busy={busy}
+          onConfirm={(reason) => act(() => withdraw(request.id, reason))}
+        />
+      )}
+      {role === "sitter" && request.myOffer?.status === "accepted" && (request.status === "matched" || request.status === "agreed") && (
+        <BackOut
+          label="I can't do this anymore"
+          question={`Back out? ${request.ownerFirstName} is told right away and the request opens to other sitters, so say why.`}
+          confirm="Yes, back out"
+          busy={busy}
+          onConfirm={(reason) => act(() => withdraw(request.id, reason))}
+        />
+      )}
 
       {!request.mine && <ReportLink kind="request" targetId={request.id} what="this request" />}
     </section>
+  );
+}
+
+/** A quiet link that asks first, with an optional reason the other person sees. */
+function BackOut({ label, question, confirm, busy, onConfirm }: { label: string; question: string; confirm: string; busy: boolean; onConfirm: (reason: string | null) => void }) {
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState("");
+  if (!asking) {
+    return (
+      <button type="button" className={styles.link} onClick={() => setAsking(true)}>
+        {label}
+      </button>
+    );
+  }
+  return (
+    <div className={styles.panelPlain}>
+      <span>{question}</span>
+      <textarea className={styles.input} rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional, they'll see it)" aria-label="Reason" />
+      <div className={styles.row}>
+        <button type="button" className={styles.secondary} onClick={() => setAsking(false)}>
+          Keep it
+        </button>
+        <button type="button" className={styles.primary} disabled={busy} onClick={() => onConfirm(reason.trim() || null)}>
+          {confirm}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Approving shares a phone number, and the address from whoever hosts the care. */
+function ApproveForm({
+  hostsCare,
+  boarding,
+  savedPhone,
+  busy,
+  onApprove,
+}: {
+  hostsCare: boolean;
+  boarding: boolean;
+  savedPhone: string | null;
+  busy: boolean;
+  onApprove: (handoff: { phone: string; address: string | null }) => void;
+}) {
+  const [phone, setPhone] = useState(savedPhone ?? "");
+  const [address, setAddress] = useState("");
+  return (
+    <form
+      className={styles.panelPlain}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onApprove({ phone, address: hostsCare ? address : null });
+      }}
+    >
+      <label htmlFor="pp-phone" className={styles.label}>
+        Your phone number
+      </label>
+      <input id="pp-phone" className={styles.input} type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="215 555 0134" />
+      {hostsCare && (
+        <>
+          <label htmlFor="pp-address" className={styles.label}>
+            {boarding ? "Your address, for drop-off" : "Address where the care happens"}
+          </label>
+          <input id="pp-address" className={styles.input} autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="3900 Spruce St, Apt 2B" />
+        </>
+      )}
+      <span className={styles.hint}>Only the two of you see these, and only once you've both approved.</span>
+      <button type="submit" className={styles.primary} disabled={busy || !phone.trim() || (hostsCare && !address.trim())}>
+        Approve and share
+      </button>
+    </form>
+  );
+}
+
+function ContactLines({ name, contact }: { name: string; contact: Contact }) {
+  return (
+    <span>
+      <strong>{name}</strong>: {[contact.phone, contact.email, contact.address].filter(Boolean).join(", ") || "no details shared"}
+    </span>
+  );
+}
+
+/** Who the sitter is, so the owner isn't choosing from a first name and a note. */
+function SitterCardView({ card }: { card: SitterCard }) {
+  const rating =
+    card.rating.count === 0
+      ? "No ratings yet"
+      : `${card.rating.average?.toFixed(1)} out of 5 from ${card.rating.count} ${card.rating.count === 1 ? "owner" : "owners"}`;
+  return (
+    <dl className={styles.sitterCard}>
+      <dt>About</dt>
+      <dd className={styles.preLine}>{card.bio}</dd>
+      <dt>Offers</dt>
+      <dd>{card.services}</dd>
+      {card.experience && (
+        <>
+          <dt>Experience</dt>
+          <dd>{card.experience}</dd>
+        </>
+      )}
+      <dt>Track record</dt>
+      <dd>
+        {card.jobsDone === 0 ? "New to PennPaws" : `${card.jobsDone} ${card.jobsDone === 1 ? "job" : "jobs"} done`}. {rating}.
+      </dd>
+      <dt>Lives</dt>
+      <dd>{card.area}</dd>
+    </dl>
   );
 }
 
@@ -529,11 +666,11 @@ function ReviewForm({ sitterName, busy, onSubmit }: { sitterName: string; busy: 
   );
 }
 
-function Term({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+function Term({ label, value, muted = false, changed = false }: { label: string; value: string; muted?: boolean; changed?: boolean }) {
   return (
     <>
       <dt>{label}</dt>
-      <dd className={muted ? styles.muted : styles.preLine}>{value}</dd>
+      <dd className={muted ? styles.muted : changed ? styles.termChanged : styles.preLine}>{value}</dd>
     </>
   );
 }

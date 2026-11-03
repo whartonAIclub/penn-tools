@@ -198,3 +198,24 @@ CREATE INDEX IF NOT EXISTS reports_open_idx ON reports (created_at DESC) WHERE r
 -- The rules' match score when the sitter offered, so the team can see whether
 -- people act on good matches.
 ALTER TABLE offers ADD COLUMN IF NOT EXISTS match_score SMALLINT;
+
+-- What each person shares when they approve: a phone number for the care
+-- itself, and the address where it happens (the owner's for visits and stays,
+-- the sitter's for boarding). Shown only to the two of them, once booked.
+CREATE TABLE IF NOT EXISTS handoffs (
+  request_id  UUID        NOT NULL REFERENCES requests (id) ON DELETE CASCADE,
+  user_id     TEXT        NOT NULL,
+  phone       TEXT        NOT NULL,
+  address     TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (request_id, user_id)
+);
+
+-- Why someone backed out, for the other person's notification and the team.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+ALTER TABLE offers ADD COLUMN IF NOT EXISTS withdraw_reason TEXT;
+
+-- The latest change someone asked for, so the other person sees what moved.
+ALTER TABLE agreements ADD COLUMN IF NOT EXISTS last_change TEXT;
+ALTER TABLE agreements ADD COLUMN IF NOT EXISTS changed_by TEXT;
+ALTER TABLE agreements ADD COLUMN IF NOT EXISTS changed_fields TEXT[] NOT NULL DEFAULT '{}';

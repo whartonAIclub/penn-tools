@@ -79,7 +79,7 @@ describe("matching", () => {
   it("rates a nearby weekend cat visit as a great match, with distance first", () => {
     const match = scoreMatch(sitter, here, "r1", cat, ownerPet({}));
     expect(match.fit).toBe("great");
-    expect(match.reasons[0]).toMatch(/mi away/);
+    expect(match.reasons[0]).toBe("Under half a mile away");
     expect(match.concerns).toEqual([]);
   });
 

@@ -155,7 +155,7 @@ export function Earnings({ jobs, onOpen }: { jobs: SitterJob[]; onOpen: (id: str
       <div className={styles.totals}>
         <Total label="This month" value={money(totals.thisMonth)} />
         <Total label="All time" value={money(totals.total)} />
-        <Total label="Done, not paid" value={String(totals.unpaid)} />
+        <Total label="Jobs done, not paid yet" value={String(totals.unpaid)} />
       </div>
       <p className={styles.hint}>Owners pay you directly, by Venmo, PayPal, Zelle or cash. Record each payment here to keep track.</p>
       {rows.length === 0 ? (

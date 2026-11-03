@@ -169,11 +169,11 @@ describe("ranking a boarding request for sitters", () => {
 
 describe("checkAsks, for the owner on each offer", () => {
   it("lists what the sitter has of what the owner asked for", () => {
-    expect(checkAsks(boardingRequest, catBoarder)).toEqual({
+    expect(checkAsks(boardingRequest, { ...catBoarder, showGender: true })).toEqual({
       fits: ["Offers boarding", "Comfortable with cats", "Has owned cats", "Free weekday daytimes", "Matches your gender preference", "Speaks Mandarin"],
       misses: [],
     });
-    expect(checkAsks(boardingRequest, dogWalker).misses).toEqual([
+    expect(checkAsks(boardingRequest, { ...dogWalker, showGender: true }).misses).toEqual([
       "Doesn't offer boarding",
       "Doesn't list cats",
       "No cat experience listed",
@@ -181,6 +181,11 @@ describe("checkAsks, for the owner on each offer", () => {
       "Doesn't match your gender preference",
       "Doesn't speak Mandarin",
     ]);
+  });
+
+  it("leaves gender out for a sitter who keeps it private", () => {
+    const hidden = checkAsks(boardingRequest, { ...dogWalker, showGender: false });
+    expect([...hidden.fits, ...hidden.misses].some((line) => line.includes("gender"))).toBe(false);
   });
 
   it("only checks what the owner asked for", () => {

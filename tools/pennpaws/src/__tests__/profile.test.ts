@@ -7,6 +7,7 @@ import {
   LOCAL_TEST_SCHOOL,
   checkProfile,
   nearestNeighborhood,
+  petNotes,
   requestStart,
   roundCoord,
   schoolOf,
@@ -139,7 +140,7 @@ describe("requestStart", () => {
       petKindOther: "",
       petDetails: "Medium, adult, high energy",
       area: "University City",
-      notes: "With new people: warms up after a bit. With other animals: picky about friends. Alone: a bit anxious.",
+      notes: "",
       sitterGender: "none",
       languages: ["mandarin"],
     });
@@ -153,13 +154,14 @@ describe("requestStart", () => {
     expect(checkProfile({ ...sitter, languages: [] })).toEqual({ ok: false, error: "Pick the languages you speak." });
   });
 
-  it("adds special care and bite history to the notes", () => {
+  it("puts special care on the request, and keeps temperament and bite history for sitters who offer", () => {
     const withCare: OwnerProfile = {
       ...owner,
       pet: { ...owner.pet, specialCare: ["medication", "other"], specialCareOther: "Eye drops", bites: true, bitesDetails: "Nipped at a stranger" },
     };
-    expect(requestStart(withCare).notes).toContain(
-      "Special care: Medication, Eye drops.\nHas bitten or scratched someone before: Nipped at a stranger",
+    expect(requestStart(withCare).notes).toBe("Special care: Medication, Eye drops.");
+    expect(petNotes(withCare)).toBe(
+      "With new people: warms up after a bit. With other animals: picky about friends. Alone: a bit anxious.\nHas bitten or scratched someone before: Nipped at a stranger",
     );
   });
 

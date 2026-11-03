@@ -6,13 +6,14 @@
 import type { Sql } from "postgres";
 import { assertActive } from "./members.js";
 import { AgreementTerms, type AgreementTerms as Terms } from "./agreement.js";
-import { allowedFrom, bothApproved, canSeeContacts, type OfferStatus, type RequestStatus, type Role } from "./booking.js";
+import { allowedFrom, bothApproved, canSeeContacts, nextStatus, type OfferStatus, type RequestStatus, type Role } from "./booking.js";
 import type { PaymentMethod, SitterJob } from "./jobs.js";
 import { checkAsks, type AskCheck } from "./match.js";
-import { checkProfile } from "./profile.js";
+import { EXPERIENCE, SERVICES, checkProfile, petNotes } from "./profile.js";
 import { notify, type NotificationChannel } from "./notifications.js";
-import type { RequestDraft } from "./request.js";
-import { LIMITS } from "./survey.js";
+import type { Handoff } from "./handoff.js";
+import { hideContacts, type RequestDraft } from "./request.js";
+import { LIMITS, listLabels } from "./survey.js";
 
 /** The signed-in user, as the platform's getCurrentUser() returns them. */
 export interface Person {
@@ -38,6 +39,18 @@ export interface OfferView {
   status: OfferStatus;
   /** Whether the sitter has what the request asks for, for the owner; null without a sitter profile. */
   match: AskCheck | null;
+  /** Who the sitter is, for the owner choosing between offers; null without a sitter profile. */
+  sitter: SitterCard | null;
+}
+
+/** What an owner sees about a sitter who offered: their own words, what they've done, and how past owners rated them. */
+export interface SitterCard {
+  bio: string;
+  area: string;
+  services: string;
+  experience: string | null;
+  rating: { average: number | null; count: number };
+  jobsDone: number;
 }
 
 export interface AgreementView {
@@ -45,6 +58,8 @@ export interface AgreementView {
   version: number;
   ownerApproved: boolean;
   sitterApproved: boolean;
+  /** The latest change someone asked for: who, in their words, and which terms moved. */
+  lastChange: { byFirstName: string; text: string; fields: (keyof Terms)[] } | null;
 }
 
 export interface RequestView extends RequestCard {
@@ -56,10 +71,20 @@ export interface RequestView extends RequestCard {
   myOffer: OfferView | null;
   agreement: AgreementView | null;
   sitterFirstName: string | null;
-  /** Both people's emails, only once the booking is agreed. */
-  contacts: { owner: string | null; sitter: string | null } | null;
+  /** How to reach each other, only once the booking is agreed, and only for the two of them. */
+  contacts: { owner: Contact; sitter: Contact } | null;
+  /** The viewer's phone from their last booking, to save typing it again. */
+  savedPhone: string | null;
+  /** Temperament and bite history from the owner's profile, for the owner and sitters who have offered only. */
+  petNotes: string | null;
   /** Whether the owner has rated this booking. Always false for the sitter, who sees ratings only anonymously. */
   reviewed: boolean;
+}
+
+export interface Contact {
+  email: string | null;
+  phone: string | null;
+  address: string | null;
 }
 
 export class PennPawsError extends Error {}
@@ -146,7 +171,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       mustHaves: row.must_haves,
       sitterGender: row.sitter_gender,
       languages: row.languages,
-      original: row.original_text,
+      original: row.original_text && row.owner_id !== viewerId ? hideContacts(row.original_text) : row.original_text,
       originalLanguage: row.original_language,
     },
     ownerFirstName: firstName(row.owner_name),
@@ -218,13 +243,30 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
   const card = toCard(row, viewerId);
   // The owner sees how each sitter who offered fits the request.
   const matches = new Map<string, AskCheck>();
+  const sitters = new Map<string, SitterCard>();
   if (isOwner && offers.length > 0) {
-    const members = await sql<{ user_id: string; profile: unknown }[]>`
-      SELECT user_id, profile FROM members WHERE user_id IN ${sql(offers.map((o) => o.sitter_id))}
+    const ids = offers.map((o) => o.sitter_id);
+    const members = await sql<{ user_id: string; profile: unknown; average: number | null; ratings: number; done: number }[]>`
+      SELECT m.user_id, m.profile,
+             (SELECT ROUND(AVG(v.rating), 1)::float FROM reviews v WHERE v.sitter_id = m.user_id) AS average,
+             (SELECT COUNT(*)::int FROM reviews v WHERE v.sitter_id = m.user_id) AS ratings,
+             (SELECT COUNT(*)::int FROM offers o JOIN requests q ON q.id = o.request_id
+               WHERE o.sitter_id = m.user_id AND o.status = 'accepted' AND q.status = 'completed') AS done
+      FROM members m WHERE m.user_id IN ${sql(ids)}
     `;
     for (const member of members) {
       const checked = checkProfile(member.profile);
-      if (checked.ok && checked.value.role === "sitter") matches.set(member.user_id, checkAsks(card.draft, checked.value));
+      if (!checked.ok || checked.value.role !== "sitter") continue;
+      const profile = checked.value;
+      matches.set(member.user_id, checkAsks(card.draft, profile));
+      sitters.set(member.user_id, {
+        bio: profile.bio,
+        area: profile.location.area,
+        services: listLabels(SERVICES, profile.services),
+        experience: profile.experience.length ? listLabels(EXPERIENCE, profile.experience) : null,
+        rating: { average: member.average, count: member.ratings },
+        jobsDone: member.done,
+      });
     }
   }
   const toView = (o: (typeof offers)[number]): OfferView => ({
@@ -233,6 +275,7 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
     message: o.message,
     status: o.status,
     match: matches.get(o.sitter_id) ?? null,
+    sitter: sitters.get(o.sitter_id) ?? null,
   });
   const mine = offers.find((o) => o.sitter_id === viewerId) ?? null;
   const accepted = offers.find((o) => o.status === "accepted") ?? null;
@@ -241,8 +284,10 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
 
   let agreement: AgreementView | null = null;
   if (party) {
-    const [a] = await sql<{ terms: unknown; version: number; owner_approved_at: Date | null; sitter_approved_at: Date | null }[]>`
-      SELECT terms, version, owner_approved_at, sitter_approved_at FROM agreements WHERE request_id = ${requestId}
+    const [a] = await sql<
+      { terms: unknown; version: number; owner_approved_at: Date | null; sitter_approved_at: Date | null; last_change: string | null; changed_by: string | null; changed_fields: string[] }[]
+    >`
+      SELECT terms, version, owner_approved_at, sitter_approved_at, last_change, changed_by, changed_fields FROM agreements WHERE request_id = ${requestId}
     `;
     if (a) {
       agreement = {
@@ -250,11 +295,34 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
         version: a.version,
         ownerApproved: a.owner_approved_at !== null,
         sitterApproved: a.sitter_approved_at !== null,
+        lastChange:
+          a.last_change && a.changed_by
+            ? { byFirstName: firstName(a.changed_by), text: a.last_change, fields: a.changed_fields.filter((f): f is keyof Terms => f in AgreementTerms.shape) }
+            : null,
       };
     }
   }
 
   const reviewed = isOwner && row.status === "completed" && (await sql`SELECT 1 FROM reviews WHERE request_id = ${requestId}`).length > 0;
+
+  let contacts: RequestView["contacts"] = null;
+  if (party && accepted && canSeeContacts(row.status)) {
+    const shared = await sql<{ user_id: string; phone: string; address: string | null }[]>`
+      SELECT user_id, phone, address FROM handoffs WHERE request_id = ${requestId}
+    `;
+    const of = (userId: string, email: string | null): Contact => {
+      const h = shared.find((x) => x.user_id === userId);
+      return { email, phone: h?.phone ?? null, address: h?.address ?? null };
+    };
+    contacts = { owner: of(row.owner_id, row.owner_email), sitter: of(accepted.sitter_id, accepted.sitter_email) };
+  }
+  let privateNotes: string | null = null;
+  if (role) {
+    const [owner] = await sql<{ profile: unknown }[]>`SELECT profile FROM members WHERE user_id = ${row.owner_id}`;
+    const checked = owner ? checkProfile(owner.profile) : null;
+    if (checked?.ok && checked.value.role === "owner") privateNotes = petNotes(checked.value);
+  }
+  const [last] = party ? await sql<{ phone: string }[]>`SELECT phone FROM handoffs WHERE user_id = ${viewerId} ORDER BY created_at DESC LIMIT 1` : [];
 
   return {
     ...card,
@@ -263,7 +331,9 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
     myOffer: mine ? toView(mine) : null,
     agreement,
     sitterFirstName: party && accepted ? firstName(accepted.sitter_name) : null,
-    contacts: party && accepted && canSeeContacts(row.status) ? { owner: row.owner_email, sitter: accepted.sitter_email } : null,
+    contacts,
+    savedPhone: last?.phone ?? null,
+    petNotes: privateNotes,
     reviewed,
   };
 }
@@ -346,10 +416,17 @@ export async function acceptOffer(
 }
 
 /** Cancels an open or matched request and tells every sitter who offered. */
-export async function cancelRequest(sql: Sql, ownerId: string, requestId: string, channels: readonly NotificationChannel[] = []): Promise<void> {
+export async function cancelRequest(
+  sql: Sql,
+  ownerId: string,
+  requestId: string,
+  reason: string | null = null,
+  channels: readonly NotificationChannel[] = [],
+): Promise<void> {
   if (!UUID_RE.test(requestId)) throw new PennPawsError("That request doesn't exist.");
+  const why = reason?.trim().slice(0, LIMITS.message) || null;
   const [row] = await sql<{ pet_name: string }[]>`
-    UPDATE requests SET status = 'cancelled', updated_at = NOW()
+    UPDATE requests SET status = 'cancelled', cancel_reason = ${why}, updated_at = NOW()
     WHERE id = ${requestId} AND owner_id = ${ownerId} AND status = ANY(${sql.array([...allowedFrom("cancel")])})
     RETURNING pet_name
   `;
@@ -358,8 +435,55 @@ export async function cancelRequest(sql: Sql, ownerId: string, requestId: string
     SELECT sitter_id FROM offers WHERE request_id = ${requestId} AND status IN ('pending', 'accepted')
   `;
   for (const { sitter_id } of sitters) {
-    await notify(sql, sitter_id, `The request for ${row.pet_name} was cancelled.`, requestId, channels);
+    await notify(sql, sitter_id, `The request for ${row.pet_name} was cancelled.${why ? ` The owner said: "${why}"` : ""}`, requestId, channels);
   }
+}
+
+/**
+ * Takes back the sitter's offer. A pending offer just goes; if the owner had
+ * already picked them, the agreement and shared details are removed and the
+ * request opens again for other sitters. The owner is told, with the reason.
+ */
+export async function withdrawOffer(
+  sql: Sql,
+  sitter: Person,
+  requestId: string,
+  reason: string | null = null,
+  channels: readonly NotificationChannel[] = [],
+): Promise<void> {
+  if (!UUID_RE.test(requestId)) throw new PennPawsError("That request doesn't exist.");
+  const why = reason?.trim().slice(0, LIMITS.message) || null;
+  const result = await sql.begin(async (transaction) => {
+    // postgres.js types drop the call signature from TransactionSql, though it has one.
+    const tx = transaction as unknown as Sql;
+    const [offer] = await tx<{ status: OfferStatus; owner_id: string; pet_name: string; request_status: RequestStatus }[]>`
+      SELECT o.status, r.owner_id, r.pet_name, r.status AS request_status
+      FROM offers o JOIN requests r ON r.id = o.request_id
+      WHERE o.request_id = ${requestId} AND o.sitter_id = ${sitter.id}
+      FOR UPDATE
+    `;
+    if (!offer || (offer.status !== "pending" && offer.status !== "accepted")) throw new PennPawsError("There's no offer of yours to take back.");
+    const picked = offer.status === "accepted";
+    if (picked && !nextStatus(offer.request_status, "sitter_withdraw", "sitter")) throw new PennPawsError("This booking is finished, so it can't be taken back.");
+    await tx`UPDATE offers SET status = 'withdrawn', withdraw_reason = ${why} WHERE request_id = ${requestId} AND sitter_id = ${sitter.id}`;
+    if (picked) {
+      await tx`DELETE FROM agreements WHERE request_id = ${requestId}`;
+      await tx`DELETE FROM handoffs WHERE request_id = ${requestId}`;
+      await tx`UPDATE requests SET status = 'open', updated_at = NOW() WHERE id = ${requestId}`;
+    }
+    return { ...offer, picked };
+  });
+  const who = firstName(sitter.name);
+  const said = why ? ` They said: "${why}"` : "";
+  await notify(
+    sql,
+    result.owner_id,
+    result.picked
+      ? `${who} can't look after ${result.pet_name} anymore.${said} Your request is open again for other sitters.`
+      : `${who} took back their offer for ${result.pet_name}.${said}`,
+    requestId,
+    channels,
+  );
 }
 
 // ── Sitter actions ────────────────────────────────────────────────────────────
@@ -419,6 +543,7 @@ export async function approveAgreement(
   userId: string,
   requestId: string,
   version: number,
+  handoff: Handoff,
   channels: readonly NotificationChannel[] = [],
 ): Promise<void> {
   const party = await partyOf(sql, userId, requestId);
@@ -435,6 +560,10 @@ export async function approveAgreement(
       RETURNING owner_approved_at, sitter_approved_at
     `;
     if (!a) throw new PennPawsError("The agreement changed. Read the new version, then approve.");
+    await tx`
+      INSERT INTO handoffs (request_id, user_id, phone, address) VALUES (${requestId}, ${userId}, ${handoff.phone}, ${handoff.address})
+      ON CONFLICT (request_id, user_id) DO UPDATE SET phone = EXCLUDED.phone, address = EXCLUDED.address
+    `;
     const both = bothApproved({
       ownerApprovedAt: a.owner_approved_at?.toISOString() ?? null,
       sitterApprovedAt: a.sitter_approved_at?.toISOString() ?? null,
@@ -449,7 +578,7 @@ export async function approveAgreement(
   });
 
   const message = agreed
-    ? `You're booked. ${party.me} approved the agreement for ${party.pet}, and you can now see each other's email.`
+    ? `You're booked. ${party.me} approved the agreement for ${party.pet}, and you can now see each other's phone number and email.`
     : `${party.me} approved the agreement for ${party.pet}. It's your turn to review it.`;
   await notify(sql, party.other.id, message, requestId, channels);
 }
@@ -477,14 +606,19 @@ export async function changeAgreement(
   userId: string,
   requestId: string,
   terms: Terms,
+  change: string | null = null,
   channels: readonly NotificationChannel[] = [],
 ): Promise<void> {
   const party = await partyOf(sql, userId, requestId);
   if (!party || party.status !== "matched") throw new PennPawsError("This agreement can't be changed now.");
   const checked = AgreementTerms.parse(terms);
+  const [before] = await sql<{ terms: unknown }[]>`SELECT terms FROM agreements WHERE request_id = ${requestId}`;
+  const old = before ? AgreementTerms.safeParse(before.terms) : null;
+  const fields = (Object.keys(checked) as (keyof Terms)[]).filter((k) => !old?.success || old.data[k] !== checked[k]);
   await sql`
     UPDATE agreements SET terms = ${sql.json(checked)}, version = version + 1,
-      owner_approved_at = NULL, sitter_approved_at = NULL, updated_at = NOW()
+      owner_approved_at = NULL, sitter_approved_at = NULL, updated_at = NOW(),
+      last_change = ${change?.trim().slice(0, LIMITS.message) || null}, changed_by = ${party.me}, changed_fields = ${sql.array(fields)}
     WHERE request_id = ${requestId}
   `;
   await notify(sql, party.other.id, `${party.me} asked for a change to the agreement for ${party.pet}. Take a look.`, requestId, channels);

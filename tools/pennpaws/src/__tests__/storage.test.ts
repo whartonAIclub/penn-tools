@@ -27,6 +27,7 @@ import {
   listOpenRequests,
   listSitterJobs,
   offerHelp,
+  withdrawOffer,
   PennPawsError,
   type Person,
 } from "../requests.js";
@@ -121,21 +122,44 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     let view = await getRequestView(sql, priya.id, requestId);
     expect(view).toMatchObject({ status: "matched", sitterFirstName: "Priya", agreement: { version: 1, ownerApproved: false } });
 
-    await approveAgreement(sql, lu.id, requestId, 1);
+    await approveAgreement(sql, lu.id, requestId, 1, { phone: "215-555-0111", address: "3900 Spruce St" });
     // A change clears approvals; approving an old version is refused.
     await changeAgreement(sql, priya.id, requestId, { ...view!.agreement!.terms, visits: "Twice a day, 7am and 6pm" });
-    await expect(approveAgreement(sql, priya.id, requestId, 1)).rejects.toThrow("The agreement changed");
+    await expect(approveAgreement(sql, priya.id, requestId, 1, { phone: "215-555-0122", address: null })).rejects.toThrow("The agreement changed");
     view = await getRequestView(sql, priya.id, requestId);
     expect(view?.agreement).toMatchObject({ version: 2, ownerApproved: false, sitterApproved: false });
 
-    await approveAgreement(sql, priya.id, requestId, 2);
+    await approveAgreement(sql, priya.id, requestId, 2, { phone: "215-555-0122", address: null });
     expect((await getRequestView(sql, lu.id, requestId))?.contacts).toBeNull();
-    await approveAgreement(sql, lu.id, requestId, 2);
+    await approveAgreement(sql, lu.id, requestId, 2, { phone: "215-555-0111", address: "3900 Spruce St" });
 
     view = await getRequestView(sql, priya.id, requestId);
-    expect(view).toMatchObject({ status: "agreed", contacts: { owner: lu.email, sitter: priya.email } });
+    expect(view).toMatchObject({
+      status: "agreed",
+      contacts: { owner: { email: lu.email, phone: "215-555-0111", address: "3900 Spruce St" }, sitter: { email: priya.email, phone: "215-555-0122", address: null } },
+    });
     expect((await listMyRequests(sql, priya.id)).map((r) => r.id)).toContain(requestId);
-    await expect(cancelRequest(sql, lu.id, requestId)).rejects.toBeInstanceOf(PennPawsError);
+    await expect(cancelRequest(sql, priya.id, requestId)).rejects.toBeInstanceOf(PennPawsError);
+  });
+
+  it("lets a picked sitter back out, reopening the request, and the owner cancel a booking with a reason", async () => {
+    const requestId = await createRequest(sql, lu, { ...draft, petName: "Noodle" });
+    await offerHelp(sql, priya, requestId, "Me!");
+    await offerHelp(sql, sam, requestId, "Me too.");
+    await withdrawOffer(sql, sam, requestId, null);
+    expect((await listNotifications(sql, lu.id))[0]?.message).toBe("Sam took back their offer for Noodle.");
+
+    const priyaOffer = (await getRequestView(sql, lu.id, requestId))!.offers.find((o) => o.status === "pending")!;
+    await acceptOffer(sql, lu.id, priyaOffer.id, template);
+    await approveAgreement(sql, lu.id, requestId, 1, { phone: "215-555-0111", address: "3900 Spruce St" });
+    await withdrawOffer(sql, priya, requestId, "Family emergency");
+    expect(await getRequestView(sql, lu.id, requestId)).toMatchObject({ status: "open", agreement: null });
+    expect((await listNotifications(sql, lu.id))[0]?.message).toBe(
+      'Priya can\'t look after Noodle anymore. They said: "Family emergency" Your request is open again for other sitters.',
+    );
+
+    await cancelRequest(sql, lu.id, requestId, "Trip called off");
+    expect((await getRequestView(sql, lu.id, requestId))?.status).toBe("cancelled");
   });
 
   it("lets the sitter finish a job, record pay and read ratings anonymously", async () => {
@@ -147,8 +171,8 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     let job = (await listSitterJobs(sql, priya.id)).find((j) => j.request.id === requestId);
     expect(job).toMatchObject({ offer: "accepted", needsMyApproval: true, payment: null, completedAt: null });
 
-    await approveAgreement(sql, lu.id, requestId, 1);
-    await approveAgreement(sql, priya.id, requestId, 1);
+    await approveAgreement(sql, lu.id, requestId, 1, { phone: "215-555-0111", address: "3900 Spruce St" });
+    await approveAgreement(sql, priya.id, requestId, 1, { phone: "215-555-0122", address: null });
     // Not done yet: no rating, and only the booked sitter can record pay.
     await expect(leaveReview(sql, lu.id, requestId, { rating: 5, feedback: null })).rejects.toBeInstanceOf(PennPawsError);
     await expect(recordPayment(sql, sam.id, requestId, { amount: 20, method: "venmo", paidOn: "2099-11-15" })).rejects.toBeInstanceOf(PennPawsError);

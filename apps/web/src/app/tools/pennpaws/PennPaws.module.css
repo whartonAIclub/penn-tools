@@ -849,3 +849,19 @@
 .table .pill { margin-left: 6px; }
 .pausedNotice { padding: 12px 14px; border-radius: 12px; background: var(--pp-gold-soft); color: var(--pp-gold-text); font-size: 0.9rem; }
 .reportLink { align-self: flex-start; font-size: 0.8rem; color: var(--pp-muted); text-decoration: underline; }
+
+.sitterCard {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--pp-ground);
+  font-size: 0.85rem;
+}
+.sitterCard dt { color: var(--pp-muted); }
+.sitterCard dd { margin: 0; }
+
+.changeNote { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--pp-gold-soft); color: var(--pp-gold-text); font-size: 0.85rem; }
+.termChanged { margin: 0; white-space: pre-line; background: var(--pp-gold-soft); border-radius: 6px; padding: 0 4px; }
