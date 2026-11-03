@@ -10,12 +10,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
+  AI_IMAGE_TYPES,
+  AI_PROVIDERS,
+  AI_REASONING_LEVELS,
+  AI_TIERS,
   AIError,
   DEFAULT_MAX_OUTPUT_TOKENS,
   DEFAULT_TIER,
+  MAX_IMAGE_BYTES,
   MAX_OUTPUT_TOKENS_LIMIT,
   MODELS,
   PROVIDER_LABELS,
+  base64Bytes,
+  base64FileType,
+  isBase64,
   z,
 } from "@penntools/core/ai";
 import type {
@@ -42,14 +50,46 @@ export interface CreateAIOptions {
   logger: Logger;
 }
 
+const Base64Schema = z.string().min(1).refine(isBase64, "must be base64, without a data: prefix");
+
+// The AI API takes text, AI_IMAGE_TYPES images and PDFs, and checks each file
+// really is its type (from its first bytes), so a tool can't send anything else
+// by labelling it as one. Tools convert other files to text or to these first.
+const ContentPartSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("text"), text: z.string().min(1) }),
+  z
+    .object({
+      type: z.literal("image"),
+      mediaType: z.enum(AI_IMAGE_TYPES),
+      data: Base64Schema.refine(
+        (data) => base64Bytes(data) <= MAX_IMAGE_BYTES,
+        `Images must be under ${MAX_IMAGE_BYTES / 1024 / 1024} MB.`,
+      ),
+    })
+    .refine((part) => base64FileType(part.data) === part.mediaType, {
+      path: ["data"],
+      message: "isn't the image type its mediaType says",
+    }),
+  z.object({
+    type: z.literal("pdf"),
+    filename: z.string().min(1),
+    data: Base64Schema.refine((data) => base64FileType(data) === "application/pdf", "isn't a PDF"),
+  }),
+]);
+
+const MessageSchema = z.discriminatedUnion("role", [
+  z.object({ role: z.literal("user"), content: z.union([z.string().min(1), z.array(ContentPartSchema).min(1)]) }),
+  z.object({ role: z.literal("assistant"), content: z.string().min(1) }),
+]);
+
 const RequestSchema = z.object({
-  provider: z.enum(["openai", "anthropic"] satisfies AIProvider[]),
-  tier: z.enum(["fast", "standard", "best"]).optional(),
+  provider: z.enum(AI_PROVIDERS),
+  tier: z.enum(AI_TIERS).optional(),
   model: z.string().optional(),
-  reasoning: z.enum(["low", "medium", "high"]).optional(),
+  reasoning: z.enum(AI_REASONING_LEVELS).optional(),
   system: z.string().optional(),
   messages: z
-    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1) }))
+    .array(MessageSchema)
     .min(1)
     .refine((messages) => messages[0]?.role === "user", "The first message must be from the user."),
   maxOutputTokens: z.number().int().min(1).max(MAX_OUTPUT_TOKENS_LIMIT).optional(),
