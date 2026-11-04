@@ -186,10 +186,10 @@ describe("AI calls", () => {
     const terms = agreementTemplate(mochi, "Lu");
     const polish = fakeAI(terms);
     await polishAgreement(polish.ai, "anthropic", terms, "I grew up with shibas");
-    expect(JSON.parse(polish.requests[0]!.messages[0]!.content)).toEqual({ terms, sitterMessage: "I grew up with shibas" });
+    expect(JSON.parse(polish.requests[0]!.messages[0]!.content as string)).toEqual({ terms, sitterMessage: "I grew up with shibas" });
 
     const change = fakeAI(terms);
     await applyChange(change.ai, "openai", terms, "Walks at 7am");
-    expect(JSON.parse(change.requests[0]!.messages[0]!.content)).toMatchObject({ change: "Walks at 7am" });
+    expect(JSON.parse(change.requests[0]!.messages[0]!.content as string)).toMatchObject({ change: "Walks at 7am" });
   });
 });

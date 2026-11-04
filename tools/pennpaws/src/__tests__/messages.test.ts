@@ -40,7 +40,7 @@ describe("draftMessage", () => {
     expect(await draftMessage(ai, "openai", context)).toBe("Hi Lu! I grew up with two labs. When does Mochi eat?");
     expect(requests[0]).toMatchObject({ provider: "openai", tier: "fast" });
     expect(requests[0]!.system).toContain("first message");
-    expect(JSON.parse(requests[0]!.messages[0]!.content)).toEqual({ request: context.request, aboutMe: context.aboutMe, thread: [] });
+    expect(JSON.parse(requests[0]!.messages[0]!.content as string)).toEqual({ request: context.request, aboutMe: context.aboutMe, thread: [] });
   });
 
   it("replies to the latest message once a conversation has started", async () => {
