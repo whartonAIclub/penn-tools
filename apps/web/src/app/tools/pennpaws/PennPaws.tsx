@@ -79,8 +79,12 @@ export function PennPaws({
 }) {
   const router = useRouter();
   const isSitter = member.role === "sitter";
+  // Only the requests this person posted. Anything they offered on belongs to
+  // the sitter tabs, so someone who switches role doesn't find other people's
+  // pets listed under My requests.
+  const posted = mine.filter((r) => r.mine);
   // Owners start with their own requests (or posting one); sitters and Pet Pals start browsing.
-  const home: View = { tab: member.role === "sitter" ? "find" : mine.length > 0 ? "mine" : "post" };
+  const home: View = { tab: member.role === "sitter" ? "find" : posted.length > 0 ? "mine" : "post" };
   const [view, setView] = useState<View>(home);
   const [kind, setKind] = useState<"all" | "dog" | "cat">("all");
   const unread = notifications.filter((n) => !n.read).length;
@@ -225,7 +229,7 @@ export function PennPaws({
 
         {view.tab === "mine" && (
           <section className={styles.section}>
-            {mine.length === 0 ? (
+            {posted.length === 0 ? (
               <Empty
                 title="Nothing here yet"
                 body="Requests you post show up here, with every offer you get."
@@ -233,7 +237,7 @@ export function PennPaws({
               />
             ) : (
               <ul className={styles.list}>
-                {mine.map((request) => (
+                {posted.map((request) => (
                   <li key={request.id}>
                     <RequestCard request={request} showStatus onOpen={() => openRequest(request.id, "mine")} />
                   </li>
@@ -246,7 +250,7 @@ export function PennPaws({
         {view.tab === "tasks" && (
           <MyTasks
             jobs={jobs}
-            ownRequests={mine.filter((r) => r.mine && (r.status === "open" || r.status === "matched" || r.status === "agreed"))}
+            ownRequests={posted.filter((r) => r.status === "open" || r.status === "matched" || r.status === "agreed")}
             onOpen={(id) => openRequest(id, "tasks")}
             onFind={() => setView({ tab: "find" })}
           />
