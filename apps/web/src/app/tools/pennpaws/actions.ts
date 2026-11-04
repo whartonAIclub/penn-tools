@@ -20,6 +20,7 @@ import {
   approveAgreement,
   cancelRequest,
   changeAgreement,
+  checkDates,
   checkDraft,
   checkPayment,
   checkProfile,
@@ -54,6 +55,7 @@ import {
   getMember,
   getRequestView,
   getTerms,
+  firstBookableDay,
   isoDate,
   leaveReview,
   listOpenRequests,
@@ -101,6 +103,12 @@ async function signedIn(): Promise<Person | null> {
 
 const signedOut = { ok: false, error: "Sign in with your Penn account first." } as const;
 
+/** Today's date in Philadelphia, whatever time zone the server runs in. */
+function pennToday(): Date {
+  const [year, month, day] = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }).split("-").map(Number);
+  return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+}
+
 /** Runs `fn`, turning PennPawsError and AIError into data the page can show. */
 async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   try {
@@ -147,6 +155,8 @@ export async function postRequest(input: unknown): Promise<ActionResult<string>>
   if (!user) return signedOut;
   const checked = checkDraft(input);
   if (!checked.ok) return { ok: false, error: checked.error };
+  const tooSoon = checkDates(checked.value, firstBookableDay(pennToday()));
+  if (tooSoon) return { ok: false, error: tooSoon };
   return run(() => createRequest(db(), user, checked.value));
 }
 
@@ -157,7 +167,7 @@ export async function parseRequest(sentence: string): Promise<ActionResult<Parse
   if (sentence.length > LIMITS.sentence) return { ok: false, error: `Keep it under ${LIMITS.sentence} characters.` };
   const ai = await userAI();
   if (!ai) return { ok: false, error: "Save an API key in Settings to use this, or answer the questions instead.", kind: "missing_key" };
-  return run(() => parseSentence(ai.ai, ai.provider, sentence, isoDate(new Date())));
+  return run(() => parseSentence(ai.ai, ai.provider, sentence, isoDate(pennToday())));
 }
 
 /** Accepts an offer and drafts the agreement: the template, polished by AI when the owner has a key. */

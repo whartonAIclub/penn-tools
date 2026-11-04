@@ -6,8 +6,8 @@ import type { AI, GenerateObjectRequest } from "@penntools/core/ai";
 import { agreementTemplate, noteChange } from "../agreement.js";
 import { applyChange, parseSentence, polishAgreement } from "../ai.js";
 import { allowedFrom, bothApproved, canSeeContacts, nextStatus } from "../booking.js";
-import { checkDraft, describe as describeRequest, type RequestDraft } from "../request.js";
-import { TASKS_BY_KIND, PET_KINDS, thisWeekend, shortDate } from "../survey.js";
+import { checkDates, checkDraft, describe as describeRequest, type RequestDraft } from "../request.js";
+import { TASKS_BY_KIND, PET_KINDS, firstBookableDay, thisWeekend, shortDate } from "../survey.js";
 
 const mochi: RequestDraft = {
   petName: "Mochi",
@@ -102,11 +102,20 @@ describe("survey", () => {
     for (const { value } of PET_KINDS) expect(TASKS_BY_KIND[value]).toContain("other");
   });
 
-  it("finds the coming weekend", () => {
+  it("finds the next weekend after today, never a past day", () => {
     expect(thisWeekend(new Date(2026, 9, 28))).toEqual({ startsOn: "2026-10-31", endsOn: "2026-11-01" }); // Wednesday
-    expect(thisWeekend(new Date(2026, 9, 31))).toEqual({ startsOn: "2026-10-31", endsOn: "2026-11-01" }); // Saturday
-    expect(thisWeekend(new Date(2026, 10, 1))).toEqual({ startsOn: "2026-10-31", endsOn: "2026-11-01" }); // Sunday
+    expect(thisWeekend(new Date(2026, 9, 30))).toEqual({ startsOn: "2026-10-31", endsOn: "2026-11-01" }); // Friday
+    expect(thisWeekend(new Date(2026, 9, 31))).toEqual({ startsOn: "2026-11-07", endsOn: "2026-11-08" }); // Saturday
+    expect(thisWeekend(new Date(2026, 10, 1))).toEqual({ startsOn: "2026-11-07", endsOn: "2026-11-08" }); // Sunday
     expect(shortDate("2026-11-05")).toBe("Nov 5");
+  });
+
+  it("starts requests tomorrow at the soonest", () => {
+    expect(firstBookableDay(new Date(2026, 10, 3))).toBe("2026-11-04");
+    expect(firstBookableDay(new Date(2026, 11, 31))).toBe("2027-01-01");
+    expect(checkDates(mochi, "2026-11-12")).toBeNull(); // starts that day
+    expect(checkDates(mochi, "2026-11-13")).toBe("Pick days from Nov 13 on. Requests start after today.");
+    expect(checkDates({ ...mochi, weekly: true, startsOn: null }, "2026-11-13")).toBeNull();
   });
 });
 

@@ -80,6 +80,12 @@ export function hideContacts(text: string): string {
     .replace(/\+?\d[\d\s().-]{6,}\d/g, "[number hidden]");
 }
 
+/** Why the draft's dates can't be posted, or null. `firstDay` is firstBookableDay() as YYYY-MM-DD. */
+export function checkDates(draft: Pick<RequestDraft, "weekly" | "startsOn">, firstDay: string): string | null {
+  if (draft.weekly || !draft.startsOn || draft.startsOn >= firstDay) return null;
+  return `Pick days from ${shortDate(firstDay)} on. Requests start after today.`;
+}
+
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const VISITS_BY_CARE_TYPE = {
