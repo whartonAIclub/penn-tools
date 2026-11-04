@@ -32,3 +32,5 @@ export { structureAnswers, checkEventInput, containsQuote, MAX_ANSWER_LENGTH, MA
 export type { DraftLesson, EventInput } from "./records.js";
 export { extractNextBatch, EXTRACT_BATCH_SIZE } from "./extract.js";
 export type { ExtractProgress } from "./extract.js";
+export { findLessons, findAttendance, buildBrief, checkQuery, MAX_QUERY_LENGTH } from "./brief.js";
+export type { BriefLesson, BriefPoint, AttendanceFact, LessonOrigin } from "./brief.js";
