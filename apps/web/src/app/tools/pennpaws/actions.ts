@@ -23,7 +23,11 @@ import {
   checkDates,
   checkDraft,
   checkPayment,
+  checkPet,
   checkProfile,
+  addPet,
+  removePet,
+  updatePet,
   checkReview,
   clearPayment,
   firstName,
@@ -144,6 +148,37 @@ export async function saveProfile(input: unknown, name: unknown): Promise<Action
   if (chosen.length > LIMITS.name) return { ok: false, error: `Keep your name under ${LIMITS.name} characters.` };
   return run(async () => {
     await saveMember(db(), { ...user, name: chosen }, school, checked.value);
+    return null;
+  });
+}
+
+// ── My Pets ───────────────────────────────────────────────────────────────────
+
+/** Adds a pet to My Pets, or updates one when `petId` is given. Only the owner's own pets. */
+export async function savePet(petId: unknown, input: unknown): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  const checked = checkPet(input);
+  if (!checked.ok) return { ok: false, error: checked.error };
+  return run(async () => {
+    if (typeof petId === "string" && petId) {
+      const changed = await updatePet(db(), user.id, petId, checked.value);
+      if (!changed) throw new PennPawsError("That pet isn't on your list.");
+    } else {
+      await addPet(db(), user.id, checked.value);
+    }
+    return null;
+  });
+}
+
+/** Takes a pet off My Pets. Requests already posted keep their own copy of the answers. */
+export async function deletePet(petId: unknown): Promise<ActionResult> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  if (typeof petId !== "string" || !petId) return { ok: false, error: "Pick a pet to remove." };
+  return run(async () => {
+    const removed = await removePet(db(), user.id, petId);
+    if (!removed) throw new PennPawsError("That pet isn't on your list.");
     return null;
   });
 }

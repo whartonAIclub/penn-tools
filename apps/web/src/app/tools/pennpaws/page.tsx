@@ -13,11 +13,14 @@ import {
   listMyReviews,
   listNotifications,
   listOpenRequests,
+  listPets,
   isPaused,
   isTeamEmail,
   listSitterJobs,
   matchRequests,
+  savePetFromProfile,
   verifySchool,
+  type Pet,
 } from "@penntools/tool-pennpaws";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
@@ -75,6 +78,13 @@ export default async function PennPawsPage() {
     isPaused(sql, user.id),
   ]);
   const matches = member.profile.role === "sitter" ? await matchRequests(sql, member.profile, open.filter((r) => !r.mine)) : [];
+  // An owner's saved pets. The pet they described at setup becomes the first
+  // one, so My Pets is never empty for someone who has already answered.
+  let pets: Pet[] = [];
+  if (member.profile.role === "owner") {
+    await savePetFromProfile(sql, user.id, member.profile.pet);
+    pets = await listPets(sql, user.id);
+  }
 
   return (
     <>
@@ -86,6 +96,7 @@ export default async function PennPawsPage() {
         open={open}
         matches={matches}
         mine={mine}
+        pets={pets}
         jobs={jobs}
         reviews={reviews}
         notifications={notifications}

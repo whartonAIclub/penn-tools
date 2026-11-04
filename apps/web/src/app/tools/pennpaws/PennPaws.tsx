@@ -10,8 +10,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FIT_LABELS, describe, fitOf, requestStart, type Match, type Member, type Notification, type RequestCard as Card, type Review, type SitterJob } from "@penntools/tool-pennpaws";
+import {
+  FIT_LABELS,
+  describe,
+  fitOf,
+  requestStart,
+  type Match,
+  type Member,
+  type Notification,
+  type Pet,
+  type RequestCard as Card,
+  type Review,
+  type SitterJob,
+} from "@penntools/tool-pennpaws";
 import { aiMatches, readNotifications, type AIMatch } from "./actions";
+import { MyPets } from "./MyPets";
 import { Onboarding } from "./Onboarding";
 import { RequestDetail } from "./RequestDetail";
 import { Completed, Earnings, MyTasks } from "./SitterViews";
@@ -19,7 +32,7 @@ import { Survey } from "./Survey";
 import { TeamView } from "./TeamView";
 import styles from "./PennPaws.module.css";
 
-type ListTab = "find" | "mine" | "alerts" | "tasks" | "done" | "earnings";
+type ListTab = "find" | "mine" | "pets" | "alerts" | "tasks" | "done" | "earnings";
 type View = { tab: ListTab | "post" | "profile" | "team" } | { tab: "request"; id: string; back: ListTab };
 
 // Only sitters browse open requests; owners post and follow their own.
@@ -51,6 +64,7 @@ export function PennPaws({
   open,
   matches,
   mine,
+  pets,
   jobs,
   reviews,
   notifications,
@@ -67,6 +81,8 @@ export function PennPaws({
   /** How well each open request fits the sitter, from the rules; empty for other roles. */
   matches: Match[];
   mine: Card[];
+  /** The owner's saved pets; empty for other roles. */
+  pets: Pet[];
   /** The sitter's jobs and anonymous ratings; empty for other roles. */
   jobs: SitterJob[];
   reviews: Review[];
@@ -79,6 +95,7 @@ export function PennPaws({
 }) {
   const router = useRouter();
   const isSitter = member.role === "sitter";
+  const isOwner = member.role === "owner";
   // Only the requests this person posted. Anything they offered on belongs to
   // the sitter tabs, so someone who switches role doesn't find other people's
   // pets listed under My requests.
@@ -132,9 +149,17 @@ export function PennPaws({
               Team
             </button>
           )}
-          <button type="button" className={styles.profileButton} aria-current={view.tab === "profile" ? "page" : undefined} onClick={() => setView({ tab: "profile" })}>
-            My profile
-          </button>
+          {/* An owner's pets are what they keep up to date, so the corner
+              opens those; their own details are a link inside it. */}
+          {isOwner ? (
+            <button type="button" className={styles.profileButton} aria-current={view.tab === "pets" ? "page" : undefined} onClick={() => setView({ tab: "pets" })}>
+              My Pets
+            </button>
+          ) : (
+            <button type="button" className={styles.profileButton} aria-current={view.tab === "profile" ? "page" : undefined} onClick={() => setView({ tab: "profile" })}>
+              My profile
+            </button>
+          )}
           <button type="button" className={styles.bell} onClick={showAlerts} aria-label={unread ? `Notifications, ${unread} new` : "Notifications"}>
             <BellIcon />
             {unread > 0 && <span className={styles.badge}>{unread}</span>}
@@ -246,6 +271,8 @@ export function PennPaws({
             )}
           </section>
         )}
+
+        {view.tab === "pets" && <MyPets pets={pets} onChanged={() => router.refresh()} onProfile={() => setView({ tab: "profile" })} />}
 
         {view.tab === "tasks" && (
           <MyTasks
