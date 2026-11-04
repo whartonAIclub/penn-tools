@@ -11,12 +11,50 @@ import type { Sql } from "postgres";
 import { PetDetails, petIssues } from "./profile.js";
 import { LIMITS } from "./survey.js";
 
+/**
+ * The details an owner may not want on a public request. Private by default:
+ * a sitter reads them once the booking is agreed. The owner can share any of
+ * them sooner, since a condition or a diet can decide whether someone is able
+ * to take the job at all.
+ */
+export const PRIVATE_FIELDS = [
+  { value: "breed", label: "Breed" },
+  { value: "diet", label: "Food and dietary needs" },
+  { value: "health", label: "Health conditions" },
+] as const;
+export type PrivateField = (typeof PRIVATE_FIELDS)[number]["value"];
+
 export const SavedPet = PetDetails.extend({
   photo: z.string().max(LIMITS.photo, "That photo is too large.").startsWith("data:image/").nullable().default(null),
+  breed: z.string().trim().max(LIMITS.shortText).nullable().default(null),
+  diet: z.string().trim().max(LIMITS.notes).nullable().default(null),
+  health: z.string().trim().max(LIMITS.notes).nullable().default(null),
+  /** Which of the private fields this owner shows sitters before a booking is agreed. */
+  sharedEarly: z
+    .array(z.enum(["breed", "diet", "health"]))
+    .max(PRIVATE_FIELDS.length)
+    .default([]),
 }).superRefine((pet, ctx) => {
   for (const issue of petIssues(pet)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: issue.path, message: issue.message });
 });
 export type SavedPet = z.infer<typeof SavedPet>;
+
+/** How far along the reader is, which decides what they see of a pet. */
+export type PetStage = "public" | "offered" | "booked";
+
+/**
+ * The private details this reader may see. The owner sees all of them; a
+ * booked sitter sees all of them; anyone earlier sees only what the owner
+ * chose to share. An empty field is left out either way.
+ */
+export function visiblePrivateDetails(pet: SavedPet, stage: PetStage): { field: PrivateField; label: string; value: string }[] {
+  return PRIVATE_FIELDS.flatMap(({ value: field, label }) => {
+    const value = pet[field];
+    if (!value) return [];
+    if (stage !== "booked" && !pet.sharedEarly.includes(field)) return [];
+    return [{ field, label, value }];
+  });
+}
 
 /** A saved pet with the id My Pets and the survey refer to it by. */
 export interface Pet extends SavedPet {
@@ -46,11 +84,16 @@ interface PetRow {
   bites: boolean;
   bites_details: string | null;
   photo: string | null;
+  breed: string | null;
+  diet: string | null;
+  health: string | null;
+  shared_early: string[];
 }
 
 const COLUMNS = (sql: Sql) => sql`
   id, name, kind, kind_other, size, age, energy, with_people, with_animals,
-  alone, special_care, special_care_other, bites, bites_details, photo
+  alone, special_care, special_care_other, bites, bites_details, photo,
+  breed, diet, health, shared_early
 `;
 
 /** A row as the rest of the tool sees it, or null when saved answers no longer pass. */
@@ -70,6 +113,10 @@ function toPet(row: PetRow): Pet | null {
     bites: row.bites,
     bitesDetails: row.bites_details,
     photo: row.photo,
+    breed: row.breed,
+    diet: row.diet,
+    health: row.health,
+    sharedEarly: row.shared_early,
   });
   return checked.ok ? { id: row.id, ...checked.value } : null;
 }
@@ -99,10 +146,12 @@ export async function petsByIds(sql: Sql, ownerId: string, petIds: string[]): Pr
 export async function addPet(sql: Sql, ownerId: string, pet: SavedPet): Promise<string> {
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO pets (owner_id, name, kind, kind_other, size, age, energy, with_people, with_animals,
-                      alone, special_care, special_care_other, bites, bites_details, photo)
+                      alone, special_care, special_care_other, bites, bites_details, photo,
+                      breed, diet, health, shared_early)
     VALUES (${ownerId}, ${pet.name}, ${pet.kind}, ${pet.kindOther}, ${pet.size}, ${pet.age}, ${pet.energy},
             ${pet.withPeople}, ${pet.withAnimals}, ${pet.alone}, ${pet.specialCare}, ${pet.specialCareOther},
-            ${pet.bites}, ${pet.bitesDetails}, ${pet.photo})
+            ${pet.bites}, ${pet.bitesDetails}, ${pet.photo},
+            ${pet.breed}, ${pet.diet}, ${pet.health}, ${pet.sharedEarly})
     RETURNING id
   `;
   return row!.id;
@@ -115,7 +164,9 @@ export async function updatePet(sql: Sql, ownerId: string, petId: string, pet: S
                     age = ${pet.age}, energy = ${pet.energy}, with_people = ${pet.withPeople},
                     with_animals = ${pet.withAnimals}, alone = ${pet.alone}, special_care = ${pet.specialCare},
                     special_care_other = ${pet.specialCareOther}, bites = ${pet.bites},
-                    bites_details = ${pet.bitesDetails}, photo = ${pet.photo}, updated_at = NOW()
+                    bites_details = ${pet.bitesDetails}, photo = ${pet.photo}, breed = ${pet.breed},
+                    diet = ${pet.diet}, health = ${pet.health}, shared_early = ${pet.sharedEarly},
+                    updated_at = NOW()
     WHERE id = ${petId} AND owner_id = ${ownerId}
   `;
   return rows.count > 0;

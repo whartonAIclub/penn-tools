@@ -92,6 +92,10 @@ const petAnswers: SavedPet = {
   bites: false,
   bitesDetails: null,
   photo: null,
+  breed: null,
+  diet: null,
+  health: null,
+  sharedEarly: [],
 };
 
 describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {

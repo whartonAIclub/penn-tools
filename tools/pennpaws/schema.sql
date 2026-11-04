@@ -246,3 +246,12 @@ CREATE TABLE IF NOT EXISTS pets (
 
 -- My Pets lists an owner's pets oldest first, so the order stays put.
 CREATE INDEX IF NOT EXISTS pets_owner_idx ON pets (owner_id, created_at);
+
+-- Details an owner may not want on a public request: breed, what the pet eats,
+-- and any condition. Private by default and shown once the booking is agreed;
+-- shared_early names the ones the owner chose to show sitters sooner, because
+-- they change whether someone can take the job at all.
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS breed TEXT;
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS diet TEXT;
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS health TEXT;
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS shared_early TEXT[] NOT NULL DEFAULT '{}';
