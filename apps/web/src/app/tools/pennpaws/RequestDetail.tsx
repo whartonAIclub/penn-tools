@@ -43,7 +43,6 @@ export function RequestDetail({
   const [request, setRequest] = useState<RequestPage | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
   const [change, setChange] = useState("");
   const [changing, setChanging] = useState(false);
 
@@ -170,36 +169,8 @@ export function RequestDetail({
         </p>
       )}
 
-      {/* A sitter who hasn't offered yet */}
-      {!request.mine && role === null && request.status === "open" && (
-        <form
-          className={styles.panelPlain}
-          onSubmit={(e) => {
-            e.preventDefault();
-            void act(() => offer(request.id, message));
-          }}
-        >
-          <label htmlFor="pp-offer" className={styles.label}>
-            Tell {request.ownerFirstName} a little about you
-          </label>
-          <textarea
-            id="pp-offer"
-            className={styles.input}
-            rows={3}
-            maxLength={500}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="I have pets at home, live nearby and I'm free mornings and evenings."
-          />
-          <button type="submit" className={styles.primary} disabled={busy || !message.trim()}>
-            Offer to help
-          </button>
-          <span className={styles.hint}>
-            {request.ownerFirstName} picks one sitter from everyone who accepts, and sees your first name and this note. Emails are shared only after you both
-            approve. Questions first? Message {request.ownerFirstName} below.
-          </span>
-        </form>
-      )}
+      {/* A sitter who hasn't offered yet writes in the message box below, which
+          carries both Offer to help and Send. */}
       {!request.mine && role === null && request.status !== "open" && <p className={styles.muted}>This request already has a sitter.</p>}
 
       {/* A sitter who offered */}
@@ -217,6 +188,15 @@ export function RequestDetail({
           otherFirstName={request.ownerFirstName}
           hasAI={hasAI}
           onSent={reload}
+          offerAction={
+            role === null && request.status === "open"
+              ? {
+                  label: "Offer to help",
+                  hint: `${request.ownerFirstName} picks one sitter from everyone who accepts, and sees your first name and this note. Emails are shared only after you both approve.`,
+                  onOffer: (note) => act(() => offer(request.id, note)),
+                }
+              : undefined
+          }
         />
       )}
       {role === "sitter" && request.myOffer?.status === "declined" && (

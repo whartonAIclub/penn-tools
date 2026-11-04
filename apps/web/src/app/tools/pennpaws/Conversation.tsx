@@ -3,8 +3,10 @@
 // One message thread between an owner and a sitter about a request, with a
 // box to write the next message. "Help me write" asks AI for a draft that the
 // person edits and sends themselves; AI never sends anything.
+// A sitter who hasn't offered yet writes in this same box: `offerAction` adds
+// their Offer to help button to it, so there's only ever one place to type.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Thread } from "@penntools/tool-pennpaws";
 import { draftNextMessage, message, type ActionResult } from "./actions";
 import styles from "./PennPaws.module.css";
@@ -16,6 +18,7 @@ export function Conversation({
   otherFirstName,
   hasAI,
   onSent,
+  offerAction,
 }: {
   requestId: string;
   thread: Thread;
@@ -23,9 +26,18 @@ export function Conversation({
   otherFirstName: string;
   hasAI: boolean;
   onSent: () => Promise<void> | void;
+  /** For a sitter who hasn't offered yet: this box also sends their offer. */
+  offerAction?:
+    | {
+        label: string;
+        hint: ReactNode;
+        /** Returns true when the offer went through, so the box can be cleared. */
+        onOffer: (note: string) => Promise<boolean>;
+      }
+    | undefined;
 }) {
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState<"send" | "draft" | null>(null);
+  const [busy, setBusy] = useState<"send" | "draft" | "offer" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The owner replies in a named thread; a sitter's own thread is found from who they are.
   const threadId = thread.id || null;
@@ -51,6 +63,14 @@ export function Conversation({
   const draft = async () => {
     const result = await run("draft", () => draftNextMessage(requestId, threadId));
     if (result) setText(result.data);
+  };
+  const sendOffer = async () => {
+    if (!offerAction) return;
+    setBusy("offer");
+    setError(null);
+    const ok = await offerAction.onOffer(text);
+    setBusy(null);
+    if (ok) setText("");
   };
 
   const inputId = `pp-message-${thread.id || "new"}`;
@@ -81,7 +101,7 @@ export function Conversation({
             void send();
           }}
         >
-          <label htmlFor={inputId} className={styles.visuallyHidden}>
+          <label htmlFor={inputId} className={offerAction ? styles.label : styles.visuallyHidden}>
             Message to {otherFirstName}
           </label>
           <textarea
@@ -91,7 +111,11 @@ export function Conversation({
             maxLength={500}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={`Ask ${otherFirstName} about feeding, walks, keys or a quick meet-and-greet.`}
+            placeholder={
+              offerAction
+                ? `Tell ${otherFirstName} a little about you, or ask about feeding, walks, keys or a quick meet-and-greet.`
+                : `Ask ${otherFirstName} about feeding, walks, keys or a quick meet-and-greet.`
+            }
           />
           <div className={styles.row}>
             {hasAI ? (
@@ -101,10 +125,18 @@ export function Conversation({
             ) : (
               <span />
             )}
-            <button type="submit" className={styles.primary} disabled={busy !== null || !text.trim()}>
+            <button type="submit" className={offerAction ? styles.secondary : styles.primary} disabled={busy !== null || !text.trim()}>
               {busy === "send" ? "Sending…" : "Send"}
             </button>
           </div>
+          {offerAction && (
+            <>
+              <button type="button" className={styles.primary} disabled={busy !== null || !text.trim()} onClick={() => void sendOffer()}>
+                {busy === "offer" ? "Offering…" : offerAction.label}
+              </button>
+              <span className={styles.hint}>{offerAction.hint}</span>
+            </>
+          )}
           <span className={styles.hint}>
             {hasAI ? "AI drafts, you edit and send. " : ""}Don't share your address or phone number in messages. You each add them when you approve, and they show once you're both booked.
           </span>
