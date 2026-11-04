@@ -101,7 +101,7 @@ export function Conversation({
             void send();
           }}
         >
-          <label htmlFor={inputId} className={offerAction ? styles.label : styles.visuallyHidden}>
+          <label htmlFor={inputId} className={styles.label}>
             Message to {otherFirstName}
           </label>
           <textarea
