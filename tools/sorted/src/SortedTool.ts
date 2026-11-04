@@ -8,7 +8,7 @@ import type { ToolManifest } from "@penntools/core/tools";
 export class SortedTool extends Tool {
   readonly manifest: ToolManifest = {
     id: "sorted",
-    title: "Sorted.",
+    title: "Sorted",
     description: "Sorted is a personal productivity tool that organizes your to-do lists into eight categories of life, keeping everything in one place and top of mind so you can make the most of your free time and tackle tasks as opportunities come up throughout the day.",
     contributors: ["Rhoda Azeze"],
     // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
