@@ -38,7 +38,7 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | Step | What | Status |
 |---|---|---|
 | Earlier work | Schema, storage, the five questions, file readers (Drive, WhatsApp, CampusGroups), lesson extraction with quote checking, lesson search, cited briefs: 55 tests | **Done** (reused below) |
-| 0 | This document; ask the Platform team to switch on our database | **Doc done** / ask pending |
+| 0 | This document; switch on our database (`TOOLS` entry) | **Done** |
 | **Week 1: library and events** | | |
 | 1 | Schema: event fields, vendors and partner clubs, file tags, excerpt embeddings | To do |
 | 2 | Detect "database not ready" | To do |
@@ -89,7 +89,7 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 
 ## Blockers
 
-- **Database:** `toolSql("passiton")` won't work, even locally, until the Platform team adds `{ name: "passiton", dir: "tools/pass-it-on", connectionLimit: 30 }` to `TOOLS` in `packages/platform/scripts/setup-tools.mjs`. **Ask them now.** Until then, pages show a clear "database isn't set up" message.
+- **Database: resolved.** The Platform team gave us one-time permission to add `{ name: "passiton", dir: "tools/pass-it-on", connectionLimit: 30 }` to `TOOLS` in `packages/platform/scripts/setup-tools.mjs`, and it's committed. **After you `git pull`, run `bash scripts/setup.sh` once** to create the tool's tables on your laptop. Pages still show a clear "database isn't set up" message if that step hasn't been done. The pull request touches this one file outside our folders, so mention the permission in its description.
 - **Real Pub files:** we need them for the week 1 exit test. Keep them outside the repo.
 
 ## Daily workflow
