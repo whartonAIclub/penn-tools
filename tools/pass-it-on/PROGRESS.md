@@ -1,0 +1,104 @@
+# Pass It On: progress and plan
+
+*Last updated 2026-11-03. Repo: `jhard99/penn-tools`, branch `pass-it-on`.*
+
+## What we're building
+
+Pass It On is a **live planning tool for Pub's weekly events**, built from four components:
+
+1. **A file library with AI search.** Upload Pub's documents (playbook, club rider, catering and merch sheets, reimbursement instructions, bylaws, planning docs) and ask questions. Every answer cites the source passage.
+2. **Event records.** Each Pub is one record: date, theme, venue, partner clubs, budget and Pub Leader. Files, tasks and lessons attach to it.
+3. **A checklist engine.** One base template plus optional modules (club collab, international, singles/GAPSA) generates dated tasks, each with one owner, for every event. Dates are relative (T-14 … T+5), so they move when the event moves.
+4. **A board.** A Trello-style view of every in-flight event's tasks plus ongoing to-dos, such as merch inventory, vendor relationships and succession planning.
+
+**An AI layer** ties these together. It:
+- answers questions from the library;
+- suggests modules and flags past lessons when an event is created;
+- after each post-mortem, proposes changes to the template.
+
+The post-mortem is a **T+5 task** in the checklist, not a separate flow.
+
+**Design rules:**
+- **People approve.** The AI proposes and a person approves; nothing is changed silently.
+- **Everything is cited.** Every AI output cites its source, or says it can't find one. Quotes are checked word for word, and the quotes shown always come from the database.
+- **One owner per task.** A task can be *blocked, waiting on* a vendor or partner club.
+- **Changes are versioned.** Template changes are small, versioned and reversible.
+
+## Constraints
+
+- **Our folders only:** we edit only `tools/pass-it-on/` and `apps/web/src/app/tools/pass-it-on/`. Anything else goes to the Platform team.
+- **Laptop only:** the pilot runs locally, with our own API keys. We need an **OpenAI** key, because embeddings only work with OpenAI.
+- **Uploads only:** tool code never calls Drive, WhatsApp or CampusGroups.
+- **Attendance as counts:** attendees' names and emails are never stored.
+- **No credentials:** the "Pub Email & Social Accounts" doc must never be uploaded. Uploads containing "password" or "pass:" are flagged and need confirmation.
+- **Real files stay outside the repo:** never commit them.
+
+## Status
+
+| Step | What | Status |
+|---|---|---|
+| Earlier work | Schema, storage, the five questions, file readers (Drive, WhatsApp, CampusGroups), lesson extraction with quote checking, lesson search, cited briefs: 55 tests | **Done** (reused below) |
+| 0 | This document; ask the Platform team to switch on our database | **Doc done** / ask pending |
+| **Week 1: library and events** | | |
+| 1 | Schema: event fields, vendors and partner clubs, file tags, excerpt embeddings | To do |
+| 2 | Detect "database not ready" | To do |
+| 3 | Credential guard for uploads | To do |
+| 4 | Embed documents on upload; search them | To do |
+| 5 | Cited answers ("I couldn't find this" when there's no source) | To do |
+| 6 | Event and party storage | To do |
+| 7 | Page shell with tabs; "database not ready" message | To do |
+| 8 | Upload page and route, with the credential check | To do |
+| 9 | Ask-the-library page, linking to source passages | To do |
+| 10 | Event list and edit pages | To do |
+| 11 | **Exit test:** five real questions, correct cited answers | To do |
+| **Week 2: checklist and board** | | |
+| 12 | Schema: template versions, modules, items, tasks, members | To do |
+| 13 | Date math, task generation and rescheduling | To do |
+| 14 | Pub template version 1, from the playbook, with the PO issue flagged | To do |
+| 15 | Task and to-do storage; filters | To do |
+| 16 | Creating an event generates its checklist; moving the date reschedules | To do |
+| 17 | Board: columns, owner and due-window filters, "waiting on" | To do |
+| 18 | Template tab: view, known issues, revert | To do |
+| 19 | **Exit test:** two overlapping events, correct dates and owners | To do |
+| **Week 3: AI layer, post-mortem, pilot** | | |
+| 20–21 | Suggested modules and past lessons when creating an event | To do |
+| 22–23 | Post-mortem task: pre-filled questions or uploaded notes, then a lesson review queue | To do |
+| 24–25 | Proposed template changes, with citations, approved by a person | To do |
+| 26 | **Pilot** with a current Pub leader | To do |
+| 27 | Pull request to `whartonAIclub/penn-tools` | To do |
+
+**Cut line, in this order:** proposed template changes → suggested modules → non-event to-dos → Drive zip and WhatsApp support. **Never cut:** cited search, event records, dated tasks with owners generated from the template, and human approval.
+
+## Decisions taken (change them if you disagree)
+
+- **PO timing conflict:** the playbook has the restricted fund PO due at T-10, but the budget isn't final until T-7. The template keeps the playbook's dates, shows this as a known issue, and the Pub leader decides in the app.
+- **Task owners:** chosen from a roster of Pub board names, defaulting to the Pub Leader. No emails are stored.
+- **WhatsApp reminders:** generated for Mondays and Thursdays from T-14 to T-0, and regenerated when the event moves.
+- **"Board-only" access:** not needed while the pilot runs on one laptop. It comes after the pilot, with the Platform team.
+
+## What we reuse from earlier work
+
+| Earlier work | Role now |
+|---|---|
+| Drive readers (Word, Excel, CSV, PDF, Markdown, zip) and `saveImport` | The library's upload path |
+| Quote checking (`containsQuote`, `checkQuotes`) | Verifying every citation in answers, suggestions and proposals |
+| Lesson search and cited briefs (`findLessons`, `buildBrief`) | Flagging past lessons when an event is created |
+| The five questions and `structureAnswers` | The post-mortem form |
+| Lesson extraction (`extract.ts`) | Pulling lessons from uploaded post-mortem notes |
+| WhatsApp and CampusGroups readers, attendance counts | **Kept but deprioritized.** No pages for now. |
+
+## Blockers
+
+- **Database:** `toolSql("passiton")` won't work, even locally, until the Platform team adds `{ name: "passiton", dir: "tools/pass-it-on", connectionLimit: 30 }` to `TOOLS` in `packages/platform/scripts/setup-tools.mjs`. **Ask them now.** Until then, pages show a clear "database isn't set up" message.
+- **Real Pub files:** we need them for the week 1 exit test. Keep them outside the repo.
+
+## Daily workflow
+
+```bash
+git pull                                          # get the other person's work
+pnpm dev                                          # http://localhost:3000/tools/pass-it-on
+pnpm typecheck && pnpm check:tools && pnpm test   # before every commit
+git push                                          # share it
+```
+
+Before running the site or the tests, start Docker Desktop, then run `docker start penntools-db`. Changes to `tools/pass-it-on/` (tool logic) go to Joe for review.
