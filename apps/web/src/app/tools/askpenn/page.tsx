@@ -5,7 +5,7 @@
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
 import { toolSql } from "@penntools/platform/db";
-import { DEFAULT_REASONING, DEFAULT_TIER, MAX_MESSAGE_LENGTH, listChats } from "@penntools/tool-askpenn";
+import { ATTACHMENT_LIMITS, DEFAULT_REASONING, DEFAULT_TIER, MAX_MESSAGE_LENGTH, listChats } from "@penntools/tool-askpenn";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { ApiKeyPrompt } from "@/components/layout/ApiKeyPrompt";
@@ -34,6 +34,7 @@ export default async function AskPennPage() {
       defaultTier={DEFAULT_TIER}
       defaultReasoning={DEFAULT_REASONING}
       maxMessageLength={MAX_MESSAGE_LENGTH}
+      attachmentLimits={ATTACHMENT_LIMITS}
     />
   );
 }

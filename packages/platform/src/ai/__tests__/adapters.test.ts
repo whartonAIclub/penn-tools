@@ -155,6 +155,72 @@ describe("OpenAI", () => {
   });
 });
 
+describe("images and PDFs", () => {
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
+  const pdf = "JVBERi0xLjQK";
+  const withFiles = [
+    {
+      role: "user" as const,
+      content: [
+        { type: "image" as const, mediaType: "image/png" as const, data: png },
+        { type: "pdf" as const, filename: "syllabus.pdf", data: pdf },
+        { type: "text" as const, text: "Summarize these." },
+      ],
+    },
+  ];
+
+  it("sends them to Anthropic as base64 image and document blocks", async () => {
+    net.reply(anthropicReply());
+    await ai.generate({ provider: "anthropic", messages: withFiles });
+    expect(net.last().body.messages[0].content).toEqual([
+      { type: "image", source: { type: "base64", media_type: "image/png", data: png } },
+      { type: "document", title: "syllabus.pdf", source: { type: "base64", media_type: "application/pdf", data: pdf } },
+      { type: "text", text: "Summarize these." },
+    ]);
+  });
+
+  it("sends them to OpenAI as data URLs", async () => {
+    net.reply(openaiReply());
+    await ai.generate({ provider: "openai", messages: withFiles });
+    expect(net.last().body.input[0].content).toEqual([
+      { type: "input_image", detail: "auto", image_url: `data:image/png;base64,${png}` },
+      { type: "input_file", filename: "syllabus.pdf", file_data: `data:application/pdf;base64,${pdf}` },
+      { type: "input_text", text: "Summarize these." },
+    ]);
+  });
+
+  it("still sends plain-text messages as strings", async () => {
+    net.reply(anthropicReply());
+    await ai.generate({ provider: "anthropic", messages: hi });
+    expect(net.last().body.messages[0].content).toBe("hi");
+  });
+
+  it.each([
+    ["data that isn't base64", [{ type: "image", mediaType: "image/png", data: "not base64!" }]],
+    ["an unsupported image type", [{ type: "image", mediaType: "image/heic", data: png }]],
+    [
+      "an image over the size limit",
+      [{ type: "image", mediaType: "image/png", data: `iVBORw0KGgo${"A".repeat(10 * 1024 * 1024 + 1)}` }],
+    ],
+    ["a data: prefix", [{ type: "image", mediaType: "image/png", data: `data:image/png;base64,${png}` }]],
+    ["a PNG labelled a JPEG", [{ type: "image", mediaType: "image/jpeg", data: png }]],
+    // "RIFF....WAVE": a WAV file, which starts like a WebP but isn't one.
+    ["a WAV labelled a WebP", [{ type: "image", mediaType: "image/webp", data: "UklGRiQAAABXQVZF" }]],
+    ["a PNG sent as a PDF", [{ type: "pdf", filename: "map.pdf", data: png }]],
+    ["a PDF without a filename", [{ type: "pdf", filename: "", data: pdf }]],
+    ["no parts", []],
+  ])("rejects %s without calling the provider", async (_label, content) => {
+    const messages = [{ role: "user", content }] as unknown as typeof withFiles;
+    await expect(ai.generate({ provider: "openai", messages })).rejects.toMatchObject({ kind: "bad_request" });
+    expect(net.sent).toHaveLength(0);
+  });
+
+  it("rejects files in an assistant message", async () => {
+    const messages = [...hi, { role: "assistant", content: [{ type: "text", text: "hi" }] }] as unknown as typeof withFiles;
+    await expect(ai.generate({ provider: "anthropic", messages })).rejects.toMatchObject({ kind: "bad_request" });
+  });
+});
+
 describe("generateObject failures", () => {
   const cases: [string, AIProvider, () => FakeReply, string][] = [
     ["a reply that isn't JSON", "anthropic", () => anthropicReply({ text: "not json" }), "bad_output"],

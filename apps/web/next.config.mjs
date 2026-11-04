@@ -5,8 +5,10 @@ const config = {
     "@penntools/platform",
   ],
   // Ensures server-only modules (Prisma, env vars) never leak to the client bundle.
+  // pdfjs-dist too, on the server only: bundled, it can't find the worker file it
+  // loads next to itself (./pdf.worker.js), so every PDF fails to open.
   experimental: {
-    serverComponentsExternalPackages: ["@prisma/client", "prisma"],
+    serverComponentsExternalPackages: ["@prisma/client", "prisma", "pdfjs-dist"],
   },
   async redirects() {
     return [

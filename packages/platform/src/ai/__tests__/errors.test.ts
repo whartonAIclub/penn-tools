@@ -22,6 +22,12 @@ describe("toAIError", () => {
     [429, "rate_limit_error", "slow down", "rate_limited"],
     [413, "request_too_large", "too big", "too_long"],
     [400, "invalid_request_error", "prompt is too long: 300000 tokens > 200000 maximum", "too_long"],
+    [
+      400,
+      "invalid_request_error",
+      "messages.0.content.0.pdf.source.base64.data: A maximum of 600 PDF pages may be provided.",
+      "too_long",
+    ],
     [400, "invalid_request_error", "max_tokens: must be positive", "bad_request"],
     [404, "not_found_error", "model: x", "bad_request"],
     [500, "api_error", "internal", "unavailable"],
