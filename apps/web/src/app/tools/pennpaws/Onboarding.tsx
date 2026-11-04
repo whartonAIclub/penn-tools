@@ -344,9 +344,9 @@ function problem(step: Step, f: Form, school: string | null): string | null {
     case "preference":
       return f.sitterGenderPref ? null : "Choose one to continue.";
     case "services":
-      if (f.services.length === 0) return "Pick at least one service.";
-      return f.petKinds.length ? null : "Pick at least one kind of pet.";
+      return f.services.length ? null : "Pick at least one service.";
     case "comfort":
+      if (f.petKinds.length === 0) return "Pick at least one kind of pet.";
       return f.sizes.length && f.energies.length && f.anxiousOk !== null ? null : all;
     case "experience":
       if (!f.travel) return "Choose how far you'll travel.";
@@ -719,15 +719,15 @@ export function Onboarding({
           <Question label="Services">
             <MultiChoice rows options={SERVICES} selected={f.services} onToggle={(service) => set({ services: toggle(f.services, service) })} />
           </Question>
-          <Question label="Pets">
-            <MultiChoice options={SITTER_PET_KINDS} selected={f.petKinds} onToggle={(kind) => set({ petKinds: toggle(f.petKinds, kind) })} />
-          </Question>
           {endsScreen("services") && <Continue onClick={goOn} />}
         </Ask>
       )}
 
       {shows("comfort") && (
         <Ask title="Which pets are you comfortable with?" lead="We only suggest you for pets that fit.">
+          <Question label="Pets">
+            <MultiChoice options={SITTER_PET_KINDS} selected={f.petKinds} onToggle={(kind) => set({ petKinds: toggle(f.petKinds, kind) })} />
+          </Question>
           <Question label="Sizes" info={SIZE_GUIDE}>
             <MultiChoice options={PET_SIZES} selected={f.sizes} onToggle={(size) => set({ sizes: toggle(f.sizes, size) })} />
           </Question>
