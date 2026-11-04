@@ -52,7 +52,7 @@ export async function parseSentence(ai: AI, provider: AIProvider, sentence: stri
       "It may be in any language. Write every text field in clear English so any sitter can read it, and set sourceLanguage. " +
       "Fill only what the text states or clearly implies; leave everything else null. Don't copy contact instructions like 'DM me'. " +
       "Put the pet's breed, sex, age and whether it's neutered in petDetails. " +
-      "Resolve relative dates like 'this weekend' or 'Thursday to Sunday', and dates without a year, to the next matching dates.",
+      "Resolve relative dates like 'this weekend' or 'Thursday to Sunday', and dates without a year, to the next matching dates after today.",
     messages: [{ role: "user", content: sentence.slice(0, LIMITS.sentence) }],
   });
   return object;

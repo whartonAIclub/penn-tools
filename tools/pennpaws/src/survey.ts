@@ -24,7 +24,7 @@ export type PetKind = (typeof PET_KINDS)[number]["value"];
 // weekly) are stored.
 export const DATE_MODES = [
   { value: "dates", label: "Pick my own dates", hint: "Choose a start and end day" },
-  { value: "weekend", label: "This weekend", hint: "The coming Saturday and Sunday" },
+  { value: "weekend", label: "This weekend", hint: "The next Saturday and Sunday" },
   { value: "weekly", label: "Every week, same days", hint: "A regular walker or visitor" },
 ] as const satisfies readonly Option[];
 export type DateMode = (typeof DATE_MODES)[number]["value"];
@@ -134,11 +134,18 @@ export function listLabels(options: readonly Option[], values: readonly string[]
   return labels.length <= 1 ? labels.join("") : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
 }
 
-/** The coming Saturday and Sunday (today when it is the weekend), as YYYY-MM-DD. */
+/** The earliest day a request can start: tomorrow, as YYYY-MM-DD. Sitters need time to offer. */
+export function firstBookableDay(today: Date): string {
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  return isoDate(tomorrow);
+}
+
+/** The next Saturday and Sunday after today (next week's on a weekend), as YYYY-MM-DD. */
 export function thisWeekend(today: Date): { startsOn: string; endsOn: string } {
   const day = today.getDay();
   const saturday = new Date(today);
-  saturday.setDate(today.getDate() + (day === 0 ? -1 : 6 - day));
+  saturday.setDate(today.getDate() + (day === 6 ? 7 : 6 - day));
   const sunday = new Date(saturday);
   sunday.setDate(saturday.getDate() + 1);
   return { startsOn: isoDate(saturday), endsOn: isoDate(sunday) };

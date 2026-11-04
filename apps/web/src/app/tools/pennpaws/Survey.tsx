@@ -27,8 +27,9 @@ import {
   TASKS,
   TASKS_BY_KIND,
   describe,
-  isoDate,
+  firstBookableDay,
   labelOf,
+  shortDate,
   thisWeekend,
   type Access,
   type CareType,
@@ -167,12 +168,15 @@ function toDraft(a: Answers): RequestDraft {
   };
 }
 
+/** True when `isoDay` is today or earlier: requests start tomorrow at the soonest. */
+const tooSoon = (isoDay: string) => isoDay < firstBookableDay(new Date());
+
 /** The steps whose answers are still missing, in order. */
 function missingSteps(a: Answers): number[] {
   const missing = [
     !a.petKind || (needsKindText(a.petKind) && !a.petKindOther.trim()),
     !a.petName.trim(),
-    !a.dateMode || (a.dateMode !== "weekly" && (!a.startsOn || !a.endsOn || a.endsOn < a.startsOn)),
+    !a.dateMode || (a.dateMode !== "weekly" && (!a.startsOn || !a.endsOn || a.endsOn < a.startsOn || tooSoon(a.startsOn))),
     !a.careType ||
       (a.careType === "visits" && (!a.frequency || (a.frequency === OTHER && !a.frequencyOther.trim()))) ||
       a.tasks.length === 0 ||
@@ -206,7 +210,13 @@ function mergeParsed(a: Answers, p: ParsedRequest, post: string): Answers {
   if (p.petName) next.petName = p.petName;
   if (p.petDetails) next.petDetails = p.petDetails;
   if (p.weekly) next.dateMode = "weekly";
-  else if (p.startsOn && p.endsOn && /^\d{4}-\d{2}-\d{2}$/.test(p.startsOn) && /^\d{4}-\d{2}-\d{2}$/.test(p.endsOn)) {
+  else if (
+    p.startsOn &&
+    p.endsOn &&
+    /^\d{4}-\d{2}-\d{2}$/.test(p.startsOn) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(p.endsOn) &&
+    !tooSoon(p.startsOn)
+  ) {
     next.dateMode = "dates";
     next.startsOn = p.startsOn;
     next.endsOn = p.endsOn;
@@ -271,7 +281,8 @@ export function Survey({
   };
   const goOn = () => {
     if (firstMissing(a) <= step) {
-      setError("Answer this one to continue.");
+      const early = step === 2 && a.dateMode === "dates" && a.startsOn && tooSoon(a.startsOn);
+      setError(early ? `Pick days from ${shortDate(firstBookableDay(new Date()))} on. Requests start after today.` : "Answer this one to continue.");
       return;
     }
     setError(null);
@@ -318,6 +329,7 @@ export function Survey({
   const kindWord = a.petKind === "cat" ? "cat" : a.petKind === "dog" ? "dog" : "pet";
   const lines = describe(toDraft(a));
   const weekend = thisWeekend(new Date());
+  const firstDay = firstBookableDay(new Date());
   const boarding = a.careType === "boarding";
   // A stay or boarding is paid by the night, visits by the visit.
   const nightly = a.careType === "stay" || boarding;
@@ -578,8 +590,8 @@ export function Survey({
             {a.dateMode === "dates" && (
               <>
                 <div className={styles.twoCol}>
-                  <TextField id="pp-from" label="From" type="date" value={a.startsOn} min={isoDate(new Date())} onChange={(startsOn) => set({ startsOn })} />
-                  <TextField id="pp-to" label="To" type="date" value={a.endsOn} min={a.startsOn || isoDate(new Date())} onChange={(endsOn) => set({ endsOn })} />
+                  <TextField id="pp-from" label="From" type="date" value={a.startsOn} min={firstDay} onChange={(startsOn) => set({ startsOn })} />
+                  <TextField id="pp-to" label="To" type="date" value={a.endsOn} min={a.startsOn || firstDay} onChange={(endsOn) => set({ endsOn })} />
                 </div>
                 <Continue onClick={goOn} label="Use these dates" />
               </>
