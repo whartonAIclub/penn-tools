@@ -252,6 +252,8 @@ export function PennPaws({
             userFirstName={userFirstName}
             hasAI={hasAI}
             start={member.profile.role === "owner" ? requestStart(member.profile) : null}
+            pets={pets}
+            profile={member.profile.role === "owner" ? member.profile : null}
             onPosted={(id) => {
               router.refresh();
               openRequest(id, "mine");

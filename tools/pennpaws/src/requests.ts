@@ -10,6 +10,7 @@ import { allowedFrom, bothApproved, canSeeContacts, nextStatus, type OfferStatus
 import type { PaymentMethod, SitterJob } from "./jobs.js";
 import { checkAsks, type AskCheck } from "./match.js";
 import { EXPERIENCE, SERVICES, checkProfile, petNotes } from "./profile.js";
+import { petsByIds, privatePetNotes } from "./pets.js";
 import { notify, type NotificationChannel } from "./notifications.js";
 import type { Handoff } from "./handoff.js";
 import { hideContacts, type RequestDraft } from "./request.js";
@@ -158,6 +159,7 @@ interface RequestRow {
   languages: RequestDraft["languages"];
   original_text: string | null;
   original_language: string | null;
+  pet_ids: string[];
   status: RequestStatus;
   created_at: Date;
   completed_at: Date | null;
@@ -173,7 +175,7 @@ function selectRequests(sql: Sql) {
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
            r.pay, r.area, r.vet, r.notes, r.status, r.created_at, r.completed_at,
-           r.care_type, r.must_haves, r.sitter_gender, r.languages, r.original_text, r.original_language,
+           r.care_type, r.must_haves, r.sitter_gender, r.languages, r.original_text, r.original_language, r.pet_ids,
            (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count,
            -- For R46: a booking is finished only once it is done, paid and rated.
            EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id) AS paid,
@@ -211,6 +213,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       languages: row.languages,
       original: row.original_text && row.owner_id !== viewerId ? hideContacts(row.original_text) : row.original_text,
       originalLanguage: row.original_language,
+      petIds: row.pet_ids,
     },
     ownerFirstName: firstName(row.owner_name),
     status: row.status,
@@ -362,9 +365,17 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
   }
   let privateNotes: string | null = null;
   if (role) {
-    const [owner] = await sql<{ profile: unknown }[]>`SELECT profile FROM members WHERE user_id = ${row.owner_id}`;
-    const checked = owner ? checkProfile(owner.profile) : null;
-    if (checked?.ok && checked.value.role === "owner") privateNotes = petNotes(checked.value);
+    // Posted from saved pets: each pet's notes, with breed, diet and health once booked.
+    // Otherwise the pet in the owner's profile, as before R43.
+    const pets = row.pet_ids.length ? await petsByIds(sql, row.owner_id, row.pet_ids) : [];
+    if (pets.length) {
+      const booked = isOwner || (party && accepted !== null && canSeeContacts(row.status));
+      privateNotes = privatePetNotes(pets, booked ? "booked" : "offered");
+    } else {
+      const [owner] = await sql<{ profile: unknown }[]>`SELECT profile FROM members WHERE user_id = ${row.owner_id}`;
+      const checked = owner ? checkProfile(owner.profile) : null;
+      if (checked?.ok && checked.value.role === "owner") privateNotes = petNotes(checked.value);
+    }
   }
   const [last] = party ? await sql<{ phone: string }[]>`SELECT phone FROM handoffs WHERE user_id = ${viewerId} ORDER BY created_at DESC LIMIT 1` : [];
 
@@ -387,19 +398,21 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
 /** Posts the request (already checked with checkDraft) and returns its id. */
 export async function createRequest(sql: Sql, owner: Person, draft: RequestDraft): Promise<string> {
   await assertActive(sql, owner.id);
+  // Only the owner's own pets; an id from someone else's account is dropped.
+  const petIds = (await petsByIds(sql, owner.id, draft.petIds)).map((p) => p.id);
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO requests (
       owner_id, owner_name, owner_email, pet_name, pet_kind, pet_kind_other, pet_details, photo,
       weekly, starts_on, ends_on, frequency, frequency_other, tasks, tasks_other,
       access, access_other, pay, area, vet, notes,
-      care_type, must_haves, sitter_gender, languages, original_text, original_language
+      care_type, must_haves, sitter_gender, languages, original_text, original_language, pet_ids
     ) VALUES (
       ${owner.id}, ${owner.name}, ${owner.email}, ${draft.petName}, ${draft.petKind}, ${draft.petKindOther},
       ${draft.petDetails}, ${draft.photo}, ${draft.weekly}, ${draft.weekly ? null : draft.startsOn},
       ${draft.weekly ? null : draft.endsOn}, ${draft.frequency}, ${draft.frequencyOther}, ${sql.array(draft.tasks)},
       ${draft.tasksOther}, ${draft.access}, ${draft.accessOther}, ${draft.pay}, ${draft.area}, ${draft.vet}, ${draft.notes},
       ${draft.careType}, ${sql.array(draft.mustHaves)}, ${draft.sitterGender}, ${sql.array(draft.languages)},
-      ${draft.original}, ${draft.originalLanguage}
+      ${draft.original}, ${draft.originalLanguage}, ${sql.array(petIds)}::uuid[]
     ) RETURNING id
   `;
   return row!.id;

@@ -255,3 +255,7 @@ ALTER TABLE pets ADD COLUMN IF NOT EXISTS breed TEXT;
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS diet TEXT;
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS health TEXT;
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS shared_early TEXT[] NOT NULL DEFAULT '{}';
+
+-- R43: the saved pets a request was posted from, so matching and a sitter's
+-- private notes read each pet, not only the one in the owner's profile.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS pet_ids UUID[] NOT NULL DEFAULT '{}';

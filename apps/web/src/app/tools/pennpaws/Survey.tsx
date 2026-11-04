@@ -5,8 +5,9 @@
 // with a text box. Owners with an API key can paste a post or describe what
 // they need, in any language, and let AI fill in the answers in English; they
 // check what AI understood, answer only what's missing, and review everything
-// before posting. Owners who described their pet in first-time setup start
-// with it filled in, on the step where they can add a photo.
+// before posting. Owners with saved pets start by picking who it's for (R43):
+// everything on those pets is carried in, so they answer only dates, care
+// and pay. Owners with no saved pet start with the one from setup filled in.
 
 import { useState, type ReactNode } from "react";
 import {
@@ -31,6 +32,7 @@ import {
   labelOf,
   shortDate,
   thisWeekend,
+  requestStartFromPets,
   type Access,
   type CareType,
   type DateMode,
@@ -38,7 +40,9 @@ import {
   type GenderPref,
   type Language,
   type MustHave,
+  type OwnerProfile,
   type ParsedRequest,
+  type Pet,
   type PetKind,
   type RequestDraft,
   type RequestStart,
@@ -76,6 +80,8 @@ interface Answers {
   /** The owner's post, kept when AI read it from another language. */
   original: string | null;
   originalLanguage: string | null;
+  /** The saved pets this request is for, when the owner picked them. */
+  petIds: string[];
 }
 
 /** For boarding, the keys question becomes how the pet is handed over. */
@@ -112,10 +118,13 @@ const EMPTY: Answers = {
   languages: [],
   original: null,
   originalLanguage: null,
+  petIds: [],
 };
 
 const STEPS = ["your pet", "about them", "dates", "care", "keys", "pay", "notes"] as const;
 const REVIEW = STEPS.length;
+/** The steps left after picking saved pets: dates, care and pay. Keys default to "decide with my sitter". */
+const PET_STEPS = [2, 3, 5] as const;
 
 const orNull = (text: string) => (text.trim() ? text.trim() : null);
 const needsKindText = (kind: PetKind | null) => kind === OTHER || kind === "several";
@@ -165,6 +174,7 @@ function toDraft(a: Answers): RequestDraft {
     languages: a.languages,
     original: a.original,
     originalLanguage: a.originalLanguage,
+    petIds: a.petIds,
   };
 }
 
@@ -249,16 +259,27 @@ export function Survey({
   userFirstName,
   hasAI,
   start = null,
+  pets = [],
+  profile = null,
   onPosted,
 }: {
   userFirstName: string;
   hasAI: boolean;
-  /** The owner's pet from their profile, if they have one. */
+  /** The owner's pet from their profile, if they have one. Used when there are no saved pets. */
   start?: RequestStart | null;
+  /** The owner's saved pets, to pick from first. */
+  pets?: Pet[];
+  /** The owner's profile, for their area and sitter wishes on a request from saved pets. */
+  profile?: OwnerProfile | null;
   onPosted: (id: string) => void;
 }) {
+  const canPick = pets.length > 0 && profile !== null;
+  const [picking, setPicking] = useState(canPick);
+  const [chosen, setChosen] = useState<string[]>(() => (pets.length === 1 && pets[0] ? [pets[0].id] : []));
+  const [fromPets, setFromPets] = useState(false);
   const [a, setA] = useState<Answers>(() => (start ? { ...EMPTY, ...start } : EMPTY));
-  const [step, setStep] = useState(start ? 1 : 0);
+  // While picking pets the step stays at 0, whose answers only show once picking is done.
+  const [step, setStep] = useState(pets.length > 0 && profile !== null ? 0 : start ? 1 : 0);
   const [typing, setTyping] = useState(false);
   const [sentence, setSentence] = useState("");
   const [filledByAI, setFilledByAI] = useState(false);
@@ -271,7 +292,7 @@ export function Survey({
 
   const set = (patch: Partial<Answers>) => setA((prev) => ({ ...prev, ...patch }));
   // After AI fills the answers, skip straight to whatever is still missing.
-  const advance = (next: Answers) => setStep(filledByAI ? firstMissing(next) : step + 1);
+  const advance = (next: Answers) => setStep(filledByAI || fromPets ? firstMissing(next) : step + 1);
   /** Saves `patch` and moves on. */
   const answer = (patch: Partial<Answers>) => {
     const next = { ...a, ...patch };
@@ -309,6 +330,46 @@ export function Survey({
     setUnderstood(false);
     setStep(aiFrom);
   };
+  /** Carries the picked pets into the answers and goes to the first question left: dates. */
+  const pickPets = () => {
+    const picked = pets.filter((p) => chosen.includes(p.id));
+    if (!profile || picked.length === 0) {
+      setError("Pick at least one pet.");
+      return;
+    }
+    const next: Answers = { ...EMPTY, ...requestStartFromPets(picked, profile), access: "decide_later", notesDone: true };
+    setA(next);
+    setError(null);
+    setFromPets(true);
+    setFilledByAI(false);
+    setPicking(false);
+    setStep(firstMissing(next));
+  };
+  /** Someone not saved in My Pets: the full survey, from scratch. */
+  const someoneElse = () => {
+    setA(EMPTY);
+    setFromPets(false);
+    setPicking(false);
+    setError(null);
+    setStep(0);
+  };
+  const backToPets = () => {
+    setStep(0);
+    setPicking(true);
+    setFromPets(false);
+    setError(null);
+  };
+  const back = () => {
+    if (!fromPets) {
+      setStep(step - 1);
+      return;
+    }
+    const earlier = PET_STEPS.filter((s) => s < step);
+    const previous = earlier[earlier.length - 1];
+    if (previous === undefined) backToPets();
+    else setStep(previous);
+  };
+
   const startOver = () => {
     setA(start ? { ...EMPTY, ...start } : EMPTY);
     setFilledByAI(false);
@@ -345,7 +406,7 @@ export function Survey({
     `Hi ${userFirstName}. Who are we looking after while you're away?`,
     `Lovely. Tell me about your ${kindWord}. A photo helps your sitter know who to look for at the door.`,
     "When will you be away?",
-    `What kind of care does ${a.petName || "your pet"} need, and what should the sitter do?`,
+    `What kind of care ${a.petIds.length > 1 ? "do" : "does"} ${a.petName || "your pet"} need, and what should the sitter do?`,
     boarding ? `How will you hand ${a.petName || "them"} over to your sitter?` : "How will your sitter get in?",
     `What would you like to pay ${nightly ? "per night" : "per visit"}? Pick a rate, or I can suggest one.`,
     "Last one. Roughly where are you, who is your vet, what matters in a sitter, and is there anything else they should know?",
@@ -362,7 +423,12 @@ export function Survey({
   ];
   const log: { from: "bot" | "me"; text: string }[] = [{ from: "bot", text: questions[0]! }];
   let first = 0;
-  if (filledByAI) {
+  if (fromPets && !picking) {
+    // Picked from My Pets: only the questions left to answer.
+    log.push({ from: "me", text: a.petName });
+    for (const s of PET_STEPS.filter((n) => n < step)) log.push({ from: "bot", text: questions[s]! }, { from: "me", text: answers[s]! });
+    log.push({ from: "bot", text: questions[Math.min(step, REVIEW)]! });
+  } else if (filledByAI) {
     first = aiFrom;
     log.push({ from: "me", text: sentence });
     log.push({
@@ -375,17 +441,27 @@ export function Survey({
     });
     if (!understood && aiFrom < REVIEW) log.push({ from: "bot", text: questions[aiFrom]! });
   }
-  for (let n = first; n < Math.min(step, REVIEW); n++) {
-    log.push({ from: "me", text: answers[n]! }, { from: "bot", text: questions[n + 1]! });
+  if (!fromPets && !picking) {
+    for (let n = first; n < Math.min(step, REVIEW); n++) {
+      log.push({ from: "me", text: answers[n]! }, { from: "bot", text: questions[n + 1]! });
+    }
   }
+  const progress = picking
+    ? { label: "Who it's for", share: 0 }
+    : fromPets
+      ? step < REVIEW
+        ? { label: `Step ${PET_STEPS.indexOf(step as (typeof PET_STEPS)[number]) + 1} of ${PET_STEPS.length}, ${STEPS[step]}`, share: PET_STEPS.indexOf(step as (typeof PET_STEPS)[number]) / PET_STEPS.length }
+        : { label: "Review before posting", share: 1 }
+      : { label: step < REVIEW ? `Step ${step + 1} of ${STEPS.length}, ${STEPS[step]}` : "Review before posting", share: Math.min(step, REVIEW) / REVIEW };
+  const chosenNames = pets.filter((p) => chosen.includes(p.id)).map((p) => p.name);
 
   const kindTasks = TASKS_BY_KIND[a.petKind ?? "dog"];
 
   return (
     <section className={styles.survey}>
-      <div className={styles.progressLabel}>{step < REVIEW ? `Step ${step + 1} of ${STEPS.length}, ${STEPS[step]}` : "Review before posting"}</div>
+      <div className={styles.progressLabel}>{progress.label}</div>
       <div className={styles.progress} aria-hidden="true">
-        <span style={{ width: `${Math.round((Math.min(step, REVIEW) / REVIEW) * 100)}%` }} />
+        <span style={{ width: `${Math.round(progress.share * 100)}%` }} />
       </div>
 
       <ol className={styles.chat} aria-live="polite">
@@ -482,7 +558,39 @@ export function Survey({
       )}
 
       <div className={styles.answer}>
-        {step === 0 && !typing && !understood && (
+        {picking && (
+          <>
+            <div className={styles.twoCol}>
+              {pets.map((pet) => {
+                const on = chosen.includes(pet.id);
+                return (
+                  <button
+                    key={pet.id}
+                    type="button"
+                    className={`${on ? styles.tileOn : styles.tile} ${styles.petPick}`}
+                    aria-pressed={on}
+                    onClick={() => setChosen(toggle(chosen, pet.id))}
+                  >
+                    <PetAvatar name={pet.name} photo={pet.photo} />
+                    <span className={styles.cardName}>
+                      <strong>{pet.name}</strong>
+                      <span className={styles.muted}>{pet.kind === "dog" ? "Dog" : pet.kind === "cat" ? "Cat" : pet.kindOther}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" className={styles.primary} disabled={chosen.length === 0} onClick={pickPets}>
+              {chosen.length === 0 ? "Pick one or more" : `Continue with ${chosenNames.length === 1 ? chosenNames[0] : `${chosenNames.length} pets`}`}
+            </button>
+            <span className={styles.hint}>Everything in My Pets comes along, so you only add dates, care and pay. Breed, food and health stay private until you book, unless you chose to share them.</span>
+            <button type="button" className={styles.link} onClick={someoneElse}>
+              Someone not in My Pets
+            </button>
+          </>
+        )}
+
+        {!picking && step === 0 && !typing && !understood && (
           <>
             <Choices
               columns
@@ -509,7 +617,7 @@ export function Survey({
           </>
         )}
 
-        {step === 0 && typing && (
+        {!picking && step === 0 && typing && (
           <>
             <label htmlFor="pp-sentence" className={styles.label}>
               Paste your post or describe what you need. Any language works.
@@ -760,7 +868,7 @@ export function Survey({
               className={styles.secondary}
               onClick={() => {
                 setFilledByAI(false);
-                setStep(0);
+                setStep(fromPets ? PET_STEPS[0] : 0);
               }}
             >
               Edit answers
@@ -772,9 +880,14 @@ export function Survey({
         )}
         {step === REVIEW && <span className={styles.hint}>Only signed-in Penn students see it. Your email stays hidden until you approve a sitter.</span>}
 
-        {step > 0 && step < REVIEW && (
-          <button type="button" className={styles.link} onClick={() => setStep(step - 1)}>
-            Back a step
+        {!picking && step > 0 && step < REVIEW && (
+          <button type="button" className={styles.link} onClick={back}>
+            {fromPets && step === PET_STEPS[0] ? "Change pets" : "Back a step"}
+          </button>
+        )}
+        {!picking && step === 0 && canPick && (
+          <button type="button" className={styles.link} onClick={backToPets}>
+            Pick from My Pets instead
           </button>
         )}
       </div>

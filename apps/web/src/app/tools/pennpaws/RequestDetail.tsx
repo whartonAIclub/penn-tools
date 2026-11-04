@@ -140,8 +140,12 @@ export function RequestDetail({
 
       {request.petNotes && (
         <div className={styles.panelPlain}>
-          <strong>{request.mine ? "What sitters see once they offer" : `About ${request.draft.petName}`}</strong>
+          <strong>{request.mine ? "Private notes for your sitter" : `About ${request.draft.petName}`}</strong>
           <span className={styles.preLine}>{request.petNotes}</span>
+          {request.mine && request.draft.petIds.length > 0 && (
+            <span className={styles.hint}>Sitters who offer see temperament and anything you chose to share early. Breed, food and health show once you&apos;ve both approved.</span>
+          )}
+          {request.mine && request.draft.petIds.length === 0 && <span className={styles.hint}>Sitters see this once they offer. Not shown on the public request.</span>}
           {!request.mine && <span className={styles.hint}>Shared with you because you offered. Not shown on the public request.</span>}
         </div>
       )}

@@ -8,8 +8,8 @@
 
 import { z } from "@penntools/core/ai";
 import type { Sql } from "postgres";
-import { PetDetails, petIssues } from "./profile.js";
-import { LIMITS } from "./survey.js";
+import { PetDetails, SPECIAL_CARE, petIssues, requestStart, temperament, type OwnerProfile, type RequestStart } from "./profile.js";
+import { LIMITS, OTHER, labelOf } from "./survey.js";
 
 /**
  * The details an owner may not want on a public request. Private by default:
@@ -190,4 +190,86 @@ export async function savePetFromProfile(sql: Sql, ownerId: string, pet: PetDeta
   if (!checked.ok) return null;
   const id = await addPet(sql, ownerId, checked.value);
   return getPet(sql, ownerId, id);
+}
+
+// ── Posting from saved pets (R43) ────────────────────────────────────────────
+
+/** Survey answers from the pets an owner picked, so only dates, care and pay are left to answer. */
+export interface PetsStart extends RequestStart {
+  photo: string | null;
+  petIds: string[];
+}
+
+/** "a cat", "a dog", or the owner's own words for anything else. */
+function kindWords(pet: PetDetails): string {
+  if (pet.kind === "dog" || pet.kind === "cat") return `a ${pet.kind}`;
+  return pet.kindOther ?? "a pet";
+}
+
+/** "Mochi and Bao", "Mochi, Bao and Tofu". */
+function joinNames(names: readonly string[]): string {
+  return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** Special care plus anything the owner chose to share before booking, as notes for the public request. */
+function publicNotes(pet: SavedPet): string[] {
+  const care = pet.specialCare.filter((c) => c !== OTHER).map((c) => labelOf(SPECIAL_CARE, c));
+  if (pet.specialCareOther) care.push(pet.specialCareOther);
+  return [
+    care.length ? `Special care: ${care.join(", ")}.` : null,
+    ...visiblePrivateDetails(pet, "public")
+      .filter((d) => d.field !== "breed")
+      .map((d) => `${d.label}: ${d.value}`),
+  ].filter((line): line is string => line !== null);
+}
+
+/**
+ * The request answers for these pets: who they are, the owner's area and
+ * sitter wishes from their profile. One pet reads as that pet; several become
+ * one request for "more than one", naming each. Breed, diet and health stay
+ * off unless the owner shared them early.
+ */
+export function requestStartFromPets(pets: readonly Pet[], profile: OwnerProfile): PetsStart {
+  const [first] = pets;
+  if (!first) throw new Error("Pick at least one pet.");
+  const base = requestStart({ ...profile, pet: first });
+  const photo = pets.find((p) => p.photo)?.photo ?? null;
+  const petIds = pets.map((p) => p.id);
+  if (pets.length === 1) {
+    const breed = first.sharedEarly.includes("breed") ? first.breed : null;
+    return {
+      ...base,
+      petDetails: [breed, base.petDetails].filter(Boolean).join(", ").slice(0, LIMITS.shortText),
+      notes: publicNotes(first).join("\n").slice(0, LIMITS.notes),
+      photo,
+      petIds,
+    };
+  }
+  return {
+    ...base,
+    petName: joinNames(pets.map((p) => p.name)).slice(0, LIMITS.name),
+    petKind: "several",
+    petKindOther: joinNames(pets.map((p) => `${p.name}, ${kindWords(p)}`)).slice(0, LIMITS.shortText),
+    petDetails: "",
+    notes: pets
+      .flatMap((p) => publicNotes(p).map((line) => `${p.name}. ${line}`))
+      .join("\n")
+      .slice(0, LIMITS.notes),
+    photo,
+    petIds,
+  };
+}
+
+/**
+ * What a sitter who has offered, or is booked, reads about the pets on a
+ * request: temperament and bite history, and the private details this stage
+ * allows. Named per pet when there are several.
+ */
+export function privatePetNotes(pets: readonly SavedPet[], stage: Exclude<PetStage, "public">): string {
+  return pets
+    .map((pet) => {
+      const lines = [temperament(pet), ...visiblePrivateDetails(pet, stage).map((d) => `${d.label}: ${d.value}`)];
+      return pets.length > 1 ? `${pet.name}\n${lines.join("\n")}` : lines.join("\n");
+    })
+    .join("\n\n");
 }

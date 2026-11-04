@@ -65,6 +65,7 @@ const boardingRequest: RequestDraft = {
   languages: ["mandarin"],
   original: POST,
   originalLanguage: "Chinese",
+  petIds: [],
 };
 
 const catBoarder: SitterProfile = {
@@ -128,7 +129,7 @@ describe("a boarding request", () => {
   });
 
   it("gives older requests without the new fields their defaults", () => {
-    const { careType: _c, mustHaves: _m, sitterGender: _g, languages: _l, original: _o, originalLanguage: _ol, ...old } = boardingRequest;
+    const { careType: _c, mustHaves: _m, sitterGender: _g, languages: _l, original: _o, originalLanguage: _ol, petIds: _p, ...old } = boardingRequest;
     expect(checkDraft({ ...old, frequency: "twice_daily" })).toMatchObject({
       ok: true,
       value: { careType: "visits", mustHaves: [], sitterGender: "none", languages: [], original: null },

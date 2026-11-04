@@ -41,6 +41,8 @@ export const RequestDraft = z
     /** The owner's own post, kept when AI read it from another language. */
     original: optionalText(LIMITS.sentence).default(null),
     originalLanguage: optionalText(40).default(null),
+    /** The owner's saved pets this request is for (R43). Empty for a request typed in by hand. */
+    petIds: z.array(z.string().uuid()).max(10).default([]),
   })
   .superRefine((draft, ctx) => {
     const needsText = (chosen: boolean, text: string | null, path: string, message: string) => {

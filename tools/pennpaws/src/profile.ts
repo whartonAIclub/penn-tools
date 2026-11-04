@@ -375,7 +375,11 @@ export function requestStart(profile: OwnerProfile): RequestStart {
 
 /** The pet's temperament and any bite history, in plain words. Shown only to the owner and sitters who have offered, never on the public request. */
 export function petNotes(profile: OwnerProfile): string {
-  const { pet } = profile;
+  return temperament(profile.pet);
+}
+
+/** One pet's temperament and any bite history, in plain words. */
+export function temperament(pet: PetDetails): string {
   const lower = (options: readonly Option[], value: string) => labelOf(options, value).toLowerCase();
   return [
     `With new people: ${lower(WITH_PEOPLE, pet.withPeople)}. With other animals: ${lower(WITH_ANIMALS, pet.withAnimals)}. Alone: ${lower(ALONE, pet.alone)}.`,

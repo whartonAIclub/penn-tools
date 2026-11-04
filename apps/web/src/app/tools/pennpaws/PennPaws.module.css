@@ -870,3 +870,6 @@
 
 .changeNote { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--pp-gold-soft); color: var(--pp-gold-text); font-size: 0.85rem; }
 .termChanged { margin: 0; white-space: pre-line; background: var(--pp-gold-soft); border-radius: 6px; padding: 0 4px; }
+
+/* R43: picking saved pets to post for. */
+.petPick { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; }

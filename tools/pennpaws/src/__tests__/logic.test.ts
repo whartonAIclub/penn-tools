@@ -34,6 +34,7 @@ const mochi: RequestDraft = {
   languages: [],
   original: null,
   originalLanguage: null,
+  petIds: [],
 };
 
 /** An AI whose generateObject returns `object` and records each request. */

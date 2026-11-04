@@ -47,6 +47,7 @@ const cat: RequestDraft = {
   languages: [],
   original: null,
   originalLanguage: null,
+  petIds: [],
 };
 
 const ownerPet = (pet: Partial<OwnerProfile["pet"]>, pref: OwnerProfile["sitterGenderPref"] = "none"): OwnerContext => ({
@@ -125,5 +126,16 @@ describe("matching", () => {
   it("works out fit bands and distances", () => {
     expect([fitOf(90), fitOf(70), fitOf(50), fitOf(10)]).toEqual(["great", "good", "maybe", "poor"]);
     expect(milesBetween({ lat: 39.952, lng: -75.193 }, { lat: 39.95, lng: -75.172 })).toBeCloseTo(1.1, 1);
+  });
+
+  it("reads every saved pet on a request for several pets", () => {
+    const [mine] = [ownerPet({})];
+    const tofu = mine!.profile!.pet;
+    const rex = { ...tofu, name: "Rex", kind: "dog" as const, size: "large" as const };
+    const several = { ...cat, petKind: "several" as const, petKindOther: "Tofu, a cat and Rex, a dog", petName: "Tofu and Rex" };
+    const match = scoreMatch(sitter, here, "r1", several, { ...mine!, pets: [tofu, rex] });
+    expect(match.concerns).toContain("Rex: large dog, a size you didn't pick");
+    expect(match.concerns.some((c) => c.includes("check you're comfortable"))).toBe(false);
+    expect(scoreMatch({ ...sitter, petKinds: ["cats"] }, here, "r1", several, { ...mine!, pets: [tofu, rex] }).concerns).toContain("You didn't list dogs");
   });
 });

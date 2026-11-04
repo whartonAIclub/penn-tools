@@ -11,11 +11,13 @@ import {
   NEIGHBORHOODS,
   OwnerProfile,
   PET_SIZES,
+  type PetDetails,
   TRAVEL,
   GENDER_PREFS,
   type MemberLocation,
   type SitterProfile,
 } from "./profile.js";
+import { petsByIds } from "./pets.js";
 import type { RequestDraft } from "./request.js";
 import { LANGUAGES, OTHER, labelOf, listLabels } from "./survey.js";
 
@@ -28,6 +30,8 @@ export interface Point {
 export interface OwnerContext {
   point: Point | null;
   profile: OwnerProfile | null;
+  /** The saved pets the request was posted from (R43). When given, these are read instead of the profile's pet. */
+  pets?: PetDetails[];
 }
 
 export type Fit = "great" | "good" | "maybe" | "poor";
@@ -102,15 +106,24 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
     score -= weight;
     concerns.push({ text, weight });
   };
-  const pet = owner.profile?.pet ?? null;
+  const goodRaw = good;
+  const badRaw = bad;
+  const pets = owner.pets?.length ? owner.pets : owner.profile ? [owner.profile.pet] : [];
+  const several = pets.length > 1;
+  // With several pets, each line says which one it's about.
+  const about = (pet: PetDetails, text: string) => (several ? `${pet.name}: ${text.charAt(0).toLowerCase()}${text.slice(1)}` : text);
 
-  // Kind of pet. "More than one" is left to the AI, which reads the owner's words.
-  const kind = draft.petKind;
+  // Kind of pet. "More than one" typed by hand is left to the AI, which reads
+  // the owner's words; saved pets say each pet's kind.
   // "Something else" is usually a rabbit, bird or fish, so it's read as small pets.
-  const wanted = kind === "dog" ? "dogs" : kind === "cat" ? "cats" : kind === OTHER ? "small_pets" : null;
+  const kindOf = (kind: string) => (kind === "dog" ? "dogs" : kind === "cat" ? "cats" : kind === OTHER ? "small_pets" : null);
   const kindWords = { dogs: "dogs", cats: "cats", small_pets: "small pets" } as const;
-  if (wanted && sitter.petKinds.includes(wanted)) good(10, `You look after ${kindWords[wanted]}`);
-  else if (wanted) bad(kind === OTHER ? 20 : 40, `You didn't list ${kindWords[wanted]}`);
+  const kinds = several ? [...new Set(pets.map((p) => p.kind))] : [draft.petKind];
+  for (const kind of kinds) {
+    const wanted = kindOf(kind);
+    if (wanted && sitter.petKinds.includes(wanted)) good(several ? 5 : 10, `You look after ${kindWords[wanted]}`);
+    else if (wanted) bad(kind === OTHER ? 20 : 40, `You didn't list ${kindWords[wanted]}`);
+  }
 
   // Distance against how far the sitter said they'd go.
   const ownerPoint = owner.point ?? pointOf(null, draft.area);
@@ -143,9 +156,11 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
   }
   if (!overnight && !draft.tasks.includes("walks") && !sitter.services.includes("drop_in")) bad(8, "Needs drop-in visits, which you don't offer");
 
-  // The pet itself, when the owner has a profile.
-  if (pet) {
-    if (kind === "dog") {
+  // Each pet itself, when the owner described them.
+  for (const pet of pets) {
+    const good = (weight: number, text: string) => goodRaw(several ? weight / pets.length : weight, about(pet, text));
+    const bad = (weight: number, text: string) => badRaw(weight, about(pet, text));
+    if (pet.kind === "dog") {
       if (sitter.sizes.includes(pet.size)) good(5, `${labelOf(PET_SIZES, pet.size)} dogs are fine for you`);
       else bad(15, `${labelOf(PET_SIZES, pet.size)} dog, a size you didn't pick`);
     }
@@ -167,7 +182,7 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
   // The request's own preference wins; otherwise the owner's profile.
   const pref = draft.sitterGender !== "none" ? draft.sitterGender : owner.profile?.sitterGenderPref ?? "none";
   if (pref !== "none" && sitter.gender !== pref) bad(25, `The owner prefers a ${labelOf(GENDER_PREFS, pref).toLowerCase()} sitter`);
-  if (draft.tasks.includes("medication") || pet?.specialCare.includes("medication")) {
+  if (draft.tasks.includes("medication") || pets.some((p) => p.specialCare.includes("medication"))) {
     if (sitter.experience.includes("medication")) good(8, "You've given medication");
     else bad(8, "Needs medication, which you haven't listed");
   }
@@ -199,7 +214,7 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
     if (weekendOnly && sitter.availability.includes("weekends")) good(6, "On a weekend, when you're free");
     else if (!weekendOnly && !freeWeekdays) bad(8, "Includes weekdays; you're usually free weekends");
   }
-  if (kind === "several") concerns.push({ text: `${draft.petKindOther ?? "Several pets"}; check you're comfortable`, weight: 0 });
+  if (draft.petKind === "several" && !several) concerns.push({ text: `${draft.petKindOther ?? "Several pets"}; check you're comfortable`, weight: 0 });
 
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
   const byWeight = (a: { weight: number }, b: { weight: number }) => b.weight - a.weight;
@@ -258,17 +273,20 @@ export function checkAsks(draft: RequestDraft, sitter: SitterProfile): AskCheck 
 /** The owner's location and pet profile for each request, by request id. */
 export async function loadOwners(sql: Sql, requestIds: readonly string[]): Promise<Map<string, OwnerContext>> {
   if (requestIds.length === 0) return new Map();
-  const rows = await sql<{ id: string; lat: number | null; lng: number | null; area: string | null; profile: unknown }[]>`
-    SELECT r.id, m.lat, m.lng, m.area, m.profile
+  const rows = await sql<{ id: string; owner_id: string; pet_ids: string[]; lat: number | null; lng: number | null; area: string | null; profile: unknown }[]>`
+    SELECT r.id, r.owner_id, r.pet_ids, m.lat, m.lng, m.area, m.profile
     FROM requests r LEFT JOIN members m ON m.user_id = r.owner_id
     WHERE r.id = ANY(${sql.array([...requestIds])}::uuid[])
   `;
   return new Map(
-    rows.map((row) => {
-      const parsed = OwnerProfile.safeParse(row.profile);
-      const profile = parsed.success ? parsed.data : null;
-      return [row.id, { point: pointOf({ area: row.area ?? "", lat: row.lat, lng: row.lng }), profile }];
-    }),
+    await Promise.all(
+      rows.map(async (row): Promise<[string, OwnerContext]> => {
+        const parsed = OwnerProfile.safeParse(row.profile);
+        const profile = parsed.success ? parsed.data : null;
+        const pets = row.pet_ids.length ? await petsByIds(sql, row.owner_id, row.pet_ids) : [];
+        return [row.id, { point: pointOf({ area: row.area ?? "", lat: row.lat, lng: row.lng }), profile, ...(pets.length ? { pets } : {}) }];
+      }),
+    ),
   );
 }
 

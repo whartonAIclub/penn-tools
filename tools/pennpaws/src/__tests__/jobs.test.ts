@@ -32,6 +32,7 @@ const card = (id: string, status: RequestCard["status"]): RequestCard => ({
     languages: [],
     original: null,
     originalLanguage: null,
+    petIds: [],
   },
   ownerFirstName: "Lu",
   status,

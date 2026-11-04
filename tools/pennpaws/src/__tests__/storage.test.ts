@@ -72,6 +72,7 @@ const draft: RequestDraft = {
   languages: [],
   original: null,
   originalLanguage: null,
+  petIds: [],
 };
 
 const template = async (d: RequestDraft, owner: string) => agreementTemplate(d, owner);
@@ -148,6 +149,29 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     // Called again it must add nothing, or My Pets would fill with copies.
     expect(await savePetFromProfile(sql, sam.id, fromProfile)).toBeNull();
     expect(await listPets(sql, sam.id)).toHaveLength(1);
+  });
+
+  it("posts a request from saved pets, and shows their private details only once booked", async () => {
+    const tofu = checkPet({ ...petAnswers, name: "Tofu", kind: "cat", health: "Kidney diet, wet food only." });
+    const theirs = checkPet({ ...petAnswers, name: "Not Lu's" });
+    if (!tofu.ok || !theirs.ok) throw new Error("fixture");
+    // People of their own, so the booking test's exact notification lists stay as they are.
+    const kai: Person = { id: "kai", name: "Kai T", email: "kai@example.upenn.edu" };
+    const noa: Person = { id: "noa", name: "Noa R", email: "noa@example.upenn.edu" };
+    const tofuId = await addPet(sql, kai.id, tofu.value);
+    const priyaPetId = await addPet(sql, priya.id, theirs.value);
+
+    // Someone else's pet id is dropped, not attached.
+    const requestId = await createRequest(sql, kai, { ...draft, petName: "Tofu", petKind: "cat", petIds: [tofuId, priyaPetId] });
+    const asOwner = await getRequestView(sql, kai.id, requestId);
+    expect(asOwner?.draft.petIds).toEqual([tofuId]);
+    expect(asOwner?.petNotes).toContain("Health conditions: Kidney diet");
+
+    await offerHelp(sql, noa, requestId, "Happy to help.");
+    const asNoa = await getRequestView(sql, noa.id, requestId);
+    expect(asNoa?.petNotes).toContain("With new people");
+    expect(asNoa?.petNotes).not.toContain("Kidney");
+    await cancelRequest(sql, kai.id, requestId);
   });
 
   it("refuses pet answers that don't hang together", () => {
