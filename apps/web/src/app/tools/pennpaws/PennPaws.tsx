@@ -14,7 +14,9 @@ import {
   FIT_LABELS,
   describe,
   fitOf,
+  isFinished,
   requestStart,
+  stillToDo,
   type Match,
   type Member,
   type Notification,
@@ -39,6 +41,7 @@ type View = { tab: ListTab | "post" | "profile" | "team" } | { tab: "request"; i
 const OWNER_TABS = [
   ["post", "Post", "Post a request"],
   ["mine", "Mine", "My requests"],
+  ["done", "Done", "Completed"],
 ] as const;
 
 const SITTER_TABS = [
@@ -100,6 +103,10 @@ export function PennPaws({
   // the sitter tabs, so someone who switches role doesn't find other people's
   // pets listed under My requests.
   const posted = mine.filter((r) => r.mine);
+  // A booking is only finished once it's done, paid and rated (R46). Anything
+  // still waiting on one of those stays in My requests, where it's visible.
+  const running = posted.filter((r) => !isFinished(r));
+  const finished = posted.filter((r) => isFinished(r));
   // Owners start with their own requests (or posting one); sitters and Pet Pals start browsing.
   const home: View = { tab: member.role === "sitter" ? "find" : posted.length > 0 ? "mine" : "post" };
   const [view, setView] = useState<View>(home);
@@ -254,7 +261,7 @@ export function PennPaws({
 
         {view.tab === "mine" && (
           <section className={styles.section}>
-            {posted.length === 0 ? (
+            {running.length === 0 ? (
               <Empty
                 title="Nothing here yet"
                 body="Requests you post show up here, with every offer you get."
@@ -262,9 +269,30 @@ export function PennPaws({
               />
             ) : (
               <ul className={styles.list}>
-                {posted.map((request) => (
+                {running.map((request) => (
                   <li key={request.id}>
                     <RequestCard request={request} showStatus onOpen={() => openRequest(request.id, "mine")} />
+                    {stillToDo(request).map((step) => (
+                      <span key={step} className={styles.hint}>
+                        {step}
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {view.tab === "done" && !isSitter && (
+          <section className={styles.section}>
+            {finished.length === 0 ? (
+              <Empty title="Nothing finished yet" body="A booking moves here once it's done, your sitter has recorded the payment, and you've rated them." />
+            ) : (
+              <ul className={styles.list}>
+                {finished.map((request) => (
+                  <li key={request.id}>
+                    <RequestCard request={request} showStatus onOpen={() => openRequest(request.id, "done")} />
                   </li>
                 ))}
               </ul>
@@ -282,7 +310,7 @@ export function PennPaws({
             onFind={() => setView({ tab: "find" })}
           />
         )}
-        {view.tab === "done" && <Completed jobs={jobs} reviews={reviews} onOpen={(id) => openRequest(id, "done")} onFind={() => setView({ tab: "find" })} />}
+        {view.tab === "done" && isSitter && <Completed jobs={jobs} reviews={reviews} onOpen={(id) => openRequest(id, "done")} onFind={() => setView({ tab: "find" })} />}
         {view.tab === "earnings" && <Earnings jobs={jobs} onOpen={(id) => openRequest(id, "earnings")} />}
 
         {view.tab === "alerts" && (

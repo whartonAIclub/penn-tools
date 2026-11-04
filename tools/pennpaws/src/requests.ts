@@ -30,6 +30,28 @@ export interface RequestCard {
   mine: boolean;
   offerCount: number;
   createdAt: string;
+  /** Whether the sitter recorded being paid. The owner sees that it happened, never what the sitter earns. */
+  paid: boolean;
+  /** Whether the owner has rated this booking. */
+  rated: boolean;
+}
+
+/**
+ * What a finished booking is still waiting for, newest step last, or an empty
+ * list when it's done with (R46). A booking that is marked done but unpaid or
+ * unrated stays in My requests, so it can't quietly disappear.
+ */
+export function stillToDo(card: Pick<RequestCard, "status" | "paid" | "rated">): string[] {
+  if (card.status !== "completed") return [];
+  const left: string[] = [];
+  if (!card.paid) left.push("Waiting for your sitter to record the payment");
+  if (!card.rated) left.push("Rate your sitter");
+  return left;
+}
+
+/** A booking the owner is finished with: done, paid and rated. */
+export function isFinished(card: Pick<RequestCard, "status" | "paid" | "rated">): boolean {
+  return card.status === "completed" && stillToDo(card).length === 0;
 }
 
 export interface OfferView {
@@ -140,6 +162,8 @@ interface RequestRow {
   created_at: Date;
   completed_at: Date | null;
   offer_count: string;
+  paid: boolean;
+  rated: boolean;
 }
 
 function selectRequests(sql: Sql) {
@@ -150,7 +174,10 @@ function selectRequests(sql: Sql) {
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
            r.pay, r.area, r.vet, r.notes, r.status, r.created_at, r.completed_at,
            r.care_type, r.must_haves, r.sitter_gender, r.languages, r.original_text, r.original_language,
-           (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count
+           (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count,
+           -- For R46: a booking is finished only once it is done, paid and rated.
+           EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id) AS paid,
+           EXISTS (SELECT 1 FROM reviews v WHERE v.request_id = r.id) AS rated
     FROM requests r
   `;
 }
@@ -189,6 +216,8 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
     status: row.status,
     mine: row.owner_id === viewerId,
     offerCount: Number(row.offer_count),
+    paid: row.paid,
+    rated: row.rated,
     createdAt: row.created_at.toISOString(),
   };
 }

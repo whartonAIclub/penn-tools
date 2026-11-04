@@ -37,6 +37,8 @@ const card = (id: string, status: RequestCard["status"]): RequestCard => ({
   status,
   mine: false,
   offerCount: 0,
+  paid: false,
+  rated: false,
   createdAt: "2026-11-01T00:00:00.000Z",
 });
 
