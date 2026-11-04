@@ -37,6 +37,9 @@ export function Conversation({
     | undefined;
 }) {
   const [text, setText] = useState("");
+  // AI's draft waits here until the member reads it and taps Use this. It never
+  // goes straight into the box, so they always see whose words they are.
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [busy, setBusy] = useState<"send" | "draft" | "offer" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The owner replies in a named thread; a sitter's own thread is found from who they are.
@@ -62,7 +65,7 @@ export function Conversation({
   };
   const draft = async () => {
     const result = await run("draft", () => draftNextMessage(requestId, threadId));
-    if (result) setText(result.data);
+    if (result) setSuggestion(result.data);
   };
   const sendOffer = async () => {
     if (!offerAction) return;
@@ -101,6 +104,51 @@ export function Conversation({
             void send();
           }}
         >
+          {hasAI && (
+            <>
+              <span className={styles.label}>How much does AI write?</span>
+              <div className={styles.chips}>
+                <button type="button" className={styles.chipOn} aria-pressed>
+                  Draft
+                </button>
+                <button type="button" className={styles.chip} disabled title="After launch">
+                  Hold
+                </button>
+                <button type="button" className={styles.chip} disabled title="After launch">
+                  Auto
+                </button>
+              </div>
+              <span className={styles.hint}>
+                Draft: AI writes, you read it and send. Nothing reaches {otherFirstName} until you tap Send. Hold lets AI send on its own after a few minutes,
+                and Auto replies at once — both come after launch. At every setting, AI never agrees to meet in person or on video, and never settles the final
+                payment: those stay your tap.
+              </span>
+            </>
+          )}
+          {suggestion !== null && (
+            <div className={styles.suggestion}>
+              <p>
+                <strong>Suggested by AI</strong>
+              </p>
+              <p className={styles.preLine}>{suggestion}</p>
+              <p className={styles.hint}>Written from the request, your profiles and the agreement. Read it over — {otherFirstName} hasn&apos;t seen it.</p>
+              <div className={styles.row}>
+                <button type="button" className={styles.secondary} onClick={() => setSuggestion(null)}>
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondary}
+                  onClick={() => {
+                    setText(text.trim() ? `${text.trim()} ${suggestion}` : suggestion);
+                    setSuggestion(null);
+                  }}
+                >
+                  Use this
+                </button>
+              </div>
+            </div>
+          )}
           <label htmlFor={inputId} className={styles.label}>
             Message to {otherFirstName}
           </label>
@@ -138,7 +186,7 @@ export function Conversation({
             </>
           )}
           <span className={styles.hint}>
-            {hasAI ? "AI drafts, you edit and send. " : ""}Don't share your address or phone number in messages. You each add them when you approve, and they show once you're both booked.
+            Don't share your address or phone number in messages. You each add them when you approve, and they show once you're both booked.
           </span>
         </form>
       ) : (
