@@ -8,7 +8,7 @@ PennPaws is a tool on [penntools.org](https://penntools.org) that connects Penn 
 |---|---|
 | **Team** | Lu Lu, Esther Li |
 | **Program** | Wharton AI Club, AI Product Manager Training, Cohort 3 |
-| **Status** | Core loop, profiles, sitter tabs and AI matching built and tried in the browser. Next: user tests with fake and real students |
+| **Status** | Full booking tested in the browser on Nov 3, as an owner and as a sitter: setup, posting, offers, picking, changes, approving with phone and address, booking, cancelling and backing out. Next: user tests, then launch on penntools.org (waiting on the Platform team's database line) |
 | **Demo day** | Tue 11/17, live on penntools.org |
 | **Tool ID** | `pennpaws`, so the URL is `/tools/pennpaws` |
 

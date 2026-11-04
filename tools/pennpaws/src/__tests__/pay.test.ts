@@ -67,3 +67,11 @@ describe("shared location", () => {
     expect(nearCampus(40.713, -74.006)).toBe(false);
   });
 });
+
+describe("hiding contact details", () => {
+  it("blanks phone numbers, emails and chat handles", async () => {
+    const { hideContacts } = await import("../request.js");
+    expect(hideContacts("Text me at 215-555-0199 or ada@seas.upenn.edu, 微信: ada_2026")).toBe("Text me at [number hidden] or [email hidden], 微信 [hidden]");
+    expect(hideContacts("Feed twice, 1 scoop at 8am")).toBe("Feed twice, 1 scoop at 8am");
+  });
+});

@@ -118,7 +118,7 @@ export function scoreMatch(sitter: SitterProfile, sitterPoint: Point | null, req
   const travel = Number(sitter.travel);
   if (miles !== null) {
     if (miles <= travel) good(miles <= travel / 2 ? 20 : 12, formatMiles(miles));
-    else bad(miles <= travel * 2 ? 12 : 25, `${miles.toFixed(1)} mi away, past your ${labelOf(TRAVEL, sitter.travel).toLowerCase()}`);
+    else bad(miles <= travel * 2 ? 12 : 25, `${formatMiles(miles)}, past your ${labelOf(TRAVEL, sitter.travel).toLowerCase()}`);
   }
 
   // The type of care. A stay or boarding is overnight by definition.

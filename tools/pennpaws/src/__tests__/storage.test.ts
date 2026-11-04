@@ -148,10 +148,19 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     await offerHelp(sql, sam, requestId, "Me too.");
     await withdrawOffer(sql, sam, requestId, null);
     expect((await listNotifications(sql, lu.id))[0]?.message).toBe("Sam took back their offer for Noodle.");
+    // Taking it back hides the owner's private notes again, and they can offer again later.
+    expect(await getRequestView(sql, sam.id, requestId)).toMatchObject({ role: null, myOffer: null });
+    await offerHelp(sql, sam, requestId, "Back on.");
+    await withdrawOffer(sql, sam, requestId, null);
 
     const priyaOffer = (await getRequestView(sql, lu.id, requestId))!.offers.find((o) => o.status === "pending")!;
     await acceptOffer(sql, lu.id, priyaOffer.id, template);
-    await approveAgreement(sql, lu.id, requestId, 1, { phone: "215-555-0111", address: "3900 Spruce St" });
+    // A phone number in the terms stays hidden from the sitter until both approve.
+    const terms = (await getRequestView(sql, lu.id, requestId))!.agreement!.terms;
+    await changeAgreement(sql, lu.id, requestId, { ...terms, notes: "Text me at 215-555-0199" }, "Add my number");
+    expect((await getRequestView(sql, priya.id, requestId))?.agreement?.terms.notes).toBe("Text me at [number hidden]");
+    expect((await getRequestView(sql, lu.id, requestId))?.agreement?.terms.notes).toBe("Text me at 215-555-0199");
+    await approveAgreement(sql, lu.id, requestId, 2, { phone: "215-555-0111", address: "3900 Spruce St" });
     await withdrawOffer(sql, priya, requestId, "Family emergency");
     expect(await getRequestView(sql, lu.id, requestId)).toMatchObject({ status: "open", agreement: null });
     expect((await listNotifications(sql, lu.id))[0]?.message).toBe(

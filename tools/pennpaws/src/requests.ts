@@ -91,6 +91,16 @@ export class PennPawsError extends Error {}
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** "Dog walks, drop-in visits and overnight stays": option labels joined into one sentence. */
+function sentenceCase(list: string): string {
+  return list.replace(/(, | and )([A-Z])(?=[a-z])/g, (_, joiner: string, letter: string) => joiner + letter.toLowerCase());
+}
+
+function hideTermContacts(terms: Terms): Terms {
+  const hide = (text: string | null) => (text === null ? null : hideContacts(text));
+  return { ...terms, notes: hide(terms.notes), care: hideContacts(terms.care), keys: hideContacts(terms.keys), ifUrgent: hideContacts(terms.ifUrgent), vet: hide(terms.vet) };
+}
+
 export function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || "A Penn student";
 }
@@ -166,7 +176,8 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       pay: row.pay,
       area: row.area,
       vet: row.vet,
-      notes: row.notes,
+      // Owners sometimes type a phone number or handle into the notes; others see it blanked until both approve.
+      notes: row.notes && row.owner_id !== viewerId ? hideContacts(row.notes) : row.notes,
       careType: row.care_type,
       mustHaves: row.must_haves,
       sitterGender: row.sitter_gender,
@@ -262,8 +273,8 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
       sitters.set(member.user_id, {
         bio: profile.bio,
         area: profile.location.area,
-        services: listLabels(SERVICES, profile.services),
-        experience: profile.experience.length ? listLabels(EXPERIENCE, profile.experience) : null,
+        services: sentenceCase(listLabels(SERVICES, profile.services)),
+        experience: profile.experience.length ? sentenceCase(listLabels(EXPERIENCE, profile.experience)) : null,
         rating: { average: member.average, count: member.ratings },
         jobsDone: member.done,
       });
@@ -277,7 +288,8 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
     match: matches.get(o.sitter_id) ?? null,
     sitter: sitters.get(o.sitter_id) ?? null,
   });
-  const mine = offers.find((o) => o.sitter_id === viewerId) ?? null;
+  // A taken-back offer no longer makes the viewer part of the request.
+  const mine = offers.find((o) => o.sitter_id === viewerId && o.status !== "withdrawn") ?? null;
   const accepted = offers.find((o) => o.status === "accepted") ?? null;
   const role: Role | null = isOwner ? "owner" : mine ? "sitter" : null;
   const party = isOwner || (mine !== null && mine.status === "accepted");
@@ -290,8 +302,11 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
       SELECT terms, version, owner_approved_at, sitter_approved_at, last_change, changed_by, changed_fields FROM agreements WHERE request_id = ${requestId}
     `;
     if (a) {
+      const terms = AgreementTerms.parse(a.terms);
+      // The AI can copy a phone number from the notes into the terms; the sitter sees it only once booked.
+      const shown = isOwner || canSeeContacts(row.status) ? terms : hideTermContacts(terms);
       agreement = {
-        terms: AgreementTerms.parse(a.terms),
+        terms: shown,
         version: a.version,
         ownerApproved: a.owner_approved_at !== null,
         sitterApproved: a.sitter_approved_at !== null,
@@ -510,7 +525,10 @@ export async function offerHelp(
   const inserted = await sql`
     INSERT INTO offers (request_id, sitter_id, sitter_name, sitter_email, message)
     VALUES (${requestId}, ${sitter.id}, ${sitter.name}, ${sitter.email}, ${text})
-    ON CONFLICT (request_id, sitter_id) DO NOTHING
+    ON CONFLICT (request_id, sitter_id) DO UPDATE
+      SET message = EXCLUDED.message, status = 'pending', withdraw_reason = NULL, match_score = NULL, created_at = NOW()
+      -- A sitter who took back their offer may offer again; anything else is a repeat.
+      WHERE offers.status = 'withdrawn'
     RETURNING id
   `;
   if (inserted.length === 0) throw new PennPawsError("You already offered to help with this one.");

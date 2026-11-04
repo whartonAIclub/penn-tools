@@ -676,7 +676,7 @@ export function Survey({
                 {payCount && <>, about ${payCount.count * suggested.amount} for {payCount.label}</>}
               </p>
               <p className={styles.hint}>{explainPay(suggested)}. Based on your pet, care and dates.</p>
-              <button type="button" className={styles.secondary} onClick={() => answer({ pay: `${suggestedPay}, suggested`, payOwn: false })}>
+              <button type="button" className={styles.secondary} onClick={() => answer({ pay: suggestedPay, payOwn: false })}>
                 Use {suggestedPay}
               </button>
             </div>
@@ -721,6 +721,7 @@ export function Survey({
               onChange={(e) => set({ notes: e.target.value })}
               placeholder="Shy with strangers at first. Gets one treat after dinner."
             />
+            <span className={styles.hint}>Leave out your phone and address. You share them when you approve a sitter, and any you type here are hidden from sitters.</span>
             <span className={styles.label}>What matters in a sitter? (optional)</span>
             <div className={styles.chips} role="group" aria-label="Sitter must-haves">
               {MUST_HAVES.map((option) => {
