@@ -7,7 +7,19 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import { getEvent, listEvents, saveEvent, saveLessons, setLessonStatus, type NewEvent } from "../storage.js";
+import {
+  getEvent,
+  getExcerpt,
+  listEvents,
+  listSources,
+  markExtracted,
+  nextExcerptBatch,
+  saveEvent,
+  saveImport,
+  saveLessons,
+  setLessonStatus,
+  type NewEvent,
+} from "../storage.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -89,6 +101,45 @@ describe.skipIf(!databaseUrl)("Pass It On storage (Postgres)", () => {
 
   it("won't accept a lesson without its embedding", async () => {
     await expect(setLessonStatus(sql, 1, "accepted")).rejects.toThrow(/embedding/);
+  });
+
+  it("saves an import's excerpts and attendance, then tracks extraction batch by batch", async () => {
+    const excerpts = Array.from({ length: 5 }, (_, i) => ({ text: `Day ${i}`, meta: { date: `2025-10-0${i + 1}`, senders: ["Pat"] } }));
+    const sourceId = await saveImport(sql, { kind: "whatsapp", filename: "Pub chat.txt", uploadedBy: "user-1" }, excerpts, [
+      { eventName: "Speaker Dinner", eventDate: "2025-10-14", rsvps: 60, attended: 41 },
+    ]);
+
+    const first = await nextExcerptBatch(sql, sourceId, 3);
+    expect(first.map((e) => e.text)).toEqual(["Day 0", "Day 1", "Day 2"]);
+    expect(first[0]?.meta).toEqual({ date: "2025-10-01", senders: ["Pat"] });
+
+    await saveLessons(sql, [{ answerId: null, excerptId: first[0]!.id, eventId: null, category: "turnout", summary: "s", quote: "Day 0" }]);
+    await markExtracted(sql, sourceId, first.map((e) => e.id));
+    let source = (await listSources(sql)).find((s) => s.id === sourceId);
+    expect(source).toMatchObject({ kind: "whatsapp", status: "extracting", excerpts: 5, extracted: 3, attendanceRows: 1, pendingLessons: 1 });
+
+    const rest = await nextExcerptBatch(sql, sourceId, 3);
+    expect(rest.map((e) => e.text)).toEqual(["Day 3", "Day 4"]);
+    await markExtracted(sql, sourceId, rest.map((e) => e.id));
+    source = (await listSources(sql)).find((s) => s.id === sourceId);
+    expect(source).toMatchObject({ status: "done", extracted: 5 });
+    expect(await nextExcerptBatch(sql, sourceId, 3)).toEqual([]);
+
+    expect(await getExcerpt(sql, first[1]!.id)).toMatchObject({ text: "Day 1", filename: "Pub chat.txt", kind: "whatsapp" });
+    expect(await getExcerpt(sql, 999_999)).toBeNull();
+  });
+
+  it("marks an attendance-only import as done, with nothing to extract", async () => {
+    const sourceId = await saveImport(sql, { kind: "campusgroups", filename: "events.csv", uploadedBy: "user-1" }, [], [
+      { eventName: "Pub Night", eventDate: null, rsvps: 12, attended: null },
+    ]);
+    expect((await listSources(sql)).find((s) => s.id === sourceId)).toMatchObject({ status: "done", excerpts: 0, attendanceRows: 1 });
+  });
+
+  it("saves imports larger than one insert batch", async () => {
+    const excerpts = Array.from({ length: 1201 }, (_, i) => ({ text: `Line ${i}`, meta: {} }));
+    const sourceId = await saveImport(sql, { kind: "drive", filename: "Pub.zip", uploadedBy: "user-1" }, excerpts);
+    expect((await listSources(sql)).find((s) => s.id === sourceId)).toMatchObject({ excerpts: 1201 });
   });
 
   it("rejects a lesson that quotes both an answer and an excerpt, or neither", async () => {

@@ -3,6 +3,8 @@
 // runs for one club, so reads aren't scoped to the signed-in user.
 
 import type { Sql } from "postgres";
+import type { AttendanceDraft } from "./imports/campusgroups.js";
+import type { ExcerptDraft, ExcerptMeta } from "./imports/excerpts.js";
 import type { QuestionKey } from "./questions.js";
 
 export const LESSON_CATEGORIES = ["budget", "vendors", "turnout", "partners", "logistics", "timeline", "other"] as const;
@@ -130,6 +132,148 @@ export async function setLessonStatus(
   `;
   return rows.length > 0;
 }
+
+// ── Imports ───────────────────────────────────────────────────────────────────
+
+export type SourceKind = "drive" | "whatsapp" | "campusgroups";
+export type SourceStatus = "imported" | "extracting" | "done";
+
+export interface NewSource {
+  kind: SourceKind;
+  filename: string;
+  uploadedBy: string;
+}
+
+export interface SourceSummary {
+  id: string;
+  kind: SourceKind;
+  filename: string;
+  importedAt: string;
+  status: SourceStatus;
+  excerpts: number;
+  /** Excerpts lessons have already been extracted from. */
+  extracted: number;
+  attendanceRows: number;
+  pendingLessons: number;
+}
+
+export interface StoredExcerpt {
+  id: number;
+  sourceId: string;
+  text: string;
+  meta: ExcerptMeta;
+}
+
+/** Rows per INSERT, well under Postgres's limit on query parameters. */
+const INSERT_BATCH = 500;
+
+/**
+ * Saves an upload with its excerpts and attendance counts in one transaction;
+ * returns the source's id. A source with no excerpts (attendance only) is
+ * marked done, since there's nothing to extract from.
+ */
+export async function saveImport(sql: Sql, source: NewSource, excerpts: ExcerptDraft[], attendance: AttendanceDraft[] = []): Promise<string> {
+  return sql.begin(async (transaction) => {
+    // See saveEvent on this cast.
+    const tx = transaction as unknown as Sql;
+    const status: SourceStatus = excerpts.length === 0 ? "done" : "imported";
+    const [row] = await tx<{ id: string }[]>`
+      INSERT INTO sources (kind, filename, uploaded_by, status)
+      VALUES (${source.kind}, ${source.filename}, ${source.uploadedBy}, ${status})
+      RETURNING id
+    `;
+    const sourceId = row!.id;
+
+    for (let i = 0; i < excerpts.length; i += INSERT_BATCH) {
+      const batch = excerpts.slice(i, i + INSERT_BATCH).map((e, j) => ({
+        source_id: sourceId,
+        position: i + j,
+        text: e.text,
+        meta: tx.json(e.meta as Parameters<typeof tx.json>[0]),
+      }));
+      await tx`INSERT INTO excerpts ${tx(batch)}`;
+    }
+    for (let i = 0; i < attendance.length; i += INSERT_BATCH) {
+      const batch = attendance.slice(i, i + INSERT_BATCH).map((a) => ({
+        source_id: sourceId,
+        event_name: a.eventName,
+        event_date: a.eventDate,
+        rsvps: a.rsvps,
+        attended: a.attended,
+      }));
+      await tx`INSERT INTO attendance ${tx(batch)}`;
+    }
+    return sourceId;
+  });
+}
+
+/** Uploaded sources with their progress, newest first. */
+export async function listSources(sql: Sql): Promise<SourceSummary[]> {
+  const rows = await sql<
+    { id: string; kind: SourceKind; filename: string; imported_at: Date; status: SourceStatus; excerpts: string; extracted: string; attendance_rows: string; pending_lessons: string }[]
+  >`
+    SELECT s.id, s.kind, s.filename, s.imported_at, s.status,
+      (SELECT COUNT(*) FROM excerpts e WHERE e.source_id = s.id) AS excerpts,
+      (SELECT COUNT(*) FROM excerpts e WHERE e.source_id = s.id AND e.extracted_at IS NOT NULL) AS extracted,
+      (SELECT COUNT(*) FROM attendance a WHERE a.source_id = s.id) AS attendance_rows,
+      (SELECT COUNT(*) FROM lessons l JOIN excerpts e ON e.id = l.excerpt_id WHERE e.source_id = s.id AND l.status = 'pending') AS pending_lessons
+    FROM sources s
+    ORDER BY s.imported_at DESC
+  `;
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    filename: r.filename,
+    importedAt: r.imported_at.toISOString(),
+    status: r.status,
+    excerpts: Number(r.excerpts),
+    extracted: Number(r.extracted),
+    attendanceRows: Number(r.attendance_rows),
+    pendingLessons: Number(r.pending_lessons),
+  }));
+}
+
+/** The next excerpts of a source that lessons haven't been extracted from yet, in order. */
+export async function nextExcerptBatch(sql: Sql, sourceId: string, limit: number): Promise<StoredExcerpt[]> {
+  if (!UUID_RE.test(sourceId)) return [];
+  const rows = await sql<{ id: string; source_id: string; text: string; meta: ExcerptMeta }[]>`
+    SELECT id, source_id, text, meta FROM excerpts
+    WHERE source_id = ${sourceId} AND extracted_at IS NULL
+    ORDER BY position
+    LIMIT ${limit}
+  `;
+  return rows.map(toExcerpt);
+}
+
+/** An excerpt, or null if it doesn't exist. */
+export async function getExcerpt(sql: Sql, id: number): Promise<(StoredExcerpt & { filename: string; kind: SourceKind }) | null> {
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  const [row] = await sql<{ id: string; source_id: string; text: string; meta: ExcerptMeta; filename: string; kind: SourceKind }[]>`
+    SELECT e.id, e.source_id, e.text, e.meta, s.filename, s.kind
+    FROM excerpts e JOIN sources s ON s.id = e.source_id
+    WHERE e.id = ${id}
+  `;
+  return row ? { ...toExcerpt(row), filename: row.filename, kind: row.kind } : null;
+}
+
+/** Marks excerpts as extracted, and the source as done once none are left. */
+export async function markExtracted(sql: Sql, sourceId: string, excerptIds: number[]): Promise<void> {
+  if (excerptIds.length > 0) {
+    await sql`UPDATE excerpts SET extracted_at = NOW() WHERE source_id = ${sourceId} AND id IN ${sql(excerptIds)}`;
+  }
+  await sql`
+    UPDATE sources
+    SET status = CASE WHEN EXISTS (SELECT 1 FROM excerpts WHERE source_id = ${sourceId} AND extracted_at IS NULL)
+                      THEN 'extracting' ELSE 'done' END
+    WHERE id = ${sourceId}
+  `;
+}
+
+function toExcerpt(row: { id: string; source_id: string; text: string; meta: ExcerptMeta }): StoredExcerpt {
+  return { id: Number(row.id), sourceId: row.source_id, text: row.text, meta: row.meta };
+}
+
+// ── Row mapping ───────────────────────────────────────────────────────────────
 
 interface EventRow {
   id: string;
