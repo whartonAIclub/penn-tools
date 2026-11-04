@@ -74,4 +74,16 @@ describe("hiding contact details", () => {
     expect(hideContacts("Text me at 215-555-0199 or ada@seas.upenn.edu, 微信: ada_2026")).toBe("Text me at [number hidden] or [email hidden], 微信 [hidden]");
     expect(hideContacts("Feed twice, 1 scoop at 8am")).toBe("Feed twice, 1 scoop at 8am");
   });
+
+  it("leaves ordinary words that happen to contain a handle's name", async () => {
+    const { hideContacts } = await import("../request.js");
+    expect(hideContacts("Would love someone who has had big dogs before")).toBe("Would love someone who has had big dogs before");
+    expect(hideContacts("Online booking is fine, deadline tomorrow")).toBe("Online booking is fine, deadline tomorrow");
+  });
+
+  it("still hides a handle that starts a word", async () => {
+    const { hideContacts } = await import("../request.js");
+    expect(hideContacts("my ig: ada_2026")).toBe("my ig [hidden]");
+    expect(hideContacts("wxid: ada2026")).toBe("wx [hidden]");
+  });
 });

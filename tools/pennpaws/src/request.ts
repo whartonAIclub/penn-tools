@@ -76,7 +76,10 @@ export function checkDraft(input: unknown): Checked<RequestDraft> {
 export function hideContacts(text: string): string {
   return text
     .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email hidden]")
-    .replace(/(微信|wechat|weixin|vx|wx|whatsapp|line|telegram|ig|instagram)\s*(号|id)?\s*[:：]?\s*[\w.-]{3,}/gi, "$1 [hidden]")
+    // The name must start a word, or short ones match inside ordinary words:
+    // "big dogs" lost its "ig" and "deadline tomorrow" its "line". \b can't do
+    // this job, since 微信 is not a \w run and \b微信 would never match.
+    .replace(/(?<![A-Za-z0-9_])(微信|wechat|weixin|vx|wx|whatsapp|line|telegram|ig|instagram)\s*(号|id)?\s*[:：]?\s*[\w.-]{3,}/gi, "$1 [hidden]")
     .replace(/\+?\d[\d\s().-]{6,}\d/g, "[number hidden]");
 }
 
