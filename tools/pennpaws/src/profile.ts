@@ -237,36 +237,49 @@ export const MemberLocation = z
   .refine((l) => (l.lat === null) === (l.lng === null), { message: "Share your location again, or pick a neighborhood." });
 export type MemberLocation = z.infer<typeof MemberLocation>;
 
+/**
+ * Everything the owner says about one pet. The profile holds it at setup and
+ * `pets` saves one row per pet (pets.ts), so the two never drift apart.
+ */
+export const PetDetails = z.object({
+  name: z.string().trim().min(1, "Add your pet's name.").max(LIMITS.name),
+  kind: z.enum(values(PET_KINDS)),
+  kindOther: optionalText(LIMITS.shortText),
+  size: z.enum(values(PET_SIZES)),
+  age: z.enum(values(PET_AGES)),
+  energy: z.enum(values(ENERGY)),
+  withPeople: z.enum(values(WITH_PEOPLE)),
+  withAnimals: z.enum(values(WITH_ANIMALS)),
+  alone: z.enum(values(ALONE)),
+  specialCare: z.array(z.enum(values(SPECIAL_CARE))).max(SPECIAL_CARE.length),
+  specialCareOther: optionalText(LIMITS.shortText),
+  bites: z.boolean(),
+  bitesDetails: optionalText(LIMITS.notes),
+});
+export type PetDetails = z.infer<typeof PetDetails>;
+
+/** Why a pet's answers don't hang together, or null. Shared by the profile and a saved pet. */
+export function petIssues(pet: PetDetails): { path: string[]; message: string }[] {
+  const issues: { path: string[]; message: string }[] = [];
+  if ((pet.kind === OTHER || pet.kind === "several") && !pet.kindOther) issues.push({ path: ["kindOther"], message: "Tell sitters what kind of pet." });
+  if (pet.specialCare.includes(OTHER) && !pet.specialCareOther) issues.push({ path: ["specialCareOther"], message: "Describe the special care." });
+  if (pet.bites && !pet.bitesDetails) issues.push({ path: ["bitesDetails"], message: "Say what happened, so sitters can prepare." });
+  return issues;
+}
+
 export const OwnerProfile = z
   .object({
     role: z.literal("owner"),
     location: MemberLocation,
-    pet: z.object({
-      name: z.string().trim().min(1, "Add your pet's name.").max(LIMITS.name),
-      kind: z.enum(values(PET_KINDS)),
-      kindOther: optionalText(LIMITS.shortText),
-      size: z.enum(values(PET_SIZES)),
-      age: z.enum(values(PET_AGES)),
-      energy: z.enum(values(ENERGY)),
-      withPeople: z.enum(values(WITH_PEOPLE)),
-      withAnimals: z.enum(values(WITH_ANIMALS)),
-      alone: z.enum(values(ALONE)),
-      specialCare: z.array(z.enum(values(SPECIAL_CARE))).max(SPECIAL_CARE.length),
-      specialCareOther: optionalText(LIMITS.shortText),
-      bites: z.boolean(),
-      bitesDetails: optionalText(LIMITS.notes),
-    }),
+    pet: PetDetails,
     sitterGenderPref: z.enum(values(GENDER_PREFS)),
     /** Languages the owner would like their sitter to speak; added later, so empty when missing. */
     sitterLanguages: z.array(z.enum(values(LANGUAGES))).max(LANGUAGES.length).default([]),
   })
   .superRefine((p, ctx) => {
-    const needsText = (chosen: boolean, text: string | null, path: string[], message: string) => {
-      if (chosen && !text) ctx.addIssue({ code: z.ZodIssueCode.custom, path, message });
-    };
-    needsText(p.pet.kind === OTHER || p.pet.kind === "several", p.pet.kindOther, ["pet", "kindOther"], "Tell sitters what kind of pet.");
-    needsText(p.pet.specialCare.includes(OTHER), p.pet.specialCareOther, ["pet", "specialCareOther"], "Describe the special care.");
-    needsText(p.pet.bites, p.pet.bitesDetails, ["pet", "bitesDetails"], "Say what happened, so sitters can prepare.");
+    for (const issue of petIssues(p.pet)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pet", ...issue.path], message: issue.message });
+    }
   });
 export type OwnerProfile = z.infer<typeof OwnerProfile>;
 

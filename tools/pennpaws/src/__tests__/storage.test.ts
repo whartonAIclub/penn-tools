@@ -10,6 +10,7 @@ import type { Sql } from "postgres";
 import { agreementTemplate } from "../agreement.js";
 import { clearPayment, leaveReview, listMyReviews, recordPayment } from "../jobs.js";
 import { getMember, saveMember } from "../members.js";
+import { addPet, checkPet, getPet, listPets, petsByIds, removePet, savePetFromProfile, updatePet, type SavedPet } from "../pets.js";
 import { fileReport, listOpenReports, listTeamMembers, recordMatchScore, resolveReport, setMemberPaused, setRequestHidden, teamOverview } from "../team.js";
 import { listThreads, sendMessage } from "../messages.js";
 import { listNotifications, markAllRead } from "../notifications.js";
@@ -75,6 +76,24 @@ const draft: RequestDraft = {
 
 const template = async (d: RequestDraft, owner: string) => agreementTemplate(d, owner);
 
+/** One pet's answers, the shape both the profile and a saved pet hold. */
+const petAnswers: SavedPet = {
+  name: "Pepper",
+  kind: "dog",
+  kindOther: null,
+  size: "medium",
+  age: "adult",
+  energy: "medium",
+  withPeople: "warms_up",
+  withAnimals: "friendly",
+  alone: "fine",
+  specialCare: [],
+  specialCareOther: null,
+  bites: false,
+  bitesDetails: null,
+  photo: null,
+};
+
 describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
   beforeAll(async () => {
     admin = postgres(databaseUrl!, { max: 1, onnotice: () => {} });
@@ -91,6 +110,46 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
 
   it("schema.sql can be applied again to an existing schema", async () => {
     await expect(sql.unsafe(schemaSql)).resolves.toBeDefined();
+  });
+
+  it("keeps an owner's pets, and keeps them to that owner", async () => {
+    const mochi = checkPet({ ...petAnswers, name: "Mochi" });
+    const bunny = checkPet({ ...petAnswers, name: "Bunny", kind: "cat", photo: "data:image/png;base64,iVBORw0KGgo=" });
+    expect(mochi.ok && bunny.ok).toBe(true);
+    if (!mochi.ok || !bunny.ok) return;
+
+    const mochiId = await addPet(sql, lu.id, mochi.value);
+    await addPet(sql, lu.id, bunny.value);
+    expect((await listPets(sql, lu.id)).map((p) => p.name)).toEqual(["Mochi", "Bunny"]);
+    // The photo is the pet's icon, so it has to survive the round trip.
+    expect((await listPets(sql, lu.id))[1]?.photo).toBe("data:image/png;base64,iVBORw0KGgo=");
+
+    // Another member can't read, change or delete someone else's pet by id.
+    expect(await getPet(sql, priya.id, mochiId)).toBeNull();
+    expect(await petsByIds(sql, priya.id, [mochiId])).toEqual([]);
+    expect(await updatePet(sql, priya.id, mochiId, { ...mochi.value, name: "Taken" })).toBe(false);
+    expect(await removePet(sql, priya.id, mochiId)).toBe(false);
+    expect((await getPet(sql, lu.id, mochiId))?.name).toBe("Mochi");
+
+    expect(await updatePet(sql, lu.id, mochiId, { ...mochi.value, name: "Mochi B" })).toBe(true);
+    expect((await getPet(sql, lu.id, mochiId))?.name).toBe("Mochi B");
+    expect(await removePet(sql, lu.id, mochiId)).toBe(true);
+    expect((await listPets(sql, lu.id)).map((p) => p.name)).toEqual(["Bunny"]);
+  });
+
+  it("gives an owner their setup pet once, not on every visit", async () => {
+    const { photo: _photo, ...fromProfile } = petAnswers;
+    const first = await savePetFromProfile(sql, sam.id, fromProfile);
+    expect(first?.name).toBe("Pepper");
+    // Called again it must add nothing, or My Pets would fill with copies.
+    expect(await savePetFromProfile(sql, sam.id, fromProfile)).toBeNull();
+    expect(await listPets(sql, sam.id)).toHaveLength(1);
+  });
+
+  it("refuses pet answers that don't hang together", () => {
+    expect(checkPet({ ...petAnswers, bites: true, bitesDetails: null })).toMatchObject({ ok: false });
+    expect(checkPet({ ...petAnswers, specialCare: ["other"], specialCareOther: null })).toMatchObject({ ok: false });
+    expect(checkPet({ ...petAnswers, name: "" })).toMatchObject({ ok: false });
   });
 
   it("runs a booking from request to shared contacts", async () => {

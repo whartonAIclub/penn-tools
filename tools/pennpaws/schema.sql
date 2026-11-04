@@ -219,3 +219,30 @@ ALTER TABLE offers ADD COLUMN IF NOT EXISTS withdraw_reason TEXT;
 ALTER TABLE agreements ADD COLUMN IF NOT EXISTS last_change TEXT;
 ALTER TABLE agreements ADD COLUMN IF NOT EXISTS changed_by TEXT;
 ALTER TABLE agreements ADD COLUMN IF NOT EXISTS changed_fields TEXT[] NOT NULL DEFAULT '{}';
+
+-- An owner's saved pets, one row each, so a request is posted by picking pets
+-- instead of answering the same questions again. The columns mirror the pet
+-- block of OwnerProfile (profile.ts); photo is a data URL, as on requests.
+CREATE TABLE IF NOT EXISTS pets (
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id           TEXT        NOT NULL,
+  name               TEXT        NOT NULL,
+  kind               TEXT        NOT NULL,
+  kind_other         TEXT,
+  size               TEXT        NOT NULL,
+  age                TEXT        NOT NULL,
+  energy             TEXT        NOT NULL,
+  with_people        TEXT        NOT NULL,
+  with_animals       TEXT        NOT NULL,
+  alone              TEXT        NOT NULL,
+  special_care       TEXT[]      NOT NULL DEFAULT '{}',
+  special_care_other TEXT,
+  bites              BOOLEAN     NOT NULL DEFAULT FALSE,
+  bites_details      TEXT,
+  photo              TEXT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- My Pets lists an owner's pets oldest first, so the order stays put.
+CREATE INDEX IF NOT EXISTS pets_owner_idx ON pets (owner_id, created_at);
