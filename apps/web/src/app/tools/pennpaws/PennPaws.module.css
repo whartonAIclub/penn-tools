@@ -234,7 +234,8 @@
 
 .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
-.field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+/* position: the calendar popup in DateField.tsx hangs off this. */
+.field { position: relative; display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
 .label { font-size: 0.85rem; font-weight: 600; }
 
 .input {
@@ -932,3 +933,58 @@
   align-items: center;
   pointer-events: none;
 }
+
+/* Our own date picker (DateField.tsx). The native one draws itself in the
+   browser's language, so it can't be used on an English-only site. */
+/* One control: the input fills the row and the icon sits inside it, so a
+   click anywhere on the field opens the calendar. */
+.dateRow { position: relative; display: flex; align-items: center; }
+.dateRow .input { flex: 1; min-width: 0; padding-right: 44px; }
+.dateIcon {
+  position: absolute;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--pp-green);
+  pointer-events: none;
+}
+.calendar {
+  position: absolute;
+  z-index: 20;
+  margin-top: 6px;
+  padding: 12px;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  border-radius: 16px;
+  border: 1px solid var(--pp-line);
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(16, 32, 28, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.calendarTop { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.calendarStep {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--pp-line);
+  background: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.calendarGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.calendarDay { display: grid; place-items: center; height: 28px; font-size: 0.75rem; color: #5d6b66; }
+.calendarPick,
+.calendarPickOn {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.calendarPick:hover:not(:disabled) { background: var(--pp-ground); }
+.calendarPick:disabled { color: #b4bdb9; cursor: default; }
+.calendarPickOn { background: var(--pp-green); color: #fff; font-weight: 600; }

@@ -9,7 +9,8 @@
 // everything on those pets is carried in, so they answer only dates, care
 // and pay. Owners with no saved pet start with the one from setup filled in.
 
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { DateField } from "./DateField";
 import {
   ACCESS,
   CARE_TYPES,
@@ -698,8 +699,8 @@ export function Survey({
             {a.dateMode === "dates" && (
               <>
                 <div className={styles.twoCol}>
-                  <TextField id="pp-from" label="From" type="date" value={a.startsOn} min={firstDay} onChange={(startsOn) => set({ startsOn })} />
-                  <TextField id="pp-to" label="To" type="date" value={a.endsOn} min={a.startsOn || firstDay} onChange={(endsOn) => set({ endsOn })} />
+                  <DateField id="pp-from" label="From" value={a.startsOn} min={firstDay} onChange={(startsOn) => set({ startsOn })} />
+                  <DateField id="pp-to" label="To" value={a.endsOn} min={a.startsOn || firstDay} onChange={(endsOn) => set({ endsOn })} />
                 </div>
                 <Continue onClick={goOn} label="Use these dates" />
               </>
@@ -946,44 +947,19 @@ export function TextField({
   maxLength?: number;
   children?: ReactNode;
 }) {
-  const box = useRef<HTMLInputElement>(null);
-  const [focused, setFocused] = useState(false);
-  const isDate = type === "date";
-  // An empty date input draws its own placeholder in the browser's locale, not
-  // the page's, so a zh-CN browser shows 年/月/日 on an English-only site and
-  // no lang attribute changes it. Show a text box with our own placeholder
-  // until it's focused or filled; it becomes a real date input either way, so
-  // the OS picker and the phone keyboard still work.
-  const shown = isDate && !focused && !value ? "text" : type;
   return (
     <div className={styles.field}>
       <label htmlFor={id} className={styles.label}>
         {label}
       </label>
       <input
-        ref={box}
         id={id}
         className={styles.input}
-        type={shown}
+        type={type}
         value={value}
         min={min}
-        maxLength={isDate ? undefined : maxLength}
-        placeholder={isDate ? "YYYY-MM-DD" : placeholder}
-        onFocus={() => {
-          if (!isDate) return;
-          setFocused(true);
-          // The type only becomes "date" on the next render, so open the
-          // picker after it: a first tap should show the calendar, not a
-          // text caret. Browsers without showPicker just get the field.
-          requestAnimationFrame(() => {
-            try {
-              box.current?.showPicker?.();
-            } catch {
-              /* not allowed here; the calendar button still works */
-            }
-          });
-        }}
-        onBlur={() => setFocused(false)}
+        maxLength={type === "text" ? maxLength : undefined}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
       {children}

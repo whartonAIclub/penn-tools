@@ -24,6 +24,7 @@ import {
   type SitterJob,
 } from "@penntools/tool-pennpaws";
 import { removePayment, savePayment, type ActionResult } from "./actions";
+import { DateField } from "./DateField";
 import { Empty, RequestCard } from "./PennPaws";
 import styles from "./PennPaws.module.css";
 
@@ -257,10 +258,7 @@ function PaymentRow({ job, onOpen }: { job: SitterJob; onOpen: () => void }) {
                 onChange={(e) => setAmount(e.target.value)}
               />
             </label>
-            <label className={styles.field}>
-              <span className={styles.label}>Paid on</span>
-              <input className={styles.input} type="date" max={today} value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
-            </label>
+            <DateField id="pp-paid-on" label="Paid on" value={paidOn} max={today} onChange={setPaidOn} />
           </div>
           <div className={styles.chips} role="group" aria-label="Paid with">
             {PAYMENT_METHODS.map((m) => (
