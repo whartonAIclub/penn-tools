@@ -873,3 +873,62 @@
 
 /* R43: picking saved pets to post for. */
 .petPick { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; }
+/* My Pets: a pet's photo is how a sitter recognises them at the door, so
+   adding one gets a real target and a label, not a 52px square beside the
+   name. The whole tile is the file input's label. */
+.petPhotoRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.petPhotoPick,
+.petPhotoPickOn {
+  position: relative;
+  flex: none;
+  width: 104px;
+  height: 104px;
+  border-radius: 20px;
+  border: 1.5px dashed #8c9993;
+  background: var(--pp-ground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.petPhotoPickOn {
+  border-style: solid;
+  border-color: var(--pp-green);
+}
+.petPhotoPick img,
+.petPhotoPickOn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.petPhotoPlus {
+  font-size: 2rem;
+  line-height: 1;
+  color: #5d6b66;
+}
+.petPhotoSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+/* Looks like the secondary button it stands in for; the label around it is
+   what opens the picker, so this must not swallow the tap. */
+.petPhotoButton {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--pp-line);
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  color: var(--pp-green);
+  display: inline-flex;
+  align-items: center;
+  pointer-events: none;
+}

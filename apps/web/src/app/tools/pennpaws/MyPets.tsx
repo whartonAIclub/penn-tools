@@ -126,8 +126,26 @@ export function MyPets({ pets, onChanged, onProfile }: { pets: Pet[]; onChanged:
       <section className={styles.stack}>
         <h3 className={styles.heading}>{editing.id ? `Editing ${pet.name || "your pet"}` : "Add a pet"}</h3>
 
-        <label className={pet.photo ? styles.photoOn : styles.photo}>
-          {pet.photo ? <PetAvatar name={pet.name} photo={pet.photo} large /> : <span aria-hidden="true">+</span>}
+        <label className={styles.petPhotoRow}>
+          <span className={pet.photo ? styles.petPhotoPickOn : styles.petPhotoPick}>
+            {pet.photo ? (
+              // A plain img: next/image adds nothing to a small data URL.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={pet.photo} alt={`Photo of ${pet.name || "your pet"}`} />
+            ) : (
+              <span className={styles.petPhotoPlus} aria-hidden="true">
+                +
+              </span>
+            )}
+          </span>
+          <span className={styles.petPhotoSide}>
+            <span className={styles.petPhotoButton}>{pet.photo ? "Change photo" : "Add a photo"}</span>
+            <span className={styles.hint}>
+              {pet.photo
+                ? `This is how sitters recognise ${pet.name || "your pet"} at the door.`
+                : "Optional, but it's how a sitter recognises them at the door."}
+            </span>
+          </span>
           <input
             type="file"
             accept="image/*"
@@ -144,7 +162,6 @@ export function MyPets({ pets, onChanged, onProfile }: { pets: Pet[]; onChanged:
             }}
           />
         </label>
-        <span className={styles.hint}>This is {pet.name || "your pet"}&apos;s picture everywhere a sitter sees them.</span>
 
         <Field label="Name">
           <input className={styles.input} value={pet.name} maxLength={60} onChange={(e) => set({ name: e.target.value })} placeholder="Mochi" />
