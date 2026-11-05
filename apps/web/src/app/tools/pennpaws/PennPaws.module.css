@@ -1,0 +1,990 @@
+/* PennPaws: a phone-first column that also reads well on a laptop. Deep green
+   marks actions and verified people; marigold marks moments that need a
+   person's approval. Text and borders use the site's own tokens. */
+
+.app {
+  --pp-green: #1f6b5a;
+  --pp-green-dark: #174f43;
+  --pp-green-soft: #e3f0eb;
+  --pp-gold: #f0b23a;
+  --pp-gold-soft: #fcf1d8;
+  --pp-gold-text: #6b4700;
+  --pp-ground: #f4f6f1;
+  --pp-line: #e2e6df;
+  --pp-muted: #5a676c;
+  --pp-error: #a3261b;
+
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--text);
+}
+
+/* ── Header and tabs ─────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pp-green);
+  background: var(--pp-green-soft);
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.bell {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  background: var(--pp-ground);
+}
+.bell:hover { background: var(--pp-line); }
+
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--pp-gold);
+  color: #18252b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--pp-ground);
+}
+
+.tab,
+.tabActive {
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: 9px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--pp-muted);
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tabActive {
+  background: var(--bg);
+  color: var(--pp-green-dark);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.main { display: flex; flex-direction: column; }
+
+.section,
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lead { margin: 0; color: var(--pp-muted); }
+
+.heading {
+  margin: 8px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.muted { color: var(--pp-muted); }
+.hint { font-size: 0.8rem; color: var(--pp-muted); }
+.preLine { white-space: pre-line; }
+
+/* ── Chips, tiles and option rows ────────────────────────────────────────── */
+
+.filters,
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip,
+.chipOn {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--pp-line);
+  background: var(--bg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.tile,
+.tileOn {
+  min-height: 56px;
+  border-radius: 14px;
+  border: 1.5px solid var(--pp-line);
+  background: var(--pp-ground);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.tile:hover,
+.chip:hover,
+.rowOption:hover { border-color: #b9c3bc; }
+
+.rows { display: flex; flex-direction: column; gap: 8px; }
+
+.rowOption,
+.rowOptionOn {
+  min-height: 54px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--pp-line);
+  background: var(--pp-ground);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.rowOption .muted,
+.rowOptionOn .muted { font-size: 0.8rem; font-weight: 400; }
+
+/* After the base styles above, so a picked option always shows as picked. */
+.chipOn,
+.tileOn,
+.rowOptionOn {
+  border-color: var(--pp-green);
+  background: var(--pp-green-soft);
+  color: var(--pp-green-dark);
+  box-shadow: inset 0 0 0 1px var(--pp-green);
+}
+
+.twoCol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.threeCol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+
+/* ── Buttons and fields ──────────────────────────────────────────────────── */
+
+.primary,
+.secondary {
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.primary { background: var(--pp-green); color: #ffffff; }
+.primary:hover:not(:disabled) { background: var(--pp-green-dark); }
+.secondary { border: 1.5px solid var(--pp-line); background: var(--bg); color: var(--text); font-weight: 600; }
+.secondary:hover:not(:disabled) { border-color: #b9c3bc; }
+.primary:disabled,
+.secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.link,
+.back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--pp-green);
+}
+.link:hover,
+.back:hover { text-decoration: underline; }
+
+.row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+/* position: the calendar popup in DateField.tsx hangs off this. */
+.field { position: relative; display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.label { font-size: 0.85rem; font-weight: 600; }
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--pp-line);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--bg);
+  resize: vertical;
+}
+.input:focus { outline: none; border-color: var(--pp-green); }
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.chip:focus-visible,
+.chipOn:focus-visible,
+.tile:focus-visible,
+.tileOn:focus-visible,
+.rowOption:focus-visible,
+.rowOptionOn:focus-visible,
+.tab:focus-visible,
+.tabActive:focus-visible,
+.card:focus-visible,
+.link:focus-visible,
+.back:focus-visible,
+.bell:focus-visible,
+.photo:focus-within,
+.photoOn:focus-within {
+  outline: 2px solid var(--pp-green);
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fbeceb;
+  color: var(--pp-error);
+  font-size: 0.9rem;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Request cards ───────────────────────────────────────────────────────── */
+
+.list,
+.alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 16px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  color: var(--text);
+}
+.card:hover { border-color: #b9c3bc; }
+
+.cardTop { display: flex; align-items: center; gap: 12px; }
+.cardName { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 0.875rem; }
+.cardName strong { font-size: 1rem; }
+.pay { font-size: 0.95rem; text-align: right; }
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 6px 10px;
+  font-size: 0.875rem;
+}
+.facts dd { margin: 0; }
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pp-line);
+  font-size: 0.85rem;
+}
+
+.owner { display: inline-flex; align-items: center; gap: 6px; color: var(--pp-green-dark); font-size: 0.85rem; }
+
+.pill,
+.pillGood {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--pp-gold-soft);
+  color: var(--pp-gold-text);
+}
+.pillGood { background: var(--pp-green-soft); color: var(--pp-green-dark); }
+
+.avatar,
+.avatarLarge {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--pp-gold);
+  color: #18252b;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  object-fit: cover;
+}
+.avatarLarge { width: 88px; height: 88px; border-radius: 20px; font-size: 2.4rem; }
+
+.empty {
+  padding: 28px 20px;
+  border: 1px dashed var(--pp-line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.empty p { margin: 0; }
+
+/* ── Notifications ───────────────────────────────────────────────────────── */
+
+.alert,
+.alertNew {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--pp-line);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.alertNew { border-color: var(--pp-gold); background: var(--pp-gold-soft); }
+.alert time,
+.alertNew time { font-size: 0.75rem; }
+
+/* ── Request detail and agreement ────────────────────────────────────────── */
+
+.detailHead { display: flex; align-items: center; gap: 14px; }
+.petName { margin: 0; font-size: 1.5rem; font-weight: 700; }
+
+.panel {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--pp-line);
+  border-radius: 14px;
+  background: var(--bg);
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 10px 12px;
+  font-size: 0.9rem;
+}
+.panel dt { color: var(--pp-muted); }
+.panel dd { margin: 0; }
+/* The survey's review card is a panel with a header row above its facts. */
+.survey .panel { display: flex; flex-direction: column; gap: 14px; }
+
+.panelPlain {
+  padding: 16px;
+  border: 1px solid var(--pp-line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notice,
+.noticeGood {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--pp-gold-soft);
+  color: #3d3320;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.noticeGood { background: var(--pp-green-soft); color: #24443c; }
+.noticeGood strong { color: var(--pp-green-dark); }
+
+.offer {
+  padding: 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.offer strong { display: inline-flex; align-items: center; gap: 6px; color: var(--pp-green-dark); }
+.offer p { margin: 0; font-size: 0.9rem; }
+.offer .primary { align-self: flex-start; }
+
+.approvals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.approvalDone,
+.approvalWaiting {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--pp-line);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.approvalWaiting { border-color: var(--pp-gold); }
+
+.approvalDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pp-gold-soft);
+  color: var(--pp-gold-text);
+}
+.approvalDone .approvalDot { background: var(--pp-green); color: #ffffff; }
+
+/* ── Survey ──────────────────────────────────────────────────────────────── */
+
+.survey { display: flex; flex-direction: column; gap: 14px; }
+
+.progressLabel { font-size: 0.8rem; color: var(--pp-muted); }
+
+.progress { height: 4px; border-radius: 2px; background: var(--pp-line); overflow: hidden; }
+.progress span { display: block; height: 100%; background: var(--pp-green); transition: width 0.2s; }
+
+.chat {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bot,
+.me {
+  max-width: 85%;
+  padding: 10px 14px;
+  font-size: 0.925rem;
+  line-height: 1.45;
+}
+.bot {
+  align-self: flex-start;
+  background: var(--pp-ground);
+  border: 1px solid var(--pp-line);
+  border-radius: 16px 16px 16px 4px;
+}
+.me {
+  align-self: flex-end;
+  background: var(--pp-green);
+  color: #ffffff;
+  border-radius: 16px 16px 4px 16px;
+}
+
+.answer {
+  padding-top: 14px;
+  border-top: 1px solid var(--pp-line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nameRow { display: flex; align-items: flex-end; gap: 10px; }
+
+.photo,
+.photoOn {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  border: 1.5px dashed #8c9993;
+  background: var(--pp-ground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.photoOn { border-style: solid; border-color: var(--pp-green); padding: 0; }
+
+/* ── First-time setup ────────────────────────────────────────────────────── */
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.check input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--pp-green);
+}
+
+.headerActions { display: flex; align-items: center; gap: 8px; }
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.infoButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--pp-green);
+}
+.infoButton:hover,
+.infoButton[aria-expanded="true"] { background: var(--pp-green-soft); }
+.infoButton:focus-visible {
+  outline: 2px solid var(--pp-green);
+  outline-offset: 2px;
+}
+
+.infoPanel {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--pp-green-soft);
+  color: #24443c;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.infoPanel p { margin: 0; }
+.infoPanel ul { margin: 6px 0; padding-left: 18px; }
+.infoPanel li + li { margin-top: 2px; }
+
+.profileButton {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--pp-ground);
+}
+.profileButton:hover { background: var(--pp-line); }
+.profileButton:focus-visible {
+  outline: 2px solid var(--pp-green);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress span { transition: none; }
+}
+
+/* The local development user has no Penn email, so it is labeled honestly. */
+.testAccount {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pp-gold-text);
+  background: var(--pp-gold-soft);
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+/* Sitters have four tabs. */
+.tabs2 {
+  composes: tabs;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tabs4 {
+  composes: tabs;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Earnings: totals, then one row per booking. */
+.totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.total {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--pp-ground);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+.totalValue { font-size: 1.15rem; color: var(--text); }
+.earningRow {
+  padding: 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.earningTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.earningPet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.earningPet:hover strong { text-decoration: underline; }
+.rowActions { display: flex; align-items: center; gap: 16px; }
+
+/* Ratings: the sitter's summary, each anonymous rating, and the owner's picker. */
+.ratingCard {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--pp-green-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ratingBig { display: inline-flex; align-items: center; gap: 8px; font-size: 1.4rem; font-weight: 700; color: var(--pp-green-dark); }
+.stars { color: var(--pp-gold); letter-spacing: 1px; }
+.starsOff { color: var(--pp-line); }
+.review {
+  padding: 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.review p { margin: 0; }
+.starPicker { display: flex; gap: 4px; }
+.starOn,
+.starOff {
+  width: 44px;
+  height: 44px;
+  font-size: 1.6rem;
+  line-height: 1;
+  border-radius: 10px;
+}
+.starOn { color: var(--pp-gold); }
+.starOff { color: var(--pp-line); }
+.starOn:focus-visible,
+.starOff:focus-visible { outline: 2px solid var(--pp-green); outline-offset: 2px; }
+
+/* What AI understood from a pasted post. */
+.understood { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+.understood svg { color: var(--pp-green); vertical-align: -2px; }
+
+/* How a sitter matches a request. */
+.matchList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
+.matchFit { color: var(--pp-green-dark); }
+.matchMiss { color: var(--pp-gold-text); }
+.original { font-size: 0.9rem; }
+.original summary { cursor: pointer; color: var(--pp-green); font-weight: 600; }
+
+/* Messages between an owner and a sitter. */
+.conversation { display: flex; flex-direction: column; gap: 10px; }
+.messageTime { display: block; margin-top: 4px; font-size: 0.72rem; opacity: 0.75; white-space: pre-line; }
+.conversation .me,
+.conversation .bot { white-space: pre-line; }
+
+/* My profile: each saved answer with a link to change it. */
+.summaryValue { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.editLink {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pp-green);
+  text-decoration: underline;
+}
+
+/* Full tab labels where they fit, short ones on narrow phones. */
+.tabShort { display: none; }
+@media (max-width: 420px) {
+  .tabShort { display: inline; }
+  .tabFull { display: none; }
+}
+
+/* ── Matching on Find jobs ───────────────────────────────────────────────── */
+
+.rankBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+.rankBar .secondary { flex: none; min-height: 40px; padding: 0 14px; font-size: 0.85rem; }
+
+.matchLine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--pp-ground);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.fitGood { color: var(--pp-green-dark); }
+.fitPoor { color: var(--pp-error); }
+
+/* ── Test menu (local development only) ──────────────────────────────────── */
+
+.testMenu {
+  /* Rendered beside the app, not inside it, so it carries the colors it uses. */
+  --pp-green: #1f6b5a;
+  --pp-green-dark: #174f43;
+  --pp-line: #e2e6df;
+  --pp-muted: #5a676c;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.testToggle {
+  padding: 8px 14px;
+  border: 1.5px dashed var(--pp-line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--pp-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.testPanel {
+  color: var(--text);
+  width: min(300px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 0.85rem;
+}
+.testPanel p { margin: 0; }
+.testPanel .secondary,
+.testPanel .primary { min-height: 40px; font-size: 0.85rem; }
+.testTitle { font-weight: 700; }
+.testHint { color: var(--pp-muted); font-size: 0.78rem; }
+.testConfirm { display: flex; flex-direction: column; gap: 8px; }
+.testRow { display: flex; gap: 8px; }
+.testRow button { flex: 1; }
+.testLog { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--pp-green-soft);
+}
+.suggestion p { margin: 0; }
+.suggestion .editLink { align-self: flex-start; }
+
+/* ── Team view ───────────────────────────────────────────────────────────── */
+
+.subhead { margin: 8px 0 0; font-size: 1rem; }
+.statGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.stat,
+.statAlert {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--pp-line);
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+.stat strong,
+.statAlert strong { font-size: 1.5rem; }
+.statAlert { border-color: var(--pp-gold); background: var(--pp-gold-soft); }
+.teamActions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px; }
+.checkRow { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.table th { text-align: left; font-weight: 600; color: var(--pp-muted); padding: 6px 8px; border-bottom: 1px solid var(--pp-line); }
+.table td { padding: 8px; border-bottom: 1px solid var(--pp-line); vertical-align: top; }
+.table .pill { margin-left: 6px; }
+.pausedNotice { padding: 12px 14px; border-radius: 12px; background: var(--pp-gold-soft); color: var(--pp-gold-text); font-size: 0.9rem; }
+.reportLink { align-self: flex-start; font-size: 0.8rem; color: var(--pp-muted); text-decoration: underline; }
+
+.sitterCard {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--pp-ground);
+  font-size: 0.85rem;
+}
+.sitterCard dt { color: var(--pp-muted); }
+.sitterCard dd { margin: 0; }
+
+.changeNote { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--pp-gold-soft); color: var(--pp-gold-text); font-size: 0.85rem; }
+.termChanged { margin: 0; white-space: pre-line; background: var(--pp-gold-soft); border-radius: 6px; padding: 0 4px; }
+
+/* R43: picking saved pets to post for. */
+.petPick { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; }
+/* My Pets: a pet's photo is how a sitter recognises them at the door, so
+   adding one gets a real target and a label, not a 52px square beside the
+   name. The whole tile is the file input's label. */
+.petPhotoRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.petPhotoPick,
+.petPhotoPickOn {
+  position: relative;
+  flex: none;
+  width: 104px;
+  height: 104px;
+  border-radius: 20px;
+  border: 1.5px dashed #8c9993;
+  background: var(--pp-ground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+.petPhotoPickOn {
+  border-style: solid;
+  border-color: var(--pp-green);
+}
+.petPhotoPick img,
+.petPhotoPickOn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.petPhotoPlus {
+  font-size: 2rem;
+  line-height: 1;
+  color: #5d6b66;
+}
+.petPhotoSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+/* Looks like the secondary button it stands in for; the label around it is
+   what opens the picker, so this must not swallow the tap. */
+.petPhotoButton {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--pp-line);
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  color: var(--pp-green);
+  display: inline-flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* Our own date picker (DateField.tsx). The native one draws itself in the
+   browser's language, so it can't be used on an English-only site. */
+/* One control: the input fills the row and the icon sits inside it, so a
+   click anywhere on the field opens the calendar. */
+.dateRow { position: relative; display: flex; align-items: center; }
+.dateRow .input { flex: 1; min-width: 0; padding-right: 44px; }
+.dateIcon {
+  position: absolute;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--pp-green);
+  pointer-events: none;
+}
+.calendar {
+  position: absolute;
+  z-index: 20;
+  margin-top: 6px;
+  padding: 12px;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  border-radius: 16px;
+  border: 1px solid var(--pp-line);
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(16, 32, 28, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.calendarTop { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.calendarStep {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--pp-line);
+  background: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.calendarGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.calendarDay { display: grid; place-items: center; height: 28px; font-size: 0.75rem; color: #5d6b66; }
+.calendarPick,
+.calendarPickOn {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.calendarPick:hover:not(:disabled) { background: var(--pp-ground); }
+.calendarPick:disabled { color: #b4bdb9; cursor: default; }
+.calendarPickOn { background: var(--pp-green); color: #fff; font-weight: 600; }
