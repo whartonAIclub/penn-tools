@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { explainPay, isHoliday, suggestPay } from "../pay.js";
+import { ENOUGH_POSTED, explainPay, isHoliday, median, parsePay, ratesFromPosted, suggestPay } from "../pay.js";
 import { gpsArea, GPS_AREA, isGpsArea, nearCampus } from "../profile.js";
 import type { RequestDraft } from "../request.js";
 
@@ -52,6 +52,50 @@ describe("suggested pay", () => {
     expect(isHoliday("2026-12-28", "2027-01-02")).toBe(true);
     expect(isHoliday("2027-01-01", "2027-01-02")).toBe(true);
     expect(isHoliday("2026-11-07", "2026-11-08")).toBe(false);
+  });
+});
+
+describe("what members here ask to pay", () => {
+  const posted = (pay: string, careType = "visits") => ({ pay, careType });
+
+  it("reads the dollars and the kind out of a stored pay line", () => {
+    expect(parsePay("$18 a walk")).toEqual({ dollars: 18, kind: "walk" });
+    expect(parsePay("$22 a visit, suggested")).toEqual({ dollars: 22, kind: "dropIn" });
+    expect(parsePay("$40 a night")).toEqual({ dollars: 40, kind: "stay" });
+    expect(parsePay("$52.50 a night")).toEqual({ dollars: 52.5, kind: "stay" });
+    // Anything the owner wrote themselves is left out rather than guessed at.
+    expect(parsePay("Let's talk about it")).toBeNull();
+    expect(parsePay("$0 a visit")).toBeNull();
+  });
+
+  it("takes the middle, so one generous request can't set the rate", () => {
+    expect(median([20, 15, 100])).toBe(20);
+    expect(median([10, 20])).toBe(15);
+    expect(median([])).toBeNull();
+  });
+
+  it("tells a night at the owner's place from a night at the sitter's", () => {
+    const rates = ratesFromPosted([posted("$40 a night", "stay"), posted("$44 a night", "stay"), posted("$30 a night", "boarding")]);
+    expect(rates.stay).toEqual({ median: 42, count: 2 });
+    expect(rates.boarding).toEqual({ median: 30, count: 1 });
+  });
+
+  it("suggests what members here ask once enough of them have asked", () => {
+    const asked = (dollars: number) => posted(`$${dollars} a walk`);
+    // Below the threshold the starting rate stands.
+    const few = ratesFromPosted(Array.from({ length: ENOUGH_POSTED - 1 }, () => asked(26)));
+    expect(suggestPay(draft({ petKind: "dog", tasks: ["walks"] }), few).amount).toBe(20);
+    // At it, the median takes over, and the adjustments still apply on top.
+    const enough = ratesFromPosted(Array.from({ length: ENOUGH_POSTED }, () => asked(26)));
+    expect(suggestPay(draft({ petKind: "dog", tasks: ["walks"] }), enough).amount).toBe(26);
+    expect(suggestPay(draft({ petKind: "dog", tasks: ["walks", "medication"] }), enough).amount).toBe(29);
+    expect(explainPay(suggestPay(draft({ petKind: "dog", tasks: ["walks"] }), enough))).toContain("what students here ask");
+  });
+
+  it("leaves a kind nobody has posted on its starting rate", () => {
+    const walks = ratesFromPosted(Array.from({ length: ENOUGH_POSTED }, () => posted("$26 a walk")));
+    // Plenty of walks posted, but no stays, so a stay keeps its own rate.
+    expect(suggestPay(draft({ careType: "stay", frequency: "overnight" }), walks).amount).toBe(40);
   });
 });
 

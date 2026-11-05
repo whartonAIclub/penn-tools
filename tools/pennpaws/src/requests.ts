@@ -8,6 +8,7 @@ import { assertActive } from "./members.js";
 import { AgreementTerms, type AgreementTerms as Terms } from "./agreement.js";
 import { allowedFrom, bothApproved, canSeeContacts, nextStatus, type OfferStatus, type RequestStatus, type Role } from "./booking.js";
 import type { PaymentMethod, SitterJob } from "./jobs.js";
+import { ratesFromPosted, type PlatformRates } from "./pay.js";
 import { checkAsks, type AskCheck } from "./match.js";
 import { EXPERIENCE, SERVICES, checkProfile, petNotes } from "./profile.js";
 import { petsByIds, privatePetNotes } from "./pets.js";
@@ -235,6 +236,22 @@ export async function listOpenRequests(sql: Sql, viewerId: string): Promise<Requ
     LIMIT 100
   `;
   return rows.map((row) => toCard(row, viewerId));
+}
+
+/**
+ * What members here have asked to pay, per kind of care, for the pay step to
+ * suggest from (R4/R48) instead of a rate we guessed once. Test people are
+ * left out, so seeded requests can't move a real suggestion, and so are
+ * cancelled ones, which nobody agreed to.
+ */
+export async function postedRates(sql: Sql): Promise<PlatformRates> {
+  const rows = await sql<{ pay: string; care_type: string }[]>`
+    SELECT pay, care_type FROM requests
+    WHERE owner_id NOT LIKE 'seed-%' AND status <> 'cancelled' AND created_at > NOW() - INTERVAL '180 days'
+    ORDER BY created_at DESC
+    LIMIT 500
+  `;
+  return ratesFromPosted(rows.map((row) => ({ pay: row.pay, careType: row.care_type })));
 }
 
 /** Requests the user posted or offered to help with, newest first. */

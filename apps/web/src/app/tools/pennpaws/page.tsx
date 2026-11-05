@@ -18,6 +18,7 @@ import {
   isTeamEmail,
   listSitterJobs,
   matchRequests,
+  postedRates,
   savePetFromProfile,
   verifySchool,
   type Pet,
@@ -77,6 +78,9 @@ export default async function PennPawsPage() {
     isSitter ? listMyReviews(sql, user.id) : [],
     isPaused(sql, user.id),
   ]);
+  // What members here ask to pay, so the pay step suggests from the real
+  // market rather than a rate we guessed once.
+  const rates = member.profile.role === "owner" ? await postedRates(sql) : {};
   const matches = member.profile.role === "sitter" ? await matchRequests(sql, member.profile, open.filter((r) => !r.mine)) : [];
   // An owner's saved pets. The pet they described at setup becomes the first
   // one, so My Pets is never empty for someone who has already answered.
@@ -97,6 +101,7 @@ export default async function PennPawsPage() {
         matches={matches}
         mine={mine}
         pets={pets}
+        rates={rates}
         jobs={jobs}
         reviews={reviews}
         notifications={notifications}

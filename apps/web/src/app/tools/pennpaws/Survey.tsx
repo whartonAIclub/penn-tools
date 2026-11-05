@@ -23,6 +23,7 @@ import {
   NIGHT_PAY_PRESETS,
   explainPay,
   suggestPay,
+  type PlatformRates,
   OTHER,
   PAY_PRESETS,
   PET_KINDS,
@@ -262,6 +263,7 @@ export function Survey({
   start = null,
   pets = [],
   profile = null,
+  rates = {},
   onPosted,
 }: {
   userFirstName: string;
@@ -272,6 +274,8 @@ export function Survey({
   pets?: Pet[];
   /** The owner's profile, for their area and sitter wishes on a request from saved pets. */
   profile?: OwnerProfile | null;
+  /** What members here have asked to pay, so the suggestion follows the real market. */
+  rates?: PlatformRates;
   onPosted: (id: string) => void;
 }) {
   const canPick = pets.length > 0 && profile !== null;
@@ -397,7 +401,7 @@ export function Survey({
   const nightly = a.careType === "stay" || boarding;
   const payUnit = nightly ? "a night" : "a visit";
   const payCount = countPaid(toDraft(a));
-  const suggested = suggestPay(toDraft(a));
+  const suggested = suggestPay(toDraft(a), rates);
   const suggestedPay = `$${suggested.amount} ${payUnit}`;
   const toggle = <T,>(list: readonly T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 

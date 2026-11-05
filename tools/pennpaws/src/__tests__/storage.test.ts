@@ -10,6 +10,7 @@ import type { Sql } from "postgres";
 import { agreementTemplate } from "../agreement.js";
 import { clearPayment, leaveReview, listMyReviews, recordPayment } from "../jobs.js";
 import { getMember, saveMember } from "../members.js";
+import { suggestPay } from "../pay.js";
 import { addPet, checkPet, getPet, listPets, petsByIds, removePet, savePetFromProfile, updatePet, type SavedPet } from "../pets.js";
 import { fileReport, listOpenReports, listTeamMembers, recordMatchScore, resolveReport, setMemberPaused, setRequestHidden, teamOverview } from "../team.js";
 import { listThreads, sendMessage } from "../messages.js";
@@ -27,6 +28,7 @@ import {
   listMyRequests,
   listOpenRequests,
   listSitterJobs,
+  postedRates,
   offerHelp,
   withdrawOffer,
   PennPawsError,
@@ -115,6 +117,18 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
 
   it("schema.sql can be applied again to an existing schema", async () => {
     await expect(sql.unsafe(schemaSql)).resolves.toBeDefined();
+  });
+
+  it("reads back what members here asked to pay, ignoring the test people", async () => {
+    const seed: Person = { id: "seed-owner-zed", name: "Zed Seed", email: "zed@example.upenn.edu" };
+    for (let i = 0; i < 5; i++) await createRequest(sql, lu, { ...draft, pay: "$26 a walk", tasks: ["walks"] });
+    // A fake person's request must not move a real suggestion.
+    for (let i = 0; i < 5; i++) await createRequest(sql, seed, { ...draft, pay: "$99 a walk", tasks: ["walks"] });
+    const rates = await postedRates(sql);
+    expect(rates.walk).toMatchObject({ median: 26 });
+    expect(rates.walk!.count).toBeGreaterThanOrEqual(5);
+    // And that median is what the pay step then suggests.
+    expect(suggestPay({ ...draft, pay: "", tasks: ["walks"] }, rates).amount).toBe(26);
   });
 
   it("keeps an owner's pets, and keeps them to that owner", async () => {

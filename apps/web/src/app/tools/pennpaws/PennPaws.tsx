@@ -21,6 +21,7 @@ import {
   type Member,
   type Notification,
   type Pet,
+  type PlatformRates,
   type RequestCard as Card,
   type Review,
   type SitterJob,
@@ -68,6 +69,7 @@ export function PennPaws({
   matches,
   mine,
   pets,
+  rates,
   jobs,
   reviews,
   notifications,
@@ -86,6 +88,8 @@ export function PennPaws({
   mine: Card[];
   /** The owner's saved pets; empty for other roles. */
   pets: Pet[];
+  /** What members here have asked to pay, for the pay step's suggestion. */
+  rates: PlatformRates;
   /** The sitter's jobs and anonymous ratings; empty for other roles. */
   jobs: SitterJob[];
   reviews: Review[];
@@ -254,6 +258,7 @@ export function PennPaws({
             start={member.profile.role === "owner" ? requestStart(member.profile) : null}
             pets={pets}
             profile={member.profile.role === "owner" ? member.profile : null}
+            rates={rates}
             onPosted={(id) => {
               router.refresh();
               openRequest(id, "mine");
