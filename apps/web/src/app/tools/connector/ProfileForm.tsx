@@ -1,10 +1,17 @@
 "use client";
 
 // The profile form: first and last name, Penn email and cohort (grouped by
-// cluster). Submitting only shows a confirmation; nothing is saved yet.
+// cluster). Continue hands the profile to the next screen; nothing is saved.
 
 import { useState, type FormEvent } from "react";
 import styles from "./Connector.module.css";
+
+export interface Profile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  cohort: string;
+}
 
 const CLUSTERS = [
   { cluster: 1, cohorts: ["A", "B", "C"] },
@@ -13,16 +20,20 @@ const CLUSTERS = [
   { cluster: 4, cohorts: ["J", "K", "L"] },
 ];
 
-export function ProfileForm() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [cohort, setCohort] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+interface Props {
+  initial: Profile;
+  onContinue: (profile: Profile) => void;
+}
+
+export function ProfileForm({ initial, onContinue }: Props) {
+  const [firstName, setFirstName] = useState(initial.firstName);
+  const [lastName, setLastName] = useState(initial.lastName);
+  const [email, setEmail] = useState(initial.email);
+  const [cohort, setCohort] = useState(initial.cohort);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setSubmitted(true);
+    onContinue({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), cohort });
   }
 
   return (
@@ -45,14 +56,14 @@ export function ProfileForm() {
         </div>
 
         <label className={styles.field}>
-          <span>Penn email</span>
+          <span>Wharton email</span>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@wharton.upenn.edu"
-            pattern=".+@(.+\.)?upenn\.edu"
-            title="Use your Penn email (ending in upenn.edu)."
+            pattern=".+@wharton\.upenn\.edu"
+            title="Use your Wharton email (ending in @wharton.upenn.edu)."
             autoComplete="email"
             required
           />
@@ -75,12 +86,6 @@ export function ProfileForm() {
             ))}
           </select>
         </label>
-
-        {submitted && (
-          <p className={styles.success}>
-            Thanks, {firstName}! You&apos;re in Cohort {cohort}.
-          </p>
-        )}
 
         <div>
           <button type="submit" className={styles.button}>
