@@ -13,11 +13,17 @@ export interface AnswerOption {
   label: string;
 }
 
+/** A Wharton MBA cohort (the list is in questions.ts). */
+export interface Cohort {
+  id: string;
+  cluster: number;
+}
+
 export interface Signup {
   id: string;
   name: string;
   email: string;
-  /** As the sign-up form saves it, e.g. "Cohort F". Two people match on cohort only if these are identical. */
+  /** The ID of one of COHORTS in questions.ts, e.g. "F". */
   cohort: string;
   /** Question ID → the ID of the chosen option, e.g. { "ideal-2am": "rooftop-talk" }. */
   answers: Readonly<Record<string, string>>;
