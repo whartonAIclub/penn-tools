@@ -1,12 +1,13 @@
-// A placeholder page. To build the tool, see section 4 of CLAUDE.md: AskPenn
-// (tools/askpenn) and the Platform Playground (tools/platform-playground) are
-// the reference tools.
+// Connector: helps Wharton students meet people outside their usual circles.
+// For now, just the profile form; nothing is saved yet.
+
+import type { Metadata } from "next";
+import { ProfileForm } from "./ProfileForm";
+
+export const metadata: Metadata = {
+  title: "Connector",
+};
 
 export default function ConnectorPage() {
-  return (
-    <div>
-      <h1>{"Connector"}</h1>
-      <p>{"Your future closest friends are just outside your circle. Don’t let them stay strangers."}</p>
-    </div>
-  );
+  return <ProfileForm />;
 }
