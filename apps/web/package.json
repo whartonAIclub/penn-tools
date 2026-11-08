@@ -15,6 +15,7 @@
     "@penntools/tool-18": "workspace:*",
     "@penntools/tool-19": "workspace:*",
     "@penntools/tool-3": "workspace:*",
+    "@penntools/tool-accounting-practice": "workspace:*",
     "@penntools/tool-askpenn": "workspace:*",
     "@penntools/tool-career-canvas": "workspace:*",
     "@penntools/tool-coursematch-assist": "workspace:*",

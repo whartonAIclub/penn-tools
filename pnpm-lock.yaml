@@ -35,6 +35,9 @@ importers:
       '@penntools/tool-3':
         specifier: workspace:*
         version: link:../../tools/3
+      '@penntools/tool-accounting-practice':
+        specifier: workspace:*
+        version: link:../../tools/accounting-practice
       '@penntools/tool-askpenn':
         specifier: workspace:*
         version: link:../../tools/askpenn
@@ -171,6 +174,19 @@ importers:
         version: 1.6.1(@types/node@20.19.33)
 
   tools/3:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
+  tools/accounting-practice:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
