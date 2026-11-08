@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formGroups, matchScore } from "../grouping.js";
-import type { GroupingResult, Signup } from "../types.js";
+import type { GroupingResult, Signup } from "../../types.js";
 
 let nextId = 1;
 /** A made-up sign-up. */

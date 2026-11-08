@@ -1,5 +1,5 @@
-import { QUESTIONS } from "./questions.js";
-import type { Group, GroupingResult, Signup } from "./types.js";
+import { QUESTIONS } from "../questions.js";
+import type { Group, GroupingResult, Signup } from "../types.js";
 
 export const MIN_GROUP_SIZE = 4;
 export const MAX_GROUP_SIZE = 5;
