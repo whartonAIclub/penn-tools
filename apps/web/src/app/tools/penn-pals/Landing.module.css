@@ -64,30 +64,62 @@
   font-weight: 600;
 }
 
-/* ── Lanes ─────────────────────────────────────────────────────────────────── */
+/* ── Summary ───────────────────────────────────────────────────────────────── */
 
-/* Due today: the one section to act on now */
-.today {
-  border-color: var(--today);
-  background: var(--today-bg);
-}
-
-.today .followUp {
-  background: var(--bg);
-}
-
-.lanes {
+.summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
-@media (max-width: 900px) {
-  .lanes {
+@media (max-width: 600px) {
+  .summary {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--penn-blue);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.statThankYou {
+  border-top-color: var(--thank-you);
+}
+
+.statFollowUp {
+  border-top-color: var(--meeting);
+}
+
+.statNumber {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--penn-blue);
+}
+
+.statThankYou .statNumber {
+  color: var(--thank-you);
+}
+
+.statFollowUp .statNumber {
+  color: var(--meeting);
+}
+
+.statLabel {
+  color: var(--section-label);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ── Lanes ─────────────────────────────────────────────────────────────────── */
 
 .lane {
   display: flex;
@@ -131,6 +163,45 @@
   text-decoration: none;
 }
 
+/* The three timeline buckets, each with its own accent */
+.bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--sidebar-bg);
+}
+
+.bucketToday {
+  background: var(--today-bg);
+}
+
+.bucketOverdue {
+  background: var(--overdue-bg);
+}
+
+.bucket .followUp {
+  background: var(--bg);
+}
+
+.bucketTitle {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--section-label);
+}
+
+.bucketToday .bucketTitle {
+  color: var(--today);
+}
+
+.bucketOverdue .bucketTitle {
+  color: var(--overdue);
+}
+
 .group {
   display: flex;
   flex-direction: column;
@@ -144,10 +215,6 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--section-label);
-}
-
-.overdueLabel {
-  color: var(--overdue);
 }
 
 .list {
@@ -356,26 +423,6 @@
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
-}
-
-/* ── Summary ───────────────────────────────────────────────────────────────── */
-
-.summary {
-  margin: 0;
-  padding: 14px 20px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--text);
-  font-size: 0.95rem;
-  text-align: center;
-}
-
-.summaryThankYou {
-  color: var(--thank-you);
-}
-
-.summaryFollowUp {
-  color: var(--meeting);
 }
 
 /* ── Person card (pop-up) ──────────────────────────────────────────────────── */

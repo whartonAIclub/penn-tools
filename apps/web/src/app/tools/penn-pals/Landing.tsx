@@ -1,8 +1,8 @@
 "use client";
 
-// Follow-ups due today on top, then two lanes: the rest of the follow-ups
-// (left) and everyone the student has talked to (right), with a count of
-// thank-yous and follow-ups at the bottom. Clicking a person opens their card.
+// A summary of coffee chats, thank-yous and follow-ups on top, then two lanes:
+// follow-ups in three buckets, due today, overdue and coming up (left), and
+// everyone the student has talked to (right). Clicking a person opens their card.
 // Contacts are the ones the intake saved in this browser (the tracker page's
 // storage), or sample data until there are any. Follow-ups come from
 // followUpsFor(), so marking one done saves it and schedules the next.
@@ -23,11 +23,11 @@ import {
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
 import styles from "./Landing.module.css";
 
-// Today's follow-ups have their own section above the lanes.
-const GROUPS: { status: Exclude<FollowUpStatus, "today">; label: string }[] = [
-  { status: "overdue", label: "Overdue" },
-  { status: "thisWeek", label: "This week" },
-  { status: "later", label: "Later" },
+// The three timeline buckets, in the order the lane shows them
+const BUCKETS: { label: string; statuses: FollowUpStatus[]; empty: string; className: string }[] = [
+  { label: "Due today", statuses: ["today"], empty: "Nothing due today.", className: styles.bucketToday! },
+  { label: "Overdue", statuses: ["overdue"], empty: "Nothing overdue. 🎉", className: styles.bucketOverdue! },
+  { label: "Coming up", statuses: ["thisWeek", "later"], empty: "Nothing coming up.", className: styles.bucketLater! },
 ];
 
 // The two buckets the debrief sorts next steps into, each with its own color
@@ -232,7 +232,6 @@ export function Landing({ today: todayIso }: { today: string }) {
 
   if (!saved) return <p className={styles.empty}>Loading…</p>;
 
-  const dueToday = followUps.filter((f) => followUpStatus(today, f.due) === "today");
   const totals = countByKind(followUps);
 
   const openCount = (contactId: string) =>
@@ -287,47 +286,46 @@ export function Landing({ today: todayIso }: { today: string }) {
         </nav>
       </header>
 
-      <section className={`${styles.lane} ${styles.today}`} aria-labelledby="today-title">
-        <div className={styles.laneHeader}>
-          <h2 id="today-title" className={styles.laneTitle}>
-            Due today <span className={styles.count}>{dueToday.length}</span>
-          </h2>
-          <div className={styles.legend}>
-            {Object.values(KINDS).map((k) => (
-              <span key={k.label} className={`${styles.tag} ${k.tag}`}>
-                {k.label}
-              </span>
-            ))}
-          </div>
+      <section className={styles.summary} aria-label="Summary">
+        <div className={styles.stat}>
+          <span className={styles.statNumber}>{allContacts.length}</span>
+          <span className={styles.statLabel}>{allContacts.length === 1 ? "Coffee chat" : "Coffee chats"} logged</span>
         </div>
-        {dueToday.length === 0 ? (
-          <p className={styles.empty}>Nothing due today.</p>
-        ) : (
-          <ul className={styles.list}>{dueToday.map(row)}</ul>
-        )}
+        <div className={`${styles.stat} ${styles.statThankYou}`}>
+          <span className={styles.statNumber}>{totals.thankYou}</span>
+          <span className={styles.statLabel}>{totals.thankYou === 1 ? "Thank-you note" : "Thank-you notes"} to send</span>
+        </div>
+        <div className={`${styles.stat} ${styles.statFollowUp}`}>
+          <span className={styles.statNumber}>{totals.followUp}</span>
+          <span className={styles.statLabel}>{totals.followUp === 1 ? "Follow-up" : "Follow-ups"} to send</span>
+        </div>
       </section>
 
       <div className={styles.lanes}>
         <section className={styles.lane} aria-labelledby="followups-title">
           <div className={styles.laneHeader}>
             <h2 id="followups-title" className={styles.laneTitle}>
-              Coming up <span className={styles.count}>{followUps.length - dueToday.length}</span>
+              Follow-ups <span className={styles.count}>{followUps.length}</span>
             </h2>
+            <div className={styles.legend}>
+              {Object.values(KINDS).map((k) => (
+                <span key={k.label} className={`${styles.tag} ${k.tag}`}>
+                  {k.label}
+                </span>
+              ))}
+            </div>
           </div>
-          {followUps.length === dueToday.length ? (
-            <p className={styles.empty}>Nothing else owed. 🎉</p>
-          ) : (
-            GROUPS.map(({ status, label }) => {
-              const items = followUps.filter((f) => followUpStatus(today, f.due) === status);
-              if (items.length === 0) return null;
-              return (
-                <div key={status} className={styles.group}>
-                  <h3 className={`${styles.groupLabel} ${status === "overdue" ? styles.overdueLabel : ""}`}>{label}</h3>
-                  <ul className={styles.list}>{items.map(row)}</ul>
-                </div>
-              );
-            })
-          )}
+          {BUCKETS.map(({ label, statuses, empty, className }) => {
+            const items = followUps.filter((f) => statuses.includes(followUpStatus(today, f.due)));
+            return (
+              <div key={label} className={`${styles.bucket} ${className}`}>
+                <h3 className={styles.bucketTitle}>
+                  {label} <span className={styles.count}>{items.length}</span>
+                </h3>
+                {items.length === 0 ? <p className={styles.empty}>{empty}</p> : <ul className={styles.list}>{items.map(row)}</ul>}
+              </div>
+            );
+          })}
         </section>
 
         <section className={styles.lane} aria-labelledby="people-title">
@@ -375,17 +373,6 @@ export function Landing({ today: todayIso }: { today: string }) {
           )}
         </section>
       </div>
-
-      <p className={styles.summary}>
-        {totals.thankYou + totals.followUp === 0 ? (
-          "You're all caught up."
-        ) : (
-          <>
-            You have <strong className={styles.summaryThankYou}>{plural(totals.thankYou, "thank-you note", "thank-you notes")}</strong>{" "}
-            and <strong className={styles.summaryFollowUp}>{plural(totals.followUp, "follow-up", "follow-ups")}</strong> to send.
-          </>
-        )}
-      </p>
 
       {openedContact && (
         <PersonCard
