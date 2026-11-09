@@ -5,7 +5,6 @@
 // so they stay on one device and are lost if the browser's data is cleared.
 // The form's rules are in tools/penn-pals/src/contacts.ts.
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -77,12 +76,8 @@ export function Tracker() {
 
   return (
     <div className={styles.page}>
-      <Link href={LANDING} className={styles.back}>
-        ← Back to Penn Pals
-      </Link>
-      <h1 className={styles.title}>Penn Pals: Network Tracker</h1>
       <p className={styles.intro}>
-        Log each networking conversation; your follow-ups appear on the Penn Pals page. Contacts are stored only in
+        Log each networking conversation; your follow-ups appear on the Dashboard. Contacts are stored only in
         this browser; clearing its data removes them.
       </p>
 

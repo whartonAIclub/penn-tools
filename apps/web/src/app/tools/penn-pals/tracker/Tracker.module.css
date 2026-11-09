@@ -4,31 +4,11 @@
   gap: 14px;
 }
 
-.title {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--penn-blue);
-}
-
 .intro,
 .note {
   color: var(--section-label);
   font-size: 0.875rem;
   line-height: 1.6;
-}
-
-.back {
-  align-self: flex-start;
-  color: var(--penn-blue);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.back:hover {
-  text-decoration: underline;
 }
 
 /* ── Form ──────────────────────────────────────────────────────────────────── */

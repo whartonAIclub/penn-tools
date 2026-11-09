@@ -260,21 +260,6 @@ export function Landing({ today: todayIso }: { today: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Penn Pals</h1>
-        <p className={styles.intro}>
-          Who you owe a follow-up, and everyone you&apos;ve talked to.
-        </p>
-        <nav className={styles.actions} aria-label="Log a chat">
-          <Link href="/tools/penn-pals/debrief" className={styles.actionPrimary}>
-            Paste notes from a chat
-          </Link>
-          <Link href="/tools/penn-pals/tracker" className={styles.actionSecondary}>
-            Log a chat with the form
-          </Link>
-        </nav>
-      </header>
-
       <section className={styles.summary} aria-label="Summary">
         <div className={styles.stat}>
           <span className={styles.statNumber}>{allContacts.length}</span>
