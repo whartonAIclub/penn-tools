@@ -12,6 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default function TrekFinderPage() {
-  const trips = SAMPLE_TRIPS.map((trip) => ({ ...trip, photo: SAMPLE_PHOTOS[trip.id] ?? null }));
+  const trips = SAMPLE_TRIPS.map((trip) => {
+    const photo = SAMPLE_PHOTOS[trip.id];
+    return photo ? { ...trip, imageUrl: photo.url, imageCredit: `${photo.author}, ${photo.license}` } : trip;
+  });
   return <TripCatalog trips={trips} sample />;
 }

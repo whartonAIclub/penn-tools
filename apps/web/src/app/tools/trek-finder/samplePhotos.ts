@@ -1,7 +1,6 @@
 // Photos for the sample trips, from Wikimedia Commons, resized to 800px wide.
 // Their licenses ask for credit, which each card shows under More details.
 
-import type { TripPhoto } from "@penntools/tool-trek-finder";
 import bayArea from "./images/bay-area.jpg";
 import brazil from "./images/brazil-gip.jpg";
 import europe from "./images/europe-gmc.jpg";
@@ -22,8 +21,18 @@ const BY_SA_2 = { license: "CC BY-SA 2.0", licenseUrl: "https://creativecommons.
 const BY_SA_3 = { license: "CC BY-SA 3.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0" };
 const BY_SA_4 = { license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0" };
 
+/** A sample trip's photo and where it came from. */
+export interface SamplePhoto {
+  url: string;
+  author: string;
+  license: string;
+  licenseUrl: string;
+  /** The page the photo came from. */
+  source: string;
+}
+
 /** Each sample trip's photo, by trip ID. */
-export const SAMPLE_PHOTOS: Record<string, TripPhoto> = {
+export const SAMPLE_PHOTOS: Record<string, SamplePhoto> = {
   "sample-patagonia": {
     url: patagonia.src,
     author: "Pedro Szekely",

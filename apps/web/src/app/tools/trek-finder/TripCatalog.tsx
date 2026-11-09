@@ -107,22 +107,25 @@ function TripCard({ trip }: { trip: Trip }) {
   const [open, setOpen] = useState(false);
   const detailsId = `trip-${trip.id}-details`;
   const days = tripDays(trip.startDate, trip.endDate);
+  // Until the current price stage is worked out from dates, show the last one.
+  const cost = trip.priceStages.at(-1)?.amountUsd ?? null;
+  const deadline = trip.deadlines.find((d) => d.kind === "preliminary") ?? trip.deadlines[0];
 
   return (
     <li className={styles.card}>
       <div className={styles.photo}>
-        {trip.photo && <img src={trip.photo.url} alt="" loading="lazy" />}
-        {trip.credit && <span className={styles.credit}>Course credit</span>}
+        {trip.imageUrl && <img src={trip.imageUrl} alt="" loading="lazy" />}
+        {trip.academicCredit && <span className={styles.credit}>Course credit</span>}
       </div>
 
       <div className={styles.body}>
         <h2 className={styles.cardTitle}>{trip.name}</h2>
-        <p className={styles.country}>{trip.country}</p>
+        <p className={styles.country}>{trip.location}</p>
         <p className={styles.dates}>
           {formatDateRange(trip.startDate, trip.endDate)} ({days} {days === 1 ? "day" : "days"})
         </p>
-        <p className={styles.period}>{trip.period}</p>
-        <p className={styles.cost}>{trip.costUsd === null ? "TBA" : usd.format(trip.costUsd)}</p>
+        {trip.periodLabel && <p className={styles.period}>{trip.periodLabel}</p>}
+        <p className={styles.cost}>{cost === null ? "TBD" : usd.format(cost)}</p>
 
         <button className={styles.toggle} aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
           {open ? "Hide details" : "More details"}
@@ -133,35 +136,20 @@ function TripCard({ trip }: { trip: Trip }) {
             <dl className={styles.facts}>
               <div>
                 <dt>Application deadline</dt>
-                <dd>{trip.applicationDeadline ? formatDate(trip.applicationDeadline) : "No deadline"}</dd>
+                <dd>{deadline ? formatDate(deadline.dueDate) : "No deadline"}</dd>
               </div>
               <div>
                 <dt>Cities</dt>
                 <dd>{trip.cities.join(", ")}</dd>
               </div>
             </dl>
-            <p>{trip.description}</p>
-            {trip.link && (
-              <a className={styles.link} href={trip.link} target="_blank" rel="noreferrer">
+            {trip.description && <p>{trip.description}</p>}
+            {trip.applicationUrl && (
+              <a className={styles.link} href={trip.applicationUrl} target="_blank" rel="noreferrer">
                 More info ↗
               </a>
             )}
-            {trip.photo && (
-              <p className={styles.photoCredit}>
-                Photo:{" "}
-                <a href={trip.photo.source} target="_blank" rel="noreferrer">
-                  {trip.photo.author}
-                </a>
-                {", "}
-                {trip.photo.licenseUrl ? (
-                  <a href={trip.photo.licenseUrl} target="_blank" rel="noreferrer">
-                    {trip.photo.license}
-                  </a>
-                ) : (
-                  trip.photo.license
-                )}
-              </p>
-            )}
+            {trip.imageCredit && <p className={styles.photoCredit}>Photo: {trip.imageCredit}</p>}
           </div>
         )}
       </div>

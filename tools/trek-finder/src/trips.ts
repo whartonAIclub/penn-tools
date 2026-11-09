@@ -1,72 +1,113 @@
 // What a trip is, and the catalog's search and filters. The page passes the
 // trips in, so this works the same for sample data now and the tool's own
-// database later.
+// database later. The shape matches the tables in schema.sql.
 
-export const TRIP_TYPES = [
-  "Club trek",
-  "Global Immersion (GIP)",
-  "Global Modular Course (GMC)",
-  "Career trek",
-  "Other",
-] as const;
+export const TRIP_TYPES = ["GIP", "GMC", "Leadership Venture", "Club/Other Trek"] as const;
 export type TripType = (typeof TRIP_TYPES)[number];
 
 export const REGIONS = [
   "Africa",
   "Asia",
   "Europe",
-  "Latin America",
   "Middle East",
   "North America",
   "Oceania",
+  "South America",
 ] as const;
 export type Region = (typeof REGIONS)[number];
 
+export const TIMINGS = ["break", "opportunity_week", "other"] as const;
+export type Timing = (typeof TIMINGS)[number];
+
+export type AvailabilityStatus = "open" | "limited" | "waitlist" | "full";
+export type DeadlineKind = "preliminary" | "application" | "deposit" | "payment" | "other";
+
+/**
+ * One of a trip's prices. Stages with dates are tiers that change on those
+ * dates; stages without dates are an estimate that firms up, the highest
+ * position being the latest.
+ */
+export interface PriceStage {
+  position: number;
+  label: string;
+  /** Null shows as "TBD". */
+  amountUsd: number | null;
+  certainty: "estimate" | "confirmed";
+  /** ISO date; null means no start bound. */
+  validFrom: string | null;
+  /** ISO date; null means no end bound. */
+  validUntil: string | null;
+  note: string | null;
+}
+
+export interface Deadline {
+  position: number;
+  kind: DeadlineKind;
+  label: string;
+  /** ISO date. */
+  dueDate: string;
+  /** "HH:MM" in America/New_York; null means end of day. */
+  dueTime: string | null;
+}
+
+export interface TripLink {
+  position: number;
+  label: string;
+  url: string;
+}
+
 export interface Trip {
+  /** Permanent slug, e.g. "japan-trek-2027". Saves point to it. */
   id: string;
   name: string;
-  type: TripType;
+  tripType: TripType;
   /** Where it goes, e.g. "Japan" or "Italy & France". */
-  country: string;
+  location: string;
   /** The places it visits, e.g. ["Tokyo", "Kyoto"]. */
   cities: string[];
   region: Region;
   /** ISO dates (YYYY-MM-DD), first and last day of the trip. */
   startDate: string;
   endDate: string;
+  timing: Timing;
   /** The break or term it falls in, e.g. "Spring Break 2027". */
-  period: string;
-  /** The club or academic department running it. */
-  organizer: string;
-  /** Approximate cost per person in USD, or null if not announced. */
-  costUsd: number | null;
-  /** Whether it earns course credit. */
-  credit: boolean;
-  description: string;
-  /** ISO date, or null if there's no deadline. */
-  applicationDeadline: string | null;
-  /** Sign-up or info page, or null. */
-  link: string | null;
-  /** The card's image, or null to show a blank placeholder. */
-  photo: TripPhoto | null;
-}
-
-/** A trip's image and the credit its license asks for. */
-export interface TripPhoto {
-  url: string;
-  author: string;
-  license: string;
-  /** Null for licenses with no page to link to. */
-  licenseUrl: string | null;
-  /** The page the photo came from. */
-  source: string;
+  periodLabel: string | null;
+  academicCredit: boolean;
+  /** e.g. "1.0 CU". */
+  creditNote: string | null;
+  description: string | null;
+  /** What the price covers, shown by the price's info icon. */
+  priceIncludes: string | null;
+  /** The back of the card; null means the card doesn't flip. */
+  destinationBlurb: string | null;
+  itinerary: string | null;
+  /** Null means unknown. */
+  availabilityStatus: AvailabilityStatus | null;
+  spotsTotal: number | null;
+  spotsRemaining: number | null;
+  /** The club or office running it. */
+  organizerName: string;
+  /** A person or role to contact. */
+  organizerContact: string | null;
+  organizerEmail: string | null;
+  applicationUrl: string | null;
+  /** IATA code, for a future flight link or prices. */
+  destinationAirport: string | null;
+  imageUrl: string | null;
+  imageCredit: string | null;
+  /** False once the trip leaves the Sheet. */
+  listed: boolean;
+  priceStages: PriceStage[];
+  deadlines: Deadline[];
+  links: TripLink[];
 }
 
 export interface TripFilters {
-  /** Matches name, country, cities, organizer and description, ignoring case. */
+  /** Matches name, location, cities, organizer and description, ignoring case. */
   query?: string;
   type?: TripType | null;
   region?: Region | null;
+  /** Matches periodLabel. */
   period?: string | null;
 }
 
@@ -74,24 +115,24 @@ export interface TripFilters {
 export function filterTrips(trips: readonly Trip[], filters: TripFilters = {}): Trip[] {
   const query = filters.query?.trim().toLowerCase() ?? "";
   return trips
-    .filter((trip) => !filters.type || trip.type === filters.type)
+    .filter((trip) => !filters.type || trip.tripType === filters.type)
     .filter((trip) => !filters.region || trip.region === filters.region)
-    .filter((trip) => !filters.period || trip.period === filters.period)
+    .filter((trip) => !filters.period || trip.periodLabel === filters.period)
     .filter(
       (trip) =>
         !query ||
-        [trip.name, trip.country, ...trip.cities, trip.organizer, trip.description].some((field) =>
+        [trip.name, trip.location, ...trip.cities, trip.organizerName, trip.description ?? ""].some((field) =>
           field.toLowerCase().includes(query),
         ),
     )
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
 
-/** Each period the trips fall in, once, in date order. */
+/** Each period the trips fall in, once, in date order. Trips without one are skipped. */
 export function listPeriods(trips: readonly Trip[]): string[] {
   const periods: string[] = [];
   for (const trip of [...trips].sort((a, b) => a.startDate.localeCompare(b.startDate))) {
-    if (!periods.includes(trip.period)) periods.push(trip.period);
+    if (trip.periodLabel !== null && !periods.includes(trip.periodLabel)) periods.push(trip.periodLabel);
   }
   return periods;
 }
