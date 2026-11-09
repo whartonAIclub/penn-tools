@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import { listSavedIds, saveTrip, unsaveTrip } from "../db.js";
+import { listImportRuns, listSavedIds, saveTrip, unsaveTrip } from "../db.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -101,5 +101,25 @@ describe.skipIf(!databaseUrl)("Trek Finder saved trips (Postgres)", () => {
     await unsaveTrip(sql, "ivy", "delisted-2027");
     expect(await saveTrip(sql, "ivy", "delisted-2027")).toBe(true);
     expect(await listSavedIds(sql, "ivy")).toEqual(["delisted-2027"]);
+  });
+
+  it("lists import runs newest first, with each run's problems", async () => {
+    expect(await listImportRuns(sql)).toEqual([]);
+
+    const problem = { tab: "Trips", row: 12, tripId: "peru-2027", message: "Start date isn't a date" };
+    await sql`INSERT INTO import_runs (status, trips_loaded) VALUES ('ok', 40)`;
+    await sql`INSERT INTO import_runs (status, trips_loaded, problems) VALUES ('partial', 39, ${sql.json([problem])})`;
+
+    const runs = await listImportRuns(sql);
+    expect(runs.map((run) => run.status)).toEqual(["partial", "ok"]);
+    expect(runs[0]).toMatchObject({ id: expect.any(Number), tripsLoaded: 39, problems: [problem] });
+    expect(runs[1]?.problems).toEqual([]);
+    expect(new Date(runs[0]!.startedAt).toISOString()).toBe(runs[0]!.startedAt);
+  });
+
+  it("stops at the limit, keeping the newest import runs", async () => {
+    for (const status of ["aborted", "failed"]) await sql`INSERT INTO import_runs (status) VALUES (${status})`;
+
+    expect((await listImportRuns(sql, 1)).map((run) => run.status)).toEqual(["failed"]);
   });
 });

@@ -5,3 +5,5 @@ export { SAMPLE_TRIPS } from "./samples.js";
 export { saveTrip } from "./db.js";
 export { unsaveTrip } from "./db.js";
 export { listSavedIds } from "./db.js";
+export { listImportRuns } from "./db.js";
+export type { ImportRun, ImportRunStatus, ImportProblem } from "./db.js";

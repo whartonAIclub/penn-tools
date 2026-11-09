@@ -4,6 +4,42 @@
 
 import type { Sql } from "postgres";
 
+export type ImportRunStatus = "ok" | "partial" | "aborted" | "failed";
+
+/** One thing that went wrong in an import; fields are null when they don't apply. */
+export interface ImportProblem {
+  tab: string | null;
+  row: number | null;
+  tripId: string | null;
+  message: string;
+}
+
+export interface ImportRun {
+  id: number;
+  /** ISO timestamp of when the import started. */
+  startedAt: string;
+  status: ImportRunStatus;
+  tripsLoaded: number;
+  problems: ImportProblem[];
+}
+
+/** The most recent Sheet imports, newest first. */
+export async function listImportRuns(sql: Sql, limit = 20): Promise<ImportRun[]> {
+  // ::int because Postgres BIGINTs otherwise arrive as strings.
+  const rows = await sql<{ id: number; started_at: Date; status: ImportRunStatus; trips_loaded: number; problems: ImportProblem[] }[]>`
+    SELECT id::int AS id, started_at, status, trips_loaded, problems FROM import_runs
+    ORDER BY import_runs.id DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((row) => ({
+    id: row.id,
+    startedAt: row.started_at.toISOString(),
+    status: row.status,
+    tripsLoaded: row.trips_loaded,
+    problems: row.problems,
+  }));
+}
+
 /**
  * Saves a trip for the user; saving one they already have changes nothing.
  * Returns false, saving nothing, if no trip has that id. Trips that are no
