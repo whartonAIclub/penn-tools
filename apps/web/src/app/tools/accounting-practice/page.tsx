@@ -1,28 +1,31 @@
 // Accounting Practice: pick a topic, answer five questions with feedback after
 // each, then see what to review. The game runs in the browser (Practice.tsx);
-// this server page decides which questions it may show.
+// this server page decides which questions it may show. Anyone can play;
+// signed-in students' rounds are linked to their PennTools account.
 
 import type { Metadata } from "next";
 import { TOPICS, playableTopics } from "@penntools/tool-accounting-practice";
-import type { GameMode } from "@penntools/tool-accounting-practice";
+import { getCurrentUser } from "@/lib/auth";
+import { MODE } from "./mode";
 import { Practice } from "./Practice";
 
 export const metadata: Metadata = {
   title: "Accounting Practice",
 };
 
-// `pnpm dev` on a team member's computer runs in development: a preview that
-// includes questions still awaiting review. The deployed site, and any team
-// test instance, run in production, where only verified questions are shown.
-// The filtering happens here, on the server, so unverified questions are never
-// sent to a live visitor's browser.
-const MODE: GameMode = process.env["NODE_ENV"] === "development" ? "preview" : "live";
-
-export default function AccountingPracticePage() {
+export default async function AccountingPracticePage() {
+  // The filtering happens here, on the server, so unverified questions are
+  // never sent to a live visitor's browser (see mode.ts).
   const topics = playableTopics(TOPICS, MODE);
   const pendingCount = topics
     .flatMap((topic) => topic.questions)
     .filter((question) => question.review.status !== "verified").length;
 
-  return <Practice topics={topics} pendingCount={pendingCount} />;
+  // Signing in is optional; if it can't be checked, play as signed out.
+  const signedIn = await getCurrentUser().then(
+    (user) => user !== null,
+    () => false,
+  );
+
+  return <Practice topics={topics} pendingCount={pendingCount} signedIn={signedIn} />;
 }

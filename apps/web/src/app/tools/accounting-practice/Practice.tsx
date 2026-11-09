@@ -2,7 +2,8 @@
 
 // The practice game: topic list → five questions, one at a time, with
 // feedback after each → results. Questions come from the tool's question bank
-// via page.tsx; nothing is saved, so reloading the page starts over.
+// via page.tsx. Rounds are saved in the background (actions.ts); the game
+// never waits on saving, and a failed save only means the round isn't recorded.
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -14,6 +15,7 @@ import {
   startSession,
 } from "@penntools/tool-accounting-practice";
 import type { Choice, Effects, JournalLine, Question, Topic } from "@penntools/tool-accounting-practice";
+import { finishRound, startRound, submitAnswer } from "./actions";
 import styles from "./Practice.module.css";
 
 interface Props {
@@ -21,6 +23,19 @@ interface Props {
   topics: Topic[];
   /** Questions awaiting review included in this preview; always 0 on the live site. */
   pendingCount: number;
+  signedIn: boolean;
+}
+
+/** Whether the round just finished was saved, as the results screen tells the student. */
+type SaveStatus = "saving" | "saved" | "failed" | "not-saved";
+
+/** The current round's saving, kept outside React state so background saves can't race a new round. */
+interface Round {
+  /** Increases with every round, so a late save from an old round is ignored. */
+  number: number;
+  sessionId: string | null;
+  signedIn: boolean;
+  answerSaves: Promise<boolean>[];
 }
 
 type Screen =
@@ -43,19 +58,70 @@ const EFFECT_COLUMNS: { key: keyof Effects; label: string }[] = [
   { key: "operatingCashFlow", label: "Op. cash flow" },
 ];
 
-export function Practice({ topics, pendingCount }: Props) {
+export function Practice({ topics, pendingCount, signedIn }: Props) {
   const [screen, setScreen] = useState<Screen>({ kind: "topics" });
+  const [starting, setStarting] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("not-saved");
+  const round = useRef<Round>({ number: 0, sessionId: null, signedIn, answerSaves: [] });
 
-  function start(topic: Topic) {
+  async function start(topic: Topic) {
+    setStarting(topic.id);
+    const number = round.current.number + 1;
+
+    // The server draws the questions and records the round. If that fails,
+    // draw them here and play without saving.
+    let questions: Question[] | null = null;
+    let sessionId: string | null = null;
+    let roundSignedIn = signedIn;
+    try {
+      const started = await startRound(topic.id);
+      if (started) {
+        const byId = new Map(topic.questions.map((q) => [q.id, q]));
+        const drawn = started.questionIds.map((id) => byId.get(id));
+        if (drawn.length > 0 && drawn.every((q): q is Question => q !== undefined)) {
+          questions = drawn;
+          sessionId = started.sessionId;
+          roundSignedIn = started.signedIn;
+        }
+      }
+    } catch {
+      // Network or server error: play on without saving.
+    }
+
+    round.current = { number, sessionId, signedIn: roundSignedIn, answerSaves: [] };
+    setSaveStatus("not-saved");
+    setStarting(null);
     setScreen({
       kind: "question",
       topic,
-      questions: startSession(topic.questions),
+      questions: questions ?? startSession(topic.questions),
       index: 0,
       selected: null,
       checked: false,
       answers: {},
     });
+  }
+
+  function saveAnswer(questionId: string, chosen: string) {
+    const { sessionId } = round.current;
+    if (sessionId === null) return;
+    round.current.answerSaves.push(submitAnswer(sessionId, questionId, chosen).catch(() => false));
+  }
+
+  async function saveCompletion() {
+    const { number, sessionId, answerSaves } = round.current;
+    if (sessionId === null) {
+      setSaveStatus(round.current.signedIn ? "failed" : "not-saved");
+      return;
+    }
+    setSaveStatus("saving");
+    let saved = false;
+    try {
+      saved = (await Promise.all(answerSaves)).every(Boolean) && (await finishRound(sessionId));
+    } catch {
+      saved = false;
+    }
+    if (round.current.number === number) setSaveStatus(saved ? "saved" : "failed");
   }
 
   return (
@@ -67,16 +133,19 @@ export function Practice({ topics, pendingCount }: Props) {
         </p>
       )}
 
-      {screen.kind === "topics" && <TopicList topics={topics} onStart={start} />}
+      {screen.kind === "topics" && (
+        <TopicList topics={topics} signedIn={signedIn} starting={starting} onStart={(topic) => void start(topic)} />
+      )}
 
       {screen.kind === "question" && (
         <QuestionScreen
-          key={`${screen.topic.id}-${screen.index}-${screen.questions[0]?.id}`}
+          key={`${round.current.number}-${screen.index}`}
           screen={screen}
           onSelect={(label) => setScreen({ ...screen, selected: label })}
           onCheck={() => {
             const question = screen.questions[screen.index];
             if (!question || screen.selected === null) return;
+            saveAnswer(question.id, screen.selected);
             setScreen({
               ...screen,
               checked: true,
@@ -88,6 +157,7 @@ export function Practice({ topics, pendingCount }: Props) {
               setScreen({ ...screen, index: screen.index + 1, selected: null, checked: false });
             } else {
               setScreen({ kind: "results", topic: screen.topic, questions: screen.questions, answers: screen.answers });
+              void saveCompletion();
             }
           }}
         />
@@ -98,7 +168,10 @@ export function Practice({ topics, pendingCount }: Props) {
           topic={screen.topic}
           questions={screen.questions}
           answers={screen.answers}
-          onAgain={() => start(screen.topic)}
+          saveStatus={saveStatus}
+          signedIn={round.current.signedIn}
+          starting={starting !== null}
+          onAgain={() => void start(screen.topic)}
           onTopics={() => setScreen({ kind: "topics" })}
         />
       )}
@@ -108,7 +181,17 @@ export function Practice({ topics, pendingCount }: Props) {
 
 // ── Topic list ──────────────────────────────────────────────────────────────
 
-function TopicList({ topics, onStart }: { topics: Topic[]; onStart: (topic: Topic) => void }) {
+function TopicList({
+  topics,
+  signedIn,
+  starting,
+  onStart,
+}: {
+  topics: Topic[];
+  signedIn: boolean;
+  starting: string | null;
+  onStart: (topic: Topic) => void;
+}) {
   return (
     <>
       <div className={styles.intro}>
@@ -131,15 +214,33 @@ function TopicList({ topics, onStart }: { topics: Topic[]; onStart: (topic: Topi
               <p className={styles.muted}>{topic.description}</p>
               <div className={styles.cardFooter}>
                 <span className={styles.meta}>5 questions · about 5 minutes</span>
-                <button type="button" className={styles.primary} onClick={() => onStart(topic)}>
-                  Start <span aria-hidden="true">→</span>
-                  <span className={styles.srOnly}> {topic.title}</span>
+                <button
+                  type="button"
+                  className={styles.primary}
+                  disabled={starting !== null}
+                  onClick={() => onStart(topic)}
+                >
+                  {starting === topic.id ? (
+                    "Starting…"
+                  ) : (
+                    <>
+                      Start <span aria-hidden="true">→</span>
+                      <span className={styles.srOnly}> {topic.title}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      <p className={styles.privacy}>
+        We record which answers are chosen, to improve this tool. We never store your name or email.{" "}
+        {signedIn
+          ? "Your rounds are linked to your PennTools account."
+          : "Sign in (top right) to have your rounds saved to your account. It's optional."}
+      </p>
     </>
   );
 }
@@ -396,12 +497,18 @@ function Results({
   topic,
   questions,
   answers,
+  saveStatus,
+  signedIn,
+  starting,
   onAgain,
   onTopics,
 }: {
   topic: Topic;
   questions: Question[];
   answers: Record<string, string>;
+  saveStatus: SaveStatus;
+  signedIn: boolean;
+  starting: boolean;
   onAgain: () => void;
   onTopics: () => void;
 }) {
@@ -424,6 +531,7 @@ function Results({
           You got {result.score} of {result.total} right
         </h1>
         <p className={styles.muted}>{message}</p>
+        <SaveNote status={saveStatus} signedIn={signedIn} />
       </div>
 
       {result.conceptsToReview.length > 0 && (
@@ -441,8 +549,8 @@ function Results({
       )}
 
       <div className={styles.actionsSpread}>
-        <button type="button" className={styles.primary} onClick={onAgain}>
-          Practice again
+        <button type="button" className={styles.primary} onClick={onAgain} disabled={starting}>
+          {starting ? "Starting…" : "Practice again"}
         </button>
         <button type="button" className={styles.secondary} onClick={onTopics}>
           Choose another topic
@@ -484,6 +592,31 @@ function Results({
         </ol>
       </div>
     </section>
+  );
+}
+
+/**
+ * Tells the student, truthfully, whether this round was saved. Signed-out
+ * rounds are never described as saved to an account.
+ */
+function SaveNote({ status, signedIn }: { status: SaveStatus; signedIn: boolean }) {
+  if (!signedIn) {
+    return (
+      <p className={styles.saveNote}>
+        This round isn&apos;t linked to an account. Sign in (top right) to have your rounds saved.
+      </p>
+    );
+  }
+  const text =
+    status === "saving"
+      ? "Saving this round…"
+      : status === "saved"
+        ? "✓ Saved to your PennTools account."
+        : "We couldn't save this round. Your score above is still correct.";
+  return (
+    <p className={styles.saveNote} role="status">
+      {text}
+    </p>
   );
 }
 

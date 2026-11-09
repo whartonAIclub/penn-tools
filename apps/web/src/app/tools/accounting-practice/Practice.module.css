@@ -572,3 +572,17 @@
 .reviewExplain {
   margin-bottom: 10px;
 }
+
+/* ── Saving and privacy notes ──────────────────────────────────────────────── */
+
+.saveNote {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: var(--section-label);
+}
+
+.privacy {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
