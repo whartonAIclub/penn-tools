@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import {
   REGIONS,
   TRIP_TYPES,
+  currentPriceStage,
   filterTrips,
   formatDate,
   formatDateRange,
@@ -20,7 +21,8 @@ import styles from "./TripCatalog.module.css";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-export function TripCatalog({ trips, sample = false }: { trips: Trip[]; sample?: boolean }) {
+// today comes from the server (todayInNewYork), so the server and browser agree on the date.
+export function TripCatalog({ trips, today, sample = false }: { trips: Trip[]; today: string; sample?: boolean }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<TripType | "">("");
   const [region, setRegion] = useState<Region | "">("");
@@ -95,7 +97,7 @@ export function TripCatalog({ trips, sample = false }: { trips: Trip[]; sample?:
       ) : (
         <ul className={styles.grid}>
           {shown.map((trip) => (
-            <TripCard key={trip.id} trip={trip} />
+            <TripCard key={trip.id} trip={trip} today={today} />
           ))}
         </ul>
       )}
@@ -103,12 +105,11 @@ export function TripCatalog({ trips, sample = false }: { trips: Trip[]; sample?:
   );
 }
 
-function TripCard({ trip }: { trip: Trip }) {
+function TripCard({ trip, today }: { trip: Trip; today: string }) {
   const [open, setOpen] = useState(false);
   const detailsId = `trip-${trip.id}-details`;
   const days = tripDays(trip.startDate, trip.endDate);
-  // Until the current price stage is worked out from dates, show the last one.
-  const cost = trip.priceStages.at(-1)?.amountUsd ?? null;
+  const cost = currentPriceStage(trip.priceStages, today)?.amountUsd ?? null;
   const deadline = trip.deadlines.find((d) => d.kind === "preliminary") ?? trip.deadlines[0];
 
   return (

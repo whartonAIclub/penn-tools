@@ -3,7 +3,7 @@
 // Browsing doesn't need sign-in.
 
 import type { Metadata } from "next";
-import { SAMPLE_TRIPS } from "@penntools/tool-trek-finder";
+import { SAMPLE_TRIPS, todayInNewYork } from "@penntools/tool-trek-finder";
 import { SAMPLE_PHOTOS } from "./samplePhotos";
 import { TripCatalog } from "./TripCatalog";
 
@@ -16,5 +16,5 @@ export default function TrekFinderPage() {
     const photo = SAMPLE_PHOTOS[trip.id];
     return photo ? { ...trip, imageUrl: photo.url, imageCredit: `${photo.author}, ${photo.license}` } : trip;
   });
-  return <TripCatalog trips={trips} sample />;
+  return <TripCatalog trips={trips} today={todayInNewYork()} sample />;
 }
