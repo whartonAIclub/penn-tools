@@ -19,10 +19,16 @@
   line-height: 1.6;
 }
 
-.section {
-  margin: 12px 0 0;
-  font-size: 1rem;
+.back {
+  align-self: flex-start;
+  color: var(--penn-blue);
+  font-size: 0.875rem;
   font-weight: 600;
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
 }
 
 /* ── Form ──────────────────────────────────────────────────────────────────── */
@@ -132,65 +138,14 @@
   font-size: 0.875rem;
 }
 
-/* ── Contact list ──────────────────────────────────────────────────────────── */
-
-.contact {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 0.875rem;
-}
-
-.summary {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  cursor: pointer;
-}
-
-.due { color: var(--section-label); white-space: nowrap; }
-.overdue { color: #b91c1c; font-weight: 600; white-space: nowrap; }
-
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0 14px 14px;
-}
-
-.list {
-  margin: 0;
-  padding-left: 20px;
-}
-
 .check {
   display: flex;
   gap: 8px;
   align-items: flex-start;
 }
-.done { text-decoration: line-through; color: var(--section-label); }
 
 .checks {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 20px;
-}
-
-.offers {
-  color: var(--penn-blue);
-  font-weight: 600;
-}
-
-.notes {
-  white-space: pre-wrap;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #f9fafb;
-  color: var(--section-label);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
 }
