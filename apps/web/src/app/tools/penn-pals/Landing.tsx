@@ -1,16 +1,18 @@
 "use client";
 
-// Two lanes: follow-ups the student owes (left) and everyone they've talked to
-// (right). Clicking a person narrows the follow-ups to them. Contacts are the
-// ones the intake saved in this browser (the tracker page's storage), or sample
-// data until there are any. Follow-ups come from followUpsFor(), so marking a
-// follow-up done saves it and schedules the next one a month later.
+// Follow-ups due today on top, then two lanes: the rest of the follow-ups
+// (left) and everyone the student has talked to (right), with a count of
+// thank-yous and follow-ups at the bottom. Clicking a person opens their card.
+// Contacts are the ones the intake saved in this browser (the tracker page's
+// storage), or sample data until there are any. Follow-ups come from
+// followUpsFor(), so marking one done saves it and schedules the next.
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   bestAdvice,
   CONTACTS_STORAGE_KEY,
+  countByKind,
   daysFrom,
   followUpStatus,
   followUpsFor,
@@ -21,9 +23,9 @@ import {
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
 import styles from "./Landing.module.css";
 
-const GROUPS: { status: FollowUpStatus; label: string }[] = [
+// Today's follow-ups have their own section above the lanes.
+const GROUPS: { status: Exclude<FollowUpStatus, "today">; label: string }[] = [
   { status: "overdue", label: "Overdue" },
-  { status: "today", label: "Due today" },
   { status: "thisWeek", label: "This week" },
   { status: "later", label: "Later" },
 ];
@@ -52,14 +54,163 @@ function initials(name: string): string {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
 }
 
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+function FollowUpRow({
+  followUp,
+  contact,
+  today,
+  onDone,
+  onOpen,
+}: {
+  followUp: FollowUp;
+  contact: Contact | undefined;
+  today: Date;
+  onDone: (f: FollowUp) => void;
+  onOpen?: (contactId: string) => void;
+}) {
+  const days = daysFrom(today, followUp.due);
+  return (
+    <li className={`${styles.followUp} ${KINDS[followUp.kind].card}`}>
+      <input
+        type="checkbox"
+        className={styles.check}
+        aria-label={`Mark done: ${followUp.action}`}
+        checked={false}
+        onChange={() => onDone(followUp)}
+      />
+      <div className={styles.followUpBody}>
+        {onOpen ? (
+          <button type="button" className={styles.actionLink} onClick={() => onOpen(followUp.contactId)}>
+            {followUp.action}
+          </button>
+        ) : (
+          <p className={styles.action}>{followUp.action}</p>
+        )}
+        {contact?.company && <p className={styles.meta}>{contact.company}</p>}
+      </div>
+      <span className={`${styles.due} ${days < 0 ? styles.dueOverdue : days === 0 ? styles.dueToday : ""}`}>
+        {dueLabel(days)}
+      </span>
+    </li>
+  );
+}
+
+function PersonCard({
+  contact,
+  followUps,
+  today,
+  onDone,
+  onClose,
+}: {
+  contact: Contact;
+  followUps: FollowUp[];
+  today: Date;
+  onDone: (f: FollowUp) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const advice = bestAdvice(contact);
+  const otherTakeaways = contact.takeaways.slice(1);
+  const links = [
+    contact.email && { label: contact.email, href: `mailto:${contact.email}` },
+    contact.linkedin && {
+      label: "LinkedIn",
+      href: contact.linkedin.startsWith("http") ? contact.linkedin : `https://${contact.linkedin}`,
+    },
+    contact.phone && { label: contact.phone, href: `tel:${contact.phone}` },
+  ].filter((link): link is { label: string; href: string } => Boolean(link));
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="person-card-name"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" className={styles.close} aria-label="Close" onClick={onClose} autoFocus>
+          ✕
+        </button>
+
+        <div className={styles.cardHeader}>
+          <span className={`${styles.avatar} ${styles.avatarLarge}`} aria-hidden>
+            {initials(contact.name)}
+          </span>
+          <div>
+            <h2 id="person-card-name" className={styles.cardName}>
+              {contact.name} {contact.classYear && <span className={styles.classYear}>{contact.classYear}</span>}
+            </h2>
+            {(contact.role || contact.company) && (
+              <p className={styles.meta}>{[contact.role, contact.company].filter(Boolean).join(" · ")}</p>
+            )}
+            <p className={styles.meta}>
+              {chatLabel(daysFrom(today, contact.meetingDate))} · {contact.meetingDate}
+            </p>
+          </div>
+        </div>
+
+        {advice && (
+          <div className={styles.advice}>
+            <h3 className={styles.groupLabel}>Best advice</h3>
+            <p className={styles.adviceText}>{advice}</p>
+          </div>
+        )}
+
+        {otherTakeaways.length > 0 && (
+          <div className={styles.group}>
+            <h3 className={styles.groupLabel}>Other takeaways</h3>
+            <ul className={styles.takeaways}>
+              {otherTakeaways.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className={styles.group}>
+          <h3 className={styles.groupLabel}>Next steps</h3>
+          {followUps.length === 0 ? (
+            <p className={styles.empty}>Nothing owed right now.</p>
+          ) : (
+            <ul className={styles.list}>
+              {followUps.map((f) => (
+                <FollowUpRow key={f.id} followUp={f} contact={undefined} today={today} onDone={onDone} />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {links.length > 0 && (
+          <div className={styles.links}>
+            {links.map((link) => (
+              <a key={link.href} href={link.href} className={styles.chip} target="_blank" rel="noreferrer">
+                {link.label}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Landing({ today: todayIso }: { today: string }) {
   const [y, m, d] = todayIso.split("-").map(Number);
   const today = new Date(y!, m! - 1, d!);
 
   // null until the browser's saved contacts are read, so the page doesn't flash sample data.
   const [saved, setSaved] = useState<Contact[] | null>(null);
-  const [doneCount, setDoneCount] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [sample, setSample] = useState(() => sampleNetwork(todayIso));
+  const [opened, setOpened] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -70,22 +221,25 @@ export function Landing({ today: todayIso }: { today: string }) {
     }
   }, []);
 
-  const [sample, setSample] = useState(() => sampleNetwork(todayIso));
   const isSample = saved !== null && saved.length === 0;
   const allContacts = isSample ? sample : (saved ?? []);
 
   const contactsById = useMemo(() => new Map(allContacts.map((c) => [c.id, c])), [allContacts]);
-  const allFollowUps = useMemo(() => allContacts.flatMap(followUpsFor), [allContacts]);
+  const followUps = useMemo(
+    () => allContacts.flatMap(followUpsFor).sort((a, b) => a.due.localeCompare(b.due)),
+    [allContacts],
+  );
+
+  if (!saved) return <p className={styles.empty}>Loading…</p>;
+
+  const dueToday = followUps.filter((f) => followUpStatus(today, f.due) === "today");
+  const totals = countByKind(followUps);
 
   const openCount = (contactId: string) =>
-    allFollowUps.filter((f) => f.contactId === contactId && followUpStatus(today, f.due) !== "later").length;
-
-  const followUps = allFollowUps
-    .filter((f) => !selected || f.contactId === selected)
-    .sort((a, b) => a.due.localeCompare(b.due));
+    followUps.filter((f) => f.contactId === contactId && followUpStatus(today, f.due) !== "later").length;
 
   const q = query.trim().toLowerCase();
-  const contacts = allContacts
+  const people = allContacts
     .filter((c) => !q || `${c.name} ${c.company ?? ""} ${c.role ?? ""}`.toLowerCase().includes(q))
     .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 
@@ -93,20 +247,27 @@ export function Landing({ today: todayIso }: { today: string }) {
     const next = allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c));
     if (isSample) {
       setSample(next); // sample data isn't saved
-    } else {
-      setSaved(next);
-      try {
-        localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Storage full or blocked: keep working in memory.
-      }
+      return;
     }
-    setDoneCount((n) => n + 1);
+    setSaved(next);
+    try {
+      localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Storage full or blocked: keep working in memory.
+    }
   };
 
-  if (!saved) return <p className={styles.empty}>Loading…</p>;
-
-  const selectedContact: Contact | undefined = selected ? contactsById.get(selected) : undefined;
+  const openedContact = opened ? contactsById.get(opened) : undefined;
+  const row = (f: FollowUp) => (
+    <FollowUpRow
+      key={f.id}
+      followUp={f}
+      contact={contactsById.get(f.contactId)}
+      today={today}
+      onDone={markDone}
+      onOpen={setOpened}
+    />
+  );
 
   return (
     <div className={styles.page}>
@@ -126,19 +287,11 @@ export function Landing({ today: todayIso }: { today: string }) {
         </nav>
       </header>
 
-      <div className={styles.lanes}>
-        <section className={styles.lane} aria-labelledby="followups-title">
-          <div className={styles.laneHeader}>
-            <h2 id="followups-title" className={styles.laneTitle}>
-              Follow-ups <span className={styles.count}>{followUps.length}</span>
-            </h2>
-            {selectedContact && (
-              <button type="button" className={styles.chip} onClick={() => setSelected(null)}>
-                {selectedContact.name} ✕
-              </button>
-            )}
-          </div>
-
+      <section className={`${styles.lane} ${styles.today}`} aria-labelledby="today-title">
+        <div className={styles.laneHeader}>
+          <h2 id="today-title" className={styles.laneTitle}>
+            Due today <span className={styles.count}>{dueToday.length}</span>
+          </h2>
           <div className={styles.legend}>
             {Object.values(KINDS).map((k) => (
               <span key={k.label} className={`${styles.tag} ${k.tag}`}>
@@ -146,9 +299,23 @@ export function Landing({ today: todayIso }: { today: string }) {
               </span>
             ))}
           </div>
+        </div>
+        {dueToday.length === 0 ? (
+          <p className={styles.empty}>Nothing due today.</p>
+        ) : (
+          <ul className={styles.list}>{dueToday.map(row)}</ul>
+        )}
+      </section>
 
-          {followUps.length === 0 ? (
-            <p className={styles.empty}>All caught up. 🎉</p>
+      <div className={styles.lanes}>
+        <section className={styles.lane} aria-labelledby="followups-title">
+          <div className={styles.laneHeader}>
+            <h2 id="followups-title" className={styles.laneTitle}>
+              Coming up <span className={styles.count}>{followUps.length - dueToday.length}</span>
+            </h2>
+          </div>
+          {followUps.length === dueToday.length ? (
+            <p className={styles.empty}>Nothing else owed. 🎉</p>
           ) : (
             GROUPS.map(({ status, label }) => {
               const items = followUps.filter((f) => followUpStatus(today, f.due) === status);
@@ -156,38 +323,11 @@ export function Landing({ today: todayIso }: { today: string }) {
               return (
                 <div key={status} className={styles.group}>
                   <h3 className={`${styles.groupLabel} ${status === "overdue" ? styles.overdueLabel : ""}`}>{label}</h3>
-                  <ul className={styles.list}>
-                    {items.map((f) => {
-                      const contact = contactsById.get(f.contactId);
-                      const days = daysFrom(today, f.due);
-                      return (
-                        <li key={f.id} className={`${styles.followUp} ${KINDS[f.kind].card}`}>
-                          <input
-                            type="checkbox"
-                            className={styles.check}
-                            aria-label={`Mark done: ${f.action}`}
-                            checked={false}
-                            onChange={() => markDone(f)}
-                          />
-                          <div className={styles.followUpBody}>
-                            <p className={styles.action}>{f.action}</p>
-                            <p className={styles.meta}>
-                              <span className={`${styles.tag} ${KINDS[f.kind].tag}`}>{KINDS[f.kind].label}</span>{" "}
-                              {[contact?.name, contact?.company].filter(Boolean).join(" · ")}
-                            </p>
-                          </div>
-                          <span className={`${styles.due} ${days < 0 ? styles.dueOverdue : days === 0 ? styles.dueToday : ""}`}>
-                            {dueLabel(days)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <ul className={styles.list}>{items.map(row)}</ul>
                 </div>
               );
             })
           )}
-          {doneCount > 0 && <p className={styles.doneNote}>{doneCount} done this session</p>}
         </section>
 
         <section className={styles.lane} aria-labelledby="people-title">
@@ -203,21 +343,15 @@ export function Landing({ today: todayIso }: { today: string }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {contacts.length === 0 ? (
+          {people.length === 0 ? (
             <p className={styles.empty}>No one matches &ldquo;{query}&rdquo;.</p>
           ) : (
             <ul className={styles.list}>
-              {contacts.map((c) => {
+              {people.map((c) => {
                 const open = openCount(c.id);
-                const isSelected = selected === c.id;
                 return (
                   <li key={c.id}>
-                    <button
-                      type="button"
-                      className={`${styles.person} ${isSelected ? styles.personSelected : ""}`}
-                      aria-pressed={isSelected}
-                      onClick={() => setSelected(isSelected ? null : c.id)}
-                    >
+                    <button type="button" className={styles.person} onClick={() => setOpened(c.id)}>
                       <span className={styles.avatar} aria-hidden>
                         {initials(c.name)}
                       </span>
@@ -228,15 +362,10 @@ export function Landing({ today: todayIso }: { today: string }) {
                         {(c.role || c.company) && (
                           <span className={styles.meta}>{[c.role, c.company].filter(Boolean).join(" · ")}</span>
                         )}
-                        {bestAdvice(c) && <span className={styles.note}>Best advice: {bestAdvice(c)}</span>}
                       </span>
                       <span className={styles.personSide}>
                         <span className={styles.meta}>{chatLabel(daysFrom(today, c.meetingDate))}</span>
-                        {open > 0 && (
-                          <span className={styles.badge}>
-                            {open} follow-up{open > 1 ? "s" : ""}
-                          </span>
-                        )}
+                        {open > 0 && <span className={styles.badge}>{plural(open, "follow-up", "follow-ups")}</span>}
                       </span>
                     </button>
                   </li>
@@ -246,6 +375,27 @@ export function Landing({ today: todayIso }: { today: string }) {
           )}
         </section>
       </div>
+
+      <p className={styles.summary}>
+        {totals.thankYou + totals.followUp === 0 ? (
+          "You're all caught up."
+        ) : (
+          <>
+            You have <strong className={styles.summaryThankYou}>{plural(totals.thankYou, "thank-you note", "thank-you notes")}</strong>{" "}
+            and <strong className={styles.summaryFollowUp}>{plural(totals.followUp, "follow-up", "follow-ups")}</strong> to send.
+          </>
+        )}
+      </p>
+
+      {openedContact && (
+        <PersonCard
+          contact={openedContact}
+          followUps={followUps.filter((f) => f.contactId === openedContact.id)}
+          today={today}
+          onDone={markDone}
+          onClose={() => setOpened(null)}
+        />
+      )}
     </div>
   );
 }

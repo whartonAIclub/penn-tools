@@ -35,6 +35,7 @@ export {
 export {
   bestAdvice,
   CONTACTS_STORAGE_KEY,
+  countByKind,
   daysFrom,
   FOLLOW_UP_MONTHS,
   followUpStatus,

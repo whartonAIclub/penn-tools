@@ -71,21 +71,22 @@ function kindOf(step: NextStep): FollowUpKind | null {
   return null;
 }
 
+/** Open follow-ups of each kind, for the page's summary. */
+export function countByKind(followUps: FollowUp[]): Record<FollowUpKind, number> {
+  return {
+    thankYou: followUps.filter((f) => f.kind === "thankYou").length,
+    followUp: followUps.filter((f) => f.kind === "followUp").length,
+  };
+}
+
 /** The student's open thank-you and follow-up steps for this contact, dated by the workshop rules when the intake didn't. */
 export function followUpsFor(contact: Contact): FollowUp[] {
   const firstName = contact.name.split(" ")[0];
-  const advice = bestAdvice(contact);
   return contact.nextSteps.flatMap((step, stepIndex) => {
     const kind = kindOf(step);
     if (!kind || step.done || step.owner !== "me") return [];
-    const action =
-      kind === "thankYou"
-        ? advice
-          ? `Thank ${firstName} and highlight their best advice: "${advice}"`
-          : `Thank ${firstName} and highlight their best advice`
-        : advice
-          ? `Follow up with ${firstName}: how acting on "${advice}" helped, plus a new question`
-          : `Follow up with ${firstName}: what you've done since, plus a new question`;
+    // Kept short for the to-do list; the contact's card shows the advice to mention.
+    const action = kind === "thankYou" ? `Thank ${firstName}` : `Follow up with ${firstName}`;
     const due =
       step.dueDate ??
       (kind === "thankYou" ? addDays(contact.meetingDate, THANK_YOU_DAYS) : addMonths(contact.meetingDate, FOLLOW_UP_MONTHS));

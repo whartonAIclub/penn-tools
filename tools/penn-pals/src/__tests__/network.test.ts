@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestAdvice, followUpStatus, followUpsFor, markFollowUpDone } from "../network.js";
+import { bestAdvice, countByKind, followUpStatus, followUpsFor, markFollowUpDone } from "../network.js";
 import type { Contact } from "../contacts.js";
 
 const contact: Contact = {
@@ -39,7 +39,7 @@ describe("followUpsFor", () => {
   it("dates a thank-you the day after the call and a follow-up a month later, clamped to the month's end", () => {
     const [thankYou, followUp] = followUpsFor(contact);
     expect(thankYou).toMatchObject({ kind: "thankYou", due: "2026-02-01" });
-    expect(thankYou!.action).toContain("Lead with one metric");
+    expect(thankYou!.action).toBe("Thank Priya");
     expect(followUp).toMatchObject({ kind: "followUp", due: "2026-02-28" });
   });
 
@@ -59,6 +59,12 @@ describe("followUpsFor", () => {
   it("only gives the steps the intake chose", () => {
     const steps = [{ action: "Send a thank-you email", owner: "me" as const, dueDate: null, done: false }];
     expect(followUpsFor({ ...contact, nextSteps: steps }).map((f) => f.kind)).toEqual(["thankYou"]);
+  });
+});
+
+describe("countByKind", () => {
+  it("counts open thank-yous and follow-ups", () => {
+    expect(countByKind(followUpsFor(contact))).toEqual({ thankYou: 1, followUp: 1 });
   });
 });
 

@@ -66,6 +66,16 @@
 
 /* ── Lanes ─────────────────────────────────────────────────────────────────── */
 
+/* Due today: the one section to act on now */
+.today {
+  border-color: var(--today);
+  background: var(--today-bg);
+}
+
+.today .followUp {
+  background: var(--bg);
+}
+
 .lanes {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -118,7 +128,7 @@
   color: var(--penn-blue);
   font: inherit;
   font-size: 0.8rem;
-  cursor: pointer;
+  text-decoration: none;
 }
 
 .group {
@@ -219,10 +229,26 @@
   min-width: 0;
 }
 
-.action {
+.action,
+.actionLink {
   margin: 0 0 2px;
   font-size: 0.9rem;
+  font-weight: 600;
   color: var(--text);
+}
+
+.actionLink {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.actionLink:hover {
+  color: var(--penn-blue);
+  text-decoration: underline;
 }
 
 .followUpBody .meta {
@@ -281,12 +307,6 @@
   background: var(--sidebar-bg);
 }
 
-.personSelected,
-.personSelected:hover {
-  border-color: var(--penn-blue);
-  background: var(--penn-blue-bg);
-}
-
 .avatar {
   display: flex;
   align-items: center;
@@ -320,12 +340,6 @@
   font-weight: 500;
 }
 
-.note {
-  margin-top: 2px;
-  font-size: 0.8rem;
-  color: var(--text);
-}
-
 .personSide {
   display: flex;
   flex-direction: column;
@@ -342,4 +356,120 @@
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* ── Summary ───────────────────────────────────────────────────────────────── */
+
+.summary {
+  margin: 0;
+  padding: 14px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.summaryThankYou {
+  color: var(--thank-you);
+}
+
+.summaryFollowUp {
+  color: var(--meeting);
+}
+
+/* ── Person card (pop-up) ──────────────────────────────────────────────────── */
+
+/* position: fixed covers the tool's page area, beside the sidebar and under the header */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.2);
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--nav-hover);
+  color: var(--section-label);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 36px;
+}
+
+.cardHeader .meta {
+  margin: 2px 0 0;
+}
+
+.avatarLarge {
+  width: 52px;
+  height: 52px;
+  font-size: 1rem;
+}
+
+.cardName {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.advice {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--penn-blue-bg);
+}
+
+.advice .groupLabel {
+  margin: 0 0 4px;
+}
+
+.adviceText {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.takeaways {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
