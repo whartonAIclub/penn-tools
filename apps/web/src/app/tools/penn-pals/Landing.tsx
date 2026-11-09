@@ -10,7 +10,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  bestAdvice,
   CONTACTS_STORAGE_KEY,
   countByKind,
   daysFrom,
@@ -117,8 +116,6 @@ function PersonCard({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const advice = bestAdvice(contact);
-  const otherTakeaways = contact.takeaways.slice(1);
   const links = [
     contact.email && { label: contact.email, href: `mailto:${contact.email}` },
     contact.linkedin && {
@@ -158,18 +155,11 @@ function PersonCard({
           </div>
         </div>
 
-        {advice && (
-          <div className={styles.advice}>
-            <h3 className={styles.groupLabel}>Best advice</h3>
-            <p className={styles.adviceText}>{advice}</p>
-          </div>
-        )}
-
-        {otherTakeaways.length > 0 && (
-          <div className={styles.group}>
-            <h3 className={styles.groupLabel}>Other takeaways</h3>
+        {contact.takeaways.length > 0 && (
+          <div className={styles.takeawaysBox}>
+            <h3 className={styles.groupLabel}>Key takeaways</h3>
             <ul className={styles.takeaways}>
-              {otherTakeaways.map((t) => (
+              {contact.takeaways.map((t) => (
                 <li key={t}>{t}</li>
               ))}
             </ul>
