@@ -121,6 +121,14 @@
 
 /* ── Lanes ─────────────────────────────────────────────────────────────────── */
 
+/* Always two columns: follow-ups on the left, people on the right */
+.lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
 .lane {
   display: flex;
   flex-direction: column;
@@ -170,6 +178,9 @@
   gap: 8px;
   padding: 12px;
   border-radius: 10px;
+}
+
+.bucketLater {
   background: var(--sidebar-bg);
 }
 
@@ -492,26 +503,23 @@
   color: var(--text);
 }
 
-.advice {
+.takeawaysBox {
   padding: 12px 14px;
   border-radius: 10px;
   background: var(--penn-blue-bg);
 }
 
-.advice .groupLabel {
-  margin: 0 0 4px;
-}
-
-.adviceText {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--text);
+.takeawaysBox .groupLabel {
+  margin: 0 0 6px;
 }
 
 .takeaways {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
   padding-left: 18px;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   color: var(--text);
 }
 
