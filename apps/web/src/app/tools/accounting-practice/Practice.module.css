@@ -1,0 +1,574 @@
+/* Accounting Practice. Uses the site's colours (globals.css) so it matches
+   PennTools. Layout adapts to the width of the page column, not the window,
+   since the sidebar changes how wide the column is. */
+
+.page {
+  --correct-bg: #ecfdf3;
+  --correct-border: #12b76a;
+  --correct-text: #067647;
+  --wrong-bg: #fef3f2;
+  --wrong-border: #f04438;
+  --wrong-text: #b42318;
+  --preview-bg: #fffaeb;
+  --preview-border: #fedf89;
+  --preview-text: #93370d;
+  --selected-bg: #f5f7ff;
+
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 32px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.muted {
+  color: var(--section-label);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.meta {
+  color: var(--section-label);
+  font-size: 0.8125rem;
+}
+
+/* ── Preview warning ───────────────────────────────────────────────────────── */
+
+.previewBanner {
+  padding: 10px 14px;
+  border: 1px solid var(--preview-border);
+  border-radius: 8px;
+  background: var(--preview-bg);
+  color: var(--preview-text);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.unreviewed {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--preview-text);
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--preview-border);
+  border-radius: 999px;
+  background: var(--preview-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Topic list ────────────────────────────────────────────────────────────── */
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.topicList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.cardFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+/* ── Buttons (same look as the site's own) ─────────────────────────────────── */
+
+.primary,
+.secondary {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 160ms ease;
+}
+
+.primary {
+  background: var(--penn-blue);
+  color: #fff;
+}
+.primary:hover:not(:disabled) {
+  background: #163983;
+}
+
+.secondary {
+  border: 1px solid var(--input-border);
+  color: var(--text);
+  background: var(--bg);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--nav-hover);
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.actionsSpread {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ── Question ──────────────────────────────────────────────────────────────── */
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progressLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--section-label);
+  outline: none;
+}
+
+.progressBar {
+  display: flex;
+  gap: 4px;
+}
+
+.progressDone,
+.progressTodo {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+}
+.progressDone {
+  background: var(--penn-blue);
+}
+.progressTodo {
+  background: var(--border);
+}
+
+.prompt {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* The letter column, then one column per effect. Header and choices share it. */
+.effectsHeader,
+.choice {
+  display: grid;
+  grid-template-columns: 28px repeat(4, minmax(0, 1fr));
+  column-gap: 12px;
+  align-items: center;
+}
+
+.effectsHeader {
+  padding: 0 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+
+.choice {
+  position: relative;
+  row-gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.choice:hover {
+  border-color: var(--penn-blue);
+}
+.choice:has(:focus-visible) {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+.choices:disabled .choice {
+  cursor: default;
+}
+.choices:disabled .choice:hover {
+  border-color: var(--input-border);
+}
+
+/* The native radio stays for keyboards and screen readers; the letter shows the choice. */
+.radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.letter {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.effects {
+  display: contents;
+}
+
+.effect {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.effectLabel {
+  display: none;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+
+.noEffect {
+  color: var(--muted);
+}
+
+.choiceText {
+  grid-column: 2 / -1;
+  line-height: 1.5;
+}
+
+.isSelected {
+  border-color: var(--penn-blue);
+  background: var(--selected-bg);
+}
+.isSelected .letter {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue);
+  color: #fff;
+}
+
+.choices:disabled .isCorrect {
+  border-color: var(--correct-border);
+  background: var(--correct-bg);
+}
+.isCorrect .letter {
+  border-color: var(--correct-border);
+  background: var(--correct-border);
+  color: #fff;
+}
+
+.choices:disabled .isWrong {
+  border-color: var(--wrong-border);
+  background: var(--wrong-bg);
+}
+.isWrong .letter {
+  border-color: var(--wrong-border);
+  background: var(--wrong-border);
+  color: #fff;
+}
+
+.isDimmed {
+  opacity: 0.6;
+}
+
+/* Narrow columns (phones, or a squeezed window): each choice's four effects
+   fold into two rows of two, each with its own label. */
+@container (max-width: 520px) {
+  .effectsHeader {
+    display: none;
+  }
+  .choice {
+    grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .letter {
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+  .effectLabel {
+    display: block;
+  }
+  .title {
+    font-size: 1.5rem;
+  }
+}
+
+/* ── Feedback ──────────────────────────────────────────────────────────────── */
+
+.feedbackWrap {
+  outline: none;
+}
+
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.feedbackRight {
+  border-color: var(--correct-border);
+  background: var(--correct-bg);
+}
+.feedbackWrong {
+  border-color: var(--wrong-border);
+  background: var(--wrong-bg);
+}
+
+.verdict {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.feedbackRight .verdict {
+  color: var(--correct-text);
+}
+.feedbackWrong .verdict {
+  color: var(--wrong-text);
+}
+
+.explain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.explainTitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.journalWrap {
+  overflow-x: auto;
+}
+
+.journal {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.journal caption {
+  padding-bottom: 6px;
+}
+.journal th,
+.journal td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.journal th {
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.journal th:not(:first-child) {
+  text-align: right;
+}
+.journal tr:last-child td {
+  border-bottom: 0;
+}
+
+.creditAccount {
+  padding-left: 32px !important;
+}
+
+.amount {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+.details[open] summary {
+  margin-bottom: 8px;
+}
+
+.otherList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.concept {
+  font-size: 0.8125rem;
+}
+
+/* ── Results ───────────────────────────────────────────────────────────────── */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.scoreCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px 20px;
+  border-radius: 12px;
+  background: var(--selected-bg);
+}
+
+.score {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+  outline: none;
+}
+
+.conceptList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.reviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.reviewRight {
+  border-left-color: var(--correct-border);
+}
+.reviewWrong {
+  border-left-color: var(--wrong-border);
+}
+
+.reviewHead {
+  display: flex;
+  gap: 8px;
+  font-weight: 600;
+}
+.reviewRight .reviewHead {
+  color: var(--correct-text);
+}
+.reviewWrong .reviewHead {
+  color: var(--wrong-text);
+}
+
+.reviewPrompt {
+  color: var(--section-label);
+}
+
+.reviewAnswer {
+  overflow-wrap: anywhere;
+}
+
+.reviewExplain {
+  margin-bottom: 10px;
+}
