@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { completeFollowUp, daysFrom, followUpStatus, followUpsFor } from "@penntools/tool-penn-pals";
-import type { Contact, FollowUp, FollowUpStatus } from "@penntools/tool-penn-pals";
+import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
 import styles from "./Tracker.module.css";
 
 const GROUPS: { status: FollowUpStatus; label: string }[] = [
@@ -17,6 +17,12 @@ const GROUPS: { status: FollowUpStatus; label: string }[] = [
   { status: "thisWeek", label: "This week" },
   { status: "later", label: "Later" },
 ];
+
+// The two buckets the debrief sorts next steps into, each with its own color
+const KINDS: Record<FollowUpKind, { label: string; card: string; tag: string }> = {
+  thankYou: { label: "Thank-you email", card: styles.thankYou!, tag: styles.tagThankYou! },
+  checkIn: { label: "Follow-up meeting", card: styles.checkIn!, tag: styles.tagCheckIn! },
+};
 
 function dueLabel(days: number): string {
   if (days < -1) return `${-days} days overdue`;
@@ -89,6 +95,14 @@ export function Tracker({ contacts: initialContacts, today: todayIso }: { contac
             )}
           </div>
 
+          <div className={styles.legend}>
+            {Object.values(KINDS).map((k) => (
+              <span key={k.label} className={`${styles.tag} ${k.tag}`}>
+                {k.label}
+              </span>
+            ))}
+          </div>
+
           {followUps.length === 0 ? (
             <p className={styles.empty}>All caught up. 🎉</p>
           ) : (
@@ -103,7 +117,7 @@ export function Tracker({ contacts: initialContacts, today: todayIso }: { contac
                       const contact = contactsById.get(f.contactId);
                       const days = daysFrom(today, f.due);
                       return (
-                        <li key={f.id} className={styles.followUp}>
+                        <li key={f.id} className={`${styles.followUp} ${KINDS[f.kind].card}`}>
                           <input
                             type="checkbox"
                             className={styles.check}
@@ -114,6 +128,7 @@ export function Tracker({ contacts: initialContacts, today: todayIso }: { contac
                           <div className={styles.followUpBody}>
                             <p className={styles.action}>{f.action}</p>
                             <p className={styles.meta}>
+                              <span className={`${styles.tag} ${KINDS[f.kind].tag}`}>{KINDS[f.kind].label}</span>{" "}
                               {contact?.name} · {contact?.company}
                             </p>
                           </div>

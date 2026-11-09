@@ -4,6 +4,10 @@
   --today: #b54708;
   --today-bg: #fffaeb;
   --penn-blue-bg: #eef2f9;
+  --thank-you: #067647;
+  --thank-you-bg: #ecfdf3;
+  --meeting: #5925dc;
+  --meeting-bg: #f4f3ff;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -139,7 +143,41 @@
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--border);
+  border-left-width: 4px;
   border-radius: 10px;
+}
+
+/* Color-coded by bucket: a thank-you email, or a follow-up meeting to set up */
+.thankYou {
+  border-left-color: var(--thank-you);
+}
+
+.checkIn {
+  border-left-color: var(--meeting);
+}
+
+.legend {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tagThankYou {
+  background: var(--thank-you-bg);
+  color: var(--thank-you);
+}
+
+.tagCheckIn {
+  background: var(--meeting-bg);
+  color: var(--meeting);
 }
 
 .check {
