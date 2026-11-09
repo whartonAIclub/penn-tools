@@ -31,6 +31,8 @@ const NextStep = z.object({
   owner: z.enum(["me", "them"]),
   dueDate: z.string().nullable(),
   done: z.boolean(),
+  /** The day it was marked done; missing or null while open, and for steps finished before this was recorded. */
+  doneOn: z.string().nullable().optional(),
 });
 export type NextStep = z.infer<typeof NextStep>;
 
@@ -150,7 +152,7 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
     }
     const dueDate = s.dueDate.trim();
     if (dueDate && !isDate(dueDate)) errors.push(`"${s.action.trim()}" has an invalid due date.`);
-    return { action: s.action.trim(), owner: s.owner, dueDate: dueDate || null, done: false };
+    return { action: s.action.trim(), owner: s.owner, dueDate: dueDate || null, done: false, doneOn: null };
   });
 
   if (errors.length > 0) return { ok: false, errors };
@@ -230,7 +232,9 @@ export function splitByDue(contacts: Contact[], today: string): { dueNow: Contac
 export function completeFollowUp(contact: Contact, today: string): Contact {
   return {
     ...contact,
-    nextSteps: contact.nextSteps.map((step) => (step.dueDate && step.dueDate <= today ? { ...step, done: true } : step)),
+    nextSteps: contact.nextSteps.map((step) =>
+      step.dueDate && step.dueDate <= today ? { ...step, done: true, doneOn: step.doneOn ?? today } : step,
+    ),
     checkInDate: addDays(today, DEFAULT_FOLLOW_UP_DAYS),
   };
 }
@@ -239,7 +243,7 @@ export function completeFollowUp(contact: Contact, today: string): Contact {
 export function toggleStep(contact: Contact, index: number): Contact {
   return {
     ...contact,
-    nextSteps: contact.nextSteps.map((step, i) => (i === index ? { ...step, done: !step.done } : step)),
+    nextSteps: contact.nextSteps.map((step, i) => (i === index ? { ...step, done: !step.done, doneOn: null } : step)),
   };
 }
 

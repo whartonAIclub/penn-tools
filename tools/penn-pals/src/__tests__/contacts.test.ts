@@ -11,6 +11,7 @@ import {
   splitByDue,
   toggleStep,
 } from "../contacts.js";
+import { followUpsFor, markFollowUpDone, reopenStep } from "../network.js";
 
 const TODAY = "2026-11-08";
 
@@ -167,6 +168,65 @@ describe("completeFollowUp", () => {
     expect(result.nextSteps.map((s) => s.done)).toEqual([true, true, false, false]);
     expect(result.checkInDate).toBe("2026-11-22");
     expect(nextDue(result)).toEqual({ date: "2026-11-15", label: "Next week" });
+  });
+});
+
+describe("completed steps stay on the contact", () => {
+  it("records the day a step was completed and keeps the step", () => {
+    const c = contact({ nextSteps: [step("Send a thank-you email", "2026-11-08")] });
+    const result = completeFollowUp(c, TODAY);
+    expect(result.nextSteps).toEqual([{ action: "Send a thank-you email", owner: "me", dueDate: "2026-11-08", done: true, doneOn: TODAY }]);
+  });
+
+  it("keeps the original completion day when a step is completed again", () => {
+    const c = contact({ nextSteps: [{ ...step("Follow up", "2026-11-01", true), doneOn: "2026-11-02" }] });
+    expect(completeFollowUp(c, TODAY).nextSteps[0]).toMatchObject({ done: true, doneOn: "2026-11-02" });
+  });
+
+  it("marking a landing-page follow-up done keeps it as history with today's date", () => {
+    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")] });
+    const [followUp] = followUpsFor(c);
+    const result = markFollowUpDone(c, followUp!, TODAY);
+    expect(result.nextSteps[0]).toMatchObject({ action: "Follow up", done: true, doneOn: TODAY });
+    expect(result.nextSteps).toHaveLength(2); // the next monthly follow-up was scheduled
+  });
+
+  it("reopening a finished thank-you puts it back on the to-do list", () => {
+    const c = contact({ nextSteps: [step("Send a thank-you email", "2026-11-08")] });
+    const done = markFollowUpDone(c, followUpsFor(c)[0]!, TODAY);
+    expect(followUpsFor(done)).toHaveLength(0);
+    const reopened = reopenStep(done, 0);
+    expect(reopened.nextSteps).toEqual([{ ...c.nextSteps[0], done: false, doneOn: null }]);
+    expect(followUpsFor(reopened)).toHaveLength(1);
+  });
+
+  it("reopening a finished follow-up also removes the monthly follow-up it scheduled", () => {
+    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")] });
+    const done = markFollowUpDone(c, followUpsFor(c)[0]!, TODAY);
+    expect(done.nextSteps).toHaveLength(2);
+    const reopened = reopenStep(done, 0);
+    expect(reopened.nextSteps).toHaveLength(1);
+    expect(reopened.nextSteps[0]).toMatchObject({ action: "Follow up", done: false, doneOn: null });
+  });
+
+  it("keeps the scheduled follow-up if it was already finished or changed", () => {
+    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")] });
+    const done = markFollowUpDone(c, followUpsFor(c)[0]!, TODAY);
+    const changed = { ...done, nextSteps: [done.nextSteps[0]!, { ...done.nextSteps[1]!, dueDate: "2027-01-01" }] };
+    expect(reopenStep(changed, 0).nextSteps).toHaveLength(2);
+    const finished = { ...done, nextSteps: [done.nextSteps[0]!, { ...done.nextSteps[1]!, done: true }] };
+    expect(reopenStep(finished, 0).nextSteps).toHaveLength(2);
+  });
+
+  it("does nothing for a step that isn't finished or doesn't exist", () => {
+    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")] });
+    expect(reopenStep(c, 0)).toBe(c);
+    expect(reopenStep(c, 5)).toBe(c);
+  });
+
+  it("loads steps saved without a completion day", () => {
+    const c = contact({ nextSteps: [step("Follow up", null, true)] });
+    expect(parseStoredContacts(JSON.stringify([c]))[0]?.nextSteps[0]).toMatchObject({ done: true });
   });
 });
 

@@ -41,6 +41,7 @@ export {
   followUpStatus,
   followUpsFor,
   markFollowUpDone,
+  reopenStep,
   THANK_YOU_DAYS,
   type FollowUp,
   type FollowUpKind,

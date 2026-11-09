@@ -17,6 +17,7 @@ import {
   followUpsFor,
   markFollowUpDone,
   parseStoredContacts,
+  reopenStep,
 } from "@penntools/tool-penn-pals";
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
 import styles from "./Landing.module.css";
@@ -101,12 +102,15 @@ function PersonCard({
   followUps,
   today,
   onDone,
+  onReopen,
   onClose,
 }: {
   contact: Contact;
   followUps: FollowUp[];
   today: Date;
   onDone: (f: FollowUp) => void;
+  /** Puts the finished step at this index back on the to-do list. */
+  onReopen: (stepIndex: number) => void;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -123,6 +127,12 @@ function PersonCard({
     },
     contact.phone && { label: contact.phone, href: `tel:${contact.phone}` },
   ].filter((link): link is { label: string; href: string } => Boolean(link));
+
+  // Finished steps stay on the person: most recent first, those without a recorded date last.
+  const completed = contact.nextSteps
+    .map((step, index) => ({ step, index }))
+    .filter(({ step }) => step.done)
+    .sort((a, b) => (b.step.doneOn ?? "").localeCompare(a.step.doneOn ?? ""));
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -185,6 +195,29 @@ function PersonCard({
           )}
         </div>
 
+        {completed.length > 0 && (
+          <div className={styles.group}>
+            <h3 className={styles.groupLabel}>History</h3>
+            <ul className={styles.list}>
+              {completed.map(({ step, index }) => (
+                <li key={index} className={styles.meta}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked
+                      aria-label={`Reopen: ${step.action}`}
+                      title="Uncheck to move this back to your to-do list"
+                      onChange={() => onReopen(index)}
+                    />{" "}
+                    {step.action}
+                    {step.doneOn && ` · completed ${step.doneOn}`}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {links.length > 0 && (
           <div className={styles.links}>
             {links.map((link) => (
@@ -236,8 +269,7 @@ export function Landing({ today: todayIso }: { today: string }) {
     .filter((c) => !q || `${c.name} ${c.company ?? ""} ${c.role ?? ""}`.toLowerCase().includes(q))
     .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 
-  const markDone = (followUp: FollowUp) => {
-    const next = allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c));
+  const save = (next: Contact[]) => {
     setSaved(next);
     try {
       localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
@@ -245,6 +277,12 @@ export function Landing({ today: todayIso }: { today: string }) {
       // Storage full or blocked: keep working in memory.
     }
   };
+
+  const markDone = (followUp: FollowUp) =>
+    save(allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c)));
+
+  const reopen = (contactId: string, stepIndex: number) =>
+    save(allContacts.map((c) => (c.id === contactId ? reopenStep(c, stepIndex) : c)));
 
   const openedContact = opened ? contactsById.get(opened) : undefined;
   const row = (f: FollowUp) => (
@@ -358,6 +396,7 @@ export function Landing({ today: todayIso }: { today: string }) {
           followUps={followUps.filter((f) => f.contactId === openedContact.id)}
           today={today}
           onDone={markDone}
+          onReopen={(stepIndex) => reopen(openedContact.id, stepIndex)}
           onClose={() => setOpened(null)}
         />
       )}

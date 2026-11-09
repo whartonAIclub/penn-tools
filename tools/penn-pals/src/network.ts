@@ -94,11 +94,42 @@ export function followUpsFor(contact: Contact): FollowUp[] {
   });
 }
 
+/**
+ * The contact with the finished step at `stepIndex` open again, so it returns
+ * to the to-do list. Finishing a follow-up scheduled the next monthly one; if
+ * that one is still untouched (open, on the date it was given), it's removed so
+ * reopening doesn't leave a duplicate.
+ */
+export function reopenStep(contact: Contact, stepIndex: number): Contact {
+  const target = contact.nextSteps[stepIndex];
+  if (!target?.done) return contact;
+  const scheduledDue =
+    target.doneOn && kindOf(target) === "followUp" ? addMonths(target.doneOn, FOLLOW_UP_MONTHS) : null;
+  let removed = false;
+  const nextSteps = contact.nextSteps.flatMap((step, i) => {
+    if (i === stepIndex) return [{ ...step, done: false, doneOn: null }];
+    const isScheduled =
+      scheduledDue && !removed && i > stepIndex && !step.done && step.action === FOLLOW_UP_ACTION && step.dueDate === scheduledDue;
+    if (isScheduled) {
+      removed = true;
+      return [];
+    }
+    return [step];
+  });
+  return { ...contact, nextSteps };
+}
+
 /** The contact with `followUp` done on `today`; a done follow-up schedules the next one a month later. */
 export function markFollowUpDone(contact: Contact, followUp: FollowUp, today: string): Contact {
-  const nextSteps = contact.nextSteps.map((step, i) => (i === followUp.stepIndex ? { ...step, done: true } : step));
+  const nextSteps = contact.nextSteps.map((step, i) => (i === followUp.stepIndex ? { ...step, done: true, doneOn: today } : step));
   if (followUp.kind === "followUp") {
-    nextSteps.push({ action: FOLLOW_UP_ACTION, owner: "me", dueDate: addMonths(today, FOLLOW_UP_MONTHS), done: false });
+    nextSteps.push({
+      action: FOLLOW_UP_ACTION,
+      owner: "me",
+      dueDate: addMonths(today, FOLLOW_UP_MONTHS),
+      done: false,
+      doneOn: null,
+    });
   }
   return { ...contact, nextSteps };
 }
