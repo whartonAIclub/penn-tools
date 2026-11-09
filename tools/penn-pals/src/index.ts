@@ -1,5 +1,27 @@
 export { PennPalsTool } from "./PennPalsTool.js";
 export {
+  buildContact,
+  completeFollowUp,
+  Contact,
+  dueStatus,
+  DUE_SOON_DAYS,
+  emptyDraft,
+  nextDue,
+  parseStoredContacts,
+  RELATIONSHIPS,
+  sortByFollowUp,
+  splitByDue,
+  STEP_ACTIONS,
+  toggleStep,
+  VIBES,
+  type BuildResult,
+  type ContactDraft,
+  type DueStatus,
+  type NextStep,
+  type Relationship,
+  type Vibe,
+} from "./contacts.js";
+export {
   addDays,
   checkNotes,
   type ContactRecord,
