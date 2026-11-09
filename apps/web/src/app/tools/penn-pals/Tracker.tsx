@@ -1,13 +1,15 @@
 "use client";
 
 // Two lanes: follow-ups the student owes (left) and everyone they've talked to
-// (right). Clicking a person narrows the follow-ups to them. Marking a
-// follow-up done only lasts until reload until the tool has its own database.
+// (right). Clicking a person narrows the follow-ups to them. Follow-ups come
+// from followUpsFor(), so marking one done schedules the next (a thank-you
+// becomes a monthly check-in). That only lasts until reload until the tool has
+// its own database.
 
 import { useMemo, useState } from "react";
-import { daysFrom, followUpStatus } from "@penntools/tool-penn-pals";
-import type { Contact, FollowUpStatus, Network } from "@penntools/tool-penn-pals";
-import styles from "./PennPals.module.css";
+import { completeFollowUp, daysFrom, followUpStatus, followUpsFor } from "@penntools/tool-penn-pals";
+import type { Contact, FollowUp, FollowUpStatus } from "@penntools/tool-penn-pals";
+import styles from "./Tracker.module.css";
 
 const GROUPS: { status: FollowUpStatus; label: string }[] = [
   { status: "overdue", label: "Overdue" },
@@ -34,35 +36,34 @@ function initials(name: string): string {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
 }
 
-export function PennPals({ network, today: todayIso }: { network: Network; today: string }) {
+export function Tracker({ contacts: initialContacts, today: todayIso }: { contacts: Contact[]; today: string }) {
   const [y, m, d] = todayIso.split("-").map(Number);
   const today = new Date(y!, m! - 1, d!);
 
-  const [done, setDone] = useState<Set<string>>(new Set());
+  const [allContacts, setAllContacts] = useState(initialContacts);
+  const [doneCount, setDoneCount] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
-  const contactsById = useMemo(() => new Map(network.contacts.map((c) => [c.id, c])), [network]);
+  const contactsById = useMemo(() => new Map(allContacts.map((c) => [c.id, c])), [allContacts]);
+  const allFollowUps = useMemo(() => allContacts.flatMap(followUpsFor), [allContacts]);
 
   const openCount = (contactId: string) =>
-    network.followUps.filter((f) => f.contactId === contactId && !done.has(f.id)).length;
+    allFollowUps.filter((f) => f.contactId === contactId && followUpStatus(today, f.due) !== "later").length;
 
-  const followUps = network.followUps
-    .filter((f) => !done.has(f.id) && (!selected || f.contactId === selected))
+  const followUps = allFollowUps
+    .filter((f) => !selected || f.contactId === selected)
     .sort((a, b) => a.due.localeCompare(b.due));
 
   const q = query.trim().toLowerCase();
-  const contacts = network.contacts
+  const contacts = allContacts
     .filter((c) => !q || `${c.name} ${c.company} ${c.role}`.toLowerCase().includes(q))
-    .sort((a, b) => b.lastChat.localeCompare(a.lastChat));
+    .sort((a, b) => b.callDate.localeCompare(a.callDate));
 
-  const toggleDone = (id: string) =>
-    setDone((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const markDone = (followUp: FollowUp) => {
+    setAllContacts((prev) => prev.map((c) => (c.id === followUp.contactId ? completeFollowUp(c, followUp, todayIso) : c)));
+    setDoneCount((n) => n + 1);
+  };
 
   const selectedContact: Contact | undefined = selected ? contactsById.get(selected) : undefined;
 
@@ -107,8 +108,8 @@ export function PennPals({ network, today: todayIso }: { network: Network; today
                             type="checkbox"
                             className={styles.check}
                             aria-label={`Mark done: ${f.action}`}
-                            checked={done.has(f.id)}
-                            onChange={() => toggleDone(f.id)}
+                            checked={false}
+                            onChange={() => markDone(f)}
                           />
                           <div className={styles.followUpBody}>
                             <p className={styles.action}>{f.action}</p>
@@ -127,13 +128,13 @@ export function PennPals({ network, today: todayIso }: { network: Network; today
               );
             })
           )}
-          {done.size > 0 && <p className={styles.doneNote}>{done.size} done this session</p>}
+          {doneCount > 0 && <p className={styles.doneNote}>{doneCount} done this session</p>}
         </section>
 
         <section className={styles.lane} aria-labelledby="people-title">
           <div className={styles.laneHeader}>
             <h2 id="people-title" className={styles.laneTitle}>
-              People you&apos;ve talked to <span className={styles.count}>{network.contacts.length}</span>
+              People you&apos;ve talked to <span className={styles.count}>{allContacts.length}</span>
             </h2>
           </div>
           <input
@@ -168,10 +169,10 @@ export function PennPals({ network, today: todayIso }: { network: Network; today
                         <span className={styles.meta}>
                           {c.role} · {c.company}
                         </span>
-                        <span className={styles.note}>{c.note}</span>
+                        <span className={styles.note}>Best advice: {c.bestAdvice}</span>
                       </span>
                       <span className={styles.personSide}>
-                        <span className={styles.meta}>{chatLabel(daysFrom(today, c.lastChat))}</span>
+                        <span className={styles.meta}>{chatLabel(daysFrom(today, c.callDate))}</span>
                         {open > 0 && (
                           <span className={styles.badge}>
                             {open} follow-up{open > 1 ? "s" : ""}
