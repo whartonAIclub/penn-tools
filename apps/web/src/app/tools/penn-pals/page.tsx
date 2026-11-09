@@ -3,8 +3,8 @@
 // database (section 4 of CLAUDE.md).
 
 import type { Metadata } from "next";
-import { sampleContacts } from "@penntools/tool-penn-pals";
-import { Tracker } from "./Tracker";
+import { sampleNetwork } from "@penntools/tool-penn-pals";
+import { Landing } from "./Landing";
 
 export const metadata: Metadata = {
   title: "Penn Pals: Network Tracker",
@@ -14,5 +14,5 @@ export default function PennPalsPage() {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  return <Tracker contacts={sampleContacts(now)} today={today} />;
+  return <Landing contacts={sampleNetwork(now)} today={today} />;
 }

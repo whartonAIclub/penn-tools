@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { completeFollowUp, followUpStatus, followUpsFor } from "../network.js";
-import type { Contact } from "../network.js";
+import { markFollowUpDone, followUpStatus, followUpsFor } from "../network.js";
+import type { NetworkContact } from "../network.js";
 
-const contact: Contact = {
+const contact: NetworkContact = {
   id: "c1",
   name: "Priya Raman",
   classYear: "WG'18",
@@ -32,13 +32,13 @@ describe("followUpsFor", () => {
   });
 });
 
-describe("completeFollowUp", () => {
+describe("markFollowUpDone", () => {
   it("turns a done thank-you into a check-in, and a done check-in into the next one", () => {
-    const thanked = completeFollowUp(contact, followUpsFor(contact)[0]!, "2026-02-01");
+    const thanked = markFollowUpDone(contact, followUpsFor(contact)[0]!, "2026-02-01");
     const [checkIn] = followUpsFor(thanked);
     expect(checkIn!.kind).toBe("checkIn");
 
-    const checkedIn = completeFollowUp(thanked, checkIn!, "2026-03-05");
+    const checkedIn = markFollowUpDone(thanked, checkIn!, "2026-03-05");
     expect(followUpsFor(checkedIn)[0]!.due).toBe("2026-04-05");
   });
 });

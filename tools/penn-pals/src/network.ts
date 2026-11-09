@@ -1,13 +1,13 @@
 // The people a student has talked to, and the follow-ups they owe them. Until
 // the tool has its own database (section 4 of CLAUDE.md), the page shows
-// sampleContacts(), dated relative to today so its follow-ups stay current.
+// sampleNetwork(), dated relative to today so its follow-ups stay current.
 //
 // Follow-ups aren't entered by hand: followUpsFor() works them out from each
 // call, using the "2-Hour Job Search" rules for after an informational meeting:
 //   - a thank-you note within 24 hours that highlights their best advice
 //   - a monthly check-in that recaps that advice, every month after the last
 
-export interface Contact {
+export interface NetworkContact {
   id: string;
   name: string;
   /** Penn class, e.g. "WG'19" */
@@ -83,7 +83,7 @@ export function followUpStatus(today: Date, due: string): FollowUpStatus {
 }
 
 /** What the student owes this contact next: the thank-you until it's sent, then the next check-in. */
-export function followUpsFor(contact: Contact): FollowUp[] {
+export function followUpsFor(contact: NetworkContact): FollowUp[] {
   const firstName = contact.name.split(" ")[0];
   const advice = `"${contact.bestAdvice}"`;
   if (!contact.thankedOn) {
@@ -109,12 +109,12 @@ export function followUpsFor(contact: Contact): FollowUp[] {
 }
 
 /** The contact after `followUp` is done on `today`, which schedules what comes next. */
-export function completeFollowUp(contact: Contact, followUp: FollowUp, today: string): Contact {
+export function markFollowUpDone(contact: NetworkContact, followUp: FollowUp, today: string): NetworkContact {
   return followUp.kind === "thankYou" ? { ...contact, thankedOn: today } : { ...contact, lastCheckIn: today };
 }
 
 /** Made-up contacts for designing the page. */
-export function sampleContacts(today: Date = new Date()): Contact[] {
+export function sampleNetwork(today: Date = new Date()): NetworkContact[] {
   const on = (days: number) => addDays(toIso(today), days);
   return [
     { id: "c1", name: "Priya Raman", classYear: "WG'18", role: "Product Lead", company: "Stripe", callDate: on(0), bestAdvice: "Lead with one payments metric you'd move, not your resume", thankedOn: null, lastCheckIn: null },

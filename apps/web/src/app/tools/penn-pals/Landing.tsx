@@ -6,10 +6,11 @@
 // becomes a monthly check-in). That only lasts until reload until the tool has
 // its own database.
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { completeFollowUp, daysFrom, followUpStatus, followUpsFor } from "@penntools/tool-penn-pals";
-import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
-import styles from "./Tracker.module.css";
+import { daysFrom, followUpStatus, followUpsFor, markFollowUpDone } from "@penntools/tool-penn-pals";
+import type { FollowUp, FollowUpKind, FollowUpStatus, NetworkContact } from "@penntools/tool-penn-pals";
+import styles from "./Landing.module.css";
 
 const GROUPS: { status: FollowUpStatus; label: string }[] = [
   { status: "overdue", label: "Overdue" },
@@ -42,7 +43,7 @@ function initials(name: string): string {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
 }
 
-export function Tracker({ contacts: initialContacts, today: todayIso }: { contacts: Contact[]; today: string }) {
+export function Landing({ contacts: initialContacts, today: todayIso }: { contacts: NetworkContact[]; today: string }) {
   const [y, m, d] = todayIso.split("-").map(Number);
   const today = new Date(y!, m! - 1, d!);
 
@@ -67,11 +68,11 @@ export function Tracker({ contacts: initialContacts, today: todayIso }: { contac
     .sort((a, b) => b.callDate.localeCompare(a.callDate));
 
   const markDone = (followUp: FollowUp) => {
-    setAllContacts((prev) => prev.map((c) => (c.id === followUp.contactId ? completeFollowUp(c, followUp, todayIso) : c)));
+    setAllContacts((prev) => prev.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c)));
     setDoneCount((n) => n + 1);
   };
 
-  const selectedContact: Contact | undefined = selected ? contactsById.get(selected) : undefined;
+  const selectedContact: NetworkContact | undefined = selected ? contactsById.get(selected) : undefined;
 
   return (
     <div className={styles.page}>
@@ -80,6 +81,14 @@ export function Tracker({ contacts: initialContacts, today: todayIso }: { contac
         <p className={styles.intro}>
           Who you owe a follow-up, and everyone you&apos;ve talked to. <span className={styles.sample}>Sample data</span>
         </p>
+        <nav className={styles.actions} aria-label="Log a chat">
+          <Link href="/tools/penn-pals/debrief" className={styles.actionPrimary}>
+            Paste notes from a chat
+          </Link>
+          <Link href="/tools/penn-pals/tracker" className={styles.actionSecondary}>
+            Log a chat with the form
+          </Link>
+        </nav>
       </header>
 
       <div className={styles.lanes}>

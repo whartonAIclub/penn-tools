@@ -1,0 +1,267 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Penn Pals contacts: the form's data, its checks, and the follow-up rules
+//
+// Pure functions with no AI and no storage of their own: the page passes in
+// `today` and keeps the contacts (in the browser for now). That keeps every
+// rule testable (see __tests__/contacts.test.ts).
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { z } from "@penntools/core/ai";
+import { addDays, DEFAULT_FOLLOW_UP_DAYS, isDate, MAX_NOTES_LENGTH } from "./debrief.js";
+
+export const RELATIONSHIPS = ["2Y", "alumni", "recruiter", "faculty", "industry", "other"] as const;
+export type Relationship = (typeof RELATIONSHIPS)[number];
+
+export const VIBES = ["great", "good", "neutral", "lukewarm"] as const;
+export type Vibe = (typeof VIBES)[number];
+
+/** The next steps the form offers. */
+export const STEP_ACTIONS = ["Send a thank-you email", "Follow up"] as const;
+
+/** Days ahead that count as "due this week". */
+export const DUE_SOON_DAYS = 7;
+
+const MAX_FIELD_LENGTH = 300;
+const MAX_STEPS = 20;
+
+// ── What gets stored ──────────────────────────────────────────────────────────
+
+const NextStep = z.object({
+  action: z.string(),
+  owner: z.enum(["me", "them"]),
+  dueDate: z.string().nullable(),
+  done: z.boolean(),
+});
+export type NextStep = z.infer<typeof NextStep>;
+
+export const Contact = z.object({
+  id: z.string(),
+  name: z.string(),
+  relationship: z.enum(RELATIONSHIPS),
+  classYear: z.string().nullable(),
+  company: z.string().nullable(),
+  role: z.string().nullable(),
+  area: z.string().nullable(),
+  location: z.string().nullable(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  linkedin: z.string().nullable(),
+  meetingDate: z.string(),
+  vibe: z.enum(VIBES),
+  // .default(false) so contacts saved before these fields existed still load.
+  offeredReferral: z.boolean().default(false),
+  offeredIntro: z.boolean().default(false),
+  takeaways: z.array(z.string()),
+  nextSteps: z.array(NextStep),
+  /** The user's full notes, kept as written. */
+  notes: z.string(),
+  /** When to check in if no open next step has a due date; set automatically, not on the form. */
+  checkInDate: z.string(),
+  createdAt: z.string(),
+});
+export type Contact = z.infer<typeof Contact>;
+
+// ── What the form holds ───────────────────────────────────────────────────────
+
+/** The form's fields as typed: every one a string, empty when left blank. */
+export interface ContactDraft {
+  name: string;
+  relationship: Relationship;
+  classYear: string;
+  company: string;
+  role: string;
+  area: string;
+  location: string;
+  email: string;
+  phone: string;
+  linkedin: string;
+  meetingDate: string;
+  vibe: Vibe;
+  /** They offered to refer you. */
+  offeredReferral: boolean;
+  /** They offered to connect you with someone else at their company. */
+  offeredIntro: boolean;
+  /** One takeaway per line. */
+  takeaways: string;
+  nextSteps: { action: string; owner: "me" | "them"; dueDate: string }[];
+  notes: string;
+}
+
+export function emptyDraft(today: string): ContactDraft {
+  return {
+    name: "",
+    relationship: "industry",
+    classYear: "",
+    company: "",
+    role: "",
+    area: "",
+    location: "",
+    email: "",
+    phone: "",
+    linkedin: "",
+    meetingDate: today,
+    vibe: "good",
+    offeredReferral: false,
+    offeredIntro: false,
+    takeaways: "",
+    nextSteps: [],
+    notes: "",
+  };
+}
+
+export type BuildResult = { ok: true; contact: Contact } | { ok: false; errors: string[] };
+
+/**
+ * A contact from the form. Only the name is required. The check-in date is
+ * `today` plus DEFAULT_FOLLOW_UP_DAYS; blank steps are dropped.
+ */
+export function buildContact(draft: ContactDraft, today: string, id: string): BuildResult {
+  const errors: string[] = [];
+  const text = (value: string, label: string): string | null => {
+    const trimmed = value.trim();
+    if (trimmed.length > MAX_FIELD_LENGTH) errors.push(`Keep ${label} to at most ${MAX_FIELD_LENGTH} characters.`);
+    return trimmed || null;
+  };
+
+  const name = draft.name.trim();
+  if (!name) errors.push("Enter the contact's full name.");
+  else if (name.length > MAX_FIELD_LENGTH) errors.push(`Keep the name to at most ${MAX_FIELD_LENGTH} characters.`);
+
+  const classYear = text(draft.classYear, "the class year");
+  const company = text(draft.company, "the company");
+  const role = text(draft.role, "the role");
+  const area = text(draft.area, "the area");
+  const location = text(draft.location, "the location");
+  const phone = text(draft.phone, "the phone number");
+  const linkedin = text(draft.linkedin, "the LinkedIn link");
+  const email = text(draft.email, "the email");
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) errors.push("Enter a valid email address.");
+
+  const meetingDate = draft.meetingDate.trim() || today;
+  if (!isDate(meetingDate)) errors.push("Enter a valid date of conversation.");
+
+  if (draft.notes.length > MAX_NOTES_LENGTH) errors.push(`Keep the notes to at most ${MAX_NOTES_LENGTH} characters.`);
+
+  const steps = draft.nextSteps.filter((s) => s.action.trim());
+  if (steps.length > MAX_STEPS) errors.push(`Keep next steps to at most ${MAX_STEPS}.`);
+  const nextSteps: NextStep[] = steps.map((s) => {
+    if (!(STEP_ACTIONS as readonly string[]).includes(s.action.trim())) {
+      errors.push(`"${s.action.trim()}" isn't one of the next step options.`);
+    }
+    const dueDate = s.dueDate.trim();
+    if (dueDate && !isDate(dueDate)) errors.push(`"${s.action.trim()}" has an invalid due date.`);
+    return { action: s.action.trim(), owner: s.owner, dueDate: dueDate || null, done: false };
+  });
+
+  if (errors.length > 0) return { ok: false, errors };
+
+  return {
+    ok: true,
+    contact: {
+      id,
+      name,
+      relationship: draft.relationship,
+      classYear,
+      company,
+      role,
+      area,
+      location,
+      email,
+      phone,
+      linkedin,
+      meetingDate,
+      vibe: draft.vibe,
+      offeredReferral: draft.offeredReferral,
+      offeredIntro: draft.offeredIntro,
+      takeaways: draft.takeaways
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+      nextSteps,
+      notes: draft.notes,
+      checkInDate: addDays(today, DEFAULT_FOLLOW_UP_DAYS),
+      createdAt: today,
+    },
+  };
+}
+
+// ── Follow-up rules ───────────────────────────────────────────────────────────
+
+export type DueStatus = "overdue" | "soon" | "later";
+
+/**
+ * What the contact is due for: the earliest open next step that has a due date,
+ * otherwise a check-in on `checkInDate`.
+ */
+export function nextDue(contact: Contact): { date: string; label: string } {
+  const open = contact.nextSteps
+    .filter((step) => !step.done && step.dueDate)
+    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
+  const first = open[0];
+  return first ? { date: first.dueDate!, label: first.action } : { date: contact.checkInDate, label: "Check in" };
+}
+
+/** Overdue before today, soon within DUE_SOON_DAYS (today included), later after that. */
+export function dueStatus(contact: Contact, today: string): DueStatus {
+  const { date } = nextDue(contact);
+  if (date < today) return "overdue";
+  if (date <= addDays(today, DUE_SOON_DAYS)) return "soon";
+  return "later";
+}
+
+/** Earliest due first; ties by name. Doesn't change the input. */
+export function sortByFollowUp(contacts: Contact[]): Contact[] {
+  return [...contacts].sort((a, b) => nextDue(a).date.localeCompare(nextDue(b).date) || a.name.localeCompare(b.name));
+}
+
+/** The contacts to act on now (overdue or due soon) and the rest, each earliest first. */
+export function splitByDue(contacts: Contact[], today: string): { dueNow: Contact[]; later: Contact[] } {
+  const sorted = sortByFollowUp(contacts);
+  return {
+    dueNow: sorted.filter((c) => dueStatus(c, today) !== "later"),
+    later: sorted.filter((c) => dueStatus(c, today) === "later"),
+  };
+}
+
+/**
+ * The user followed up: steps due today or earlier are marked done, and the
+ * next check-in is DEFAULT_FOLLOW_UP_DAYS from today. Steps due later stay open.
+ */
+export function completeFollowUp(contact: Contact, today: string): Contact {
+  return {
+    ...contact,
+    nextSteps: contact.nextSteps.map((step) => (step.dueDate && step.dueDate <= today ? { ...step, done: true } : step)),
+    checkInDate: addDays(today, DEFAULT_FOLLOW_UP_DAYS),
+  };
+}
+
+/** The contact with next step `index` ticked or unticked. */
+export function toggleStep(contact: Contact, index: number): Contact {
+  return {
+    ...contact,
+    nextSteps: contact.nextSteps.map((step, i) => (i === index ? { ...step, done: !step.done } : step)),
+  };
+}
+
+// ── Storage helpers ───────────────────────────────────────────────────────────
+
+/** Contacts from stored JSON. Bad JSON gives none; entries that don't match the shape are skipped. */
+export function parseStoredContacts(raw: string | null): Contact[] {
+  if (!raw) return [];
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((item) => {
+    // Earlier versions stored `followUpDate`; it becomes the check-in date.
+    const migrated =
+      item && typeof item === "object" && !("checkInDate" in item) && "followUpDate" in item
+        ? { ...item, checkInDate: (item as { followUpDate: unknown }).followUpDate }
+        : item;
+    const parsed = Contact.safeParse(migrated);
+    return parsed.success ? [parsed.data] : [];
+  });
+}

@@ -1,3 +1,36 @@
 export { PennPalsTool } from "./PennPalsTool.js";
-export { completeFollowUp, daysFrom, followUpStatus, followUpsFor, sampleContacts } from "./network.js";
-export type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "./network.js";
+export {
+  buildContact,
+  completeFollowUp,
+  Contact,
+  dueStatus,
+  DUE_SOON_DAYS,
+  emptyDraft,
+  nextDue,
+  parseStoredContacts,
+  RELATIONSHIPS,
+  sortByFollowUp,
+  splitByDue,
+  STEP_ACTIONS,
+  toggleStep,
+  VIBES,
+  type BuildResult,
+  type ContactDraft,
+  type DueStatus,
+  type NextStep,
+  type Relationship,
+  type Vibe,
+} from "./contacts.js";
+export {
+  addDays,
+  checkNotes,
+  type ContactRecord,
+  DebriefCard,
+  DEFAULT_FOLLOW_UP_DAYS,
+  extractDebrief,
+  MAX_NOTES_LENGTH,
+  toContactRecord,
+  withFollowUpDate,
+} from "./debrief.js";
+export { daysFrom, followUpStatus, followUpsFor, markFollowUpDone, sampleNetwork } from "./network.js";
+export type { FollowUp, FollowUpKind, FollowUpStatus, NetworkContact } from "./network.js";

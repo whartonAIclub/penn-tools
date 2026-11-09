@@ -28,6 +28,32 @@
   line-height: 1.6;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.actionPrimary,
+.actionSecondary {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.actionPrimary {
+  background: var(--penn-blue);
+  color: #fff;
+}
+
+.actionSecondary {
+  border: 1px solid var(--penn-blue);
+  color: var(--penn-blue);
+}
+
 .sample {
   margin-left: 6px;
   padding: 2px 8px;
