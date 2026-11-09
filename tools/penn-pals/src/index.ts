@@ -41,7 +41,6 @@ export {
   followUpStatus,
   followUpsFor,
   markFollowUpDone,
-  sampleNetwork,
   THANK_YOU_DAYS,
   type FollowUp,
   type FollowUpKind,

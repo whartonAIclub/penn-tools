@@ -54,16 +54,6 @@
   color: var(--penn-blue);
 }
 
-.sample {
-  margin-left: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--nav-hover);
-  color: var(--section-label);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
 /* ── Summary ───────────────────────────────────────────────────────────────── */
 
 .summary {

@@ -3,8 +3,8 @@
 // A summary of coffee chats, thank-yous and follow-ups on top, then two lanes:
 // follow-ups in three buckets, due today, overdue and coming up (left), and
 // everyone the student has talked to (right). Clicking a person opens their card.
-// Contacts are the ones the intake saved in this browser (the tracker page's
-// storage), or sample data until there are any. Follow-ups come from
+// Everything shown comes from the contacts the intake form saved in this
+// browser (the tracker page's storage). Follow-ups come from
 // followUpsFor(), so marking one done saves it and schedules the next.
 
 import Link from "next/link";
@@ -17,7 +17,6 @@ import {
   followUpsFor,
   markFollowUpDone,
   parseStoredContacts,
-  sampleNetwork,
 } from "@penntools/tool-penn-pals";
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
 import styles from "./Landing.module.css";
@@ -197,9 +196,8 @@ export function Landing({ today: todayIso }: { today: string }) {
   const [y, m, d] = todayIso.split("-").map(Number);
   const today = new Date(y!, m! - 1, d!);
 
-  // null until the browser's saved contacts are read, so the page doesn't flash sample data.
+  // null until the browser's saved contacts are read, so the page doesn't flash empty.
   const [saved, setSaved] = useState<Contact[] | null>(null);
-  const [sample, setSample] = useState(() => sampleNetwork(todayIso));
   const [opened, setOpened] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
@@ -207,12 +205,11 @@ export function Landing({ today: todayIso }: { today: string }) {
     try {
       setSaved(parseStoredContacts(localStorage.getItem(CONTACTS_STORAGE_KEY)));
     } catch {
-      setSaved([]); // storage blocked (private window): show the sample data
+      setSaved([]); // storage blocked (private window): nothing to show
     }
   }, []);
 
-  const isSample = saved !== null && saved.length === 0;
-  const allContacts = isSample ? sample : (saved ?? []);
+  const allContacts = saved ?? [];
 
   const contactsById = useMemo(() => new Map(allContacts.map((c) => [c.id, c])), [allContacts]);
   const followUps = useMemo(
@@ -234,10 +231,6 @@ export function Landing({ today: todayIso }: { today: string }) {
 
   const markDone = (followUp: FollowUp) => {
     const next = allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c));
-    if (isSample) {
-      setSample(next); // sample data isn't saved
-      return;
-    }
     setSaved(next);
     try {
       localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
@@ -263,8 +256,7 @@ export function Landing({ today: todayIso }: { today: string }) {
       <header className={styles.header}>
         <h1 className={styles.title}>Penn Pals</h1>
         <p className={styles.intro}>
-          Who you owe a follow-up, and everyone you&apos;ve talked to.{" "}
-          {isSample && <span className={styles.sample}>Sample data until you log a chat</span>}
+          Who you owe a follow-up, and everyone you&apos;ve talked to.
         </p>
         <nav className={styles.actions} aria-label="Log a chat">
           <Link href="/tools/penn-pals/debrief" className={styles.actionPrimary}>
@@ -331,7 +323,11 @@ export function Landing({ today: todayIso }: { today: string }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {people.length === 0 ? (
+          {allContacts.length === 0 ? (
+            <p className={styles.empty}>
+              No coffee chats yet. <Link href="/tools/penn-pals/tracker">Log your first one</Link>.
+            </p>
+          ) : people.length === 0 ? (
             <p className={styles.empty}>No one matches &ldquo;{query}&rdquo;.</p>
           ) : (
             <ul className={styles.list}>
