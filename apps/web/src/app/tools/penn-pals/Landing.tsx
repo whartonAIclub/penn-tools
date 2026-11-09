@@ -165,6 +165,13 @@ function PersonCard({
           </div>
         )}
 
+        {(contact.offeredReferral || contact.offeredIntro) && (
+          <ul className={styles.offers}>
+            {contact.offeredReferral && <li className={styles.offer}>✓ Offered to refer you</li>}
+            {contact.offeredIntro && <li className={styles.offer}>✓ Offered to make an introduction</li>}
+          </ul>
+        )}
+
         <div className={styles.group}>
           <h3 className={styles.groupLabel}>Next steps</h3>
           {followUps.length === 0 ? (

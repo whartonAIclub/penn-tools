@@ -513,6 +513,24 @@
   color: var(--text);
 }
 
+.offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offer {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--thank-you-bg);
+  color: var(--thank-you);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .links {
   display: flex;
   flex-wrap: wrap;
