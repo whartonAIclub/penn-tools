@@ -1,35 +1,27 @@
-// The people a student has talked to, and the follow-ups they owe them. Until
-// the tool has its own database (section 4 of CLAUDE.md), the page shows
-// sampleNetwork(), dated relative to today so its follow-ups stay current.
-//
-// Follow-ups aren't entered by hand: followUpsFor() works them out from each
-// call, using the "2-Hour Job Search" rules for after an informational meeting:
-//   - a thank-you note within 24 hours that highlights their best advice
-//   - a monthly check-in that recaps that advice, every month after the last
+// The follow-ups a student owes the people they've talked to, worked out from
+// the contacts the intake saves (contacts.ts) with the "2-Hour Job Search"
+// rules for after an informational meeting:
+//   - a thank-you email within 24 hours that highlights their best advice
+//   - a follow-up a month later that recaps that advice, then every month
+// The intake decides which of the two a contact gets (its next steps); these
+// rules only date them when the intake didn't, and schedule the next follow-up.
+// A contact's best advice is its first key takeaway.
 
-export interface NetworkContact {
-  id: string;
-  name: string;
-  /** Penn class, e.g. "WG'19" */
-  classYear: string;
-  role: string;
-  company: string;
-  /** ISO date of the informational call */
-  callDate: string;
-  /** The best piece of advice they gave on the call */
-  bestAdvice: string;
-  /** ISO date the thank-you note was sent, or null if not yet */
-  thankedOn: string | null;
-  /** ISO date of the most recent monthly check-in, or null if none yet */
-  lastCheckIn: string | null;
-}
+import { addDays } from "./debrief.js";
+import { STEP_ACTIONS } from "./contacts.js";
+import type { Contact, NextStep } from "./contacts.js";
 
-export type FollowUpKind = "thankYou" | "checkIn";
+/** Where the browser keeps saved contacts, shared by the tracker and landing pages. */
+export const CONTACTS_STORAGE_KEY = "penn-pals:contacts:v1";
+
+export type FollowUpKind = "thankYou" | "followUp";
 
 export interface FollowUp {
-  /** `${contactId}:${kind}`, unique since a contact owes at most one of each */
+  /** `${contactId}:${stepIndex}` */
   id: string;
   contactId: string;
+  /** Index of the next step in `contact.nextSteps` */
+  stepIndex: number;
   kind: FollowUpKind;
   action: string;
   /** ISO date the follow-up is due */
@@ -38,33 +30,19 @@ export interface FollowUp {
 
 export type FollowUpStatus = "overdue" | "today" | "thisWeek" | "later";
 
-/** Days after the call the thank-you note is due ("within 24 hours"). */
+/** Days after the call the thank-you email is due ("within 24 hours"). */
 export const THANK_YOU_DAYS = 1;
-/** Months between check-ins, counted from the call or the last check-in. */
-export const CHECK_IN_MONTHS = 1;
+/** Months between follow-ups, counted from the call or the last follow-up. */
+export const FOLLOW_UP_MONTHS = 1;
 
+const [THANK_YOU_ACTION, FOLLOW_UP_ACTION] = STEP_ACTIONS;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-function parseIso(date: string): Date {
-  const [y, m, d] = date.split("-").map(Number);
-  return new Date(y!, m! - 1, d!);
-}
-
-function toIso(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function addDays(date: string, days: number): string {
-  const d = parseIso(date);
-  return toIso(new Date(d.getFullYear(), d.getMonth(), d.getDate() + days));
-}
 
 /** `months` later, on the same day of the month or the month's last day (Jan 31 → Feb 28). */
 function addMonths(date: string, months: number): string {
-  const d = parseIso(date);
-  const lastDay = new Date(d.getFullYear(), d.getMonth() + months + 1, 0).getDate();
-  return toIso(new Date(d.getFullYear(), d.getMonth() + months, Math.min(d.getDate(), lastDay)));
+  const [y, m, d] = date.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(y!, m! - 1 + months + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y!, m! - 1 + months, Math.min(d!, lastDay))).toISOString().slice(0, 10);
 }
 
 /** Whole days from `today` to `date`; negative when `date` is in the past. */
@@ -82,46 +60,88 @@ export function followUpStatus(today: Date, due: string): FollowUpStatus {
   return "later";
 }
 
-/** What the student owes this contact next: the thank-you until it's sent, then the next check-in. */
-export function followUpsFor(contact: NetworkContact): FollowUp[] {
+/** The best piece of advice from the call: the first key takeaway, or null if there are none. */
+export function bestAdvice(contact: Contact): string | null {
+  return contact.takeaways[0] ?? null;
+}
+
+function kindOf(step: NextStep): FollowUpKind | null {
+  if (step.action === THANK_YOU_ACTION) return "thankYou";
+  if (step.action === FOLLOW_UP_ACTION) return "followUp";
+  return null;
+}
+
+/** The student's open thank-you and follow-up steps for this contact, dated by the workshop rules when the intake didn't. */
+export function followUpsFor(contact: Contact): FollowUp[] {
   const firstName = contact.name.split(" ")[0];
-  const advice = `"${contact.bestAdvice}"`;
-  if (!contact.thankedOn) {
-    return [
-      {
-        id: `${contact.id}:thankYou`,
-        contactId: contact.id,
-        kind: "thankYou",
-        action: `Thank ${firstName} and highlight their best advice: ${advice}`,
-        due: addDays(contact.callDate, THANK_YOU_DAYS),
-      },
-    ];
+  const advice = bestAdvice(contact);
+  return contact.nextSteps.flatMap((step, stepIndex) => {
+    const kind = kindOf(step);
+    if (!kind || step.done || step.owner !== "me") return [];
+    const action =
+      kind === "thankYou"
+        ? advice
+          ? `Thank ${firstName} and highlight their best advice: "${advice}"`
+          : `Thank ${firstName} and highlight their best advice`
+        : advice
+          ? `Follow up with ${firstName}: how acting on "${advice}" helped, plus a new question`
+          : `Follow up with ${firstName}: what you've done since, plus a new question`;
+    const due =
+      step.dueDate ??
+      (kind === "thankYou" ? addDays(contact.meetingDate, THANK_YOU_DAYS) : addMonths(contact.meetingDate, FOLLOW_UP_MONTHS));
+    return [{ id: `${contact.id}:${stepIndex}`, contactId: contact.id, stepIndex, kind, action, due }];
+  });
+}
+
+/** The contact with `followUp` done on `today`; a done follow-up schedules the next one a month later. */
+export function markFollowUpDone(contact: Contact, followUp: FollowUp, today: string): Contact {
+  const nextSteps = contact.nextSteps.map((step, i) => (i === followUp.stepIndex ? { ...step, done: true } : step));
+  if (followUp.kind === "followUp") {
+    nextSteps.push({ action: FOLLOW_UP_ACTION, owner: "me", dueDate: addMonths(today, FOLLOW_UP_MONTHS), done: false });
   }
-  return [
-    {
-      id: `${contact.id}:checkIn`,
-      contactId: contact.id,
-      kind: "checkIn",
-      action: `Check in with ${firstName}: how acting on ${advice} helped, plus a new question`,
-      due: addMonths(contact.lastCheckIn ?? contact.callDate, CHECK_IN_MONTHS),
-    },
-  ];
+  return { ...contact, nextSteps };
 }
 
-/** The contact after `followUp` is done on `today`, which schedules what comes next. */
-export function markFollowUpDone(contact: NetworkContact, followUp: FollowUp, today: string): NetworkContact {
-  return followUp.kind === "thankYou" ? { ...contact, thankedOn: today } : { ...contact, lastCheckIn: today };
-}
-
-/** Made-up contacts for designing the page. */
-export function sampleNetwork(today: Date = new Date()): NetworkContact[] {
-  const on = (days: number) => addDays(toIso(today), days);
+/** Made-up contacts for the landing page before any are saved, dated relative to `today` (YYYY-MM-DD). */
+export function sampleNetwork(today: string): Contact[] {
+  const on = (days: number) => addDays(today, days);
+  const contact = (
+    id: string,
+    name: string,
+    classYear: string,
+    role: string,
+    company: string,
+    meetingDay: number,
+    advice: string,
+    steps: { action: string; dueDate?: string; done?: boolean }[],
+  ): Contact => ({
+    id,
+    name,
+    relationship: "alumni",
+    classYear,
+    company,
+    role,
+    area: null,
+    location: null,
+    email: null,
+    phone: null,
+    linkedin: null,
+    meetingDate: on(meetingDay),
+    vibe: "good",
+    offeredReferral: false,
+    offeredIntro: false,
+    takeaways: [advice],
+    nextSteps: steps.map((s) => ({ action: s.action, owner: "me", dueDate: s.dueDate ?? null, done: s.done ?? false })),
+    notes: "",
+    checkInDate: on(meetingDay + 30),
+    createdAt: on(meetingDay),
+  });
   return [
-    { id: "c1", name: "Priya Raman", classYear: "WG'18", role: "Product Lead", company: "Stripe", callDate: on(0), bestAdvice: "Lead with one payments metric you'd move, not your resume", thankedOn: null, lastCheckIn: null },
-    { id: "c2", name: "Marcus Bell", classYear: "W'15", role: "Principal", company: "General Catalyst", callDate: on(-3), bestAdvice: "Write a one-page fintech thesis and share it widely", thankedOn: null, lastCheckIn: null },
-    { id: "c3", name: "Sofia Alvarez", classYear: "WG'20", role: "Engagement Manager", company: "McKinsey", callDate: on(-1), bestAdvice: "Pick one tech function and talk to five people in it", thankedOn: null, lastCheckIn: null },
-    { id: "c4", name: "Daniel Okafor", classYear: "WG'21", role: "Strategy & Ops", company: "Anthropic", callDate: on(-33), bestAdvice: "Read the company's research before any AI go-to-market chat", thankedOn: on(-32), lastCheckIn: null },
-    { id: "c5", name: "Hannah Kim", classYear: "WG'17", role: "Director of Growth", company: "Duolingo", callDate: on(-55), bestAdvice: "Run a small growth experiment and bring the results", thankedOn: on(-54), lastCheckIn: on(-26) },
-    { id: "c6", name: "Lucas Moreau", classYear: "WG'22", role: "Associate", company: "Bain Capital Ventures", callDate: on(-20), bestAdvice: "Build a market map; it's the best conversation starter in VC", thankedOn: on(-19), lastCheckIn: null },
+    contact("c1", "Priya Raman", "2018", "Product Lead", "Stripe", 0, "Lead with one payments metric you'd move, not your resume", [{ action: THANK_YOU_ACTION }, { action: FOLLOW_UP_ACTION }]),
+    contact("c2", "Marcus Bell", "2015", "Principal", "General Catalyst", -3, "Write a one-page fintech thesis and share it widely", [{ action: THANK_YOU_ACTION }]),
+    contact("c3", "Sofia Alvarez", "2020", "Engagement Manager", "McKinsey", -1, "Pick one tech function and talk to five people in it", [{ action: THANK_YOU_ACTION }, { action: FOLLOW_UP_ACTION }]),
+    contact("c4", "Daniel Okafor", "2021", "Strategy & Ops", "Anthropic", -33, "Read the company's research before any AI go-to-market chat", [{ action: THANK_YOU_ACTION, done: true }, { action: FOLLOW_UP_ACTION }]),
+    contact("c5", "Hannah Kim", "2017", "Director of Growth", "Duolingo", -55, "Run a small growth experiment and bring the results", [{ action: THANK_YOU_ACTION, done: true }, { action: FOLLOW_UP_ACTION, done: true }, { action: FOLLOW_UP_ACTION, dueDate: on(4) }]),
+    contact("c6", "Lucas Moreau", "2022", "Associate", "Bain Capital Ventures", -20, "Build a market map; it's the best conversation starter in VC", [{ action: THANK_YOU_ACTION, done: true }, { action: FOLLOW_UP_ACTION }]),
   ];
 }

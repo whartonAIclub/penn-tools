@@ -1,45 +1,79 @@
 import { describe, expect, it } from "vitest";
-import { markFollowUpDone, followUpStatus, followUpsFor } from "../network.js";
-import type { NetworkContact } from "../network.js";
+import { bestAdvice, followUpStatus, followUpsFor, markFollowUpDone } from "../network.js";
+import type { Contact } from "../contacts.js";
 
-const contact: NetworkContact = {
+const contact: Contact = {
   id: "c1",
   name: "Priya Raman",
-  classYear: "WG'18",
-  role: "Product Lead",
+  relationship: "alumni",
+  classYear: "2018",
   company: "Stripe",
-  callDate: "2026-01-31",
-  bestAdvice: "Lead with one metric",
-  thankedOn: null,
-  lastCheckIn: null,
+  role: "Product Lead",
+  area: null,
+  location: null,
+  email: null,
+  phone: null,
+  linkedin: null,
+  meetingDate: "2026-01-31",
+  vibe: "good",
+  offeredReferral: false,
+  offeredIntro: false,
+  takeaways: ["Lead with one metric", "Read the S-1"],
+  nextSteps: [
+    { action: "Send a thank-you email", owner: "me", dueDate: null, done: false },
+    { action: "Follow up", owner: "me", dueDate: null, done: false },
+  ],
+  notes: "",
+  checkInDate: "2026-02-14",
+  createdAt: "2026-01-31",
 };
 
+describe("bestAdvice", () => {
+  it("is the first takeaway, or null without any", () => {
+    expect(bestAdvice(contact)).toBe("Lead with one metric");
+    expect(bestAdvice({ ...contact, takeaways: [] })).toBeNull();
+  });
+});
+
 describe("followUpsFor", () => {
-  it("owes a thank-you the day after the call, quoting their advice", () => {
-    const [f] = followUpsFor(contact);
-    expect(f).toMatchObject({ kind: "thankYou", due: "2026-02-01" });
-    expect(f!.action).toContain("Lead with one metric");
+  it("dates a thank-you the day after the call and a follow-up a month later, clamped to the month's end", () => {
+    const [thankYou, followUp] = followUpsFor(contact);
+    expect(thankYou).toMatchObject({ kind: "thankYou", due: "2026-02-01" });
+    expect(thankYou!.action).toContain("Lead with one metric");
+    expect(followUp).toMatchObject({ kind: "followUp", due: "2026-02-28" });
   });
 
-  it("schedules a check-in a month after the call once thanked, clamping to the month's end", () => {
-    const [f] = followUpsFor({ ...contact, thankedOn: "2026-02-01" });
-    expect(f).toMatchObject({ kind: "checkIn", due: "2026-02-28" });
+  it("keeps a due date the intake set", () => {
+    const steps = [{ action: "Follow up", owner: "me" as const, dueDate: "2026-03-15", done: false }];
+    expect(followUpsFor({ ...contact, nextSteps: steps })[0]!.due).toBe("2026-03-15");
   });
 
-  it("schedules the next check-in a month after the last one", () => {
-    const [f] = followUpsFor({ ...contact, thankedOn: "2026-02-01", lastCheckIn: "2026-03-10" });
-    expect(f!.due).toBe("2026-04-10");
+  it("skips done steps and steps the other person owns", () => {
+    const steps = [
+      { action: "Send a thank-you email", owner: "me" as const, dueDate: null, done: true },
+      { action: "Follow up", owner: "them" as const, dueDate: null, done: false },
+    ];
+    expect(followUpsFor({ ...contact, nextSteps: steps })).toEqual([]);
+  });
+
+  it("only gives the steps the intake chose", () => {
+    const steps = [{ action: "Send a thank-you email", owner: "me" as const, dueDate: null, done: false }];
+    expect(followUpsFor({ ...contact, nextSteps: steps }).map((f) => f.kind)).toEqual(["thankYou"]);
   });
 });
 
 describe("markFollowUpDone", () => {
-  it("turns a done thank-you into a check-in, and a done check-in into the next one", () => {
-    const thanked = markFollowUpDone(contact, followUpsFor(contact)[0]!, "2026-02-01");
-    const [checkIn] = followUpsFor(thanked);
-    expect(checkIn!.kind).toBe("checkIn");
+  it("marks a thank-you done without scheduling anything", () => {
+    const done = markFollowUpDone(contact, followUpsFor(contact)[0]!, "2026-02-01");
+    expect(followUpsFor(done).map((f) => f.kind)).toEqual(["followUp"]);
+  });
 
-    const checkedIn = markFollowUpDone(thanked, checkIn!, "2026-03-05");
-    expect(followUpsFor(checkedIn)[0]!.due).toBe("2026-04-05");
+  it("schedules the next follow-up a month after one is done", () => {
+    const followUp = followUpsFor(contact)[1]!;
+    const done = markFollowUpDone(contact, followUp, "2026-03-05");
+    const next = followUpsFor(done).filter((f) => f.kind === "followUp");
+    expect(next).toHaveLength(1);
+    expect(next[0]!.due).toBe("2026-04-05");
   });
 });
 

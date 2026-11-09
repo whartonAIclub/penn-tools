@@ -1,15 +1,24 @@
 "use client";
 
 // Two lanes: follow-ups the student owes (left) and everyone they've talked to
-// (right). Clicking a person narrows the follow-ups to them. Follow-ups come
-// from followUpsFor(), so marking one done schedules the next (a thank-you
-// becomes a monthly check-in). That only lasts until reload until the tool has
-// its own database.
+// (right). Clicking a person narrows the follow-ups to them. Contacts are the
+// ones the intake saved in this browser (the tracker page's storage), or sample
+// data until there are any. Follow-ups come from followUpsFor(), so marking a
+// follow-up done saves it and schedules the next one a month later.
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { daysFrom, followUpStatus, followUpsFor, markFollowUpDone } from "@penntools/tool-penn-pals";
-import type { FollowUp, FollowUpKind, FollowUpStatus, NetworkContact } from "@penntools/tool-penn-pals";
+import { useEffect, useMemo, useState } from "react";
+import {
+  bestAdvice,
+  CONTACTS_STORAGE_KEY,
+  daysFrom,
+  followUpStatus,
+  followUpsFor,
+  markFollowUpDone,
+  parseStoredContacts,
+  sampleNetwork,
+} from "@penntools/tool-penn-pals";
+import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
 import styles from "./Landing.module.css";
 
 const GROUPS: { status: FollowUpStatus; label: string }[] = [
@@ -21,8 +30,8 @@ const GROUPS: { status: FollowUpStatus; label: string }[] = [
 
 // The two buckets the debrief sorts next steps into, each with its own color
 const KINDS: Record<FollowUpKind, { label: string; card: string; tag: string }> = {
-  thankYou: { label: "Thank-you email", card: styles.thankYou!, tag: styles.tagThankYou! },
-  checkIn: { label: "Follow-up meeting", card: styles.checkIn!, tag: styles.tagCheckIn! },
+  thankYou: { label: "Thank-you email", card: styles.kindThankYou!, tag: styles.tagThankYou! },
+  followUp: { label: "Follow-up meeting", card: styles.kindFollowUp!, tag: styles.tagFollowUp! },
 };
 
 function dueLabel(days: number): string {
@@ -43,14 +52,27 @@ function initials(name: string): string {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
 }
 
-export function Landing({ contacts: initialContacts, today: todayIso }: { contacts: NetworkContact[]; today: string }) {
+export function Landing({ today: todayIso }: { today: string }) {
   const [y, m, d] = todayIso.split("-").map(Number);
   const today = new Date(y!, m! - 1, d!);
 
-  const [allContacts, setAllContacts] = useState(initialContacts);
+  // null until the browser's saved contacts are read, so the page doesn't flash sample data.
+  const [saved, setSaved] = useState<Contact[] | null>(null);
   const [doneCount, setDoneCount] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    try {
+      setSaved(parseStoredContacts(localStorage.getItem(CONTACTS_STORAGE_KEY)));
+    } catch {
+      setSaved([]); // storage blocked (private window): show the sample data
+    }
+  }, []);
+
+  const [sample, setSample] = useState(() => sampleNetwork(todayIso));
+  const isSample = saved !== null && saved.length === 0;
+  const allContacts = isSample ? sample : (saved ?? []);
 
   const contactsById = useMemo(() => new Map(allContacts.map((c) => [c.id, c])), [allContacts]);
   const allFollowUps = useMemo(() => allContacts.flatMap(followUpsFor), [allContacts]);
@@ -64,22 +86,35 @@ export function Landing({ contacts: initialContacts, today: todayIso }: { contac
 
   const q = query.trim().toLowerCase();
   const contacts = allContacts
-    .filter((c) => !q || `${c.name} ${c.company} ${c.role}`.toLowerCase().includes(q))
-    .sort((a, b) => b.callDate.localeCompare(a.callDate));
+    .filter((c) => !q || `${c.name} ${c.company ?? ""} ${c.role ?? ""}`.toLowerCase().includes(q))
+    .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 
   const markDone = (followUp: FollowUp) => {
-    setAllContacts((prev) => prev.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c)));
+    const next = allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c));
+    if (isSample) {
+      setSample(next); // sample data isn't saved
+    } else {
+      setSaved(next);
+      try {
+        localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Storage full or blocked: keep working in memory.
+      }
+    }
     setDoneCount((n) => n + 1);
   };
 
-  const selectedContact: NetworkContact | undefined = selected ? contactsById.get(selected) : undefined;
+  if (!saved) return <p className={styles.empty}>Loading…</p>;
+
+  const selectedContact: Contact | undefined = selected ? contactsById.get(selected) : undefined;
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>Penn Pals</h1>
         <p className={styles.intro}>
-          Who you owe a follow-up, and everyone you&apos;ve talked to. <span className={styles.sample}>Sample data</span>
+          Who you owe a follow-up, and everyone you&apos;ve talked to.{" "}
+          {isSample && <span className={styles.sample}>Sample data until you log a chat</span>}
         </p>
         <nav className={styles.actions} aria-label="Log a chat">
           <Link href="/tools/penn-pals/debrief" className={styles.actionPrimary}>
@@ -138,7 +173,7 @@ export function Landing({ contacts: initialContacts, today: todayIso }: { contac
                             <p className={styles.action}>{f.action}</p>
                             <p className={styles.meta}>
                               <span className={`${styles.tag} ${KINDS[f.kind].tag}`}>{KINDS[f.kind].label}</span>{" "}
-                              {contact?.name} · {contact?.company}
+                              {[contact?.name, contact?.company].filter(Boolean).join(" · ")}
                             </p>
                           </div>
                           <span className={`${styles.due} ${days < 0 ? styles.dueOverdue : days === 0 ? styles.dueToday : ""}`}>
@@ -188,15 +223,15 @@ export function Landing({ contacts: initialContacts, today: todayIso }: { contac
                       </span>
                       <span className={styles.personBody}>
                         <span className={styles.personName}>
-                          {c.name} <span className={styles.classYear}>{c.classYear}</span>
+                          {c.name} {c.classYear && <span className={styles.classYear}>{c.classYear}</span>}
                         </span>
-                        <span className={styles.meta}>
-                          {c.role} · {c.company}
-                        </span>
-                        <span className={styles.note}>Best advice: {c.bestAdvice}</span>
+                        {(c.role || c.company) && (
+                          <span className={styles.meta}>{[c.role, c.company].filter(Boolean).join(" · ")}</span>
+                        )}
+                        {bestAdvice(c) && <span className={styles.note}>Best advice: {bestAdvice(c)}</span>}
                       </span>
                       <span className={styles.personSide}>
-                        <span className={styles.meta}>{chatLabel(daysFrom(today, c.callDate))}</span>
+                        <span className={styles.meta}>{chatLabel(daysFrom(today, c.meetingDate))}</span>
                         {open > 0 && (
                           <span className={styles.badge}>
                             {open} follow-up{open > 1 ? "s" : ""}

@@ -174,11 +174,11 @@
 }
 
 /* Color-coded by bucket: a thank-you email, or a follow-up meeting to set up */
-.thankYou {
+.kindThankYou {
   border-left-color: var(--thank-you);
 }
 
-.checkIn {
+.kindFollowUp {
   border-left-color: var(--meeting);
 }
 
@@ -201,7 +201,7 @@
   color: var(--thank-you);
 }
 
-.tagCheckIn {
+.tagFollowUp {
   background: var(--meeting-bg);
   color: var(--meeting);
 }

@@ -32,5 +32,17 @@ export {
   toContactRecord,
   withFollowUpDate,
 } from "./debrief.js";
-export { daysFrom, followUpStatus, followUpsFor, markFollowUpDone, sampleNetwork } from "./network.js";
-export type { FollowUp, FollowUpKind, FollowUpStatus, NetworkContact } from "./network.js";
+export {
+  bestAdvice,
+  CONTACTS_STORAGE_KEY,
+  daysFrom,
+  FOLLOW_UP_MONTHS,
+  followUpStatus,
+  followUpsFor,
+  markFollowUpDone,
+  sampleNetwork,
+  THANK_YOU_DAYS,
+  type FollowUp,
+  type FollowUpKind,
+  type FollowUpStatus,
+} from "./network.js";
