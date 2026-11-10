@@ -14,6 +14,7 @@ import {
   nextDeadline,
   sortTrips,
   tripDays,
+  visibleTrips,
   type Region,
   type Trip,
   type TripType,
@@ -30,15 +31,17 @@ export function TripCatalog({ trips, today, sample = false }: { trips: Trip[]; t
   const [region, setRegion] = useState<Region | "">("");
   const [period, setPeriod] = useState("");
 
-  const periods = useMemo(() => listSeasons(trips), [trips]);
+  // Trips that have started or left the Sheet aren't shown, counted or listed in the periods.
+  const visible = useMemo(() => visibleTrips(trips, today), [trips, today]);
+  const periods = useMemo(() => listSeasons(visible), [visible]);
   const shown = useMemo(
     () =>
       sortTrips(
-        filterTrips(trips, { query, type: type || null, region: region || null, season: period || null }),
+        filterTrips(visible, { query, type: type || null, region: region || null, season: period || null }),
         "start_date",
         today,
       ),
-    [trips, today, query, type, region, period],
+    [visible, today, query, type, region, period],
   );
   const filtered = query !== "" || type !== "" || region !== "" || period !== "";
 

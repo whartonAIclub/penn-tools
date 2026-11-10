@@ -15,6 +15,7 @@ export { tripSeason } from "./catalog.js";
 export { listSeasons } from "./catalog.js";
 export { nextDeadline } from "./catalog.js";
 export type { TripFilters, TripSort } from "./catalog.js";
+export { visibleTrips } from "./catalog.js";
 export { saveTrip } from "./db.js";
 export { unsaveTrip } from "./db.js";
 export { listSavedIds } from "./db.js";

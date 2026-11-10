@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterTrips, listSeasons, nextDeadline, sortTrips, tripSeason } from "../catalog.js";
+import { filterTrips, listSeasons, nextDeadline, sortTrips, tripSeason, visibleTrips } from "../catalog.js";
 import type { Deadline, PriceStage, Trip } from "../trips.js";
 import { SAMPLE_TRIPS } from "../samples.js";
 
@@ -128,6 +128,32 @@ describe("nextDeadline", () => {
     const t = trip({ deadlines: [deadline("preliminary", "2026-11-01"), deadline("deposit", "2026-12-01", 2)] });
     expect(due(t, TODAY)).toBe(null);
     expect(due(trip({}), TODAY)).toBe(null);
+  });
+});
+
+describe("visibleTrips", () => {
+  it("hides trips from their start date on, and keeps ones starting later", () => {
+    const tomorrow = trip({ id: "tomorrow", startDate: "2026-11-10" });
+    const today = trip({ id: "today", startDate: "2026-11-09" });
+    const started = trip({ id: "started", startDate: "2026-11-01", endDate: "2026-11-12" });
+    const over = trip({ id: "over", startDate: "2026-10-01", endDate: "2026-10-05" });
+    expect(ids(visibleTrips([tomorrow, today, started, over], TODAY))).toEqual(["tomorrow"]);
+  });
+
+  it("hides trips that are no longer listed", () => {
+    const listed = trip({ id: "listed" });
+    const delisted = trip({ id: "delisted", listed: false });
+    expect(ids(visibleTrips([listed, delisted], TODAY))).toEqual(["listed"]);
+  });
+
+  it("keeps trips whose preliminary deadline has passed", () => {
+    const passed = trip({ id: "passed", deadlines: [deadline("preliminary", "2026-11-01")] });
+    expect(ids(visibleTrips([passed], TODAY))).toEqual(["passed"]);
+  });
+
+  it("drops NYC from the samples once it starts", () => {
+    expect(visibleTrips(SAMPLE_TRIPS, "2026-11-29").some((t) => t.id === "sample-nyc-finance")).toBe(true);
+    expect(visibleTrips(SAMPLE_TRIPS, "2026-11-30").some((t) => t.id === "sample-nyc-finance")).toBe(false);
   });
 });
 

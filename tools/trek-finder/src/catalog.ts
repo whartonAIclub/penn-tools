@@ -2,7 +2,7 @@
 // trip the page loaded, and filters and sorts can be combined freely. Anything
 // that depends on the date takes today (YYYY-MM-DD) as a parameter.
 
-import { currentPriceStage } from "./derive.js";
+import { currentPriceStage, tripStatus } from "./derive.js";
 import { tripDays, type Deadline, type Region, type Trip, type TripType } from "./trips.js";
 
 export interface TripFilters {
@@ -41,6 +41,14 @@ export function listSeasons(trips: readonly Trip[]): string[] {
     if (!seasons.includes(season)) seasons.push(season);
   }
   return seasons;
+}
+
+/**
+ * The trips the catalog shows: still listed in the Sheet and not yet started.
+ * Filters, sorts and the period list all work on these.
+ */
+export function visibleTrips(trips: readonly Trip[], today: string): Trip[] {
+  return trips.filter((trip) => trip.listed && tripStatus(trip, today) !== "past");
 }
 
 /** The trips matching every filter given, in their original order. */
