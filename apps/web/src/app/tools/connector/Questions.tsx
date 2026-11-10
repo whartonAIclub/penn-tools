@@ -7,7 +7,7 @@ import { useState } from "react";
 import type { Question } from "@penntools/tool-connector";
 import styles from "./Connector.module.css";
 
-/** Question ID → the ID of the chosen option, e.g. { "ideal-2am": "rooftop-talk" }. */
+/** Question ID → the ID of the chosen option, e.g. { "friday-midnight": "rooftop-talk" }. */
 export type Answers = Record<string, string>;
 
 interface Props {

@@ -8,7 +8,7 @@
 -- again updates the same row.
 --
 -- answers maps each question's id to the id of the chosen option, e.g.
--- {"ideal-2am": "rooftop-talk", "free-saturday": "hike"} (see questions.ts),
+-- {"friday-midnight": "rooftop-talk", "free-day": "hike", ...} (see questions.ts),
 -- so adding a question needs no change here.
 CREATE TABLE IF NOT EXISTS signups (
   user_id    TEXT        PRIMARY KEY,

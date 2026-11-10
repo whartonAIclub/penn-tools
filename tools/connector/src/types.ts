@@ -25,7 +25,7 @@ export interface Signup {
   email: string;
   /** The ID of one of COHORTS in questions.ts, e.g. "F". */
   cohort: string;
-  /** Question ID → the ID of the chosen option, e.g. { "ideal-2am": "rooftop-talk" }. */
+  /** Question ID → the ID of the chosen option, e.g. { "friday-midnight": "rooftop-talk" }. */
   answers: Readonly<Record<string, string>>;
 }
 

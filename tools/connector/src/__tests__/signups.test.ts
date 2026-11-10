@@ -10,7 +10,12 @@ import postgres from "postgres";
 import type { Sql } from "postgres";
 import { checkSignup, listSignups, saveSignup } from "../signups.js";
 
-const answers = { "ideal-2am": "rooftop-talk", "free-saturday": "hike" };
+const answers = {
+  "friday-midnight": "rooftop-talk",
+  "free-day": "hike",
+  "party-style": "kitchen-chat",
+  "friend-value": "honest",
+};
 
 describe("checkSignup", () => {
   it("trims names and accepts a real cohort and real answers", () => {
@@ -32,11 +37,11 @@ describe("checkSignup", () => {
     expect(checkSignup({ ...ok, lastName: "" })).toEqual({ ok: false, error: "Enter your last name." });
     expect(checkSignup({ ...ok, firstName: "A".repeat(101) }).ok).toBe(false);
     expect(checkSignup({ ...ok, cohort: "Z" })).toEqual({ ok: false, error: "Choose your cohort." });
-    expect(checkSignup({ ...ok, answers: { "ideal-2am": "rooftop-talk" } })).toEqual({
+    expect(checkSignup({ ...ok, answers: { "friday-midnight": "rooftop-talk" } })).toEqual({
       ok: false,
-      error: 'Answer "Free Saturday".',
+      error: 'Answer "A free day in Philly".',
     });
-    expect(checkSignup({ ...ok, answers: { ...answers, "ideal-2am": "Rooftop Talk" } }).ok).toBe(false);
+    expect(checkSignup({ ...ok, answers: { ...answers, "friday-midnight": "Deep talk on a rooftop" } }).ok).toBe(false);
   });
 });
 
@@ -69,6 +74,8 @@ describe.skipIf(!databaseUrl)("Connector sign-ups (Postgres)", () => {
   });
 
   it("saves sign-ups, replaces a student's earlier one, and lists everyone's", async () => {
+    const bobAnswers = { "friday-midnight": "out-dancing", "free-day": "museum", "party-style": "dance-floor", "friend-value": "makes-me-laugh" };
+    const aliceAnswers = { "friday-midnight": "morning-person", "free-day": "movie-day", "party-style": "heading-out", "friend-value": "shows-up" };
     expect(await listSignups(sql)).toEqual([]);
 
     await saveSignup(sql, "alice", "alice@wharton.upenn.edu", { firstName: "Alice", lastName: "A", cohort: "A", answers });
@@ -76,13 +83,13 @@ describe.skipIf(!databaseUrl)("Connector sign-ups (Postgres)", () => {
       firstName: "Bob",
       lastName: "B",
       cohort: "D",
-      answers: { "ideal-2am": "diner-run", "free-saturday": "museum" },
+      answers: bobAnswers,
     });
     await saveSignup(sql, "alice", "alice@wharton.upenn.edu", {
       firstName: "Alice",
       lastName: "Smith",
       cohort: "K",
-      answers: { "ideal-2am": "asleep", "free-saturday": "sleep-in" },
+      answers: aliceAnswers,
     });
 
     expect(await listSignups(sql)).toEqual([
@@ -91,14 +98,14 @@ describe.skipIf(!databaseUrl)("Connector sign-ups (Postgres)", () => {
         name: "Alice Smith",
         email: "alice@wharton.upenn.edu",
         cohort: "K",
-        answers: { "ideal-2am": "asleep", "free-saturday": "sleep-in" },
+        answers: aliceAnswers,
       },
       {
         id: "bob",
         name: "Bob B",
         email: "bob@wharton.upenn.edu",
         cohort: "D",
-        answers: { "ideal-2am": "diner-run", "free-saturday": "museum" },
+        answers: bobAnswers,
       },
     ]);
   });
