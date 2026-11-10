@@ -212,3 +212,14 @@
   line-height: 1.6;
   font-size: 0.9rem;
 }
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  color: var(--section-label);
+}

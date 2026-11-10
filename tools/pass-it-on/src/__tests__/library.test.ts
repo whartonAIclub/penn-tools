@@ -10,6 +10,7 @@ import type { EmbeddingProvider } from "@penntools/core/embeddings";
 import { checkSearchQuery, checkTags, embedLibrary, searchLibrary, searchLibraryKeywords, setSourceTags } from "../library.js";
 import {
   checkPlannedEventInput,
+  leaderOf,
   formatVendorLines,
   parseNameList,
   parseVendorLines,
@@ -57,6 +58,37 @@ describe("input checks", () => {
     expect(checkSearchQuery("When are receipts due?")).toBeNull();
   });
 
+  it("checks roles, times and after-the-event numbers", () => {
+    const ok = checkPlannedEventInput({
+      title: "Pub",
+      eventTime: " 5.30-8.30pm ",
+      roles: [{ role: "Pub Leader", person: "Ada" }, { role: "Ops Lead", person: "" }, { role: "", person: "" }],
+      confirmedClub: true,
+      totalAttendees: "1,200",
+      dropIns: 30,
+      ticketRevenue: "$1800",
+      costs: "2700",
+      notes: "Ask for WGA funding",
+    });
+    expect(ok).toMatchObject({
+      ok: true,
+      value: {
+        eventTime: "5.30-8.30pm",
+        roles: [{ role: "Pub Leader", person: "Ada" }, { role: "Ops Lead", person: null }],
+        confirmedClub: true,
+        confirmedVenue: false,
+        totalAttendees: 1200,
+        dropIns: 30,
+        ticketRevenue: 1800,
+        costs: 2700,
+        notes: "Ask for WGA funding",
+      },
+    });
+    expect(leaderOf([{ role: "Ops Lead", person: "Sam" }, { role: "Pub Leader", person: "Ada" }])).toBe("Ada");
+    expect(leaderOf([{ role: "Pub Leader", person: null }, { role: "Ops Lead", person: "Sam" }])).toBe("Sam");
+    expect(leaderOf([])).toBeNull();
+  });
+
   it("checks planned events", () => {
     const ok = checkPlannedEventInput({
       title: " Pub: Fall Kickoff ",
@@ -70,18 +102,27 @@ describe("input checks", () => {
       value: {
         title: "Pub: Fall Kickoff",
         eventDate: "2026-09-18",
+        eventTime: null,
         theme: null,
         venue: null,
         budget: 1250.51,
-        pubLeader: null,
+        roles: [],
         partnerClubs: ["Wharton Cares"],
         vendors: [
           { name: "Bistro", role: null },
           { name: "DJ Sam", role: "music" },
         ],
+        notes: null,
+        confirmedClub: false,
+        confirmedVenue: false,
+        clubContact: null,
+        totalAttendees: null,
+        dropIns: null,
+        ticketRevenue: null,
+        costs: null,
       },
     });
-    for (const bad of [{}, { title: "x", eventDate: "2026-02-31" }, { title: "x", budget: -5 }, { title: "x", budget: "lots" }, { title: "x", partnerClubs: "a" }]) {
+    for (const bad of [{}, { title: "x", eventDate: "2026-02-31" }, { title: "x", budget: -5 }, { title: "x", budget: "lots" }, { title: "x", partnerClubs: "a" }, { title: "x", roles: [{ role: "", person: "Ada" }] }, { title: "x", totalAttendees: 1.5 }, { title: "x", costs: -1 }]) {
       expect(checkPlannedEventInput(bad).ok).toBe(false);
     }
   });
@@ -199,6 +240,11 @@ describe.skipIf(!databaseUrl)("library and planned events (Postgres)", () => {
       eventDate: "2026-10-30",
       budget: 1500,
       pubLeader: "Pat Example",
+      roles: [{ role: "Pub Leader", person: "Pat Example" }, { role: "Ops Lead", person: null }],
+      eventTime: "5.30-8.30pm",
+      confirmedVenue: true,
+      totalAttendees: 120,
+      ticketRevenue: 1800,
       partnerClubs: ["Wharton Cares"],
       vendors: [{ name: "Bistro", role: "catering" }],
     });
@@ -231,9 +277,18 @@ function planned(title: string, overrides: Partial<PlannedEventInput> = {}): Pla
     theme: "Halloween",
     venue: "Houston Hall",
     budget: 1500,
-    pubLeader: "Pat Example",
+    eventTime: "5.30-8.30pm",
+    roles: [{ role: "Pub Leader", person: "Pat Example" }, { role: "Ops Lead", person: null }],
     partnerClubs: [],
     vendors: [],
+    notes: null,
+    confirmedClub: false,
+    confirmedVenue: true,
+    clubContact: null,
+    totalAttendees: 120,
+    dropIns: null,
+    ticketRevenue: 1800,
+    costs: null,
     ...overrides,
   };
 }

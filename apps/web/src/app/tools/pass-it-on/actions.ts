@@ -18,7 +18,6 @@ import {
   databaseProblemMessage,
   deletePlannedEvent,
   deleteSource,
-  parseNameList,
   parseVendorLines,
   searchLibrary,
   searchLibraryKeywords,
@@ -46,16 +45,25 @@ async function run<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<
   }
 }
 
-/** What the event form sends: plain text, parsed here. */
+/** What the event form sends: text and lists, checked here. Vendors are one per line as "Name" or "Name: role". */
 export interface EventFormValues {
   title: string;
   eventDate: string;
+  eventTime: string;
   theme: string;
   venue: string;
   budget: string;
-  pubLeader: string;
-  partnerClubs: string;
+  roles: { role: string; person: string }[];
+  partnerClubs: string[];
   vendors: string;
+  notes: string;
+  confirmedClub: boolean;
+  confirmedVenue: boolean;
+  clubContact: string;
+  totalAttendees: string;
+  dropIns: string;
+  ticketRevenue: string;
+  costs: string;
 }
 
 /** Creates an event (id null) or saves changes to one. */
@@ -64,7 +72,6 @@ export async function saveEvent(id: string | null, values: EventFormValues): Pro
   if (!user) return signedOut;
   const checked = checkPlannedEventInput({
     ...values,
-    partnerClubs: parseNameList(String(values?.partnerClubs ?? "")),
     vendors: parseVendorLines(String(values?.vendors ?? "")),
   });
   if (!checked.ok) return fail(checked.message);

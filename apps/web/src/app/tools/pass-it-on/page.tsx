@@ -28,7 +28,7 @@ export default async function PassItOnPage() {
                 {e.title}
               </Link>
               <span className={styles.muted}>
-                {[e.eventDate ?? "Date to be decided", e.theme, e.venue, e.pubLeader && `Leader: ${e.pubLeader}`, e.budget !== null && money.format(e.budget)]
+                {[e.eventDate ?? "Date to be decided", e.eventTime, e.theme, e.venue, e.pubLeader && `Leader: ${e.pubLeader}`, e.budget !== null && money.format(e.budget)]
                   .filter(Boolean)
                   .join(" · ")}
               </span>

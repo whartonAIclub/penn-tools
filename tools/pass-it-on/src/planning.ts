@@ -7,6 +7,8 @@ import type { Sql } from "postgres";
 import { MAX_FIELD_LENGTH } from "./records.js";
 
 export const MAX_PARTIES = 20;
+export const MAX_ROLES = 20;
+export const MAX_COUNT = 1_000_000;
 /** The most NUMERIC(10, 2) can hold. */
 export const MAX_BUDGET = 99_999_999.99;
 export const DEFAULT_EVENT_TYPE = "pub";
@@ -19,22 +21,39 @@ export interface VendorInput {
   role: string | null;
 }
 
+/** One job on an event and who has it, e.g. { role: "Pub Leader", person: "Ada" }. The person may be blank while unfilled. */
+export interface RoleInput {
+  role: string;
+  person: string | null;
+}
+
 export interface PlannedEventInput {
   title: string;
   /** YYYY-MM-DD, or null while undecided. */
   eventDate: string | null;
+  /** Free text, e.g. "5.30-8.30pm". */
+  eventTime: string | null;
   theme: string | null;
   venue: string | null;
   budget: number | null;
-  pubLeader: string | null;
+  roles: RoleInput[];
   partnerClubs: string[];
   vendors: VendorInput[];
+  notes: string | null;
+  confirmedClub: boolean;
+  confirmedVenue: boolean;
+  clubContact: string | null;
+  /** After the event: */
+  totalAttendees: number | null;
+  dropIns: number | null;
+  ticketRevenue: number | null;
+  costs: number | null;
 }
 
 export interface PlannedEvent extends PlannedEventInput {
   id: string;
-  partnerClubs: string[];
-  vendors: VendorInput[];
+  /** The first Pub Leader named (or, failing that, the first person named). */
+  pubLeader: string | null;
 }
 
 export interface PlannedEventSummary {
@@ -45,6 +64,7 @@ export interface PlannedEventSummary {
   venue: string | null;
   budget: number | null;
   pubLeader: string | null;
+  eventTime: string | null;
 }
 
 type Checked<T> = { ok: true; value: T } | { ok: false; message: string };
@@ -55,6 +75,44 @@ function optionalText(value: unknown, label: string): Checked<string | null> {
   const trimmed = value.trim();
   if (trimmed.length > MAX_FIELD_LENGTH) return { ok: false, message: `Keep ${label} to at most ${MAX_FIELD_LENGTH} characters.` };
   return { ok: true, value: trimmed || null };
+}
+
+function optionalMoney(value: unknown, label: string): Checked<number | null> {
+  if (value === undefined || value === null || value === "") return { ok: true, value: null };
+  const n = typeof value === "string" ? Number(value.replace(/[$,\s]/g, "")) : value;
+  if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > MAX_BUDGET) return { ok: false, message: `Enter ${label} as a dollar amount, or leave it blank.` };
+  return { ok: true, value: Math.round(n * 100) / 100 };
+}
+
+function optionalCount(value: unknown, label: string): Checked<number | null> {
+  if (value === undefined || value === null || value === "") return { ok: true, value: null };
+  const n = typeof value === "string" ? Number(value.replace(/[,\s]/g, "")) : value;
+  if (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > MAX_COUNT) return { ok: false, message: `Enter ${label} as a whole number, or leave it blank.` };
+  return { ok: true, value: n };
+}
+
+function checkRoles(value: unknown): Checked<RoleInput[]> {
+  if (value === undefined || value === null) return { ok: true, value: [] };
+  if (!Array.isArray(value)) return { ok: false, message: "Roles must be a list." };
+  if (value.length > MAX_ROLES) return { ok: false, message: `List at most ${MAX_ROLES} roles.` };
+  const roles: RoleInput[] = [];
+  for (const entry of value) {
+    const raw = (entry ?? {}) as { role?: unknown; person?: unknown };
+    const role = optionalText(raw.role, "a role's name");
+    const person = optionalText(raw.person, "a person's name");
+    if (!role.ok) return role;
+    if (!person.ok) return person;
+    if (!role.value && !person.value) continue; // an empty slot
+    if (!role.value) return { ok: false, message: `Name the role that ${person.value} has.` };
+    roles.push({ role: role.value, person: person.value });
+  }
+  return { ok: true, value: roles };
+}
+
+/** The Pub Leader's name for lists: the first Pub Leader with a person, else the first person. */
+export function leaderOf(roles: RoleInput[]): string | null {
+  const named = roles.filter((r) => r.person);
+  return (named.find((r) => r.role.toLowerCase() === "pub leader") ?? named[0])?.person ?? null;
 }
 
 function isRealDate(value: string): boolean {
@@ -80,18 +138,25 @@ export function checkPlannedEventInput(input: unknown): Checked<PlannedEventInpu
   if (!theme.ok) return theme;
   const venue = optionalText(raw["venue"], "the venue");
   if (!venue.ok) return venue;
-  const pubLeader = optionalText(raw["pubLeader"], "the Pub Leader's name");
-  if (!pubLeader.ok) return pubLeader;
+  const time = optionalText(raw["eventTime"], "the time");
+  if (!time.ok) return time;
+  const notes = optionalText(raw["notes"], "the notes");
+  if (!notes.ok) return notes;
+  const clubContact = optionalText(raw["clubContact"], "the club contact");
+  if (!clubContact.ok) return clubContact;
+  const roles = checkRoles(raw["roles"]);
+  if (!roles.ok) return roles;
 
-  const rawBudget = raw["budget"];
-  let budget: number | null = null;
-  if (rawBudget !== undefined && rawBudget !== null && rawBudget !== "") {
-    budget = typeof rawBudget === "string" ? Number(rawBudget.replace(/[$,\s]/g, "")) : (rawBudget as number);
-    if (typeof budget !== "number" || !Number.isFinite(budget) || budget < 0 || budget > MAX_BUDGET) {
-      return { ok: false, message: "Enter the budget as a dollar amount, or leave it blank." };
-    }
-    budget = Math.round(budget * 100) / 100;
-  }
+  const budget = optionalMoney(raw["budget"], "the budget");
+  if (!budget.ok) return budget;
+  const ticketRevenue = optionalMoney(raw["ticketRevenue"], "the ticket revenue");
+  if (!ticketRevenue.ok) return ticketRevenue;
+  const costs = optionalMoney(raw["costs"], "the costs");
+  if (!costs.ok) return costs;
+  const totalAttendees = optionalCount(raw["totalAttendees"], "the total attendees");
+  if (!totalAttendees.ok) return totalAttendees;
+  const dropIns = optionalCount(raw["dropIns"], "the drop-ins");
+  if (!dropIns.ok) return dropIns;
 
   const clubs = checkNames(raw["partnerClubs"], "partner clubs");
   if (!clubs.ok) return clubs;
@@ -114,12 +179,21 @@ export function checkPlannedEventInput(input: unknown): Checked<PlannedEventInpu
     value: {
       title: raw["title"].trim(),
       eventDate: typeof date === "string" && date ? date : null,
+      eventTime: time.value,
       theme: theme.value,
       venue: venue.value,
-      budget,
-      pubLeader: pubLeader.value,
+      budget: budget.value,
+      roles: roles.value,
       partnerClubs: clubs.value,
       vendors,
+      notes: notes.value,
+      confirmedClub: raw["confirmedClub"] === true,
+      confirmedVenue: raw["confirmedVenue"] === true,
+      clubContact: clubContact.value,
+      totalAttendees: totalAttendees.value,
+      dropIns: dropIns.value,
+      ticketRevenue: ticketRevenue.value,
+      costs: costs.value,
     },
   };
 }
@@ -141,10 +215,15 @@ function checkNames(value: unknown, label: string): Checked<string[]> {
 export async function createPlannedEvent(sql: Sql, input: PlannedEventInput, createdBy: string): Promise<string> {
   return sql.begin(async (transaction) => {
     const tx = transaction as unknown as Sql; // see saveEvent in storage.ts
+    const leader = leaderOf(input.roles);
     const [row] = await tx<{ id: string }[]>`
-      INSERT INTO events (title, event_type, event_date, organizer_name, created_by, theme, venue, budget, pub_leader)
-      VALUES (${input.title}, ${DEFAULT_EVENT_TYPE}, ${input.eventDate}, ${input.pubLeader ?? "Unassigned"}, ${createdBy},
-              ${input.theme}, ${input.venue}, ${input.budget}, ${input.pubLeader})
+      INSERT INTO events (title, event_type, event_date, organizer_name, created_by, theme, venue, budget, pub_leader,
+                          event_time, notes, confirmed_club, confirmed_venue, club_contact,
+                          total_attendees, drop_ins, ticket_revenue, costs)
+      VALUES (${input.title}, ${DEFAULT_EVENT_TYPE}, ${input.eventDate}, ${leader ?? "Unassigned"}, ${createdBy},
+              ${input.theme}, ${input.venue}, ${input.budget}, ${leader},
+              ${input.eventTime}, ${input.notes}, ${input.confirmedClub}, ${input.confirmedVenue}, ${input.clubContact},
+              ${input.totalAttendees}, ${input.dropIns}, ${input.ticketRevenue}, ${input.costs})
       RETURNING id
     `;
     await setParties(tx, row!.id, input);
@@ -157,11 +236,15 @@ export async function updatePlannedEvent(sql: Sql, id: string, input: PlannedEve
   if (!UUID_RE.test(id)) return false;
   return sql.begin(async (transaction) => {
     const tx = transaction as unknown as Sql;
+    const leader = leaderOf(input.roles);
     const rows = await tx`
       UPDATE events
       SET title = ${input.title}, event_date = ${input.eventDate}, theme = ${input.theme}, venue = ${input.venue},
-          budget = ${input.budget}, pub_leader = ${input.pubLeader}, organizer_name = ${input.pubLeader ?? "Unassigned"},
-          updated_at = NOW()
+          budget = ${input.budget}, pub_leader = ${leader}, organizer_name = ${leader ?? "Unassigned"},
+          event_time = ${input.eventTime}, notes = ${input.notes}, confirmed_club = ${input.confirmedClub},
+          confirmed_venue = ${input.confirmedVenue}, club_contact = ${input.clubContact},
+          total_attendees = ${input.totalAttendees}, drop_ins = ${input.dropIns},
+          ticket_revenue = ${input.ticketRevenue}, costs = ${input.costs}, updated_at = NOW()
       WHERE id = ${id}
       RETURNING id
     `;
@@ -174,6 +257,10 @@ export async function updatePlannedEvent(sql: Sql, id: string, input: PlannedEve
 async function setParties(tx: Sql, eventId: string, input: PlannedEventInput): Promise<void> {
   await tx`DELETE FROM event_partner_clubs WHERE event_id = ${eventId}`;
   await tx`DELETE FROM event_vendors WHERE event_id = ${eventId}`;
+  await tx`DELETE FROM event_roles WHERE event_id = ${eventId}`;
+  for (const [position, r] of input.roles.entries()) {
+    await tx`INSERT INTO event_roles (event_id, position, role, person) VALUES (${eventId}, ${position}, ${r.role}, ${r.person})`;
+  }
   for (const name of input.partnerClubs) {
     // The no-op update makes RETURNING give back the existing row on a name clash.
     const [club] = await tx<{ id: string }[]>`
@@ -201,6 +288,18 @@ interface PlannedRow {
   venue: string | null;
   budget: string | null;
   pub_leader: string | null;
+  event_time: string | null;
+}
+
+interface DetailRow extends PlannedRow {
+  notes: string | null;
+  confirmed_club: boolean;
+  confirmed_venue: boolean;
+  club_contact: string | null;
+  total_attendees: number | null;
+  drop_ins: number | null;
+  ticket_revenue: string | null;
+  costs: string | null;
 }
 
 const toSummary = (r: PlannedRow): PlannedEventSummary => ({
@@ -211,12 +310,13 @@ const toSummary = (r: PlannedRow): PlannedEventSummary => ({
   venue: r.venue,
   budget: r.budget === null ? null : Number(r.budget),
   pubLeader: r.pub_leader,
+  eventTime: r.event_time,
 });
 
 /** Planned events, soonest first; events with no date come last. */
 export async function listPlannedEvents(sql: Sql): Promise<PlannedEventSummary[]> {
   const rows = await sql<PlannedRow[]>`
-    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader
+    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time
     FROM events WHERE event_type = ${DEFAULT_EVENT_TYPE}
     ORDER BY event_date ASC NULLS LAST, created_at DESC
     LIMIT 200
@@ -227,8 +327,10 @@ export async function listPlannedEvents(sql: Sql): Promise<PlannedEventSummary[]
 /** One planned event with its partner clubs and vendors, or null if it doesn't exist. */
 export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEvent | null> {
   if (!UUID_RE.test(id)) return null;
-  const [row] = await sql<PlannedRow[]>`
-    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader
+  const [row] = await sql<DetailRow[]>`
+    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time,
+           notes, confirmed_club, confirmed_venue, club_contact, total_attendees, drop_ins,
+           ticket_revenue::text AS ticket_revenue, costs::text AS costs
     FROM events WHERE id = ${id}
   `;
   if (!row) return null;
@@ -240,7 +342,23 @@ export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEven
     SELECT v.name, ev.role FROM event_vendors ev JOIN vendors v ON v.id = ev.vendor_id
     WHERE ev.event_id = ${id} ORDER BY v.name
   `;
-  return { ...toSummary(row), partnerClubs: clubs.map((c) => c.name), vendors: vendors.map((v) => ({ name: v.name, role: v.role })) };
+  const roles = await sql<{ role: string; person: string | null }[]>`
+    SELECT role, person FROM event_roles WHERE event_id = ${id} ORDER BY position
+  `;
+  return {
+    ...toSummary(row),
+    roles: roles.map((r) => ({ role: r.role, person: r.person })),
+    notes: row.notes,
+    confirmedClub: row.confirmed_club,
+    confirmedVenue: row.confirmed_venue,
+    clubContact: row.club_contact,
+    totalAttendees: row.total_attendees,
+    dropIns: row.drop_ins,
+    ticketRevenue: row.ticket_revenue === null ? null : Number(row.ticket_revenue),
+    costs: row.costs === null ? null : Number(row.costs),
+    partnerClubs: clubs.map((c) => c.name),
+    vendors: vendors.map((v) => ({ name: v.name, role: v.role })),
+  };
 }
 
 /** Deletes an event with its attached tasks, lessons and links. Returns false if it doesn't exist. */

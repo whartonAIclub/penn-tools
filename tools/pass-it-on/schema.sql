@@ -155,3 +155,29 @@ CREATE INDEX IF NOT EXISTS excerpts_unembedded_idx ON excerpts (source_id, posit
 
 -- Keyword search over excerpts, for when no embeddings are available.
 CREATE INDEX IF NOT EXISTS excerpts_fts_idx ON excerpts USING GIN (to_tsvector('english', text));
+
+-- ---------------------------------------------------------------------------
+-- Event details from a club's own calendar (all additive). The time is free
+-- text ("5.30-8.30pm"); the confirmations and the after-the-event numbers are
+-- optional. Roles are a list of (role, person) pairs, so a club can add as many
+-- or as few as it uses (Pub Leader, C-suite owner, Ops Lead...). Names only.
+-- ---------------------------------------------------------------------------
+ALTER TABLE events ADD COLUMN IF NOT EXISTS event_time        TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS notes             TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS confirmed_club    BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS confirmed_venue   BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS club_contact      TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS total_attendees   INTEGER CHECK (total_attendees IS NULL OR total_attendees >= 0);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS drop_ins          INTEGER CHECK (drop_ins IS NULL OR drop_ins >= 0);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS ticket_revenue    NUMERIC(10, 2) CHECK (ticket_revenue IS NULL OR ticket_revenue >= 0);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS costs             NUMERIC(10, 2) CHECK (costs IS NULL OR costs >= 0);
+
+CREATE TABLE IF NOT EXISTS event_roles (
+  id       BIGINT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  event_id UUID    NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+  position INTEGER NOT NULL,
+  role     TEXT    NOT NULL,
+  person   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS event_roles_event_idx ON event_roles (event_id, position);

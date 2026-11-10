@@ -1,5 +1,5 @@
-import { EventForm } from "../EventForm";
+import { EventForm, emptyEventForm } from "../EventForm";
 
 export default function NewEventPage() {
-  return <EventForm id={null} initial={{ title: "", eventDate: "", theme: "", venue: "", budget: "", pubLeader: "", partnerClubs: "", vendors: "" }} />;
+  return <EventForm id={null} initial={emptyEventForm} />;
 }

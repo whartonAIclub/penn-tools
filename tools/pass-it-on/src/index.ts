@@ -45,6 +45,7 @@ export { answerFromLibrary, NOT_FOUND_MESSAGE } from "./answer.js";
 export type { Citation, CitedAnswer } from "./answer.js";
 export {
   checkPlannedEventInput,
+  leaderOf,
   createPlannedEvent,
   updatePlannedEvent,
   getPlannedEvent,
@@ -56,4 +57,4 @@ export {
   DEFAULT_EVENT_TYPE,
   MAX_PARTIES,
 } from "./planning.js";
-export type { PlannedEventInput, PlannedEvent, PlannedEventSummary, VendorInput } from "./planning.js";
+export type { PlannedEventInput, PlannedEvent, PlannedEventSummary, VendorInput, RoleInput } from "./planning.js";
