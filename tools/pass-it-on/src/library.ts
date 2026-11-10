@@ -125,3 +125,35 @@ export async function setSourceTags(sql: Sql, sourceId: string, tags: string[]):
   const rows = await sql`UPDATE sources SET tags = ${tags} WHERE id = ${sourceId} RETURNING id`;
   return rows.length > 0;
 }
+
+/**
+ * Passages that contain the words of `query`, best match first. Needs no AI or
+ * embeddings, so it works without any API key; it finds words, not meaning.
+ */
+export async function searchLibraryKeywords(sql: Sql, query: string, filters: SearchFilters = {}): Promise<Passage[]> {
+  if (filters.eventId !== undefined && !UUID_RE.test(filters.eventId)) return [];
+  const limit = Math.min(Math.max(filters.limit ?? DEFAULT_SEARCH_LIMIT, 1), 50);
+  const tags = filters.tags && filters.tags.length > 0 ? filters.tags : null;
+  const rows = await sql<
+    { id: string; source_id: string; filename: string; kind: SourceKind; tags: string[]; meta: ExcerptMeta; text: string; score: number }[]
+  >`
+    SELECT e.id, e.source_id, s.filename, s.kind, s.tags, e.meta, e.text,
+           ts_rank(to_tsvector('english', e.text), websearch_to_tsquery('english', ${query})) AS score
+    FROM excerpts e JOIN sources s ON s.id = e.source_id
+    WHERE to_tsvector('english', e.text) @@ websearch_to_tsquery('english', ${query})
+      ${tags ? sql`AND s.tags && ${tags}` : sql``}
+      ${filters.eventId !== undefined ? sql`AND s.event_id = ${filters.eventId}` : sql``}
+    ORDER BY score DESC, e.id
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({
+    excerptId: Number(r.id),
+    sourceId: r.source_id,
+    filename: r.filename,
+    kind: r.kind,
+    tags: r.tags,
+    meta: r.meta,
+    text: r.text,
+    score: Number(r.score),
+  }));
+}

@@ -152,3 +152,6 @@ ALTER TABLE excerpts ADD COLUMN IF NOT EXISTS embedding       public.vector;
 ALTER TABLE excerpts ADD COLUMN IF NOT EXISTS embedding_model TEXT;
 
 CREATE INDEX IF NOT EXISTS excerpts_unembedded_idx ON excerpts (source_id, position) WHERE embedding IS NULL;
+
+-- Keyword search over excerpts, for when no embeddings are available.
+CREATE INDEX IF NOT EXISTS excerpts_fts_idx ON excerpts USING GIN (to_tsvector('english', text));

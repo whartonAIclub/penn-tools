@@ -69,6 +69,21 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 
 **Cut line, in this order:** proposed template changes → suggested modules → non-event to-dos → Drive zip and WhatsApp support. **Never cut:** cited search, event records, dated tasks with owners generated from the template, and human approval.
 
+## Step 11: exit test runbook
+
+Needs real Pub files (kept outside the repo) and, for the AI answers, an OpenAI key in Settings.
+
+1. Upload the playbook, club rider, catering and merch sheets, reimbursement instructions and bylaws on the Library tab, with tags. Never the Pub Email & Social Accounts doc (it is refused).
+2. Pick five questions whose answers you already know from those files. Write them here before testing:
+   1. …
+   2. …
+   3. …
+   4. …
+   5. …
+3. Ask each on the Ask tab. **Pass** = the answer is correct and its citation links to the passage that says so. A question whose answer isn't in the files must say "I couldn't find this".
+4. With no AI key, the Ask tab still shows the passages containing the question's words (keyword search): use it to check the files were read and the right passage is findable. That checks retrieval only; the exit test itself needs the cited answers.
+5. Mark step 11 Done only when all five pass.
+
 ## Decisions taken (change them if you disagree)
 
 - **PO timing conflict:** the playbook has the restricted fund PO due at T-10, but the budget isn't final until T-7. The template keeps the playbook's dates, shows this as a known issue, and the Pub leader decides in the app.

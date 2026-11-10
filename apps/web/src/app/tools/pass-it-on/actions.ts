@@ -20,8 +20,10 @@ import {
   parseNameList,
   parseVendorLines,
   searchLibrary,
+  searchLibraryKeywords,
   updatePlannedEvent,
   type CitedAnswer,
+  type Passage,
 } from "@penntools/tool-pass-it-on";
 import { getAI, getEmbeddings } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
@@ -95,4 +97,14 @@ export async function askLibrary(provider: AIProvider, question: string, tags: s
     const passages = await searchLibrary(db(), embeddings, question, { tags: checkedTags.value });
     return { ok: true, data: await answerFromLibrary(ai, provider, question, passages) };
   });
+}
+
+/** Passages containing the question's words. Needs no AI key or embeddings, so it works without any API key. */
+export async function searchPassages(question: string, tags: string[]): Promise<ActionResult<Passage[]>> {
+  if (!(await getCurrentUser())) return signedOut;
+  const problem = checkSearchQuery(question);
+  if (problem) return fail(problem);
+  const checkedTags = checkTags(tags);
+  if (!checkedTags.ok) return fail(checkedTags.message);
+  return run(async () => ({ ok: true, data: await searchLibraryKeywords(db(), question, { tags: checkedTags.value }) }));
 }

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
 import type { EmbeddingProvider } from "@penntools/core/embeddings";
-import { checkSearchQuery, checkTags, embedLibrary, searchLibrary, setSourceTags } from "../library.js";
+import { checkSearchQuery, checkTags, embedLibrary, searchLibrary, searchLibraryKeywords, setSourceTags } from "../library.js";
 import {
   checkPlannedEventInput,
   formatVendorLines,
@@ -149,6 +149,19 @@ describe.skipIf(!databaseUrl)("library and planned events (Postgres)", () => {
     expect(await setSourceTags(sql, food, ["vendors", "catering"])).toBe(true);
     expect((await searchLibrary(sql, embeddings, "catering", { tags: ["catering"] })).length).toBe(1);
     expect(await setSourceTags(sql, "00000000-0000-0000-0000-000000000000", [])).toBe(false);
+  });
+
+  it("finds passages by their words without embeddings, with filters", async () => {
+    const id = await saveImport(sql, { kind: "drive", filename: "Rules.txt", uploadedBy: "u1", tags: ["rules"] }, [
+      { text: "Reimbursement requests need an itemized receipt.", meta: {} },
+      { text: "The closet holds the merch inventory.", meta: {} },
+    ]);
+    const found = await searchLibraryKeywords(sql, "reimbursements receipts");
+    expect(found.map((p) => p.text)).toContain("Reimbursement requests need an itemized receipt.");
+    expect(found.every((p) => !p.text.includes("closet"))).toBe(true);
+    expect((await searchLibraryKeywords(sql, "merch", { tags: ["rules"] })).map((p) => p.sourceId)).toEqual([id]);
+    expect(await searchLibraryKeywords(sql, "merch", { tags: ["other"] })).toEqual([]);
+    expect(await searchLibraryKeywords(sql, "zzzxyz")).toEqual([]);
   });
 
   it("searches only vectors of the current model and re-embeds the others", async () => {

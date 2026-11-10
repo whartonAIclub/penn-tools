@@ -38,7 +38,7 @@ export { databaseProblem, databaseProblemMessage, checkDatabaseReady } from "./d
 export type { DatabaseProblem } from "./database.js";
 export { checkUploadForCredentials, describeCredentialFlags } from "./credentials.js";
 export type { CredentialFlag, UploadCheck } from "./credentials.js";
-export { embedLibrary, searchLibrary, setSourceTags, checkTags, checkSearchQuery, MAX_SEARCH_QUERY_LENGTH, MAX_TAGS } from "./library.js";
+export { embedLibrary, searchLibrary, searchLibraryKeywords, setSourceTags, checkTags, checkSearchQuery, MAX_SEARCH_QUERY_LENGTH, MAX_TAGS } from "./library.js";
 export type { Passage, SearchFilters } from "./library.js";
 export { answerFromLibrary, NOT_FOUND_MESSAGE } from "./answer.js";
 export type { Citation, CitedAnswer } from "./answer.js";
