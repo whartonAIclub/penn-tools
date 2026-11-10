@@ -4,6 +4,7 @@
 // cluster). Continue hands the profile to the next screen; nothing is saved.
 
 import { useState, type FormEvent } from "react";
+import type { Cohort } from "@penntools/tool-connector";
 import styles from "./Connector.module.css";
 
 export interface Profile {
@@ -13,19 +14,14 @@ export interface Profile {
   cohort: string;
 }
 
-const CLUSTERS = [
-  { cluster: 1, cohorts: ["A", "B", "C"] },
-  { cluster: 2, cohorts: ["D", "E", "F"] },
-  { cluster: 3, cohorts: ["G", "H", "I"] },
-  { cluster: 4, cohorts: ["J", "K", "L"] },
-];
-
 interface Props {
+  cohorts: readonly Cohort[];
   initial: Profile;
   onContinue: (profile: Profile) => void;
 }
 
-export function ProfileForm({ initial, onContinue }: Props) {
+export function ProfileForm({ cohorts, initial, onContinue }: Props) {
+  const clusters = [...new Set(cohorts.map((c) => c.cluster))];
   const [firstName, setFirstName] = useState(initial.firstName);
   const [lastName, setLastName] = useState(initial.lastName);
   const [email, setEmail] = useState(initial.email);
@@ -75,13 +71,15 @@ export function ProfileForm({ initial, onContinue }: Props) {
             <option value="" disabled>
               Choose your cohort
             </option>
-            {CLUSTERS.map(({ cluster, cohorts }) => (
+            {clusters.map((cluster) => (
               <optgroup key={cluster} label={`Cluster ${cluster}`}>
-                {cohorts.map((c) => (
-                  <option key={c} value={c}>
-                    Cohort {c}
-                  </option>
-                ))}
+                {cohorts
+                  .filter((c) => c.cluster === cluster)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      Cohort {c.id}
+                    </option>
+                  ))}
               </optgroup>
             ))}
           </select>

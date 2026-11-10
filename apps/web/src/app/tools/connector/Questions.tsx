@@ -4,43 +4,47 @@
 // question; after the last one, onDone gets all the answers.
 
 import { useState } from "react";
-import { QUESTIONS, type Answers } from "./questionList";
+import type { Question } from "@penntools/tool-connector";
 import styles from "./Connector.module.css";
 
+/** Question ID → the ID of the chosen option, e.g. { "ideal-2am": "rooftop-talk" }. */
+export type Answers = Record<string, string>;
+
 interface Props {
+  questions: readonly Question[];
   onDone: (answers: Answers) => void;
   /** Called by Back on the first question, to return to the profile form. */
   onBack: () => void;
 }
 
-export function Questions({ onDone, onBack }: Props) {
+export function Questions({ questions, onDone, onBack }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
-  const question = QUESTIONS[index]!;
+  const question = questions[index]!;
 
-  function pick(option: string) {
-    const next = { ...answers, [question.id]: option };
+  function pick(optionId: string) {
+    const next = { ...answers, [question.id]: optionId };
     setAnswers(next);
-    if (index + 1 < QUESTIONS.length) setIndex(index + 1);
+    if (index + 1 < questions.length) setIndex(index + 1);
     else onDone(next);
   }
 
   return (
     <div className={styles.page}>
       <p className={styles.progress}>
-        Question {index + 1} of {QUESTIONS.length}
+        Question {index + 1} of {questions.length}
       </p>
       <h1 className={styles.title}>{question.prompt}</h1>
 
       <div className={styles.options}>
         {question.options.map((option) => (
           <button
-            key={option}
+            key={option.id}
             type="button"
-            className={answers[question.id] === option ? `${styles.option} ${styles.selected}` : styles.option}
-            onClick={() => pick(option)}
+            className={answers[question.id] === option.id ? `${styles.option} ${styles.selected}` : styles.option}
+            onClick={() => pick(option.id)}
           >
-            {option}
+            {option.label}
           </button>
         ))}
       </div>
