@@ -91,12 +91,13 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  /* Opening one card's details doesn't stretch the others in its row. */
-  align-items: start;
   gap: 12px;
 }
 
+/* Cards in a row share one height, with "More details" along the bottom. */
 .card {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 12px;
 }
@@ -131,6 +132,7 @@
 }
 
 .body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -143,13 +145,7 @@
   font-weight: 600;
 }
 
-.country {
-  font-size: 0.85rem;
-  color: var(--section-label);
-}
-
 .dates {
-  margin-top: 4px;
   font-size: 0.82rem;
 }
 
@@ -221,54 +217,9 @@
   color: var(--section-label);
 }
 
-.facts {
-  margin: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 12px;
-  font-size: 0.82rem;
-}
-
-.facts > div {
-  display: contents;
-}
-
-.facts dt {
-  color: var(--muted);
-}
-
-.facts dd {
-  margin: 0;
-}
-
-.details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 0.85rem;
-  line-height: 1.55;
-}
-
-.link {
-  color: var(--penn-blue);
-  text-decoration: underline;
-}
-
-.photoCredit {
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.photoCredit a {
-  color: inherit;
-  text-decoration: underline;
-}
-
 .toggle {
-  margin-top: 6px;
+  margin-top: auto;
+  padding-top: 6px;
   align-self: flex-start;
   font-size: 0.82rem;
   font-weight: 600;

@@ -8,9 +8,7 @@ import { useMemo, useState } from "react";
 import {
   REGIONS,
   TRIP_TYPES,
-  currentPriceStage,
   filterTrips,
-  formatDate,
   formatDateRange,
   listSeasons,
   nextDeadline,
@@ -20,18 +18,10 @@ import {
   type Trip,
   type TripType,
 } from "@penntools/tool-trek-finder";
-import { PriceInfo } from "./PriceInfo";
+import { PriceLine } from "./PriceInfo";
+import { TripDetails, formatDeadline } from "./TripDetails";
 import styles from "./TripCatalog.module.css";
 
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-
-/** "17:00" → "5 PM", "09:30" → "9:30 AM". Also takes "HH:MM:SS". */
-function formatTime(time: string): string {
-  const [hours = 0, minutes = 0] = time.split(":").map(Number);
-  const hour = hours % 12 || 12;
-  const suffix = hours < 12 ? "AM" : "PM";
-  return minutes ? `${hour}:${String(minutes).padStart(2, "0")} ${suffix}` : `${hour} ${suffix}`;
-}
 
 // today comes from the server (todayInNewYork), so the server and browser agree on the date.
 export function TripCatalog({ trips, today, sample = false }: { trips: Trip[]; today: string; sample?: boolean }) {
@@ -124,12 +114,8 @@ export function TripCatalog({ trips, today, sample = false }: { trips: Trip[]; t
 
 function TripCard({ trip, today }: { trip: Trip; today: string }) {
   const [open, setOpen] = useState(false);
-  const detailsId = `trip-${trip.id}-details`;
   const days = tripDays(trip.startDate, trip.endDate);
-  const stage = currentPriceStage(trip.priceStages, today);
-  const cost = stage?.amountUsd ?? null;
   const upcoming = nextDeadline(trip, today);
-  const deadline = trip.deadlines.find((d) => d.kind === "preliminary") ?? trip.deadlines[0];
 
   return (
     <li className={styles.card}>
@@ -140,50 +126,23 @@ function TripCard({ trip, today }: { trip: Trip; today: string }) {
 
       <div className={styles.body}>
         <h2 className={styles.cardTitle}>{trip.name}</h2>
-        <p className={styles.country}>{trip.location}</p>
         <p className={styles.dates}>
           {formatDateRange(trip.startDate, trip.endDate)} ({days} {days === 1 ? "day" : "days"})
         </p>
         {trip.periodLabel && <p className={styles.period}>{trip.periodLabel}</p>}
-        <div className={styles.priceRow}>
-          <span className={styles.cost}>{cost === null ? "TBD" : usd.format(cost)}</span>
-          {/* The stage only helps when a trip's price changes, so it's hidden for single-price trips. */}
-          {stage && trip.priceStages.length > 1 && <span className={styles.stage}>{stage.label}</span>}
-          {trip.priceIncludes && <PriceInfo text={trip.priceIncludes} />}
-        </div>
+        <PriceLine trip={trip} today={today} />
         {upcoming && (
           <p className={styles.deadline}>
-            {upcoming.label}: {formatDate(upcoming.dueDate)}
-            {upcoming.dueTime && `, ${formatTime(upcoming.dueTime)} ET`}
+            {upcoming.label}: {formatDeadline(upcoming)}
           </p>
         )}
 
-        <button className={styles.toggle} aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen(!open)}>
-          {open ? "Hide details" : "More details"}
+        <button className={styles.toggle} aria-haspopup="dialog" onClick={() => setOpen(true)}>
+          More details
         </button>
-
-        {open && (
-          <div id={detailsId} className={styles.details}>
-            <dl className={styles.facts}>
-              <div>
-                <dt>Application deadline</dt>
-                <dd>{deadline ? formatDate(deadline.dueDate) : "No deadline"}</dd>
-              </div>
-              <div>
-                <dt>Cities</dt>
-                <dd>{trip.cities.join(", ")}</dd>
-              </div>
-            </dl>
-            {trip.description && <p>{trip.description}</p>}
-            {trip.applicationUrl && (
-              <a className={styles.link} href={trip.applicationUrl} target="_blank" rel="noreferrer">
-                More info ↗
-              </a>
-            )}
-            {trip.imageCredit && <p className={styles.photoCredit}>Photo: {trip.imageCredit}</p>}
-          </div>
-        )}
       </div>
+
+      {open && <TripDetails trip={trip} today={today} onClose={() => setOpen(false)} />}
     </li>
   );
 }

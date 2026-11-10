@@ -1,0 +1,202 @@
+/* ── Panel ─────────────────────────────────────────────────────────────────── */
+
+.dialog {
+  width: min(640px, calc(100% - 32px));
+  max-height: min(90vh, 900px);
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+/* On phones the panel fills the screen and scrolls. */
+@media (max-width: 600px) {
+  .dialog {
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    border-radius: 0;
+  }
+}
+
+.content {
+  position: relative;
+}
+
+.close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+
+.photo {
+  aspect-ratio: 16 / 7;
+  background: var(--nav-hover);
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px 24px;
+}
+
+/* ── Top block: the card's key facts and the main action ──────────────────── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+  /* Leaves room for the close button when there's no photo. */
+  padding-right: 36px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.place {
+  font-size: 0.9rem;
+  color: var(--section-label);
+}
+
+.when {
+  font-size: 0.85rem;
+}
+
+.credit {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.deadline {
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+
+.website {
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  background: var(--penn-blue);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+}
+
+.website:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .website {
+    align-self: stretch;
+    text-align: center;
+  }
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────────── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.section h3 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--section-label);
+}
+
+/* Keeps the line and paragraph breaks editors type in the Sheet. */
+.description {
+  white-space: pre-line;
+}
+
+.itinerary,
+.links {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.links a {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+}
+
+.facts > div {
+  display: contents;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.passed dt,
+.passed dd {
+  color: var(--muted);
+}
+
+.photoCredit {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
