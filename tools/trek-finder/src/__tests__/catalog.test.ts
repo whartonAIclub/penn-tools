@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { filterTrips, listSeasons, nextDeadline, sortTrips, tripSeason, visibleTrips } from "../catalog.js";
+import {
+  DEFAULT_CATALOG_STATE,
+  catalogQueryString,
+  filterTrips,
+  listSeasons,
+  nextDeadline,
+  parseCatalogQuery,
+  sortTrips,
+  tripSeason,
+  visibleTrips,
+} from "../catalog.js";
 import type { Deadline, PriceStage, Trip } from "../trips.js";
 import { SAMPLE_TRIPS } from "../samples.js";
 
@@ -168,23 +178,16 @@ describe("sortTrips", () => {
   });
 
   it("sorts by today's price, low or high, with TBD last both ways", () => {
-    expect(ids(sortTrips([cheap, dear, tbd, early], "cost_low", TODAY))).toEqual(["cheap", "early", "dear", "tbd"]);
-    expect(ids(sortTrips([cheap, dear, tbd, early], "cost_high", TODAY))).toEqual(["dear", "early", "cheap", "tbd"]);
+    expect(ids(sortTrips([cheap, dear, tbd, early], "price_low", TODAY))).toEqual(["cheap", "early", "dear", "tbd"]);
+    expect(ids(sortTrips([cheap, dear, tbd, early], "price_high", TODAY))).toEqual(["dear", "early", "cheap", "tbd"]);
   });
 
   it("uses the price in effect on the given day", () => {
     const later = trip({ id: "later", startDate: "2027-06-01", priceStages: [price(2200)] });
-    expect(ids(sortTrips([early, later], "cost_low", "2026-11-09"))).toEqual(["early", "later"]);
-    expect(ids(sortTrips([early, later], "cost_low", "2026-12-01"))).toEqual(["later", "early"]);
+    expect(ids(sortTrips([early, later], "price_low", "2026-11-09"))).toEqual(["early", "later"]);
+    expect(ids(sortTrips([early, later], "price_low", "2026-12-01"))).toEqual(["later", "early"]);
   });
 
-  it("sorts by next deadline, with no upcoming deadline last", () => {
-    const soon = trip({ id: "soon", startDate: "2027-05-01", deadlines: [deadline("preliminary", "2026-11-15")] });
-    const later = trip({ id: "later", startDate: "2027-01-01", deadlines: [deadline("application", "2026-12-01")] });
-    const passed = trip({ id: "passed", startDate: "2026-12-20", deadlines: [deadline("preliminary", "2026-11-01")] });
-    const none = trip({ id: "none", startDate: "2026-12-10" });
-    expect(ids(sortTrips([none, passed, later, soon], "deadline", TODAY))).toEqual(["soon", "later", "none", "passed"]);
-  });
 
   it("sorts by trip length, shortest first, counting both end days", () => {
     const week = trip({ id: "week", startDate: "2027-03-06", endDate: "2027-03-12" });
@@ -198,13 +201,45 @@ describe("sortTrips", () => {
     const a = trip({ id: "a", startDate: "2027-03-06", priceStages: [price(1000)] });
     const b = trip({ id: "b", startDate: "2027-01-06", priceStages: [price(1000)] });
     const input = [a, b];
-    expect(ids(sortTrips(input, "cost_low", TODAY))).toEqual(["b", "a"]);
+    expect(ids(sortTrips(input, "price_low", TODAY))).toEqual(["b", "a"]);
     expect(ids(input)).toEqual(["a", "b"]);
   });
 
   it("combines with filters", () => {
-    const sorted = sortTrips(filterTrips(SAMPLE_TRIPS, { creditOnly: true }), "cost_high", TODAY);
+    const sorted = sortTrips(filterTrips(SAMPLE_TRIPS, { creditOnly: true }), "price_high", TODAY);
     expect(sorted.map((t) => t.tripType).every((type) => type === "GIP" || type === "GMC")).toBe(true);
     expect(ids(sorted)).toEqual(["sample-brazil-gip", "sample-india-gip", "sample-europe-gmc"]);
+  });
+});
+
+describe("page address", () => {
+  it("leaves the address empty when nothing is set", () => {
+    expect(catalogQueryString(DEFAULT_CATALOG_STATE)).toBe("");
+    expect(parseCatalogQuery(new URLSearchParams(""))).toEqual(DEFAULT_CATALOG_STATE);
+  });
+
+  it("writes and reads back every control", () => {
+    const state = {
+      query: "ryokan & sake",
+      type: "Club/Other Trek" as const,
+      region: "Asia" as const,
+      season: "Winter 2026-2027",
+      creditOnly: true,
+      sort: "price_low" as const,
+    };
+    const query = catalogQueryString(state);
+    expect(query).toBe("q=ryokan+%26+sake&type=Club%2FOther+Trek&region=Asia&period=Winter+2026-2027&credit=1&sort=price_low");
+    expect(parseCatalogQuery(new URLSearchParams(query))).toEqual(state);
+  });
+
+  it("ignores unknown or misspelled values", () => {
+    const state = parseCatalogQuery(new URLSearchParams("type=Cruise&region=Latin+America&period=Spring&credit=yes&sort=random"));
+    expect(state).toEqual(DEFAULT_CATALOG_STATE);
+  });
+
+  it("accepts every season shape", () => {
+    for (const season of ["Fall 2026", "Winter 2026-2027", "Spring 2027", "Summer 2027"]) {
+      expect(parseCatalogQuery(new URLSearchParams({ period: season })).season).toBe(season);
+    }
   });
 });

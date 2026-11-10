@@ -43,7 +43,8 @@
 }
 
 .search,
-.filters select {
+.filters select,
+.sort select {
   border: 1px solid var(--input-border);
   border-radius: 8px;
   padding: 8px 10px;
@@ -60,6 +61,49 @@
 .filters select {
   flex: 1 1 140px;
   min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 0.85rem;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--penn-blue);
+}
+
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--section-label);
+}
+
+/* On phones the checkbox and sort each get their own row. */
+@media (max-width: 480px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sort select {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .count {
