@@ -32,6 +32,8 @@ You only do this once.
 3. **Removing a row hides the trip from the catalog.** Students who saved it will see it marked "No longer listed".
 4. **Don't rename the column headers** or leave the first row out.
 5. **Write dates as `YYYY-MM-DD`**, such as `2027-03-06`.
+6. **Capital letters don't matter** in columns with a fixed list of choices, such as Trip type, Region, Timing, Academic
+   credit or Availability. `club/other trek` works the same as `Club/Other Trek`, but the spelling must match.
 
 ## The columns
 
@@ -43,13 +45,13 @@ You only do this once.
 |---|---|---|
 | **ID** | Lowercase words joined by hyphens, ending in the year. Unique to this trip. | `japan-trek-2027` |
 | **Name** | The trip's name | `Japan Trek` |
-| **Trip type** | Exactly one of: `Club trek`, `Global Immersion (GIP)`, `Global Modular Course (GMC)`, `Career trek`, `Other` | `Club trek` |
+| **Trip type** | One of: `GIP`, `GMC`, `Leadership Venture`, `Club/Other Trek` | `Club/Other Trek` |
 | **Location** | Country or countries, as students should see them | `Italy & France` |
 | Cities | Separated by semicolons | `Tokyo; Kyoto; Osaka` |
-| **Region** | Exactly one of: `Africa`, `Asia`, `Europe`, `Latin America`, `Middle East`, `North America`, `Oceania` | `Asia` |
+| **Region** | One of: `Africa`, `Asia`, `Europe`, `Middle East`, `North America`, `Oceania`, `South America` | `Asia` |
 | **Start date** | First day of the trip | `2027-03-06` |
 | **End date** | Last day of the trip | `2027-03-14` |
-| **Timing** | Exactly one of: `break`, `opportunity_week`, `other`. Students can't see or filter by it, but a trip with this blank or misspelled won't import. | `break` |
+| **Timing** | One of: `break`, `opportunity_week`, `other`. Students can't see or filter by it, but a trip with this blank or misspelled won't import. | `break` |
 | Period label | The break or term, in words. Only shown on the trip card; the season filter uses the start date. | `Spring Break 2027` |
 | Academic credit | `Yes` or `No`. Blank counts as `No`. | `Yes` |
 | Credit note | Details of the credit | `1.0 CU, MGMT 893` |
@@ -108,7 +110,7 @@ Each deadline uses four columns, from `Deadline 1 kind` through `Deadline 1 time
 
 | Column | What to enter | Example |
 |---|---|---|
-| Deadline *n* kind | Exactly one of: `preliminary`, `application`, `deposit`, `payment`, `other` | `deposit` |
+| Deadline *n* kind | One of: `preliminary`, `application`, `deposit`, `payment`, `other` | `deposit` |
 | Deadline *n* label | Shown to students exactly as written | `Deposit due` |
 | Deadline *n* date | The date it's due | `2027-01-15` |
 | Deadline *n* time | Optional, Eastern time, 24-hour clock. Blank means end of day. | `17:00` |
