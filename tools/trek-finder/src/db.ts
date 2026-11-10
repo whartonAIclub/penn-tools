@@ -3,6 +3,7 @@
 // read and write is scoped to that user.
 
 import type { Sql } from "postgres";
+import type { Trip } from "./trips.js";
 
 export type ImportRunStatus = "ok" | "partial" | "aborted" | "failed";
 
@@ -38,6 +39,91 @@ export async function listImportRuns(sql: Sql, limit = 20): Promise<ImportRun[]>
     tripsLoaded: row.trips_loaded,
     problems: row.problems,
   }));
+}
+
+export interface ImportWrite {
+  /** Trips added or updated. */
+  written: number;
+  /** Listed trips that weren't in this import, now hidden. */
+  delisted: number;
+}
+
+/**
+ * Makes the stored trips match one Sheet import, all at once: if anything
+ * fails, nothing changes. Each trip is added or updated and listed, its price
+ * stages, deadlines and links are replaced, and listed trips missing from the
+ * import are hidden, never deleted, so saved trips keep working. The trips
+ * must already be checked (parseTripRow or validateTrip).
+ *
+ * Refuses an empty import or a repeated id, since either would most likely
+ * hide trips by mistake. The import script's safety guard decides what counts
+ * as too few trips.
+ */
+export async function writeImport(sql: Sql, trips: readonly Trip[]): Promise<ImportWrite> {
+  if (trips.length === 0) throw new Error("Refusing to import zero trips.");
+  const ids = trips.map((trip) => trip.id);
+  if (new Set(ids).size !== ids.length) throw new Error("Refusing an import with a repeated trip id.");
+
+  return sql.begin(async (transaction) => {
+    // postgres's TransactionSql type loses the tagged-template call signature.
+    const tx = transaction as unknown as Sql;
+    for (const trip of trips) {
+      await tx`
+        INSERT INTO trips (
+          id, name, trip_type, location, cities, region, start_date, end_date, timing, period_label,
+          academic_credit, credit_note, description, price_includes, destination_blurb, itinerary,
+          availability_status, spots_total, spots_remaining, organizer_name, organizer_contact,
+          organizer_email, application_url, destination_airport, image_url, image_credit, listed
+        ) VALUES (
+          ${trip.id}, ${trip.name}, ${trip.tripType}, ${trip.location}, ${tx.array(trip.cities)}, ${trip.region},
+          ${trip.startDate}, ${trip.endDate}, ${trip.timing}, ${trip.periodLabel}, ${trip.academicCredit},
+          ${trip.creditNote}, ${trip.description}, ${trip.priceIncludes}, ${trip.destinationBlurb}, ${trip.itinerary},
+          ${trip.availabilityStatus}, ${trip.spotsTotal}, ${trip.spotsRemaining}, ${trip.organizerName},
+          ${trip.organizerContact}, ${trip.organizerEmail}, ${trip.applicationUrl}, ${trip.destinationAirport},
+          ${trip.imageUrl}, ${trip.imageCredit}, TRUE
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name, trip_type = EXCLUDED.trip_type, location = EXCLUDED.location,
+          cities = EXCLUDED.cities, region = EXCLUDED.region, start_date = EXCLUDED.start_date,
+          end_date = EXCLUDED.end_date, timing = EXCLUDED.timing, period_label = EXCLUDED.period_label,
+          academic_credit = EXCLUDED.academic_credit, credit_note = EXCLUDED.credit_note,
+          description = EXCLUDED.description, price_includes = EXCLUDED.price_includes,
+          destination_blurb = EXCLUDED.destination_blurb, itinerary = EXCLUDED.itinerary,
+          availability_status = EXCLUDED.availability_status, spots_total = EXCLUDED.spots_total,
+          spots_remaining = EXCLUDED.spots_remaining, organizer_name = EXCLUDED.organizer_name,
+          organizer_contact = EXCLUDED.organizer_contact, organizer_email = EXCLUDED.organizer_email,
+          application_url = EXCLUDED.application_url, destination_airport = EXCLUDED.destination_airport,
+          image_url = EXCLUDED.image_url, image_credit = EXCLUDED.image_credit,
+          listed = TRUE, updated_at = NOW()
+      `;
+
+      await tx`DELETE FROM trip_price_stages WHERE trip_id = ${trip.id}`;
+      await tx`DELETE FROM trip_deadlines WHERE trip_id = ${trip.id}`;
+      await tx`DELETE FROM trip_links WHERE trip_id = ${trip.id}`;
+      for (const s of trip.priceStages) {
+        await tx`
+          INSERT INTO trip_price_stages (trip_id, position, label, amount_usd, certainty, valid_from, valid_until, note)
+          VALUES (${trip.id}, ${s.position}, ${s.label}, ${s.amountUsd}, ${s.certainty}, ${s.validFrom}, ${s.validUntil}, ${s.note})
+        `;
+      }
+      for (const d of trip.deadlines) {
+        await tx`
+          INSERT INTO trip_deadlines (trip_id, position, kind, label, due_date, due_time)
+          VALUES (${trip.id}, ${d.position}, ${d.kind}, ${d.label}, ${d.dueDate}, ${d.dueTime})
+        `;
+      }
+      for (const l of trip.links) {
+        await tx`INSERT INTO trip_links (trip_id, position, label, url) VALUES (${trip.id}, ${l.position}, ${l.label}, ${l.url})`;
+      }
+    }
+
+    const delisted = await tx`
+      UPDATE trips SET listed = FALSE, updated_at = NOW()
+      WHERE listed AND NOT (id = ANY(${tx.array(ids)}))
+      RETURNING id
+    `;
+    return { written: trips.length, delisted: delisted.length };
+  });
 }
 
 /**
