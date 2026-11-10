@@ -1,10 +1,13 @@
 // Trek Finder's import status: what each Google Sheet import loaded and which
-// rows it skipped, so the people editing the Sheet can fix them.
+// rows it skipped, so the people editing the Sheet can fix them. Signed-out
+// visitors are asked to sign in and get none of it.
 
 import type { Metadata } from "next";
 import { toolSql } from "@penntools/platform/db";
 import { listImportRuns } from "@penntools/tool-trek-finder";
 import type { ImportProblem, ImportRunStatus } from "@penntools/tool-trek-finder";
+import { getCurrentUser } from "@/lib/auth";
+import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import styles from "./status.module.css";
 
 export const metadata: Metadata = {
@@ -38,6 +41,9 @@ function whereItHappened(problem: ImportProblem): string {
 }
 
 export default async function TrekFinderStatusPage() {
+  const user = await getCurrentUser();
+  if (!user) return <SignInPrompt title="Trek Finder" />;
+
   const sql = toolSql("trekfinder");
   if (!sql) throw new Error("Trek Finder's database is not configured (check DATABASE_URL).");
 

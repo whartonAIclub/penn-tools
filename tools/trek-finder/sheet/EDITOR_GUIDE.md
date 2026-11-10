@@ -19,8 +19,8 @@ You only do this once.
 ## How your edits reach the site
 
 - Changes appear **the next time PennTools is deployed**, not the moment you type them.
-- After a deploy, open `/tools/trek-finder/status` on the PennTools site. It shows what loaded and lists any rows that were
-  skipped, with the reason. Fix those rows, and they'll load at the next deploy.
+- After a deploy, sign in to PennTools and open `/tools/trek-finder/status`. It shows what loaded and lists any rows that
+  were skipped, with the reason. Fix those rows, and they'll load at the next deploy.
 - If a row has a problem, only that trip is skipped. The others still load.
 - If the Sheet looks empty, or has fewer than half the trips currently listed, the import stops and the site stays as it
   was. The status page will say so.
