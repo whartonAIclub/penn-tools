@@ -20,6 +20,10 @@
       "types": "./dist/ai/index.d.ts",
       "import": "./dist/ai/index.js"
     },
+    "./ai/attachments": {
+      "types": "./dist/ai/attachments.d.ts",
+      "import": "./dist/ai/attachments.js"
+    },
     "./repositories": {
       "types": "./dist/repositories/index.d.ts",
       "import": "./dist/repositories/index.js"

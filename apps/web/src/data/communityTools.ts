@@ -34,6 +34,15 @@ export const communityTools: CommunityTool[] = [
     url: "https://roic-tree-generator.vercel.app/",
   },
   {
+    id: "mbakit",
+    title: "The MBA Toolkit",
+    description:
+      "Free AI tools for cold emails, thank-you notes, resume bullets, STAR stories and coffee chat prep. No sign-up required.",
+    category: "Recruiting",
+    builder: "Vatsal Khemani",
+    url: "https://mbakit.vercel.app/",
+  },
+  {
     id: "mba-tech-internships",
     title: "MBA Tech Internships",
     description:
