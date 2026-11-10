@@ -63,10 +63,16 @@ One course outline in, one calendar file out.
    - All-day deadlines: **9 AM that day**.
 
    To confirm, possibly after looking at what students prefer.
-2. **Google Calendar and reminders.** As far as we know, Google Calendar drops the reminders built into an imported .ics file and applies the calendar's own default notifications instead. Apple Calendar and Outlook keep them. If that's true, the best Google flow is to import into a new "Due" calendar and set that calendar's default notifications, and the download step should walk students through it. **Test this early.** It's the core of the tool.
+2. **Updating a calendar the student already imported.** Google can't update events by re-importing, so the download step should tell students to import into a dedicated "Due" calendar and, to update, delete it and import the new file. Open: should each download use new event IDs, so a mistaken re-import duplicates events instead of failing outright? A later phase could offer a subscription link that updates itself, which needs a database and the Platform team.
 3. **What a timed deadline looks like on the calendar.** Proposed: a short event ending at the due time, titled like "DUE: Problem Set 3 (FNCE 6110)".
 4. **The review screen.** The table design is a first guess. Judge it once it's visible and simplify if needed.
 5. **The AI key.** Raise with the Platform team or workshop leads whether there's any way to make this step easier for students before launch.
+
+## Google Calendar test results (2026-11-10)
+
+- **Reminders built into the .ics file are kept** on import, for timed and all-day events alike. They show as "X minutes before" the event's start time.
+- **All-day deadlines** show as a slim banner at the top of the day, as intended.
+- **Re-importing can't update events.** A file containing an event whose ID is already in the calendar is rejected entirely ("Imported 0 out of 0 events"). The same event with a new ID imports as a duplicate.
 
 ## Technical notes
 
