@@ -136,6 +136,25 @@
   color: #b91c1c;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.secondary {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.secondary:hover:not(:disabled) { border-color: var(--penn-blue); color: var(--penn-blue); }
+.secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .success {
   padding: 10px 14px;
   border-radius: 8px;

@@ -29,48 +29,71 @@
   background: var(--sidebar-bg);
 }
 
+/* ── Tiles ─────────────────────────────────────────────────────────────────── */
+
+.tiles {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.you {
+  border-color: var(--penn-blue);
+  background: #f3f6fc;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.cohort {
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+
+/* ── What you have in common ──────────────────────────────────────────────── */
+
 .card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 12px;
 }
 
-.cardTitle {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.members {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.member {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 12px;
-  font-size: 0.9rem;
-}
-
-.name {
-  font-weight: 500;
-}
-
-.cohort {
-  color: var(--section-label);
-}
-
 .label {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -87,4 +110,37 @@
 
 .count {
   color: var(--muted);
+}
+
+/* ── Links ─────────────────────────────────────────────────────────────────── */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.button:hover { background: #163983; }
+
+.reachOut {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #f3f6fc;
+}
+
+.reachOutTitle {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--penn-blue);
 }
