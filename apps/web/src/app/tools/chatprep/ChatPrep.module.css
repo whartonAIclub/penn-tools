@@ -194,3 +194,8 @@
   font-weight: 400;
   color: #b91c1c;
 }
+
+.say {
+  font-size: 0.85rem;
+  color: var(--section-label);
+}

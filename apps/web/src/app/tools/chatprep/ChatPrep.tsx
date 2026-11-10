@@ -433,7 +433,8 @@ function BriefView({
       <ul className={styles.list}>
         {brief.overlaps.map((o, i) => (
           <li key={i}>
-            {o.point} <span className={styles.hint}>{o.howToUse}</span>
+            {o.point}
+            <div className={styles.say}>Say: &ldquo;{o.howToUse}&rdquo;</div>
           </li>
         ))}
       </ul>

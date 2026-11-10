@@ -13,7 +13,7 @@ export function briefToText(brief: Brief, company: string): string {
     `COFFEE CHAT BRIEF: ${company.trim()}`,
     `THE COMPANY\n${brief.company.summary}` +
       (brief.company.recentChanges.length ? `\n\nRecent changes:\n${bullets(brief.company.recentChanges)}` : ""),
-    `WHERE YOUR PATHS OVERLAP\n${bullets(brief.overlaps.map((o) => `${o.point} ${o.howToUse}`))}`,
+    `WHERE YOUR PATHS OVERLAP\n${bullets(brief.overlaps.map((o) => `${o.point}\n  Say: "${o.howToUse}"`))}`,
     `YOUR INTRO\n${brief.intro}`,
     `QUESTIONS\n${brief.questions
       .map((q, i) => `${i + 1}. ${q.question}\n   Follow-up: ${q.followUp}`)

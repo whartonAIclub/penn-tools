@@ -6,7 +6,7 @@ import { CHAT_TIPS, CLOSING_LINE } from "../framework.js";
 const brief: Brief = {
   personType: "founder",
   company: { summary: "Makes scheduling software for clinics.", recentChanges: ["Raised a Series B in October."] },
-  overlaps: [{ point: "You both worked in clinic operations.", howToUse: "Open with your scheduling project." }],
+  overlaps: [{ point: "Dana and Sam both worked in clinic operations.", howToUse: "I ran scheduling for four clinics, so I'm curious how you chose that problem." }],
   intro: "I ran clinic operations for four years.",
   questions: [
     { coreQuestionId: 4, question: "What surprised you most?", followUp: "Why?", whyThisPerson: "Founder." },
@@ -19,7 +19,9 @@ describe("briefToText", () => {
     const text = briefToText(brief, " Clinicly ");
     expect(text.startsWith("COFFEE CHAT BRIEF: Clinicly")).toBe(true);
     expect(text).toContain("Recent changes:\n- Raised a Series B in October.");
-    expect(text).toContain("- You both worked in clinic operations. Open with your scheduling project.");
+    expect(text).toContain(
+      '- Dana and Sam both worked in clinic operations.\n  Say: "I ran scheduling for four clinics, so I\'m curious how you chose that problem."',
+    );
     expect(text).toContain("1. What surprised you most?\n   Follow-up: Why?");
     expect(text).toContain("2. What would you skip if you started over?");
     expect(text).toContain(`Close: ${CLOSING_LINE}`);
