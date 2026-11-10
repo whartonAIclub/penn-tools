@@ -239,6 +239,16 @@ export async function listSources(sql: Sql): Promise<SourceSummary[]> {
   }));
 }
 
+/**
+ * Deletes an uploaded file with everything taken from it: its excerpts, their
+ * lessons and attendance counts. Returns false if it doesn't exist.
+ */
+export async function deleteSource(sql: Sql, id: string): Promise<boolean> {
+  if (!UUID_RE.test(id)) return false;
+  const rows = await sql`DELETE FROM sources WHERE id = ${id} RETURNING id`;
+  return rows.length > 0;
+}
+
 /** The next excerpts of a source that lessons haven't been extracted from yet, in order. */
 export async function nextExcerptBatch(sql: Sql, sourceId: string, limit: number): Promise<StoredExcerpt[]> {
   if (!UUID_RE.test(sourceId)) return [];

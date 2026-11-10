@@ -17,6 +17,7 @@ import {
   databaseProblem,
   databaseProblemMessage,
   deletePlannedEvent,
+  deleteSource,
   parseNameList,
   parseVendorLines,
   searchLibrary,
@@ -107,4 +108,10 @@ export async function searchPassages(question: string, tags: string[]): Promise<
   const checkedTags = checkTags(tags);
   if (!checkedTags.ok) return fail(checkedTags.message);
   return run(async () => ({ ok: true, data: await searchLibraryKeywords(db(), question, { tags: checkedTags.value }) }));
+}
+
+/** Deletes an uploaded file and everything taken from it. */
+export async function deleteFile(id: string): Promise<ActionResult<null>> {
+  if (!(await getCurrentUser())) return signedOut;
+  return run(async () => ((await deleteSource(db(), String(id))) ? { ok: true, data: null } : fail("That file no longer exists.")));
 }

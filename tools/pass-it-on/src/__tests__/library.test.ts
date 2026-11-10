@@ -20,7 +20,7 @@ import {
   updatePlannedEvent,
   type PlannedEventInput,
 } from "../planning.js";
-import { saveImport } from "../storage.js";
+import { deleteSource, saveImport } from "../storage.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -162,6 +162,20 @@ describe.skipIf(!databaseUrl)("library and planned events (Postgres)", () => {
     expect((await searchLibraryKeywords(sql, "merch", { tags: ["rules"] })).map((p) => p.sourceId)).toEqual([id]);
     expect(await searchLibraryKeywords(sql, "merch", { tags: ["other"] })).toEqual([]);
     expect(await searchLibraryKeywords(sql, "zzzxyz")).toEqual([]);
+  });
+
+  it("deletes a file with its passages and lessons", async () => {
+    const id = await saveImport(sql, { kind: "drive", filename: "Old.txt", uploadedBy: "u1" }, [{ text: "Obsolete zebra rule.", meta: {} }]);
+    const [excerpt] = await sql<{ id: string }[]>`SELECT id FROM excerpts WHERE source_id = ${id}`;
+    await sql`INSERT INTO lessons (excerpt_id, category, summary, quote) VALUES (${excerpt!.id}, 'other', 's', 'zebra')`;
+    expect(await searchLibraryKeywords(sql, "zebra")).toHaveLength(1);
+
+    expect(await deleteSource(sql, id)).toBe(true);
+    expect(await searchLibraryKeywords(sql, "zebra")).toEqual([]);
+    const [left] = await sql<{ count: string }[]>`SELECT COUNT(*) FROM lessons WHERE excerpt_id = ${excerpt!.id}`;
+    expect(Number(left!.count)).toBe(0);
+    expect(await deleteSource(sql, id)).toBe(false);
+    expect(await deleteSource(sql, "nope")).toBe(false);
   });
 
   it("searches only vectors of the current model and re-embeds the others", async () => {

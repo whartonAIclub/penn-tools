@@ -13,6 +13,7 @@ export {
   setLessonStatus,
   saveImport,
   listSources,
+  deleteSource,
   getExcerpt,
 } from "./storage.js";
 export type {

@@ -3,6 +3,7 @@
 import { listPlannedEvents, listSources } from "@penntools/tool-pass-it-on";
 import { db } from "../db";
 import styles from "../PassItOn.module.css";
+import { DeleteFileButton } from "./DeleteFileButton";
 import { Upload } from "./Upload";
 
 export default async function LibraryPage() {
@@ -19,7 +20,10 @@ export default async function LibraryPage() {
           <ul className={styles.list}>
             {sources.map((s) => (
               <li key={s.id} className={styles.item}>
-                <span className={styles.itemTitle}>{s.filename}</span>
+                <span className={styles.spread}>
+                  <span className={styles.itemTitle}>{s.filename}</span>
+                  <DeleteFileButton id={s.id} filename={s.filename} />
+                </span>
                 <span className={styles.muted}>
                   {s.excerpts} passage{s.excerpts === 1 ? "" : "s"} · added {s.importedAt.slice(0, 10)}
                 </span>
