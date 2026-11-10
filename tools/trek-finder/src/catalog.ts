@@ -3,7 +3,7 @@
 // that depends on the date takes today (YYYY-MM-DD) as a parameter.
 
 import { currentPriceStage } from "./derive.js";
-import { tripDays, type Region, type Trip, type TripType } from "./trips.js";
+import { tripDays, type Deadline, type Region, type Trip, type TripType } from "./trips.js";
 
 export interface TripFilters {
   /** Matches name, location, cities, organizer and description, ignoring case. */
@@ -60,17 +60,16 @@ export function filterTrips(trips: readonly Trip[], filters: TripFilters = {}): 
 }
 
 /**
- * The date of the next sign-up deadline still to come: the preliminary
- * deadline if it hasn't passed, otherwise the soonest application deadline from
- * today on. Null when neither is coming up. Deposit and payment deadlines don't count.
+ * The next sign-up deadline still to come: the preliminary deadline if it
+ * hasn't passed, otherwise the soonest application deadline from today on.
+ * Null when neither is coming up. Deposit and payment deadlines don't count.
  */
-export function nextDeadline(trip: Trip, today: string): string | null {
+export function nextDeadline(trip: Trip, today: string): Deadline | null {
   const preliminary = trip.deadlines.find((d) => d.kind === "preliminary");
-  if (preliminary && preliminary.dueDate >= today) return preliminary.dueDate;
+  if (preliminary && preliminary.dueDate >= today) return preliminary;
   const upcoming = trip.deadlines
     .filter((d) => d.kind === "application" && d.dueDate >= today)
-    .map((d) => d.dueDate)
-    .sort();
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   return upcoming[0] ?? null;
 }
 
@@ -92,7 +91,8 @@ export function sortTrips(trips: readonly Trip[], sort: TripSort, today: string)
     start_date: () => 0,
     cost_low: (a: Trip, b: Trip) => missingLast(cost(a), cost(b), byNumber),
     cost_high: (a: Trip, b: Trip) => missingLast(cost(a), cost(b), (x, y) => y - x),
-    deadline: (a: Trip, b: Trip) => missingLast(nextDeadline(a, today), nextDeadline(b, today), byText),
+    deadline: (a: Trip, b: Trip) =>
+      missingLast(nextDeadline(a, today)?.dueDate ?? null, nextDeadline(b, today)?.dueDate ?? null, byText),
     length: (a: Trip, b: Trip) => tripDays(a.startDate, a.endDate) - tripDays(b.startDate, b.endDate),
   }[sort];
   return [...trips].sort((a, b) => primary(a, b) || a.startDate.localeCompare(b.startDate) || a.name.localeCompare(b.name));

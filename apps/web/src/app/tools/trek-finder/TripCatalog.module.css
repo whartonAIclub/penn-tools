@@ -99,13 +99,16 @@
 .card {
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
 }
 
+/* The photo clips itself to the card's top corners, so the card doesn't have
+   to clip, which would cut off the price's info popup. */
 .photo {
   position: relative;
   aspect-ratio: 16 / 9;
   background: var(--nav-hover);
+  border-radius: 11px 11px 0 0;
+  overflow: hidden;
 }
 
 .photo img {
@@ -155,10 +158,67 @@
   color: var(--muted);
 }
 
-.cost {
+/* Positioned so the price info popup can span the row. */
+.priceRow {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   margin-top: 4px;
+}
+
+.cost {
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.stage {
+  font-size: 0.78rem;
+  color: var(--section-label);
+}
+
+.info {
+  display: inline-flex;
+}
+
+.infoButton {
+  padding: 0 2px;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.infoButton:hover,
+.infoButton[aria-expanded="true"] {
+  color: var(--penn-blue);
+}
+
+.infoButton:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 1px;
+}
+
+.infoPopup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.deadline {
+  font-size: 0.8rem;
+  color: var(--section-label);
 }
 
 .facts {

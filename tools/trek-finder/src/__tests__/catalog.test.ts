@@ -106,21 +106,28 @@ describe("filterTrips", () => {
 });
 
 describe("nextDeadline", () => {
+  const due = (t: Trip, today: string) => nextDeadline(t, today)?.dueDate ?? null;
+
+  it("returns the whole deadline, so cards can show its label and time", () => {
+    const t = trip({ deadlines: [{ position: 1, kind: "preliminary", label: "Sign-up", dueDate: "2026-11-15", dueTime: "17:00" }] });
+    expect(nextDeadline(t, TODAY)).toMatchObject({ label: "Sign-up", dueTime: "17:00" });
+  });
+
   it("uses the preliminary deadline until it passes, counting today as still to come", () => {
     const t = trip({ deadlines: [deadline("preliminary", "2026-11-15"), deadline("application", "2026-12-01", 2)] });
-    expect(nextDeadline(t, "2026-11-15")).toBe("2026-11-15");
-    expect(nextDeadline(t, "2026-11-16")).toBe("2026-12-01");
+    expect(due(t, "2026-11-15")).toBe("2026-11-15");
+    expect(due(t, "2026-11-16")).toBe("2026-12-01");
   });
 
   it("takes the soonest upcoming application deadline when there's no preliminary one", () => {
     const t = trip({ deadlines: [deadline("application", "2026-12-20"), deadline("application", "2026-12-01", 2), deadline("application", "2026-10-01", 3)] });
-    expect(nextDeadline(t, TODAY)).toBe("2026-12-01");
+    expect(due(t, TODAY)).toBe("2026-12-01");
   });
 
   it("ignores deposit and payment deadlines, and returns null when nothing is coming up", () => {
     const t = trip({ deadlines: [deadline("preliminary", "2026-11-01"), deadline("deposit", "2026-12-01", 2)] });
-    expect(nextDeadline(t, TODAY)).toBe(null);
-    expect(nextDeadline(trip({}), TODAY)).toBe(null);
+    expect(due(t, TODAY)).toBe(null);
+    expect(due(trip({}), TODAY)).toBe(null);
   });
 });
 
