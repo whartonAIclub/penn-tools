@@ -1,6 +1,5 @@
-// What a trip is, and the catalog's search and filters. The page passes the
-// trips in, so this works the same for sample data now and the tool's own
-// database later. The shape matches the tables in schema.sql.
+// What a trip is, plus date formatting. The shape matches the tables in
+// schema.sql. The catalog's filters and sorts are in catalog.ts.
 
 export const TRIP_TYPES = ["GIP", "GMC", "Leadership Venture", "Club/Other Trek"] as const;
 export type TripType = (typeof TRIP_TYPES)[number];
@@ -100,41 +99,6 @@ export interface Trip {
   priceStages: PriceStage[];
   deadlines: Deadline[];
   links: TripLink[];
-}
-
-export interface TripFilters {
-  /** Matches name, location, cities, organizer and description, ignoring case. */
-  query?: string;
-  type?: TripType | null;
-  region?: Region | null;
-  /** Matches periodLabel. */
-  period?: string | null;
-}
-
-/** The trips matching every filter given, soonest first. */
-export function filterTrips(trips: readonly Trip[], filters: TripFilters = {}): Trip[] {
-  const query = filters.query?.trim().toLowerCase() ?? "";
-  return trips
-    .filter((trip) => !filters.type || trip.tripType === filters.type)
-    .filter((trip) => !filters.region || trip.region === filters.region)
-    .filter((trip) => !filters.period || trip.periodLabel === filters.period)
-    .filter(
-      (trip) =>
-        !query ||
-        [trip.name, trip.location, ...trip.cities, trip.organizerName, trip.description ?? ""].some((field) =>
-          field.toLowerCase().includes(query),
-        ),
-    )
-    .sort((a, b) => a.startDate.localeCompare(b.startDate));
-}
-
-/** Each period the trips fall in, once, in date order. Trips without one are skipped. */
-export function listPeriods(trips: readonly Trip[]): string[] {
-  const periods: string[] = [];
-  for (const trip of [...trips].sort((a, b) => a.startDate.localeCompare(b.startDate))) {
-    if (trip.periodLabel !== null && !periods.includes(trip.periodLabel)) periods.push(trip.periodLabel);
-  }
-  return periods;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

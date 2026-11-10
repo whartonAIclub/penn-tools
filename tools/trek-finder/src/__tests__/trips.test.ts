@@ -3,94 +3,11 @@ import {
   REGIONS,
   TIMINGS,
   TRIP_TYPES,
-  filterTrips,
   formatDateRange,
-  listPeriods,
   tripDays,
   type Trip,
 } from "../trips.js";
 import { SAMPLE_TRIPS } from "../samples.js";
-
-function trip(overrides: Partial<Trip>): Trip {
-  return {
-    id: "t",
-    name: "Trip",
-    tripType: "Club/Other Trek",
-    location: "Somewhere",
-    cities: [],
-    region: "Europe",
-    startDate: "2027-03-06",
-    endDate: "2027-03-14",
-    timing: "break",
-    periodLabel: "Spring Break 2027",
-    academicCredit: false,
-    creditNote: null,
-    description: null,
-    priceIncludes: null,
-    destinationBlurb: null,
-    itinerary: null,
-    availabilityStatus: null,
-    spotsTotal: null,
-    spotsRemaining: null,
-    organizerName: "Club",
-    organizerContact: null,
-    organizerEmail: null,
-    applicationUrl: null,
-    destinationAirport: null,
-    imageUrl: null,
-    imageCredit: null,
-    listed: true,
-    priceStages: [],
-    deadlines: [],
-    links: [],
-    ...overrides,
-  };
-}
-
-describe("filterTrips", () => {
-  const trips = [
-    trip({ id: "japan", name: "Japan Trek", region: "Asia", startDate: "2027-03-06" }),
-    trip({ id: "india", name: "India GIP", tripType: "GIP", region: "Asia", startDate: "2026-11-30", periodLabel: "Fall 2026" }),
-    trip({ id: "iceland", name: "Northern Lights", location: "Iceland", cities: ["Reykjavík"], startDate: "2027-01-06", periodLabel: "Winter Break" }),
-  ];
-  const ids = (result: Trip[]) => result.map((t) => t.id);
-
-  it("returns every trip, soonest first, with no filters", () => {
-    expect(ids(filterTrips(trips))).toEqual(["india", "iceland", "japan"]);
-  });
-
-  it("filters by type, region and period", () => {
-    expect(ids(filterTrips(trips, { type: "GIP" }))).toEqual(["india"]);
-    expect(ids(filterTrips(trips, { region: "Asia" }))).toEqual(["india", "japan"]);
-    expect(ids(filterTrips(trips, { period: "Winter Break" }))).toEqual(["iceland"]);
-    expect(ids(filterTrips(trips, { region: "Europe", period: "Spring Break 2027" }))).toEqual([]);
-  });
-
-  it("searches text fields, ignoring case and surrounding spaces", () => {
-    expect(ids(filterTrips(trips, { query: "  REYKJ " }))).toEqual(["iceland"]);
-    expect(ids(filterTrips(trips, { query: "trek" }))).toEqual(["japan"]);
-    expect(ids(filterTrips(trips, { query: "iceland" }))).toEqual(["iceland"]);
-  });
-
-  it("searches descriptions, and skips trips without one", () => {
-    const withDescription = trip({ id: "d", description: "A night in a ryokan" });
-    expect(ids(filterTrips([...trips, withDescription], { query: "ryokan" }))).toEqual(["d"]);
-  });
-
-  it("treats null filters as unset", () => {
-    expect(filterTrips(trips, { type: null, region: null, period: null })).toHaveLength(3);
-  });
-});
-
-describe("listPeriods", () => {
-  it("lists each period once, in date order", () => {
-    expect(listPeriods(SAMPLE_TRIPS)).toEqual(["Fall 2026", "Winter Break 2026–27", "Spring Break 2027", "Summer 2027"]);
-  });
-
-  it("skips trips without a period", () => {
-    expect(listPeriods([trip({ periodLabel: null })])).toEqual([]);
-  });
-});
 
 describe("formatDateRange", () => {
   it("shortens ranges in the same month or year", () => {

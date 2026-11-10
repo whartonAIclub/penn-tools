@@ -1,7 +1,8 @@
 "use client";
 
 // The trip catalog: search and filters on top, then a card per trip. Filtering
-// is done here in the browser with filterTrips from the tool package.
+// and sorting are done here in the browser with filterTrips and sortTrips from
+// the tool package.
 
 import { useMemo, useState } from "react";
 import {
@@ -11,7 +12,8 @@ import {
   filterTrips,
   formatDate,
   formatDateRange,
-  listPeriods,
+  listSeasons,
+  sortTrips,
   tripDays,
   type Region,
   type Trip,
@@ -28,10 +30,15 @@ export function TripCatalog({ trips, today, sample = false }: { trips: Trip[]; t
   const [region, setRegion] = useState<Region | "">("");
   const [period, setPeriod] = useState("");
 
-  const periods = useMemo(() => listPeriods(trips), [trips]);
+  const periods = useMemo(() => listSeasons(trips), [trips]);
   const shown = useMemo(
-    () => filterTrips(trips, { query, type: type || null, region: region || null, period: period || null }),
-    [trips, query, type, region, period],
+    () =>
+      sortTrips(
+        filterTrips(trips, { query, type: type || null, region: region || null, season: period || null }),
+        "start_date",
+        today,
+      ),
+    [trips, today, query, type, region, period],
   );
   const filtered = query !== "" || type !== "" || region !== "" || period !== "";
 
