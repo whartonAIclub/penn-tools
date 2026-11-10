@@ -1,20 +1,27 @@
-// Trek Finder: a catalog of Wharton MBA trips. For now it shows sample trips
-// from the tool package; they'll move to the tool's own database later.
-// Browsing doesn't need sign-in.
+// Trek Finder: a catalog of Wharton MBA trips, read from the tool's database
+// on every request so a new Sheet import shows up without a rebuild. Shows the
+// sample trips until the first import. Browsing doesn't need sign-in; hearts
+// show the signed-in student's saved trips.
 
 import type { Metadata } from "next";
-import { SAMPLE_TRIPS, todayInNewYork } from "@penntools/tool-trek-finder";
-import { SAMPLE_PHOTOS } from "./samplePhotos";
+import { toolSql } from "@penntools/platform/db";
+import { listSavedIds, todayInNewYork } from "@penntools/tool-trek-finder";
+import { getCurrentUser } from "@/lib/auth";
+import { loadTrips } from "./loadTrips";
 import { TripCatalog } from "./TripCatalog";
 
 export const metadata: Metadata = {
   title: "Trek Finder",
 };
 
-export default function TrekFinderPage() {
-  const trips = SAMPLE_TRIPS.map((trip) => {
-    const photo = SAMPLE_PHOTOS[trip.id];
-    return photo ? { ...trip, imageUrl: photo.url, imageCredit: `${photo.author}, ${photo.license}` } : trip;
-  });
-  return <TripCatalog trips={trips} today={todayInNewYork()} sample />;
+export default async function TrekFinderPage() {
+  const sql = toolSql("trekfinder");
+  if (!sql) throw new Error("Trek Finder's database is not configured (check DATABASE_URL).");
+
+  const user = await getCurrentUser();
+  const [{ trips, sample }, savedIds] = await Promise.all([loadTrips(sql), user ? listSavedIds(sql, user.id) : []]);
+
+  return (
+    <TripCatalog trips={trips} today={todayInNewYork()} savedIds={savedIds} signedIn={user !== null} sample={sample} />
+  );
 }
