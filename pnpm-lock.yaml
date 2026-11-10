@@ -224,6 +224,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
