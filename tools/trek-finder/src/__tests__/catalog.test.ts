@@ -3,9 +3,11 @@ import {
   DEFAULT_CATALOG_STATE,
   catalogQueryString,
   filterTrips,
+  groupBySeason,
   listSeasons,
   nextDeadline,
   parseCatalogQuery,
+  savedTripNote,
   sortTrips,
   tripSeason,
   visibleTrips,
@@ -241,5 +243,35 @@ describe("page address", () => {
     for (const season of ["Fall 2026", "Winter 2026-2027", "Spring 2027", "Summer 2027"]) {
       expect(parseCatalogQuery(new URLSearchParams({ period: season })).season).toBe(season);
     }
+  });
+});
+
+describe("savedTripNote", () => {
+  it("explains why a saved trip left the catalog, and is null while it's shown", () => {
+    expect(savedTripNote(trip({ startDate: "2026-12-01" }), TODAY)).toBe(null);
+    expect(savedTripNote(trip({ startDate: "2026-11-09" }), TODAY)).toBe("started");
+    expect(savedTripNote(trip({ startDate: "2026-12-01", listed: false }), TODAY)).toBe("delisted");
+    expect(savedTripNote(trip({ startDate: "2026-11-01", listed: false }), TODAY)).toBe("delisted");
+  });
+});
+
+describe("groupBySeason", () => {
+  it("groups trips by starting season, in date order", () => {
+    const groups = groupBySeason([
+      trip({ id: "japan", startDate: "2027-03-06" }),
+      trip({ id: "iceland", startDate: "2027-01-06" }),
+      trip({ id: "patagonia", startDate: "2026-12-27" }),
+      trip({ id: "morocco", startDate: "2027-03-06", name: "Morocco" }),
+      trip({ id: "kenya", startDate: "2027-05-18" }),
+    ]);
+    expect(groups.map((g) => [g.season, ids(g.trips)])).toEqual([
+      ["Winter 2026-2027", ["patagonia", "iceland"]],
+      ["Spring 2027", ["morocco", "japan"]],
+      ["Summer 2027", ["kenya"]],
+    ]);
+  });
+
+  it("returns no groups for no trips", () => {
+    expect(groupBySeason([])).toEqual([]);
   });
 });

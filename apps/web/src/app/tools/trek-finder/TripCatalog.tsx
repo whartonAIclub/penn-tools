@@ -5,7 +5,8 @@
 // sortTrips from the tool package. The controls live in the page address
 // (e.g. ?region=Asia&sort=price_low), so a reload or a shared link keeps them.
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   DEFAULT_CATALOG_STATE,
@@ -14,12 +15,9 @@ import {
   TRIP_TYPES,
   catalogQueryString,
   filterTrips,
-  formatDateRange,
   listSeasons,
-  nextDeadline,
   parseCatalogQuery,
   sortTrips,
-  tripDays,
   visibleTrips,
   type CatalogState,
   type Region,
@@ -27,8 +25,8 @@ import {
   type TripSort,
   type TripType,
 } from "@penntools/tool-trek-finder";
-import { PriceLine } from "./PriceInfo";
-import { TripDetails, formatDeadline } from "./TripDetails";
+import { SaveMessage, useSavedTrips } from "./SaveButton";
+import { TripCard } from "./TripCard";
 import styles from "./TripCatalog.module.css";
 
 const SORT_LABELS: Record<TripSort, string> = {
@@ -42,6 +40,10 @@ interface CatalogProps {
   trips: Trip[];
   /** From the server (todayInNewYork), so the server and browser agree on the date. */
   today: string;
+  /** The signed-in user's saved trip ids; empty when signed out. */
+  savedIds?: string[];
+  /** Passed by page.tsx as agreed, but hearts don't need it: the save route answers 401 when signed out. */
+  signedIn?: boolean;
   sample?: boolean;
 }
 
@@ -54,10 +56,11 @@ export function TripCatalog(props: CatalogProps) {
   );
 }
 
-function Catalog({ trips, today, sample = false }: CatalogProps) {
+function Catalog({ trips, today, savedIds = [], sample = false }: CatalogProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const state = useMemo(() => parseCatalogQuery(new URLSearchParams(searchParams.toString())), [searchParams]);
+  const saves = useSavedTrips(savedIds);
 
   // replaceState updates the address without a server round trip or a back-button step per change.
   function update(change: Partial<CatalogState>) {
@@ -81,7 +84,12 @@ function Catalog({ trips, today, sample = false }: CatalogProps) {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Trek Finder</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Trek Finder</h1>
+          <Link className={styles.savedLink} href="/tools/trek-finder/saved-trips">
+            ♥ My Saved Trips ({saves.count})
+          </Link>
+        </div>
         <p className={styles.intro}>Explore club treks, career treks and academic programs for Wharton MBA students.</p>
         {sample && (
           <p className={styles.sampleNote}>These are made-up sample trips while the catalog is being built.</p>
@@ -150,45 +158,18 @@ function Catalog({ trips, today, sample = false }: CatalogProps) {
       ) : (
         <ul className={styles.grid}>
           {shown.map((trip) => (
-            <TripCard key={trip.id} trip={trip} today={today} />
+            <TripCard
+              key={trip.id}
+              trip={trip}
+              today={today}
+              saved={saves.isSaved(trip.id)}
+              onToggleSave={() => saves.toggle(trip.id)}
+            />
           ))}
         </ul>
       )}
+
+      <SaveMessage message={saves.message} />
     </div>
-  );
-}
-
-function TripCard({ trip, today }: { trip: Trip; today: string }) {
-  const [open, setOpen] = useState(false);
-  const days = tripDays(trip.startDate, trip.endDate);
-  const upcoming = nextDeadline(trip, today);
-
-  return (
-    <li className={styles.card}>
-      <div className={styles.photo}>
-        {trip.imageUrl && <img src={trip.imageUrl} alt="" loading="lazy" />}
-        {trip.academicCredit && <span className={styles.credit}>Course credit</span>}
-      </div>
-
-      <div className={styles.body}>
-        <h2 className={styles.cardTitle}>{trip.name}</h2>
-        <p className={styles.dates}>
-          {formatDateRange(trip.startDate, trip.endDate)} ({days} {days === 1 ? "day" : "days"})
-        </p>
-        {trip.periodLabel && <p className={styles.period}>{trip.periodLabel}</p>}
-        <PriceLine trip={trip} today={today} />
-        {upcoming && (
-          <p className={styles.deadline}>
-            {upcoming.label}: {formatDeadline(upcoming)}
-          </p>
-        )}
-
-        <button className={styles.toggle} aria-haspopup="dialog" onClick={() => setOpen(true)}>
-          More details
-        </button>
-      </div>
-
-      {open && <TripDetails trip={trip} today={today} onClose={() => setOpen(false)} />}
-    </li>
   );
 }

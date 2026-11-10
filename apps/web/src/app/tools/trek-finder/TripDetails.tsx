@@ -7,6 +7,7 @@
 import { useEffect, useRef } from "react";
 import { formatDate, formatDateRange, nextDeadline, tripDays, type Deadline, type Trip } from "@penntools/tool-trek-finder";
 import { PriceLine } from "./PriceInfo";
+import { SaveButton } from "./SaveButton";
 import styles from "./TripDetails.module.css";
 
 /** "17:00" → "5 PM", "09:30" → "9:30 AM". Also takes "HH:MM:SS". */
@@ -23,7 +24,19 @@ export function formatDeadline(deadline: Deadline): string {
   return deadline.dueTime ? `${date}, ${formatTime(deadline.dueTime)} ET` : date;
 }
 
-export function TripDetails({ trip, today, onClose }: { trip: Trip; today: string; onClose: () => void }) {
+export function TripDetails({
+  trip,
+  today,
+  saved,
+  onToggleSave,
+  onClose,
+}: {
+  trip: Trip;
+  today: string;
+  saved: boolean;
+  onToggleSave: () => void;
+  onClose: () => void;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const days = tripDays(trip.startDate, trip.endDate);
   const upcoming = nextDeadline(trip, today);
@@ -60,9 +73,12 @@ export function TripDetails({ trip, today, onClose }: { trip: Trip; today: strin
 
         <div className={styles.body}>
           <header className={styles.header}>
-            <h2 id={`trip-${trip.id}-title`} className={styles.title}>
-              {trip.name}
-            </h2>
+            <div className={styles.titleRow}>
+              <h2 id={`trip-${trip.id}-title`} className={styles.title}>
+                {trip.name}
+              </h2>
+              <SaveButton saved={saved} tripName={trip.name} onToggle={onToggleSave} />
+            </div>
             <p className={styles.place}>{[trip.location, trip.cities.join(", ")].filter(Boolean).join(" · ")}</p>
             <p className={styles.when}>
               {formatDateRange(trip.startDate, trip.endDate)} ({days} {days === 1 ? "day" : "days"})

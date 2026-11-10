@@ -77,10 +77,17 @@
   gap: 4px;
 }
 
+/* Leaves room for the close button when there's no photo. */
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 36px;
+}
+
 .title {
   margin: 0;
-  /* Leaves room for the close button when there's no photo. */
-  padding-right: 36px;
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: -0.01em;

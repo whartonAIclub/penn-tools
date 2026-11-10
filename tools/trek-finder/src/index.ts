@@ -20,6 +20,8 @@ export { parseCatalogQuery } from "./catalog.js";
 export { catalogQueryString } from "./catalog.js";
 export { DEFAULT_CATALOG_STATE } from "./catalog.js";
 export type { CatalogState } from "./catalog.js";
+export { savedTripNote } from "./catalog.js";
+export { groupBySeason } from "./catalog.js";
 export { saveTrip } from "./db.js";
 export { unsaveTrip } from "./db.js";
 export { listSavedIds } from "./db.js";

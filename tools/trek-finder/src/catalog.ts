@@ -51,6 +51,28 @@ export function visibleTrips(trips: readonly Trip[], today: string): Trip[] {
   return trips.filter((trip) => trip.listed && tripStatus(trip, today) !== "past");
 }
 
+/**
+ * Why a saved trip is no longer in the catalog: "delisted" when it left the
+ * Sheet, otherwise "started" once it's begun. Null while the catalog shows it.
+ */
+export function savedTripNote(trip: Trip, today: string): "delisted" | "started" | null {
+  if (!trip.listed) return "delisted";
+  if (tripStatus(trip, today) === "past") return "started";
+  return null;
+}
+
+/** Trips grouped by the season they start in, with seasons and the trips in each in date order. */
+export function groupBySeason(trips: readonly Trip[]): { season: string; trips: Trip[] }[] {
+  const groups: { season: string; trips: Trip[] }[] = [];
+  for (const trip of [...trips].sort((a, b) => a.startDate.localeCompare(b.startDate) || a.name.localeCompare(b.name))) {
+    const season = tripSeason(trip.startDate);
+    const group = groups.find((g) => g.season === season);
+    if (group) group.trips.push(trip);
+    else groups.push({ season, trips: [trip] });
+  }
+  return groups;
+}
+
 /** The trips matching every filter given, in their original order. */
 export function filterTrips(trips: readonly Trip[], filters: TripFilters = {}): Trip[] {
   const query = filters.query?.trim().toLowerCase() ?? "";

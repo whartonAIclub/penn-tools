@@ -1,0 +1,25 @@
+.back {
+  align-self: flex-start;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+
+.season {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.seasonTitle {
+  margin: 8px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+
+.seasonCount {
+  font-weight: 400;
+  color: var(--section-label);
+}

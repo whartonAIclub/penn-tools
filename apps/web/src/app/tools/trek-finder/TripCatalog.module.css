@@ -10,6 +10,20 @@
   gap: 6px;
 }
 
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.savedLink {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+
 .title {
   margin: 0;
   font-size: 1.75rem;
@@ -268,4 +282,77 @@
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--penn-blue);
+}
+
+/* ── Saving ────────────────────────────────────────────────────────────────── */
+
+.save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--penn-blue);
+}
+
+.save[aria-pressed="true"] {
+  color: #c8102e;
+}
+
+.save:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+
+/* On a card the heart sits on the photo, so it gets a light backing. */
+.cardSave {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 20%);
+}
+
+/* A saved trip that has started or left the Sheet, shown on My Saved Trips. */
+.inactive .photo img,
+.inactive .body > :not(.note):not(.toggle) {
+  opacity: 0.55;
+}
+
+.note {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nav-hover);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+
+/* position: fixed is relative to the tool's page area, beside the sidebar. */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 20;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--text);
+  font-size: 0.85rem;
+  color: var(--bg);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+}
+
+.toastHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
