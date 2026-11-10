@@ -17,14 +17,14 @@ const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeri
 /**
  * Today's price, e.g. "$3,300 Early bird, until Nov 30 ⓘ". The stage only
  * shows when a trip's price changes, and "until" only when the stage ends on a
- * set date. No price shows as TBD.
+ * set date. No price shows as "Price: TBD".
  */
 export function PriceLine({ trip, today }: { trip: Trip; today: string }) {
   const stage = currentPriceStage(trip.priceStages, today);
   const cost = stage?.amountUsd ?? null;
   return (
     <div className={styles.priceRow}>
-      <span className={styles.cost}>{cost === null ? "TBD" : usd.format(cost)}</span>
+      <span className={styles.cost}>{cost === null ? "Price: TBD" : usd.format(cost)}</span>
       {stage && trip.priceStages.length > 1 && (
         <span className={styles.stage}>
           {stage.label}
