@@ -8,9 +8,9 @@
 import { REGIONS, TIMINGS, TRIP_TYPES } from "./trips.js";
 import type { AvailabilityStatus, Deadline, DeadlineKind, PriceStage, Trip } from "./trips.js";
 
-const AVAILABILITY_STATUSES: readonly AvailabilityStatus[] = ["open", "limited", "waitlist", "full"];
-const CERTAINTIES: readonly PriceStage["certainty"][] = ["estimate", "confirmed"];
-const DEADLINE_KINDS: readonly DeadlineKind[] = ["preliminary", "application", "deposit", "payment", "other"];
+export const AVAILABILITY_STATUSES: readonly AvailabilityStatus[] = ["open", "limited", "waitlist", "full"];
+export const CERTAINTIES: readonly PriceStage["certainty"][] = ["estimate", "confirmed"];
+export const DEADLINE_KINDS: readonly DeadlineKind[] = ["preliminary", "application", "deposit", "payment", "other"];
 
 const MAX_BLURB_LENGTH = 300;
 /** The largest value a Postgres INT column holds. */

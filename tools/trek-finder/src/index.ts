@@ -22,3 +22,7 @@ export { listImportRuns } from "./db.js";
 export type { ImportRun, ImportRunStatus, ImportProblem } from "./db.js";
 export { validateTrip } from "./validate.js";
 export type { TripDraft, PriceStageDraft, DeadlineDraft, TripValidation } from "./validate.js";
+export { parseTripRow } from "./sheet.js";
+export { missingColumns } from "./sheet.js";
+export { SHEET_COLUMNS } from "./sheet.js";
+export type { SheetRow } from "./sheet.js";
