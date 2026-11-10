@@ -127,6 +127,15 @@
 .answer dt { color: var(--section-label); }
 .answer dd { margin: 0; font-weight: 600; }
 
+.error {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .success {
   padding: 10px 14px;
   border-radius: 8px;

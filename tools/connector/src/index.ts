@@ -4,4 +4,6 @@ export { formGroups, groupScore, matchScore, MIN_GROUP_SIZE, MAX_GROUP_SIZE } fr
 export { sharedAnswers } from "./matching/summary.js";
 export type { SharedAnswer } from "./matching/summary.js";
 export { SAMPLE_SIGNUPS } from "./matching/samples.js";
+export { checkSignup, listSignups, saveSignup, MAX_NAME_LENGTH } from "./signups.js";
+export type { SignupInput } from "./signups.js";
 export type { AnswerOption, Cohort, Group, GroupingResult, Question, Signup } from "./types.js";

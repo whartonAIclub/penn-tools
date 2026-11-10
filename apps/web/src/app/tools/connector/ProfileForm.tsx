@@ -1,7 +1,8 @@
 "use client";
 
-// The profile form: first and last name, Penn email and cohort (grouped by
-// cluster). Continue hands the profile to the next screen; nothing is saved.
+// The profile form: first and last name and cohort (grouped by cluster). The
+// student's email comes from their Penn sign-in, so the form doesn't ask.
+// Continue hands the profile to the next screen.
 
 import { useState, type FormEvent } from "react";
 import type { Cohort } from "@penntools/tool-connector";
@@ -10,7 +11,6 @@ import styles from "./Connector.module.css";
 export interface Profile {
   firstName: string;
   lastName: string;
-  email: string;
   cohort: string;
 }
 
@@ -24,12 +24,11 @@ export function ProfileForm({ cohorts, initial, onContinue }: Props) {
   const clusters = [...new Set(cohorts.map((c) => c.cluster))];
   const [firstName, setFirstName] = useState(initial.firstName);
   const [lastName, setLastName] = useState(initial.lastName);
-  const [email, setEmail] = useState(initial.email);
   const [cohort, setCohort] = useState(initial.cohort);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    onContinue({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), cohort });
+    onContinue({ firstName: firstName.trim(), lastName: lastName.trim(), cohort });
   }
 
   return (
@@ -50,20 +49,6 @@ export function ProfileForm({ cohorts, initial, onContinue }: Props) {
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" required />
           </label>
         </div>
-
-        <label className={styles.field}>
-          <span>Wharton email</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@wharton.upenn.edu"
-            pattern=".+@wharton\.upenn\.edu"
-            title="Use your Wharton email (ending in @wharton.upenn.edu)."
-            autoComplete="email"
-            required
-          />
-        </label>
 
         <label className={styles.field}>
           <span>Cohort</span>
