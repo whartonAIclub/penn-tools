@@ -249,3 +249,25 @@ export async function deletePlannedEvent(sql: Sql, id: string): Promise<boolean>
   const rows = await sql`DELETE FROM events WHERE id = ${id} RETURNING id`;
   return rows.length > 0;
 }
+
+/** Names typed one per line or separated by commas, trimmed and with blanks dropped. */
+export function parseNameList(text: string): string[] {
+  return text.split(/[\n,]/).map((n) => n.trim()).filter(Boolean);
+}
+
+/** Vendors typed one per line as "Name" or "Name: role". */
+export function parseVendorLines(text: string): VendorInput[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const colon = line.indexOf(":");
+      return colon === -1 ? { name: line, role: null } : { name: line.slice(0, colon).trim(), role: line.slice(colon + 1).trim() || null };
+    });
+}
+
+/** The inverse of parseVendorLines, for showing vendors in a form. */
+export function formatVendorLines(vendors: VendorInput[]): string {
+  return vendors.map((v) => (v.role ? `${v.name}: ${v.role}` : v.name)).join("\n");
+}

@@ -46,10 +46,10 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | 4 | Embed documents on upload; search them | **Done** |
 | 5 | Cited answers ("I couldn't find this" when there's no source) | **Done** |
 | 6 | Event and party storage | **Done** |
-| 7 | Page shell with tabs; "database not ready" message | To do |
-| 8 | Upload page and route, with the credential check | To do |
-| 9 | Ask-the-library page, linking to source passages | To do |
-| 10 | Event list and edit pages | To do |
+| 7 | Page shell with tabs; "database not ready" message | **Done** |
+| 8 | Upload page and route, with the credential check | **Done** |
+| 9 | Ask-the-library page, linking to source passages | **Done** |
+| 10 | Event list and edit pages | **Done** |
 | 11 | **Exit test:** five real questions, correct cited answers | To do |
 | **Week 2: checklist and board** | | |
 | 12 | Schema: template versions, modules, items, tasks, members | To do |

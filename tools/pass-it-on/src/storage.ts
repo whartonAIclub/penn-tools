@@ -154,6 +154,7 @@ export interface SourceSummary {
   filename: string;
   importedAt: string;
   status: SourceStatus;
+  tags: string[];
   excerpts: number;
   /** Excerpts lessons have already been extracted from. */
   extracted: number;
@@ -214,9 +215,9 @@ export async function saveImport(sql: Sql, source: NewSource, excerpts: ExcerptD
 /** Uploaded sources with their progress, newest first. */
 export async function listSources(sql: Sql): Promise<SourceSummary[]> {
   const rows = await sql<
-    { id: string; kind: SourceKind; filename: string; imported_at: Date; status: SourceStatus; excerpts: string; extracted: string; attendance_rows: string; pending_lessons: string }[]
+    { id: string; kind: SourceKind; filename: string; imported_at: Date; status: SourceStatus; tags: string[]; excerpts: string; extracted: string; attendance_rows: string; pending_lessons: string }[]
   >`
-    SELECT s.id, s.kind, s.filename, s.imported_at, s.status,
+    SELECT s.id, s.kind, s.filename, s.imported_at, s.status, s.tags,
       (SELECT COUNT(*) FROM excerpts e WHERE e.source_id = s.id) AS excerpts,
       (SELECT COUNT(*) FROM excerpts e WHERE e.source_id = s.id AND e.extracted_at IS NOT NULL) AS extracted,
       (SELECT COUNT(*) FROM attendance a WHERE a.source_id = s.id) AS attendance_rows,
@@ -230,6 +231,7 @@ export async function listSources(sql: Sql): Promise<SourceSummary[]> {
     filename: r.filename,
     importedAt: r.imported_at.toISOString(),
     status: r.status,
+    tags: r.tags,
     excerpts: Number(r.excerpts),
     extracted: Number(r.extracted),
     attendanceRows: Number(r.attendance_rows),

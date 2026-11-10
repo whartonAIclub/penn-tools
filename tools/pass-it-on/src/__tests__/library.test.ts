@@ -10,6 +10,9 @@ import type { EmbeddingProvider } from "@penntools/core/embeddings";
 import { checkSearchQuery, checkTags, embedLibrary, searchLibrary, setSourceTags } from "../library.js";
 import {
   checkPlannedEventInput,
+  formatVendorLines,
+  parseNameList,
+  parseVendorLines,
   createPlannedEvent,
   deletePlannedEvent,
   getPlannedEvent,
@@ -81,6 +84,19 @@ describe("input checks", () => {
     for (const bad of [{}, { title: "x", eventDate: "2026-02-31" }, { title: "x", budget: -5 }, { title: "x", budget: "lots" }, { title: "x", partnerClubs: "a" }]) {
       expect(checkPlannedEventInput(bad).ok).toBe(false);
     }
+  });
+});
+
+describe("form text parsing", () => {
+  it("splits names and vendor lines and round-trips vendors", () => {
+    expect(parseNameList("Wharton Cares, Penn Dems\n\n  Hillel ")).toEqual(["Wharton Cares", "Penn Dems", "Hillel"]);
+    const vendors = parseVendorLines("Bistro: catering\nDJ Sam\n: oops");
+    expect(vendors).toEqual([
+      { name: "Bistro", role: "catering" },
+      { name: "DJ Sam", role: null },
+      { name: "", role: "oops" },
+    ]);
+    expect(formatVendorLines(vendors.slice(0, 2))).toBe("Bistro: catering\nDJ Sam");
   });
 });
 

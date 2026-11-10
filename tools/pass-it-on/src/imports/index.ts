@@ -8,3 +8,5 @@ export { campusGroupsAttendance, CampusGroupsFormatError } from "./campusgroups.
 export type { AttendanceDraft } from "./campusgroups.js";
 export { MAX_EXCERPT_CHARS } from "./excerpts.js";
 export type { ExcerptDraft, ExcerptMeta } from "./excerpts.js";
+export { uploadLibraryFile, MAX_UPLOAD_BYTES } from "./upload.js";
+export type { LibraryUpload, LibraryUploadResult } from "./upload.js";
