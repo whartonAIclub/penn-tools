@@ -35,6 +35,13 @@ export const CORE_QUESTIONS: CoreQuestion[] = [
   { id: 9, about: "them", text: "What do you know now that you most wish you'd known when you started?" },
 ];
 
+/**
+ * The core question that needs a real choice the student is weighing. With
+ * no choice entered it's left out of the questions the AI picks from, so a
+ * brief never asks about "[option A] against [option B]".
+ */
+export const CHOICE_QUESTION_ID = 8;
+
 /** Every chat ends the same way, so the brief shows this as written. */
 export const CLOSING_LINE = "You've given me a lot to think about. Is it OK if I reach back out with any other questions?";
 
@@ -43,7 +50,7 @@ export const TAILORING_RULES: string[] = [
   "Never open with a bare statement the person has no context for, like \"Adoption has grown mostly by word of mouth.\" Most questions need no lead-in at all; add one only when the question builds on a specific fact about them or the company, and then say briefly where the student saw it, the way they'd say it aloud. Use that at most two or three times in a brief, each worded differently, e.g. \"I noticed on your LinkedIn that you moved from Bain into operations…\", \"Your move from Bain to [company] caught my eye…\", \"The [article] about your Series B mentioned…\". Don't build spoken lines on facts that aren't in the profile or the news the student gave; leave them out rather than hedging with \"From what I've read\".",
   "Ask for their judgment, not a list of facts. Phrasings like \"what's the biggest,\" \"what surprised you most\" and \"what would you weigh most\" get real opinions; \"What does your team do?\" gets an org chart.",
   "Tie at least one question to the student's own background, as core question 7 does, and open it with one sentence about where the student is coming from and where they want to go.",
-  "Before asking for advice, state the student's own plan or hypothesis so the person has something to react to, as core question 8 does. Fill its brackets with a real choice the student is facing, such as company stage, function or industry.",
+  "Before asking for advice, state the student's own plan or hypothesis so the person has something to react to.",
   "Adjust the questions to the person. Investors: how they judge companies in their space, or how someone without investing experience can break in. Founders: what they'd repeat and what they'd skip if they started over. People in rotational or leadership programs: how their idea of where they want to end up has changed across rotations.",
   "Ask one question per topic, and give each a short follow-up.",
   "Start with them and save questions about the student for the second half: questions about their work build rapport first.",

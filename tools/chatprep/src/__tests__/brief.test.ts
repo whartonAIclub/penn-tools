@@ -3,8 +3,8 @@
 
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest } from "@penntools/core/ai";
-import { Brief, buildBrief, chatPrompt, checkOptionalText, checkText, SYSTEM_PROMPT } from "../brief.js";
-import { CORE_QUESTIONS, TAILORING_RULES } from "../framework.js";
+import { Brief, buildBrief, chatPrompt, checkOptionalText, checkText, systemPrompt } from "../brief.js";
+import { CHOICE_QUESTION_ID, CORE_QUESTIONS, TAILORING_RULES } from "../framework.js";
 
 const brief: Brief = {
   personType: "other",
@@ -47,7 +47,7 @@ describe("buildBrief", () => {
   it("asks for the Brief shape on the standard tier and returns the object", async () => {
     const { ai, requests } = fakeAI();
     expect(await buildBrief(ai, "anthropic", student, chat)).toEqual(brief);
-    expect(requests[0]).toMatchObject({ provider: "anthropic", tier: "standard", system: SYSTEM_PROMPT });
+    expect(requests[0]).toMatchObject({ provider: "anthropic", tier: "standard", system: systemPrompt(student) });
     expect(requests[0]!.schema).toBe(Brief);
   });
 
@@ -76,10 +76,22 @@ describe("chatPrompt", () => {
   });
 });
 
-describe("SYSTEM_PROMPT", () => {
-  it("includes every core question and tailoring rule", () => {
-    for (const q of CORE_QUESTIONS) expect(SYSTEM_PROMPT).toContain(q.text);
-    for (const rule of TAILORING_RULES) expect(SYSTEM_PROMPT).toContain(rule);
+describe("systemPrompt", () => {
+  const choiceQuestion = CORE_QUESTIONS.find((q) => q.id === CHOICE_QUESTION_ID)!;
+
+  it("includes every core question and tailoring rule when the student gave a choice", () => {
+    const prompt = systemPrompt({ ...student, weighing: "a startup vs. a growth-stage company" });
+    for (const q of CORE_QUESTIONS) expect(prompt).toContain(q.text);
+    for (const rule of TAILORING_RULES) expect(prompt).toContain(rule);
+  });
+
+  it("leaves out the choice question when no choice was given", () => {
+    for (const weighing of [null, "", "   "]) {
+      const prompt = systemPrompt({ ...student, weighing });
+      expect(prompt).not.toContain(choiceQuestion.text);
+      expect(prompt).not.toContain(`Core question ${CHOICE_QUESTION_ID}:`);
+      for (const q of CORE_QUESTIONS.filter((q) => q.id !== CHOICE_QUESTION_ID)) expect(prompt).toContain(q.text);
+    }
   });
 });
 

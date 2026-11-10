@@ -18,5 +18,5 @@ export type { StudentProfile, ChatInput, BriefRequest } from "./brief.js";
 export { FILE_LIMITS, FILE_TYPES, MAX_FILES_BYTES, MAX_NEWS_FILES, MAX_PDF_PAGES, checkFiles, filesBytes } from "./files.js";
 export type { FileLimits, FileType, UploadedFile } from "./files.js";
 export { briefToText } from "./format.js";
-export { CORE_QUESTIONS, CLOSING_LINE, CHAT_TIPS } from "./framework.js";
+export { CORE_QUESTIONS, CHOICE_QUESTION_ID, CLOSING_LINE, CHAT_TIPS } from "./framework.js";
 export type { CoreQuestion } from "./framework.js";
