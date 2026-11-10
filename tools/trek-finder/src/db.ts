@@ -3,7 +3,7 @@
 // read and write is scoped to that user.
 
 import type { Sql } from "postgres";
-import type { Trip } from "./trips.js";
+import type { Deadline, PriceStage, Trip, TripLink } from "./trips.js";
 
 export type ImportRunStatus = "ok" | "partial" | "aborted" | "failed";
 
@@ -124,6 +124,57 @@ export async function writeImport(sql: Sql, trips: readonly Trip[]): Promise<Imp
     `;
     return { written: trips.length, delisted: delisted.length };
   });
+}
+
+/** Groups child rows by trip id, keeping their order. */
+function byTrip<T>(rows: readonly (T & { trip_id: string })[]): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const { trip_id, ...rest } of rows) {
+    const group = groups.get(trip_id) ?? [];
+    group.push(rest as unknown as T);
+    groups.set(trip_id, group);
+  }
+  return groups;
+}
+
+/**
+ * Every stored trip with its prices, deadlines and links, soonest first. Hidden
+ * trips are included (listed = false) so saved ones can still be shown;
+ * visibleTrips picks what the catalog shows.
+ */
+export async function listTrips(sql: Sql): Promise<Trip[]> {
+  // Dates and times come back as text in the Trip shape's formats; Postgres
+  // DATEs would otherwise arrive as JavaScript Dates at midnight UTC.
+  const trips = await sql<Omit<Trip, "priceStages" | "deadlines" | "links">[]>`
+    SELECT
+      id, name, trip_type AS "tripType", location, cities, region,
+      to_char(start_date, 'YYYY-MM-DD') AS "startDate", to_char(end_date, 'YYYY-MM-DD') AS "endDate",
+      timing, period_label AS "periodLabel", academic_credit AS "academicCredit", credit_note AS "creditNote",
+      description, price_includes AS "priceIncludes", destination_blurb AS "destinationBlurb", itinerary,
+      availability_status AS "availabilityStatus", spots_total AS "spotsTotal", spots_remaining AS "spotsRemaining",
+      organizer_name AS "organizerName", organizer_contact AS "organizerContact", organizer_email AS "organizerEmail",
+      application_url AS "applicationUrl", destination_airport AS "destinationAirport", image_url AS "imageUrl",
+      image_credit AS "imageCredit", listed
+    FROM trips
+    ORDER BY start_date, id
+  `;
+  const prices = byTrip<PriceStage>(await sql`
+    SELECT trip_id, position, label, amount_usd AS "amountUsd", certainty,
+      to_char(valid_from, 'YYYY-MM-DD') AS "validFrom", to_char(valid_until, 'YYYY-MM-DD') AS "validUntil", note
+    FROM trip_price_stages ORDER BY trip_id, position
+  `);
+  const deadlines = byTrip<Deadline>(await sql`
+    SELECT trip_id, position, kind, label, to_char(due_date, 'YYYY-MM-DD') AS "dueDate", to_char(due_time, 'HH24:MI') AS "dueTime"
+    FROM trip_deadlines ORDER BY trip_id, position
+  `);
+  const links = byTrip<TripLink>(await sql`SELECT trip_id, position, label, url FROM trip_links ORDER BY trip_id, position`);
+
+  return trips.map((trip) => ({
+    ...trip,
+    priceStages: prices.get(trip.id) ?? [],
+    deadlines: deadlines.get(trip.id) ?? [],
+    links: links.get(trip.id) ?? [],
+  }));
 }
 
 /**

@@ -1,5 +1,5 @@
-// The Sheet import write against a real Postgres, in its own throwaway schema
-// so hiding trips here can't affect the saved-trip tests. Skipped when no
+// Writing a Sheet import and reading the trips back, against a real Postgres,
+// in its own throwaway schema so hiding trips here can't affect the saved-trip tests. Skipped when no
 // database is configured (DATABASE_URL, or apps/web/.env.local).
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import { listSavedIds, saveTrip, writeImport } from "../db.js";
+import { listSavedIds, listTrips, saveTrip, writeImport } from "../db.js";
 import { SAMPLE_TRIPS } from "../samples.js";
 import type { Trip } from "../trips.js";
 
@@ -103,6 +103,37 @@ describe.skipIf(!databaseUrl)("Trek Finder import write (Postgres)", () => {
     await expect(writeImport(sql, [])).rejects.toThrow("zero trips");
     await expect(writeImport(sql, [first, first])).rejects.toThrow("repeated trip id");
     expect(await listedIds()).toEqual([first.id, second.id].sort());
+  });
+
+  it("reads back exactly the trips that were imported, soonest first", async () => {
+    await writeImport(sql, SAMPLE_TRIPS);
+    const bySoonest = [...SAMPLE_TRIPS].sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id.localeCompare(b.id));
+    expect(await listTrips(sql)).toEqual(bySoonest);
+  });
+
+  it("reads back times as HH:MM and blank dates and lists as empty", async () => {
+    const trip: Trip = {
+      ...first,
+      priceStages: [{ position: 2, label: "Regular", amountUsd: null, certainty: "estimate", validFrom: "2026-12-16", validUntil: null, note: null }],
+      deadlines: [{ position: 1, kind: "deposit", label: "Deposit", dueDate: "2027-01-15", dueTime: "17:00" }],
+      links: [],
+    };
+    await writeImport(sql, [trip]);
+    const [read] = await listTrips(sql);
+    expect(read!.priceStages).toEqual(trip.priceStages);
+    expect(read!.deadlines).toEqual(trip.deadlines);
+    expect(read!.links).toEqual([]);
+  });
+
+  it("includes hidden trips, marked as not listed", async () => {
+    await writeImport(sql, [first, second]);
+    await writeImport(sql, [first]);
+    const listed = Object.fromEntries((await listTrips(sql)).map((t) => [t.id, t.listed]));
+    expect(listed).toEqual({ [first.id]: true, [second.id]: false });
+  });
+
+  it("returns no trips when nothing has been imported", async () => {
+    expect(await listTrips(sql)).toEqual([]);
   });
 
   it("changes nothing if any trip fails to write", async () => {

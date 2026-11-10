@@ -27,6 +27,7 @@ export { unsaveTrip } from "./db.js";
 export { listSavedIds } from "./db.js";
 export { listImportRuns } from "./db.js";
 export { writeImport } from "./db.js";
+export { listTrips } from "./db.js";
 export type { ImportRun, ImportRunStatus, ImportProblem, ImportWrite } from "./db.js";
 export { validateTrip } from "./validate.js";
 export type { TripDraft, PriceStageDraft, DeadlineDraft, TripValidation } from "./validate.js";
