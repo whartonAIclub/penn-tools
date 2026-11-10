@@ -144,3 +144,53 @@
   font-style: italic;
   color: var(--section-label);
 }
+
+/* ── Uploads ───────────────────────────────────────────────────────────────── */
+
+.drop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px dashed var(--input-border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--section-label);
+}
+
+.dropOver {
+  border-color: var(--penn-blue);
+  background: var(--bg);
+  color: var(--penn-blue);
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.files li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.remove {
+  font-size: 0.8rem;
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.fileError {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #b91c1c;
+}

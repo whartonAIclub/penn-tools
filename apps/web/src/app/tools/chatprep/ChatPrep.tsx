@@ -1,14 +1,24 @@
 "use client";
 
 // ChatPrep's page: the student's profile (kept in this browser), the chat's
-// details, and the brief. Generating calls makeBrief in actions.ts.
+// details, and the brief. The resume and the person's profile can be pasted,
+// uploaded as files, or both. Generating posts to brief/route.ts.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ClipboardEvent, DragEvent } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
-import type { Brief } from "@penntools/tool-chatprep";
-import { makeBrief, type BriefError } from "./actions";
+import type { Brief, FileLimits, UploadedFile } from "@penntools/tool-chatprep";
+import { ACCEPT, readFile, uniqueName } from "./readFile";
 import styles from "./ChatPrep.module.css";
+
+type Upload = "resume" | "profile" | "news";
+
+interface BriefError {
+  /** The AIError kind, when the AI API failed. */
+  kind?: string;
+  message: string;
+}
 
 type Status =
   | { state: "idle" }
@@ -36,6 +46,7 @@ export function ChatPrep({
   closingLine,
   tips,
   limits,
+  fileLimits,
 }: {
   /** Providers the user has saved keys for; never empty. */
   providers: AIProvider[];
@@ -43,9 +54,15 @@ export function ChatPrep({
   closingLine: string;
   tips: string[];
   limits: Limits;
+  fileLimits: FileLimits;
 }) {
   const [provider, setProvider] = useState(providers[0]!);
   const [resume, setResume] = useState("");
+  const [resumeFile, setResumeFile] = useState<UploadedFile | null>(null);
+  const [profileFiles, setProfileFiles] = useState<UploadedFile[]>([]);
+  const [newsFiles, setNewsFiles] = useState<UploadedFile[]>([]);
+  const [reading, setReading] = useState<Upload | null>(null);
+  const [fileError, setFileError] = useState<{ which: Upload; message: string } | null>(null);
   const [targetRoles, setTargetRoles] = useState("");
   const [weighing, setWeighing] = useState("");
   const [profile, setProfile] = useState("");
@@ -61,6 +78,8 @@ export function ChatPrep({
       if (typeof saved?.resume === "string") setResume(saved.resume);
       if (typeof saved?.targetRoles === "string") setTargetRoles(saved.targetRoles);
       if (typeof saved?.weighing === "string") setWeighing(saved.weighing);
+      const file = saved?.resumeFile as UploadedFile | null | undefined;
+      if (file && typeof file.name === "string" && typeof file.mediaType === "string" && typeof file.data === "string") setResumeFile(file);
     } catch {
       // A corrupt or blocked entry just means starting with a blank profile.
     }
@@ -68,21 +87,63 @@ export function ChatPrep({
 
   function saveProfile() {
     try {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify({ resume, targetRoles, weighing }));
+      localStorage.setItem(PROFILE_KEY, JSON.stringify({ resume, targetRoles, weighing, resumeFile }));
     } catch {
-      // Storage can be full or blocked; the brief still works without saving.
+      // Storage can be full or blocked (a large resume file may not fit); the brief still works without saving.
+      try {
+        localStorage.setItem(PROFILE_KEY, JSON.stringify({ resume, targetRoles, weighing }));
+      } catch {
+        // nothing more to do
+      }
     }
   }
 
-  const ready = resume.trim() && targetRoles.trim() && profile.trim() && company.trim();
+  /** Reads dropped, chosen or pasted files. A resume file replaces the current one; profile and news files are added. */
+  async function addFiles(which: Upload, files: File[]) {
+    if (!files.length) return;
+    setFileError(null);
+    const max = { resume: fileLimits.resumeFiles, profile: fileLimits.profileFiles, news: fileLimits.newsFiles }[which];
+    const current = { resume: [], profile: profileFiles, news: newsFiles }[which];
+    if (current.length + files.length > max) {
+      const what = { resume: "your resume", profile: "their profile", news: "the news" }[which];
+      setFileError({ which, message: max === 1 ? `Upload one file for ${what}.` : `Upload at most ${max} files for ${what}.` });
+      return;
+    }
+    setReading(which);
+    try {
+      const added: UploadedFile[] = [];
+      for (const file of files) {
+        const read = await readFile(file, fileLimits);
+        added.push({ ...read, name: uniqueName(read.name, [...current, ...added].map((f) => f.name)) });
+      }
+      if (which === "resume") setResumeFile(added[0]!);
+      else if (which === "profile") setProfileFiles([...current, ...added]);
+      else setNewsFiles([...current, ...added]);
+    } catch (error) {
+      setFileError({ which, message: error instanceof Error ? error.message : "That file couldn't be read." });
+    } finally {
+      setReading(null);
+    }
+  }
+
+  const ready = (resume.trim() || resumeFile) && targetRoles.trim() && (profile.trim() || profileFiles.length) && company.trim() && !reading;
 
   async function generate() {
     saveProfile();
     setStatus({ state: "loading" });
     setCopied(false);
     try {
-      const result = await makeBrief(provider, { resume, targetRoles, weighing: weighing || null }, { profile, company, news: news || null });
-      setStatus(result.ok ? { state: "done", ...result.data, company } : { state: "error", error: result.error });
+      const response = await fetch("/tools/chatprep/brief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          student: { resume, targetRoles, weighing: weighing || null, resumeFile },
+          chat: { profile, company, news: news || null, profileFiles, newsFiles },
+        }),
+      });
+      const result = (await response.json()) as { brief: Brief; text: string } | { error: BriefError };
+      setStatus("error" in result ? { state: "error", error: result.error } : { state: "done", ...result, company });
     } catch {
       setStatus({ state: "error", error: { message: "Something went wrong. Try again." } });
     }
@@ -106,10 +167,27 @@ export function ChatPrep({
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>You</h2>
         <p className={styles.hint}>Saved in this browser, so you only enter it once.</p>
-        <label className={styles.field}>
-          Your resume, as text
-          <textarea className={styles.textarea} rows={6} value={resume} maxLength={limits.resume} onChange={(e) => setResume(e.target.value)} />
-        </label>
+        <div className={styles.field}>
+          Your resume
+          <FileDrop
+            label="Drop your resume PDF here"
+            files={resumeFile ? [resumeFile] : []}
+            multiple={false}
+            reading={reading === "resume"}
+            error={fileError?.which === "resume" ? fileError.message : null}
+            onAdd={(files) => void addFiles("resume", files)}
+            onRemove={() => setResumeFile(null)}
+          />
+          <textarea
+            aria-label="Your resume, as text"
+            className={styles.textarea}
+            rows={resumeFile ? 2 : 6}
+            placeholder={resumeFile ? "Optional: anything the file leaves out" : "Or paste it as text"}
+            value={resume}
+            maxLength={limits.resume}
+            onChange={(e) => setResume(e.target.value)}
+          />
+        </div>
         <label className={styles.field}>
           Roles you&apos;re recruiting for
           <input
@@ -138,21 +216,64 @@ export function ChatPrep({
           Company
           <input className={styles.input} value={company} maxLength={limits.company} onChange={(e) => setCompany(e.target.value)} />
         </label>
-        <label className={styles.field}>
-          Their LinkedIn profile or bio, pasted
-          <textarea className={styles.textarea} rows={6} value={profile} maxLength={limits.profile} onChange={(e) => setProfile(e.target.value)} />
-        </label>
-        <label className={styles.field}>
-          Recent news about the company (optional)
+        <div className={styles.field}>
+          Their LinkedIn profile or bio
+          <FileDrop
+            label="Drop screenshots of their profile, or its PDF, here"
+            hint={`On LinkedIn: More → Save to PDF, or take screenshots. Up to ${fileLimits.profileFiles} files.`}
+            files={profileFiles}
+            multiple
+            reading={reading === "profile"}
+            error={fileError?.which === "profile" ? fileError.message : null}
+            onAdd={(files) => void addFiles("profile", files)}
+            onRemove={(i) => setProfileFiles(profileFiles.filter((_, j) => j !== i))}
+          />
           <textarea
+            aria-label="Their profile or bio, as text"
+            className={styles.textarea}
+            rows={profileFiles.length ? 2 : 6}
+            placeholder={profileFiles.length ? "Optional: anything the files leave out" : "Or paste their profile or bio as text (you can paste screenshots here too)"}
+            value={profile}
+            maxLength={limits.profile}
+            onChange={(e) => setProfile(e.target.value)}
+            onPaste={(e: ClipboardEvent<HTMLTextAreaElement>) => {
+              const files = Array.from(e.clipboardData.files);
+              if (files.length) {
+                e.preventDefault();
+                void addFiles("profile", files);
+              }
+            }}
+          />
+        </div>
+        <div className={styles.field}>
+          Recent news about the company (optional)
+          <FileDrop
+            label="Drop articles here, as PDFs or screenshots"
+            hint={`To save an article as a PDF: File → Print → Save as PDF. Up to ${fileLimits.newsFiles} files.`}
+            files={newsFiles}
+            multiple
+            reading={reading === "news"}
+            error={fileError?.which === "news" ? fileError.message : null}
+            onAdd={(files) => void addFiles("news", files)}
+            onRemove={(i) => setNewsFiles(newsFiles.filter((_, j) => j !== i))}
+          />
+          <textarea
+            aria-label="Recent news, as text"
             className={styles.textarea}
             rows={3}
-            placeholder="Paste an article or two. ChatPrep can't search the web, so without this the brief only covers general background."
+            placeholder="Or paste an article or two (you can paste screenshots here too). ChatPrep can't search the web, so without news the brief only covers general background."
             value={news}
             maxLength={limits.news}
             onChange={(e) => setNews(e.target.value)}
+            onPaste={(e: ClipboardEvent<HTMLTextAreaElement>) => {
+              const files = Array.from(e.clipboardData.files);
+              if (files.length) {
+                e.preventDefault();
+                void addFiles("news", files);
+              }
+            }}
           />
-        </label>
+        </div>
 
         <div className={styles.row}>
           {providers.length > 1 && (
@@ -198,6 +319,80 @@ export function ChatPrep({
   );
 }
 
+/** A drop zone with a file picker, and the files already added. */
+function FileDrop({
+  label,
+  hint,
+  files,
+  multiple,
+  reading,
+  error,
+  onAdd,
+  onRemove,
+}: {
+  label: string;
+  hint?: string;
+  files: UploadedFile[];
+  multiple: boolean;
+  reading: boolean;
+  error: string | null;
+  onAdd: (files: File[]) => void;
+  onRemove: (index: number) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+
+  function drop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setOver(false);
+    onAdd(Array.from(e.dataTransfer.files));
+  }
+
+  return (
+    <>
+      <div
+        className={`${styles.drop} ${over ? styles.dropOver : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={drop}
+      >
+        <span>{reading ? "Reading…" : label}</span>
+        <button type="button" className={styles.copy} onClick={() => input.current?.click()} disabled={reading}>
+          Choose {multiple ? "files" : "a file"}
+        </button>
+        <input
+          ref={input}
+          type="file"
+          hidden
+          accept={ACCEPT}
+          multiple={multiple}
+          onChange={(e) => {
+            onAdd(Array.from(e.target.files ?? []));
+            e.target.value = ""; // so choosing the same file again still fires
+          }}
+        />
+      </div>
+      {hint && <span className={styles.hint}>{hint}</span>}
+      {files.length > 0 && (
+        <ul className={styles.files}>
+          {files.map((file, i) => (
+            <li key={file.name}>
+              {file.name}
+              <button type="button" className={styles.remove} aria-label={`Remove ${file.name}`} onClick={() => onRemove(i)}>
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <span className={styles.fileError}>{error}</span>}
+    </>
+  );
+}
+
 function BriefView({
   brief,
   company,
@@ -231,7 +426,7 @@ function BriefView({
           ))}
         </ul>
       ) : (
-        <p className={styles.hint}>General background only. Paste news for recent changes.</p>
+        <p className={styles.hint}>General background only. Add news for recent changes.</p>
       )}
 
       <h3 className={styles.heading}>Where your paths overlap</h3>

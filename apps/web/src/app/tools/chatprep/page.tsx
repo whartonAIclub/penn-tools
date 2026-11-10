@@ -6,6 +6,7 @@ import { PROVIDER_LABELS } from "@penntools/core/ai";
 import {
   CHAT_TIPS,
   CLOSING_LINE,
+  FILE_LIMITS,
   MAX_COMPANY_LENGTH,
   MAX_NEWS_LENGTH,
   MAX_PROFILE_LENGTH,
@@ -44,6 +45,7 @@ export default async function ChatprepPage() {
         company: MAX_COMPANY_LENGTH,
         news: MAX_NEWS_LENGTH,
       }}
+      fileLimits={FILE_LIMITS}
     />
   );
 }
