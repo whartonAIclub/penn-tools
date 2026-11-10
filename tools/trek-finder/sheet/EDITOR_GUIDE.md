@@ -49,17 +49,15 @@ You only do this once.
 | **Region** | Exactly one of: `Africa`, `Asia`, `Europe`, `Latin America`, `Middle East`, `North America`, `Oceania` | `Asia` |
 | **Start date** | First day of the trip | `2027-03-06` |
 | **End date** | Last day of the trip | `2027-03-14` |
-| **Timing** | Exactly one of: `break`, `opportunity_week`, `other` | `break` |
-| Period label | The break or term, in words | `Spring Break 2027` |
+| **Timing** | Exactly one of: `break`, `opportunity_week`, `other`. Students can't see or filter by it, but a trip with this blank or misspelled won't import. | `break` |
+| Period label | The break or term, in words. Only shown on the trip card; the season filter uses the start date. | `Spring Break 2027` |
 | Academic credit | `Yes` or `No`. Blank counts as `No`. | `Yes` |
 | Credit note | Details of the credit | `1.0 CU, MGMT 893` |
-| Description | What the trip is about | |
+| Description | 1–2 sentences on what the trip is about. Shown on the trip card and searched by the catalog. | `Bullet train across three cities with temples, food tours and a night in a ryokan.` |
 | Price includes | Shown when students select the ⓘ next to the price | `Hotels + ground transport; excludes flights` |
 | Destination blurb | Shown on the back of the card, **300 characters at most**. Blank means the card doesn't flip. | |
 | Itinerary | Day-by-day plan, as text | |
 | Availability | One of: `open`, `limited`, `waitlist`, `full`. Blank means unknown. | `limited` |
-| Spots total | Whole number | `40` |
-| Spots remaining | Whole number | `12` |
 
 ### Who runs it and where to apply
 
@@ -69,11 +67,10 @@ You only do this once.
 | Organizer contact | A person's name | `Alex Example` |
 | Organizer email | Use a club address, since the Sheet is public | `treks@example.edu` |
 | Application URL | Full link, starting with `https://` | |
-| Destination airport | Three-letter airport code, saved for future flight features | `NRT` |
 | Image URL | Full link to the card's photo | |
 | Image credit | The credit its license requires: author and license name | `Photo by A. Example, CC BY 2.0` |
 
-### Prices: up to 4 per trip
+### Prices: up to 3 per trip
 
 Each price uses six columns, from `Price 1 label` through `Price 1 note`, then `Price 2 label`, and so on. Use them in order
 and leave the unused ones blank.
@@ -105,7 +102,7 @@ There are two ways to use prices. **Pick one per trip, because mixing them can l
   | Price 1 | Preliminary estimate | 4000 | estimate | | |
   | Price 2 | Confirmed | 4300 | confirmed | | |
 
-### Deadlines: up to 5 per trip
+### Deadlines: up to 4 per trip
 
 Each deadline uses four columns, from `Deadline 1 kind` through `Deadline 1 time`. Use them in order.
 
@@ -128,6 +125,16 @@ to contact the organizer, so make sure the organizer contact details are filled 
 | Link *n* label | Text of the link. Required if there's a URL. | `Info session recording` |
 | Link *n* url | Full link. Required if there's a label. | |
 
+### For later: optional for now
+
+These are at the far right of the Sheet and can stay blank. They're for features that aren't built yet.
+
+| Column | What to enter | Example |
+|---|---|---|
+| Destination airport | Three-letter airport code, in capitals | `NRT` |
+| Spots total | Whole number | `40` |
+| Spots remaining | Whole number, no more than Spots total | `12` |
+
 ## If you run out of columns
 
-If a trip needs more than 4 prices, 5 deadlines or 3 links, ask the Trek Finder developers to add columns. It's a quick change.
+If a trip needs more than 3 prices, 4 deadlines or 3 links, ask the Trek Finder developers to add columns. It's a quick change.
