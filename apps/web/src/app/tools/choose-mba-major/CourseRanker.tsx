@@ -1,9 +1,12 @@
 "use client";
 
+// First the student says whether they're considering an individualized major.
 // Step 1 rates each course offered this term from 1 to 5; step 2 recommends
-// majors from those ratings (Recommendations.tsx); step 3 shows the
-// course ranking. Ratings are saved in this browser only, keyed by course
-// code, so they carry over to next term's list for courses offered again.
+// majors from those ratings (Recommendations.tsx); for students who said yes,
+// step 3 builds an individualized major proposal (IndividualizedMajor.tsx);
+// the last step shows the course ranking. Ratings and the answer are saved in
+// this browser only; ratings are keyed by course code, so they carry over to
+// next term's list for courses offered again.
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -14,10 +17,12 @@ import {
   type Rating,
   type Ratings,
 } from "@penntools/tool-choose-mba-major";
+import { IndividualizedMajor, type SuggestionAccess } from "./IndividualizedMajor";
 import { MIN_RATINGS, Recommendations } from "./Recommendations";
 import styles from "./CourseRanker.module.css";
 
 const STORAGE_KEY = "choose-mba-major:ratings";
+const INTEREST_KEY = "choose-mba-major:individualized-interest";
 const RATING_VALUES: Rating[] = [1, 2, 3, 4, 5];
 
 type Show = "all" | "unrated" | "rated";
@@ -40,6 +45,24 @@ function saveRatings(ratings: Ratings) {
   }
 }
 
+/** Whether the student is considering an individualized major; null until they answer. */
+function loadInterest(): boolean | null {
+  try {
+    const raw = window.localStorage.getItem(INTEREST_KEY);
+    return raw === "yes" ? true : raw === "no" ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveInterest(interested: boolean) {
+  try {
+    window.localStorage.setItem(INTEREST_KEY, interested ? "yes" : "no");
+  } catch {
+    // Storage is blocked; the answer still holds for this visit.
+  }
+}
+
 function formatCredits(credits: number | null): string | null {
   return credits === null ? null : `${credits} CU`;
 }
@@ -48,14 +71,17 @@ export function CourseRanker({
   catalog,
   departments,
   ratingLabels,
+  suggestionAccess,
 }: {
   catalog: Catalog;
   departments: Readonly<Record<string, string>>;
   ratingLabels: Readonly<Record<Rating, string>>;
+  suggestionAccess: SuggestionAccess;
 }) {
   const { courses } = catalog;
   const [ratings, setRatings] = useState<Ratings>({});
   const [restored, setRestored] = useState(false);
+  const [individualized, setIndividualized] = useState<boolean | null>(null);
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("all");
   const [show, setShow] = useState<Show>("all");
@@ -63,8 +89,14 @@ export function CourseRanker({
 
   useEffect(() => {
     setRatings(loadRatings());
+    setIndividualized(loadInterest());
     setRestored(true);
   }, []);
+
+  function answerInterest(interested: boolean) {
+    setIndividualized(interested);
+    saveInterest(interested);
+  }
 
   useEffect(() => {
     if (restored) saveRatings(ratings);
@@ -112,6 +144,33 @@ export function CourseRanker({
       <p className={styles.note}>
         {courses.length} courses for {catalog.termLabel}, updated {catalog.updated} from {catalog.source}.
       </p>
+
+      {/* ── First question: individualized major? ──────────────────────── */}
+      <section className={styles.card}>
+        <fieldset className={styles.question}>
+          <legend className={styles.cardTitle}>Are you considering an individualized major?</legend>
+          <p className={styles.note}>
+            Wharton lets you design a major of your own around a theme. If you&apos;re considering one, this tool will
+            also help you put together the proposal, alongside its recommendations for standard majors.
+          </p>
+          <div className={styles.choices}>
+            {[
+              { value: true, label: "Yes" },
+              { value: false, label: "No" },
+            ].map(({ value, label }) => (
+              <label key={label} className={`${styles.choice} ${individualized === value ? styles.choiceOn : ""}`}>
+                <input
+                  type="radio"
+                  name="individualized"
+                  checked={individualized === value}
+                  onChange={() => answerInterest(value)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </section>
 
       {/* ── Step 1: rate ───────────────────────────────────────────────── */}
       <section className={styles.card}>
@@ -217,12 +276,23 @@ export function CourseRanker({
       {/* ── Step 2: recommended majors ─────────────────────────────────── */}
       <Recommendations catalog={catalog} ratings={ratings} ratedCount={ratedCount} ratingLabels={ratingLabels} />
 
-      {/* ── Step 3: ranking ────────────────────────────────────────────── */}
+      {/* ── Step 3, for students who said yes: individualized major ─────── */}
+      {individualized && (
+        <IndividualizedMajor
+          catalog={catalog}
+          ratings={ratings}
+          ratingLabels={ratingLabels}
+          step={3}
+          suggestionAccess={suggestionAccess}
+        />
+      )}
+
+      {/* ── Last step: ranking ─────────────────────────────────────────── */}
       {ranking.length > 0 && (
         <section className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>
-              <span className={styles.step}>3</span> Your course ranking
+              <span className={styles.step}>{individualized ? 4 : 3}</span> Your course ranking
             </h2>
             <button
               type="button"
