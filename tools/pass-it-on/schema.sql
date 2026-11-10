@@ -87,3 +87,68 @@ CREATE TABLE IF NOT EXISTS lessons (
 );
 
 CREATE INDEX IF NOT EXISTS lessons_status_idx ON lessons (status, created_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- Live planning (week 1). Everything below is additive: new columns use
+-- ADD COLUMN IF NOT EXISTS so existing rows and the earlier tables keep working.
+-- ---------------------------------------------------------------------------
+
+-- An event is now one Pub: its theme, venue, budget and Pub Leader. All
+-- optional, so events logged with the five questions stay valid. pub_leader is
+-- a name from the board roster; no emails are stored.
+ALTER TABLE events ADD COLUMN IF NOT EXISTS theme      TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS venue      TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS budget     NUMERIC(10, 2) CHECK (budget IS NULL OR budget >= 0);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS pub_leader TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS events_date_idx ON events (event_date);
+
+-- Partner clubs and vendors, shared across events so a relationship's history
+-- stays in one place. Names are unique ignoring case.
+CREATE TABLE IF NOT EXISTS partner_clubs (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT        NOT NULL,
+  notes      TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS partner_clubs_name_idx ON partner_clubs (lower(name));
+
+CREATE TABLE IF NOT EXISTS vendors (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT        NOT NULL,
+  kind       TEXT,
+  notes      TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS vendors_name_idx ON vendors (lower(name));
+
+-- Which partner clubs and vendors are involved in which event.
+CREATE TABLE IF NOT EXISTS event_partner_clubs (
+  event_id        UUID NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+  partner_club_id UUID NOT NULL REFERENCES partner_clubs (id) ON DELETE CASCADE,
+  PRIMARY KEY (event_id, partner_club_id)
+);
+
+CREATE TABLE IF NOT EXISTS event_vendors (
+  event_id  UUID NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+  vendor_id UUID NOT NULL REFERENCES vendors (id) ON DELETE CASCADE,
+  role      TEXT,
+  PRIMARY KEY (event_id, vendor_id)
+);
+
+-- Library files: tags (e.g. 'playbook', 'rider', 'catering') for filtering, and
+-- an optional event the file belongs to. Library uploads use kind 'drive'.
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS tags     TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE sources ADD COLUMN IF NOT EXISTS event_id UUID REFERENCES events (id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS sources_tags_idx  ON sources USING GIN (tags);
+CREATE INDEX IF NOT EXISTS sources_event_idx ON sources (event_id);
+
+-- Excerpt embeddings for library search. The model is stored next to each
+-- vector and search uses only rows from the current model, so a platform model
+-- change can't mix incomparable vectors; rows with another model get re-embedded.
+ALTER TABLE excerpts ADD COLUMN IF NOT EXISTS embedding       public.vector;
+ALTER TABLE excerpts ADD COLUMN IF NOT EXISTS embedding_model TEXT;
+
+CREATE INDEX IF NOT EXISTS excerpts_unembedded_idx ON excerpts (source_id, position) WHERE embedding IS NULL;

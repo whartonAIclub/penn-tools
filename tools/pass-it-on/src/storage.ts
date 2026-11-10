@@ -142,6 +142,10 @@ export interface NewSource {
   kind: SourceKind;
   filename: string;
   uploadedBy: string;
+  /** Library tags, e.g. "playbook" or "catering". */
+  tags?: string[];
+  /** The event the file belongs to, if any. */
+  eventId?: string | null;
 }
 
 export interface SourceSummary {
@@ -178,8 +182,8 @@ export async function saveImport(sql: Sql, source: NewSource, excerpts: ExcerptD
     const tx = transaction as unknown as Sql;
     const status: SourceStatus = excerpts.length === 0 ? "done" : "imported";
     const [row] = await tx<{ id: string }[]>`
-      INSERT INTO sources (kind, filename, uploaded_by, status)
-      VALUES (${source.kind}, ${source.filename}, ${source.uploadedBy}, ${status})
+      INSERT INTO sources (kind, filename, uploaded_by, status, tags, event_id)
+      VALUES (${source.kind}, ${source.filename}, ${source.uploadedBy}, ${status}, ${source.tags ?? []}, ${source.eventId ?? null})
       RETURNING id
     `;
     const sourceId = row!.id;

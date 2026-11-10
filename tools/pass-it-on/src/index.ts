@@ -34,3 +34,22 @@ export { extractNextBatch, EXTRACT_BATCH_SIZE } from "./extract.js";
 export type { ExtractProgress } from "./extract.js";
 export { findLessons, findAttendance, buildBrief, checkQuery, MAX_QUERY_LENGTH } from "./brief.js";
 export type { BriefLesson, BriefPoint, AttendanceFact, LessonOrigin } from "./brief.js";
+export { databaseProblem, databaseProblemMessage, checkDatabaseReady } from "./database.js";
+export type { DatabaseProblem } from "./database.js";
+export { checkUploadForCredentials, describeCredentialFlags } from "./credentials.js";
+export type { CredentialFlag, UploadCheck } from "./credentials.js";
+export { embedLibrary, searchLibrary, setSourceTags, checkTags, checkSearchQuery, MAX_SEARCH_QUERY_LENGTH, MAX_TAGS } from "./library.js";
+export type { Passage, SearchFilters } from "./library.js";
+export { answerFromLibrary, NOT_FOUND_MESSAGE } from "./answer.js";
+export type { Citation, CitedAnswer } from "./answer.js";
+export {
+  checkPlannedEventInput,
+  createPlannedEvent,
+  updatePlannedEvent,
+  getPlannedEvent,
+  listPlannedEvents,
+  deletePlannedEvent,
+  DEFAULT_EVENT_TYPE,
+  MAX_PARTIES,
+} from "./planning.js";
+export type { PlannedEventInput, PlannedEvent, PlannedEventSummary, VendorInput } from "./planning.js";

@@ -1,6 +1,6 @@
 # Pass It On: progress and plan
 
-*Last updated 2026-11-03. Repo: `jhard99/penn-tools`, branch `pass-it-on`.*
+*Last updated 2026-11-09. Repo: `jhard99/penn-tools`, branch `pass-it-on`.*
 
 ## What we're building
 
@@ -40,12 +40,12 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | Earlier work | Schema, storage, the five questions, file readers (Drive, WhatsApp, CampusGroups), lesson extraction with quote checking, lesson search, cited briefs: 55 tests | **Done** (reused below) |
 | 0 | This document; switch on our database (`TOOLS` entry) | **Done** |
 | **Week 1: library and events** | | |
-| 1 | Schema: event fields, vendors and partner clubs, file tags, excerpt embeddings | To do |
-| 2 | Detect "database not ready" | To do |
-| 3 | Credential guard for uploads | To do |
-| 4 | Embed documents on upload; search them | To do |
-| 5 | Cited answers ("I couldn't find this" when there's no source) | To do |
-| 6 | Event and party storage | To do |
+| 1 | Schema: event fields, vendors and partner clubs, file tags, excerpt embeddings | **Done** |
+| 2 | Detect "database not ready" | **Done** |
+| 3 | Credential guard for uploads | **Done** |
+| 4 | Embed documents on upload; search them | **Done** |
+| 5 | Cited answers ("I couldn't find this" when there's no source) | **Done** |
+| 6 | Event and party storage | **Done** |
 | 7 | Page shell with tabs; "database not ready" message | To do |
 | 8 | Upload page and route, with the credential check | To do |
 | 9 | Ask-the-library page, linking to source passages | To do |
