@@ -66,8 +66,8 @@ async function loadMetrics(): Promise<{ week: Metrics; all: Metrics } | null> {
   const excludeUserIds = excludedFromMetrics(MODE);
   try {
     const [week, all] = await Promise.all([
-      getMetrics(sql, { window: "7d", excludeUserIds }),
-      getMetrics(sql, { window: "all", excludeUserIds }),
+      getMetrics(sql, { window: "7d", excludeUserIds, topicOf }),
+      getMetrics(sql, { window: "all", excludeUserIds, topicOf }),
     ]);
     return { week, all };
   } catch (error) {
@@ -95,7 +95,9 @@ function ofTotal(part: number, total: number, rate: number | null): string {
   return total === 0 ? "—" : `${part} of ${total} (${percent(rate)})`;
 }
 
-const topicTitle = new Map(TOPICS.map((topic) => [topic.id, topic.title]));
+const topicTitle = new Map<string, string>([...TOPICS.map((topic) => [topic.id, topic.title] as const), ["mix", "Random Mix"]]);
+const topicOfQuestion = new Map(TOPICS.flatMap((topic) => topic.questions.map((q) => [q.id, topic.id] as const)));
+const topicOf = (questionId: string) => topicOfQuestion.get(questionId);
 const questionConcept = new Map(TOPICS.flatMap((topic) => topic.questions).map((q) => [q.id, q.concept]));
 
 // ── Dashboard ───────────────────────────────────────────────────────────────

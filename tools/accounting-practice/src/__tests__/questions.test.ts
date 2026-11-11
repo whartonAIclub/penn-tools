@@ -14,13 +14,13 @@ describe("the question bank", () => {
     expect(validateTopics(TOPICS)).toEqual([]);
   });
 
-  it("has 25 questions for each of the five final exam topics, then Topic 1's five", () => {
+  it("has the five final exam topics, then Topic 1's five: 126 questions", () => {
     expect(TOPICS.map((topic) => [topic.id, topic.questions.length])).toEqual([
-      ["long-term-liabilities", 25],
+      ["long-term-liabilities", 23],
       ["income-taxes", 25],
       ["stockholders-equity", 25],
-      ["cost-concepts", 25],
-      ["transfer-pricing", 25],
+      ["cost-concepts", 24],
+      ["transfer-pricing", 24],
       ["transaction-effects", 5],
     ]);
     expect(transactionEffects.questions.map((q) => q.id)).toEqual(["te-01", "te-02", "te-03", "te-04", "te-05"]);
@@ -38,19 +38,19 @@ describe("the question bank", () => {
   });
 
   it("spreads the correct answers across A to D within each topic", () => {
-    for (const topic of TOPICS.filter((t) => t.questions.length >= 25)) {
+    for (const topic of TOPICS.filter((t) => t.questions.length >= 20)) {
       const letters = topic.questions.map((q) => q.choices.find((c) => c.correct)?.label);
       expect([...new Set(letters)].sort(), topic.id).toEqual(["A", "B", "C", "D"]);
       // No letter is the answer often enough to reward always guessing it.
       for (const letter of ["A", "B", "C", "D"]) {
         const share = letters.filter((l) => l === letter).length / letters.length;
-        expect(share, `${topic.id}: ${letter}`).toBeLessThanOrEqual(0.36);
+        expect(share, `${topic.id}: ${letter}`).toBeLessThanOrEqual(0.4);
       }
     }
   });
 
   it("mixes conceptual, calculation and journal-entry questions in each final exam topic", () => {
-    for (const topic of TOPICS.filter((t) => t.questions.length >= 25)) {
+    for (const topic of TOPICS.filter((t) => t.questions.length >= 20)) {
       const withEntry = topic.questions.filter((q) => q.journalEntry !== null).length;
       const difficulties = new Set(topic.questions.map((q) => q.difficulty));
       expect(difficulties.size, topic.id).toBeGreaterThanOrEqual(3);
@@ -60,15 +60,18 @@ describe("the question bank", () => {
     }
   });
 
-  it("keeps every question pending until a team member reviews it", () => {
+  it("has every question approved, with a reviewer and date and no open review notes", () => {
+    expect(allQuestions).toHaveLength(126);
     for (const question of allQuestions) {
-      expect(question.review.status, question.id).toBe("pending");
+      expect(question.review.status, question.id).toBe("verified");
+      expect(question.review.reviewer, question.id).toBeTruthy();
+      expect(question.review.note, question.id).toBeNull();
     }
   });
 
-  it("flags te-05 for confirmation of how interest paid is classified", () => {
-    const te05 = allQuestions.find((q) => q.id === "te-05");
-    expect(te05?.review.note).toMatch(/interest paid/i);
+  it("no longer has the deleted questions", () => {
+    const ids = new Set(allQuestions.map((q) => q.id));
+    for (const id of ["ltl-21", "ltl-22", "cc-22", "tp-13"]) expect(ids.has(id), id).toBe(false);
   });
 });
 

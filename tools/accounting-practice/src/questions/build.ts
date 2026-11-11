@@ -8,6 +8,9 @@ const LABELS = ["A", "B", "C", "D"] as const;
 /** Every new question starts pending, until a team member reviews it. */
 export const PENDING: Review = { status: "pending", reviewer: null, reviewedOn: null, note: null };
 
+/** Reviewed and approved by the team (approved in bulk on 2026-11-11, after resolving the flagged questions). */
+export const APPROVED: Review = { status: "verified", reviewer: "Alex Salinas", reviewedOn: "2026-11-11", note: null };
+
 /** Pending, with something the reviewer must check before approving. */
 export function pendingWithNote(note: string): Review {
   return { ...PENDING, note };

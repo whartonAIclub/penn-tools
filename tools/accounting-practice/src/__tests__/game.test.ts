@@ -23,10 +23,14 @@ function verified(question: Question): Question {
 }
 
 /** A topic with `count` verified questions and the rest pending. */
+function pending(question: Question): Question {
+  return { ...question, review: { status: "pending", reviewer: null, reviewedOn: null, note: null } };
+}
+
 function topicWithVerified(count: number): Topic {
   return {
     ...transactionEffects,
-    questions: questions.map((q, i) => (i < count ? verified(q) : q)),
+    questions: questions.map((q, i) => (i < count ? verified(q) : pending(q))),
   };
 }
 
@@ -37,8 +41,10 @@ describe("which questions the game may show", () => {
     expect(shown.filter((q) => q.review.status !== "verified")).toEqual([]);
   });
 
-  it("hides every topic on the live site today, since all questions are pending", () => {
-    expect(playableTopics(TOPICS, "live")).toEqual([]);
+  it("offers every approved question on the live site, not just the preview", () => {
+    const live = playableTopics(TOPICS, "live");
+    expect(live.map((t) => t.id)).toEqual(TOPICS.map((t) => t.id));
+    expect(live.flatMap((t) => t.questions)).toHaveLength(126);
   });
 
   it("shows pending questions in a local preview", () => {

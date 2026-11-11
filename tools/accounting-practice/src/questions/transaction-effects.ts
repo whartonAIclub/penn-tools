@@ -2,11 +2,10 @@
 //
 // Original questions written for this tool. They test concepts taught in
 // ACCT 6130 but are not copied from any exam or course document. All are
-// pending review until a team member checks them against the course materials.
+// approved by the team on 2026-11-11.
 
-import type { Review, Topic } from "./types.js";
-
-const PENDING: Review = { status: "pending", reviewer: null, reviewedOn: null, note: null };
+import { APPROVED } from "./build.js";
+import type { Topic } from "./types.js";
 
 export const transactionEffects: Topic = {
   id: "transaction-effects",
@@ -61,7 +60,7 @@ export const transactionEffects: Topic = {
         { side: "debit", account: "Unearned Revenue", amount: 2_000 },
         { side: "credit", account: "Revenue", amount: 2_000 },
       ],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "te-02",
@@ -110,7 +109,7 @@ export const transactionEffects: Topic = {
         { side: "debit", account: "Allowance for Doubtful Accounts", amount: 8_000 },
         { side: "credit", account: "Accounts Receivable", amount: 8_000 },
       ],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "te-03",
@@ -162,7 +161,7 @@ export const transactionEffects: Topic = {
         { side: "debit", account: "Loss on Sale of Equipment", amount: 3_000 },
         { side: "credit", account: "Equipment", amount: 50_000 },
       ],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "te-04",
@@ -210,7 +209,7 @@ export const transactionEffects: Topic = {
         { side: "debit", account: "Interest Expense", amount: 3_000 },
         { side: "credit", account: "Interest Payable", amount: 3_000 },
       ],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "te-05",
@@ -261,10 +260,7 @@ export const transactionEffects: Topic = {
         { side: "debit", account: "Interest Expense", amount: 3_000 },
         { side: "credit", account: "Cash", amount: 6_000 },
       ],
-      review: {
-        ...PENDING,
-        note: "Confirm in permitted course materials (textbook chapter 4 or the Statement of Cash Flows notes) that the course classifies interest paid as an operating cash flow.",
-      },
+      review: APPROVED,
     },
   ],
 };

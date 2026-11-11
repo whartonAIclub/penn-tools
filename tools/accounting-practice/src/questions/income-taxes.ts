@@ -1,10 +1,10 @@
 // Final exam topic: accounting for income taxes (current and deferred taxes,
 // temporary and permanent differences, NOLs and valuation allowances).
 // Historical questions are past ACCT 6130 final exam questions adapted to
-// multiple choice, with every number they need stated in the question. All are
-// pending review until a team member checks them.
+// multiple choice, with every number they need stated in the question. Approved by
+// the team on 2026-11-11.
 
-import { PENDING, cr, dr, effectChoices, textChoices } from "./build.js";
+import { APPROVED, cr, dr, effectChoices, textChoices } from "./build.js";
 import type { Topic } from "./types.js";
 
 const TAX = "Sessions 15–16: Accounting for Income Taxes";
@@ -43,7 +43,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-02",
@@ -65,7 +65,7 @@ export const incomeTaxes: Topic = {
         ["$513 million", "This divides by (1 − 21%). The DTA equals the NOL times the rate, so divide by 21%."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-03",
@@ -96,7 +96,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-04",
@@ -126,7 +126,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-05",
@@ -148,7 +148,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: [dr("Tax Expense", 38), cr("Valuation Allowance", 38)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-06",
@@ -170,7 +170,7 @@ export const incomeTaxes: Topic = {
         ["$21.9 million", "This divides by (1 − 21%). The allowance equals the NOLs times the rate."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-07",
@@ -200,7 +200,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-08",
@@ -228,7 +228,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-09",
@@ -250,7 +250,7 @@ export const incomeTaxes: Topic = {
         ["$17,318", "This divides by (1 − 21%). Divide the DTL by the rate itself."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-10",
@@ -272,7 +272,7 @@ export const incomeTaxes: Topic = {
         ["$362", "This multiplies the change by 21% instead of dividing."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-11",
@@ -297,7 +297,7 @@ export const incomeTaxes: Topic = {
         ["A change in the statutory tax rate", "That's listed separately, not as a permanent difference."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-12",
@@ -328,7 +328,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: [dr("Tax Expense", 4_285), cr("Valuation Allowance", 4_285)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-13",
@@ -359,7 +359,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: [dr("Tax Expense", 210_000), cr("Taxes Payable", 168_000), cr("Deferred Tax Liability", 42_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-14",
@@ -381,7 +381,7 @@ export const incomeTaxes: Topic = {
         ["None: it's a permanent difference", "Warranty costs become deductible when paid, so the difference reverses; it's temporary."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-15",
@@ -409,7 +409,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-16",
@@ -436,7 +436,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-17",
@@ -464,7 +464,7 @@ export const incomeTaxes: Topic = {
         ["Nothing: deferred taxes never reverse", "Temporary differences reverse by definition; that's what makes them temporary."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-18",
@@ -489,7 +489,7 @@ export const incomeTaxes: Topic = {
         ["It doesn't appear", "It must be added back, because net income includes it but no cash was paid."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-19",
@@ -513,7 +513,7 @@ export const incomeTaxes: Topic = {
         ["Every year, equal to a fixed share of DTAs", "It's a judgment about realization, not a fixed percentage."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-20",
@@ -541,7 +541,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: [dr("Deferred Tax Asset", 210_000), cr("Tax Benefit (Tax Expense)", 210_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-21",
@@ -565,7 +565,7 @@ export const incomeTaxes: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-22",
@@ -592,7 +592,7 @@ export const incomeTaxes: Topic = {
         ["A permanent difference occurs", "Permanent differences never reverse, so they create no deferred taxes."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-23",
@@ -622,7 +622,7 @@ export const incomeTaxes: Topic = {
         cr("Deferred Tax Liability", 50_000),
         cr("Taxes Payable", 300_000),
       ],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-24",
@@ -658,7 +658,7 @@ export const incomeTaxes: Topic = {
         cr("Deferred Tax Liability", 20_000),
         cr("Taxes Payable", 500_000),
       ],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tax-25",
@@ -677,7 +677,7 @@ export const incomeTaxes: Topic = {
         ["19.0%", "This divides by pretax income plus taxes. The denominator is pretax income alone."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
   ],
 };

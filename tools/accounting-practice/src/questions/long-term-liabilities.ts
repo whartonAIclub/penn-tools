@@ -1,23 +1,18 @@
 // Final exam topic: long-term liabilities (bonds, notes, mortgages, leases and
 // contingencies). Historical questions are past ACCT 6130 final exam questions
 // adapted to multiple choice, with every number they need stated in the
-// question. All are pending review until a team member checks them.
+// question. Approved by the team on 2026-11-11.
 
-import { PENDING, cr, dr, effectChoices, pendingWithNote, textChoices } from "./build.js";
+import { APPROVED, cr, dr, effectChoices, textChoices } from "./build.js";
 import type { Topic } from "./types.js";
 
 const S13 = "Session 13: Long-term Debt — Present Value, Notes and Mortgages";
 const S14 = "Session 14: Long-term Debt — Bonds";
 const S15 = "Session 15: Contingent Liabilities";
-const LEASES = "Long-term Liabilities: Leases (on past finals)";
-const LEASE_NOTE =
-  "Leases appeared on the Fall 2024 and Spring 2025 finals but aren't listed in the Fall 2026 syllabus: confirm they're still covered.";
-const INTEREST_NOTE =
-  "Confirm in permitted course materials that the course classifies interest paid as an operating cash flow (U.S. GAAP).";
 
 export const longTermLiabilities: Topic = {
   id: "long-term-liabilities",
-  title: "Long-term liabilities",
+  title: "Long-term debt and liabilities",
   description: "Bonds, notes, mortgages, leases and contingencies, as tested on the ACCT 6130 final.",
   questions: [
     {
@@ -49,7 +44,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-02",
@@ -80,7 +75,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Interest Expense", 11_250), cr("Discount on Notes Payable", 650), cr("Cash", 10_600)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-03",
@@ -105,7 +100,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-04",
@@ -136,7 +131,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-05",
@@ -164,7 +159,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Senior Notes", 400_000_000), cr("Cash", 350_000_000), cr("Gain on Debt Retirement", 50_000_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-06",
@@ -195,7 +190,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Notes Payable", 595), dr("Loss on Debt Retirement", 105), cr("Cash", 700)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-07",
@@ -226,7 +221,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-08",
@@ -254,7 +249,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-09",
@@ -285,7 +280,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-10",
@@ -316,7 +311,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Interest Expense", 7_920), cr("Discount on Notes Payable", 320), cr("Cash", 7_600)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-11",
@@ -347,7 +342,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Cash", 1_043_760), cr("Bonds Payable", 1_043_760)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-12",
@@ -378,7 +373,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Interest Expense", 26_094), dr("Bonds Payable", 3_906), cr("Cash", 30_000)],
-      review: pendingWithNote(INTEREST_NOTE),
+      review: APPROVED,
     },
     {
       id: "ltl-13",
@@ -408,7 +403,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-14",
@@ -439,7 +434,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Interest Expense", 12_000), dr("Mortgage Payable", 62_822), cr("Cash", 74_822)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-15",
@@ -466,7 +461,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-16",
@@ -494,7 +489,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-17",
@@ -525,7 +520,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Loss from Litigation", 2_000_000), cr("Contingent Liability", 2_000_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-18",
@@ -550,7 +545,7 @@ export const longTermLiabilities: Topic = {
         ["Accrue half of it, $2.5 million", "There's no partial accrual based on likelihood."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-19",
@@ -578,7 +573,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-20",
@@ -600,66 +595,7 @@ export const longTermLiabilities: Topic = {
         ["Nothing, because the amount is uncertain", "A range is a reasonable estimate, so the loss must be accrued."],
       ]),
       journalEntry: [dr("Loss from Litigation", 3_000_000), cr("Contingent Liability", 3_000_000)],
-      review: pendingWithNote("Confirm the course covers the \"accrue the minimum of a range\" rule before approving."),
-    },
-    {
-      id: "ltl-21",
-      origin: "historical",
-      source: "Fall 2024 Final, I.9 (adapted)",
-      concept: "Leases on the balance sheet",
-      courseSession: LEASES,
-      difficulty: "easy",
-      format: "text",
-      prompt:
-        "A retailer leases most of its stores under operating leases and owns none of them. Do these stores appear as assets on its balance sheet?",
-      choices: textChoices(1, [
-        ["No: only property a company owns is an asset", "Under current rules, leases also create assets the company controls."],
-        [
-          "Yes: it records right-of-use assets for its leases",
-          "Both operating and finance leases require a right-of-use asset (and a lease liability) on the balance sheet.",
-        ],
-        [
-          "Yes, but only for finance leases",
-          "Operating leases also put a right-of-use asset on the balance sheet. The lease type changes how the cost appears on the income statement.",
-        ],
-        [
-          "No: lease payments are expensed and only disclosed",
-          "That was the old treatment of operating leases; today they're on the balance sheet.",
-        ],
-      ]),
-      journalEntry: null,
-      review: pendingWithNote(LEASE_NOTE),
-    },
-    {
-      id: "ltl-22",
-      origin: "original",
-      source: null,
-      concept: "Recording a lease",
-      courseSession: LEASES,
-      difficulty: "medium",
-      format: "effects",
-      prompt:
-        "A company signs a 5-year operating lease for a warehouse. The present value of the lease payments is $400,000, and the first payment isn't due until next month. What is the effect of signing the lease?",
-      choices: effectChoices(0, [
-        [
-          [400_000, 400_000, 0, 0],
-          "The company records a right-of-use asset and a lease liability, both at the present value of the payments. No expense and no cash yet.",
-        ],
-        [
-          [0, 0, 0, 0],
-          "Leases longer than 12 months are recorded on the balance sheet, even operating leases.",
-        ],
-        [
-          [400_000, 0, 400_000, 0],
-          "Signing a lease creates an obligation to pay, not equity.",
-        ],
-        [
-          [-400_000, 0, -400_000, -400_000],
-          "This expenses the whole lease and records it as paid. Nothing has been paid yet, and the cost is spread over the lease term.",
-        ],
-      ]),
-      journalEntry: [dr("Right-of-Use Asset", 400_000), cr("Lease Liability", 400_000)],
-      review: pendingWithNote(LEASE_NOTE),
+      review: APPROVED,
     },
     {
       id: "ltl-23",
@@ -681,7 +617,7 @@ export const longTermLiabilities: Topic = {
         ["Only in the notes", "The note is a recorded liability; it's on the balance sheet."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-24",
@@ -712,7 +648,7 @@ export const longTermLiabilities: Topic = {
         ],
       ]),
       journalEntry: [dr("Interest Expense", 5_445), cr("Notes Payable", 5_445)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "ltl-25",
@@ -737,7 +673,7 @@ export const longTermLiabilities: Topic = {
         ["A $520,000 investing outflow", "Repaying your own debt is financing; investing is for buying or selling assets."],
       ]),
       journalEntry: [dr("Bonds Payable", 500_000), dr("Loss on Debt Retirement", 20_000), cr("Cash", 520_000)],
-      review: PENDING,
+      review: APPROVED,
     },
   ],
 };

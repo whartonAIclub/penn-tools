@@ -1,20 +1,27 @@
 "use client";
 
-// The practice game: topic list → five questions, one at a time, with
-// feedback after each → results. Questions come from the tool's question bank
-// via page.tsx. Rounds are saved in the background (actions.ts); the game
-// never waits on saving, and a failed save only means the round isn't recorded.
+// The practice game: setup (topic or Random Mix, number of questions, feedback
+// mode) → questions one at a time → results. Questions come from the tool's
+// question bank via page.tsx. Practice mode shows feedback after each question;
+// exam mode holds it until the end. Rounds are saved in the background
+// (actions.ts); the game never waits on saving, and a failed save only means
+// the round isn't recorded.
 
 import { useEffect, useRef, useState } from "react";
 import {
+  DEFAULT_QUESTION_COUNT,
+  MIX,
+  allowedCounts,
   correctChoice,
   describeEffect,
+  drawQuestions,
   formatDollars,
   formatEffect,
+  originLabel,
   scoreSession,
-  startSession,
+  shuffle,
 } from "@penntools/tool-accounting-practice";
-import type { Choice, Effects, JournalLine, Question, Topic } from "@penntools/tool-accounting-practice";
+import type { Choice, Effects, FeedbackMode, JournalLine, Question, Topic } from "@penntools/tool-accounting-practice";
 import { finishRound, startRound, submitAnswer } from "./actions";
 import styles from "./Practice.module.css";
 
@@ -24,6 +31,14 @@ interface Props {
   /** Questions awaiting review included in this preview; always 0 on the live site. */
   pendingCount: number;
   signedIn: boolean;
+}
+
+/** What the student chose on the setup screen. */
+interface SessionConfig {
+  /** A topic id, or MIX for all topics. */
+  topicId: string;
+  count: number;
+  mode: FeedbackMode;
 }
 
 /** Whether the round just finished was saved, as the results screen tells the student. */
@@ -39,17 +54,17 @@ interface Round {
 }
 
 type Screen =
-  | { kind: "topics" }
+  | { kind: "setup" }
   | {
       kind: "question";
-      topic: Topic;
+      config: SessionConfig;
       questions: Question[];
       index: number;
       selected: string | null;
       checked: boolean;
       answers: Record<string, string>;
     }
-  | { kind: "results"; topic: Topic; questions: Question[]; answers: Record<string, string> };
+  | { kind: "results"; config: SessionConfig; questions: Question[]; answers: Record<string, string> };
 
 const EFFECT_COLUMNS: { key: keyof Effects; label: string }[] = [
   { key: "assets", label: "Assets" },
@@ -58,14 +73,22 @@ const EFFECT_COLUMNS: { key: keyof Effects; label: string }[] = [
   { key: "operatingCashFlow", label: "Op. cash flow" },
 ];
 
+/** Topics offered only through the Random Mix, not on their own (the midterm-era Topic 1). */
+const MIX_ONLY = new Set(["transaction-effects"]);
+
 export function Practice({ topics, pendingCount, signedIn }: Props) {
-  const [screen, setScreen] = useState<Screen>({ kind: "topics" });
-  const [starting, setStarting] = useState<string | null>(null);
+  const [screen, setScreen] = useState<Screen>({ kind: "setup" });
+  const [config, setConfig] = useState<SessionConfig>({ topicId: MIX, count: DEFAULT_QUESTION_COUNT, mode: "practice" });
+  const [starting, setStarting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("not-saved");
   const round = useRef<Round>({ number: 0, sessionId: null, signedIn, answerSaves: [] });
 
-  async function start(topic: Topic) {
-    setStarting(topic.id);
+  const questionById = new Map(topics.flatMap((t) => t.questions).map((q) => [q.id, q]));
+  const topicOf = new Map(topics.flatMap((t) => t.questions.map((q) => [q.id, t.title] as const)));
+
+  /** Starts a session; `retry` replays exactly those questions (the ones just missed). */
+  async function start(session: SessionConfig, retry?: Question[]) {
+    setStarting(true);
     const number = round.current.number + 1;
 
     // The server draws the questions and records the round. If that fails,
@@ -74,10 +97,11 @@ export function Practice({ topics, pendingCount, signedIn }: Props) {
     let sessionId: string | null = null;
     let roundSignedIn = signedIn;
     try {
-      const started = await startRound(topic.id);
+      const started = await startRound(
+        retry ? { topicId: session.topicId, retryIds: retry.map((q) => q.id) } : { topicId: session.topicId, count: session.count },
+      );
       if (started) {
-        const byId = new Map(topic.questions.map((q) => [q.id, q]));
-        const drawn = started.questionIds.map((id) => byId.get(id));
+        const drawn = started.questionIds.map((id) => questionById.get(id));
         if (drawn.length > 0 && drawn.every((q): q is Question => q !== undefined)) {
           questions = drawn;
           sessionId = started.sessionId;
@@ -90,11 +114,11 @@ export function Practice({ topics, pendingCount, signedIn }: Props) {
 
     round.current = { number, sessionId, signedIn: roundSignedIn, answerSaves: [] };
     setSaveStatus("not-saved");
-    setStarting(null);
+    setStarting(false);
     setScreen({
       kind: "question",
-      topic,
-      questions: questions ?? startSession(topic.questions),
+      config: session,
+      questions: questions ?? (retry ? shuffle(retry) : drawQuestions(topics, session.topicId, session.count)),
       index: 0,
       selected: null,
       checked: false,
@@ -133,30 +157,43 @@ export function Practice({ topics, pendingCount, signedIn }: Props) {
         </p>
       )}
 
-      {screen.kind === "topics" && (
-        <TopicList topics={topics} signedIn={signedIn} starting={starting} onStart={(topic) => void start(topic)} />
+      {screen.kind === "setup" && (
+        <SetupScreen
+          topics={topics}
+          config={config}
+          signedIn={signedIn}
+          starting={starting}
+          onChange={setConfig}
+          onStart={() => void start(config)}
+        />
       )}
 
       {screen.kind === "question" && (
         <QuestionScreen
           key={`${round.current.number}-${screen.index}`}
           screen={screen}
+          topicTitle={screen.config.topicId === MIX ? topicOf.get(screen.questions[screen.index]?.id ?? "") ?? null : null}
           onSelect={(label) => setScreen({ ...screen, selected: label })}
           onCheck={() => {
             const question = screen.questions[screen.index];
             if (!question || screen.selected === null) return;
             saveAnswer(question.id, screen.selected);
-            setScreen({
-              ...screen,
-              checked: true,
-              answers: { ...screen.answers, [question.id]: screen.selected },
-            });
+            const answers = { ...screen.answers, [question.id]: screen.selected };
+            if (screen.config.mode === "practice") {
+              setScreen({ ...screen, checked: true, answers });
+            } else if (screen.index + 1 < screen.questions.length) {
+              // Exam mode: no feedback; straight on to the next question.
+              setScreen({ ...screen, index: screen.index + 1, selected: null, checked: false, answers });
+            } else {
+              setScreen({ kind: "results", config: screen.config, questions: screen.questions, answers });
+              void saveCompletion();
+            }
           }}
           onNext={() => {
             if (screen.index + 1 < screen.questions.length) {
               setScreen({ ...screen, index: screen.index + 1, selected: null, checked: false });
             } else {
-              setScreen({ kind: "results", topic: screen.topic, questions: screen.questions, answers: screen.answers });
+              setScreen({ kind: "results", config: screen.config, questions: screen.questions, answers: screen.answers });
               void saveCompletion();
             }
           }}
@@ -165,75 +202,150 @@ export function Practice({ topics, pendingCount, signedIn }: Props) {
 
       {screen.kind === "results" && (
         <Results
-          topic={screen.topic}
+          config={screen.config}
+          title={sessionTitle(screen.config, topics)}
           questions={screen.questions}
           answers={screen.answers}
           saveStatus={saveStatus}
           signedIn={round.current.signedIn}
-          starting={starting !== null}
-          onAgain={() => void start(screen.topic)}
-          onTopics={() => setScreen({ kind: "topics" })}
+          starting={starting}
+          onAgain={() => void start(screen.config)}
+          onRetry={(missed) => void start(screen.config, missed)}
+          onSetup={() => setScreen({ kind: "setup" })}
         />
       )}
     </div>
   );
 }
 
-// ── Topic list ──────────────────────────────────────────────────────────────
+function sessionTitle(config: SessionConfig, topics: Topic[]): string {
+  const name = config.topicId === MIX ? "Random Mix" : (topics.find((t) => t.id === config.topicId)?.title ?? "Practice");
+  return `${name} · ${config.mode === "exam" ? "Exam mode" : "Practice mode"}`;
+}
 
-function TopicList({
+// ── Setup ───────────────────────────────────────────────────────────────────
+
+function SetupScreen({
   topics,
+  config,
   signedIn,
   starting,
+  onChange,
   onStart,
 }: {
   topics: Topic[];
+  config: SessionConfig;
   signedIn: boolean;
-  starting: string | null;
-  onStart: (topic: Topic) => void;
+  starting: boolean;
+  onChange: (config: SessionConfig) => void;
+  onStart: () => void;
 }) {
+  if (topics.length === 0) {
+    return (
+      <div className={styles.card}>
+        <h1 className={styles.cardTitle}>Practice topics are coming soon</h1>
+        <p className={styles.muted}>We&apos;re checking every question for accuracy before it goes live.</p>
+      </div>
+    );
+  }
+
+  const singleTopics = topics.filter((t) => !MIX_ONLY.has(t.id));
+  const counts = allowedCounts(config.topicId);
+  const available =
+    config.topicId === MIX
+      ? topics.reduce((sum, t) => sum + t.questions.length, 0)
+      : (topics.find((t) => t.id === config.topicId)?.questions.length ?? 0);
+
+  function chooseTopic(topicId: string) {
+    const allowed = allowedCounts(topicId);
+    // Keep the chosen length if the new topic allows it; otherwise the closest allowed one below.
+    const count = allowed.includes(config.count) ? config.count : Math.max(...allowed.filter((n) => n <= config.count), allowed[0] ?? 5);
+    onChange({ ...config, topicId, count });
+  }
+
   return (
-    <>
+    <form
+      className={styles.setup}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onStart();
+      }}
+    >
       <div className={styles.intro}>
-        <h1 className={styles.title}>Practice topics</h1>
-        <p className={styles.muted}>
-          Pick a topic and answer five questions. After each one you&apos;ll see the reasoning and the journal entry.
-        </p>
+        <h1 className={styles.title}>Practice for the ACCT 6130 final</h1>
+        <p className={styles.muted}>Choose a topic, how many questions, and when you want feedback.</p>
       </div>
 
-      {topics.length === 0 ? (
-        <div className={styles.card}>
-          <h2 className={styles.cardTitle}>Practice topics are coming soon</h2>
-          <p className={styles.muted}>We&apos;re checking every question for accuracy before it goes live.</p>
-        </div>
-      ) : (
-        <ul className={styles.topicList}>
-          {topics.map((topic) => (
-            <li key={topic.id} className={styles.card}>
-              <h2 className={styles.cardTitle}>{topic.title}</h2>
-              <p className={styles.muted}>{topic.description}</p>
-              <div className={styles.cardFooter}>
-                <span className={styles.meta}>5 questions · about 5 minutes</span>
-                <button
-                  type="button"
-                  className={styles.primary}
-                  disabled={starting !== null}
-                  onClick={() => onStart(topic)}
-                >
-                  {starting === topic.id ? (
-                    "Starting…"
-                  ) : (
-                    <>
-                      Start <span aria-hidden="true">→</span>
-                      <span className={styles.srOnly}> {topic.title}</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </li>
+      <fieldset className={styles.setupGroup}>
+        <legend className={styles.setupLegend}>Topic</legend>
+        <div className={styles.optionList}>
+          <SetupOption
+            name="topic"
+            checked={config.topicId === MIX}
+            onChange={() => chooseTopic(MIX)}
+            title="Random Mix"
+            detail="Questions from every topic, spread evenly"
+          />
+          {singleTopics.map((topic) => (
+            <SetupOption
+              key={topic.id}
+              name="topic"
+              checked={config.topicId === topic.id}
+              onChange={() => chooseTopic(topic.id)}
+              title={topic.title}
+              detail={`${topic.questions.length} questions`}
+            />
           ))}
-        </ul>
-      )}
+        </div>
+      </fieldset>
+
+      <fieldset className={styles.setupGroup}>
+        <legend className={styles.setupLegend}>Number of questions</legend>
+        <div className={styles.segmented}>
+          {counts.map((n) => (
+            <label key={n} className={`${styles.segment} ${config.count === n ? styles.segmentOn : ""}`}>
+              <input
+                type="radio"
+                name="count"
+                value={n}
+                checked={config.count === n}
+                onChange={() => onChange({ ...config, count: n })}
+                className={styles.radio}
+              />
+              {n}
+            </label>
+          ))}
+        </div>
+        {available < config.count && (
+          <p className={styles.hintNote}>Only {available} questions are available here, so you&apos;ll get {available}.</p>
+        )}
+      </fieldset>
+
+      <fieldset className={styles.setupGroup}>
+        <legend className={styles.setupLegend}>Feedback</legend>
+        <div className={styles.optionList}>
+          <SetupOption
+            name="mode"
+            checked={config.mode === "practice"}
+            onChange={() => onChange({ ...config, mode: "practice" })}
+            title="Practice mode"
+            detail="See the answer and explanation after each question"
+          />
+          <SetupOption
+            name="mode"
+            checked={config.mode === "exam"}
+            onChange={() => onChange({ ...config, mode: "exam" })}
+            title="Exam mode"
+            detail="No feedback until the end, then your score and a full review"
+          />
+        </div>
+      </fieldset>
+
+      <div className={styles.actions}>
+        <button type="submit" className={styles.primary} disabled={starting}>
+          {starting ? "Starting…" : <>Start {Math.min(config.count, available)} questions <span aria-hidden="true">→</span></>}
+        </button>
+      </div>
 
       <p className={styles.privacy}>
         We record which answers are chosen, to improve this tool. We never store your name or email.{" "}
@@ -241,7 +353,32 @@ function TopicList({
           ? "Your rounds are linked to your PennTools account."
           : "Sign in (top right) to have your rounds saved to your account. It's optional."}
       </p>
-    </>
+    </form>
+  );
+}
+
+function SetupOption({
+  name,
+  checked,
+  onChange,
+  title,
+  detail,
+}: {
+  name: string;
+  checked: boolean;
+  onChange: () => void;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <label className={`${styles.option} ${checked ? styles.optionOn : ""}`}>
+      <input type="radio" name={name} checked={checked} onChange={onChange} className={styles.radio} />
+      <span className={styles.optionDot} aria-hidden="true" />
+      <span className={styles.optionText}>
+        <span className={styles.optionTitle}>{title}</span>
+        <span className={styles.optionDetail}>{detail}</span>
+      </span>
+    </label>
   );
 }
 
@@ -249,11 +386,14 @@ function TopicList({
 
 function QuestionScreen({
   screen,
+  topicTitle,
   onSelect,
   onCheck,
   onNext,
 }: {
   screen: Extract<Screen, { kind: "question" }>;
+  /** The question's topic, shown in a Random Mix; null otherwise. */
+  topicTitle: string | null;
   onSelect: (label: string) => void;
   onCheck: () => void;
   onNext: () => void;
@@ -272,6 +412,7 @@ function QuestionScreen({
   if (!question) return null;
   const correct = correctChoice(question);
   const last = index + 1 === questions.length;
+  const exam = screen.config.mode === "exam";
 
   return (
     <section className={styles.question} aria-labelledby="question-heading">
@@ -292,6 +433,11 @@ function QuestionScreen({
           {question.review.note && <span> Reviewer to check: {question.review.note}</span>}
         </p>
       )}
+
+      <p className={styles.tags}>
+        {topicTitle && <span className={styles.tag}>{topicTitle}</span>}
+        <span className={styles.tag}>{originLabel(question)}</span>
+      </p>
 
       <p className={styles.prompt}>{question.prompt}</p>
 
@@ -327,7 +473,7 @@ function QuestionScreen({
         {!checked && (
           <div className={styles.actions}>
             <button type="submit" className={styles.primary} disabled={selected === null}>
-              Check answer
+              {!exam ? "Check answer" : last ? "Submit and see results" : "Submit and continue"}
             </button>
           </div>
         )}
@@ -494,42 +640,52 @@ function JournalEntry({ lines }: { lines: readonly JournalLine[] }) {
 // ── Results ─────────────────────────────────────────────────────────────────
 
 function Results({
-  topic,
+  config,
+  title,
   questions,
   answers,
   saveStatus,
   signedIn,
   starting,
   onAgain,
-  onTopics,
+  onRetry,
+  onSetup,
 }: {
-  topic: Topic;
+  config: SessionConfig;
+  title: string;
   questions: Question[];
   answers: Record<string, string>;
   saveStatus: SaveStatus;
   signedIn: boolean;
   starting: boolean;
   onAgain: () => void;
-  onTopics: () => void;
+  onRetry: (missed: Question[]) => void;
+  onSetup: () => void;
 }) {
   const result = scoreSession(questions, answers);
+  const missed = result.questions.filter((r) => !r.correct).map((r) => r.question);
+  const exam = config.mode === "exam";
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => headingRef.current?.focus(), []);
 
   const message =
     result.score === result.total
-      ? "Excellent. You've got this topic. Practice again to make sure it sticks."
-      : result.score >= result.total - 2
-        ? "Good work. Review the concepts below, then practice again."
-        : "This topic needs more practice. Start with the concepts below, then try again.";
+      ? "Excellent. Practice again to make sure it sticks."
+      : result.score / result.total >= 0.6
+        ? "Good work. Review the concepts below, then retry the ones you missed."
+        : "This needs more practice. Start with the concepts below, then retry the ones you missed.";
 
   return (
     <section className={styles.results} aria-labelledby="results-heading">
       <div className={styles.scoreCard}>
-        <p className={styles.meta}>{topic.title}</p>
+        <p className={styles.meta}>{title}</p>
         <h1 id="results-heading" ref={headingRef} tabIndex={-1} className={styles.score}>
           You got {result.score} of {result.total} right
         </h1>
+        <p className={styles.counts}>
+          <span className={styles.countRight}>✓ {result.score} correct</span>
+          <span className={styles.countWrong}>✗ {result.total - result.score} incorrect</span>
+        </p>
         <p className={styles.muted}>{message}</p>
         <SaveNote status={saveStatus} signedIn={signedIn} />
       </div>
@@ -549,16 +705,26 @@ function Results({
       )}
 
       <div className={styles.actionsSpread}>
-        <button type="button" className={styles.primary} onClick={onAgain} disabled={starting}>
-          {starting ? "Starting…" : "Practice again"}
+        {missed.length > 0 && (
+          <button type="button" className={styles.primary} onClick={() => onRetry(missed)} disabled={starting}>
+            {starting ? "Starting…" : `Retry the ${missed.length} missed`}
+          </button>
+        )}
+        <button
+          type="button"
+          className={missed.length > 0 ? styles.secondary : styles.primary}
+          onClick={onAgain}
+          disabled={starting}
+        >
+          New session, same settings
         </button>
-        <button type="button" className={styles.secondary} onClick={onTopics}>
-          Choose another topic
+        <button type="button" className={styles.secondary} onClick={onSetup}>
+          Change settings
         </button>
       </div>
 
       <div>
-        <h2 className={styles.sectionTitle}>Your answers</h2>
+        <h2 className={styles.sectionTitle}>{exam ? "Full review" : "Your answers"}</h2>
         <ol className={styles.reviewList}>
           {result.questions.map(({ question, chosen, correct }, i) => {
             const right = correctChoice(question);
@@ -572,6 +738,9 @@ function Results({
                     <span className={styles.srOnly}>{correct ? ", correct" : ", incorrect"}</span>
                   </span>
                 </p>
+                <p className={styles.tags}>
+                  <span className={styles.tag}>{originLabel(question)}</span>
+                </p>
                 <p className={styles.reviewPrompt}>{question.prompt}</p>
                 <p className={styles.reviewAnswer}>
                   <strong>Your answer:</strong> {yours ? summarize(question, yours) : "Not answered"}
@@ -581,9 +750,15 @@ function Results({
                     <strong>Correct answer:</strong> {summarize(question, right)}
                   </p>
                 )}
-                <details className={styles.details}>
+                {/* Exam mode gave no feedback along the way, so open the wrong ones' explanations. */}
+                <details className={styles.details} open={exam && !correct}>
                   <summary>Show the explanation{question.journalEntry ? " and journal entry" : ""}</summary>
                   <p className={styles.reviewExplain}>{right.explanation}</p>
+                  {!correct && yours && (
+                    <p className={styles.reviewExplain}>
+                      <strong>Why your answer was wrong:</strong> {yours.explanation}
+                    </p>
+                  )}
                   {question.journalEntry && <JournalEntry lines={question.journalEntry} />}
                 </details>
               </li>

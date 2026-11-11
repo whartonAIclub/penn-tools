@@ -586,3 +586,161 @@
   line-height: 1.5;
   color: var(--muted);
 }
+
+/* ── Setup screen ──────────────────────────────────────────────────────────── */
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.setupGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.setupLegend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.optionList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.option:hover {
+  border-color: var(--penn-blue);
+}
+.option:has(:focus-visible),
+.segment:has(:focus-visible) {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+
+.optionOn {
+  border-color: var(--penn-blue);
+  background: var(--selected-bg);
+}
+
+.optionDot {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 2px solid var(--input-border);
+  border-radius: 999px;
+}
+.optionOn .optionDot {
+  border-color: var(--penn-blue);
+  box-shadow: inset 0 0 0 3px var(--bg);
+  background: var(--penn-blue);
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.optionTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.optionDetail {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--section-label);
+}
+
+.segmented {
+  display: flex;
+  gap: 8px;
+}
+
+.segment {
+  position: relative;
+  flex: 1;
+  max-width: 96px;
+  padding: 10px 0;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmentOn {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue);
+  color: #fff;
+}
+
+.hintNote {
+  font-size: 0.8125rem;
+  color: var(--preview-text);
+}
+
+@container (max-width: 520px) {
+  .optionList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .segment {
+    max-width: none;
+  }
+}
+
+/* ── Question tags and score counts ────────────────────────────────────────── */
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nav-hover);
+  color: var(--section-label);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.countRight {
+  color: var(--correct-text);
+}
+
+.countWrong {
+  color: var(--wrong-text);
+}

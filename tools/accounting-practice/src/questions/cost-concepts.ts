@@ -1,9 +1,9 @@
 // Final exam topic: managerial cost concepts (cost behavior, CVP, relevant
 // costs, product costing, activity-based costing and customer profitability).
 // Historical questions are past ACCT 6130 final exam questions adapted to
-// multiple choice. All are pending review until a team member checks them.
+// multiple choice. Approved by the team on 2026-11-11.
 
-import { PENDING, pendingWithNote, textChoices } from "./build.js";
+import { APPROVED, textChoices } from "./build.js";
 import type { Topic } from "./types.js";
 
 const CVP = "Sessions 18–19: Cost Concepts, CVP and Relevant Costs";
@@ -11,7 +11,7 @@ const ABC = "Sessions 20–21: Product Costing, ABC and Customer Profitability";
 
 export const costConcepts: Topic = {
   id: "cost-concepts",
-  title: "Cost concepts",
+  title: "Cost concepts and ABC",
   description: "Break-even, relevant costs, product costing, activity-based costing and customer profitability.",
   questions: [
     {
@@ -43,7 +43,7 @@ export const costConcepts: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-02",
@@ -62,7 +62,7 @@ export const costConcepts: Topic = {
         ["25,000", "That's the volume needed to earn a $1,000 profit, not to break even."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-03",
@@ -81,7 +81,7 @@ export const costConcepts: Topic = {
         ["37,500", "The target profit is added to fixed costs once: ($1,000 + $1,000), not three times."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-04",
@@ -103,7 +103,7 @@ export const costConcepts: Topic = {
         ["$74.50", "That's the cost under activity-based costing, not the labor-hour method."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-05",
@@ -125,7 +125,7 @@ export const costConcepts: Topic = {
         ["$78", "That's the overhead per part only; add materials and labor for the total cost."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-06",
@@ -147,7 +147,7 @@ export const costConcepts: Topic = {
         ["ABC always lowers the cost of the high-volume product", "ABC follows actual activity use; it can move costs either way."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-07",
@@ -166,7 +166,7 @@ export const costConcepts: Topic = {
         ["$230", "That's the price needed for a $100,000 profit, not to break even."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-08",
@@ -185,7 +185,7 @@ export const costConcepts: Topic = {
         ["1,000", "That's every coin found, more than needed."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-09",
@@ -207,7 +207,7 @@ export const costConcepts: Topic = {
         ["Product Y: $150,000", "This treats 100,000 hours as 100,000 units of Y. Each Y takes only 0.75 hours, so more units fit."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-10",
@@ -229,7 +229,7 @@ export const costConcepts: Topic = {
         ["$60", "$60 is the plant-wide rate per machine hour; each stick uses only 0.5 hours."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-11",
@@ -251,7 +251,7 @@ export const costConcepts: Topic = {
         ["85 Standard and 70 Premium", "This also favors Premium; Standard earns more per hour, so fill its demand first."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-12",
@@ -273,7 +273,7 @@ export const costConcepts: Topic = {
         ["$77,000", "That's only the costs added this month; adjust for the change in work in process."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-13",
@@ -295,9 +295,7 @@ export const costConcepts: Topic = {
         ["$37.10", "That's Job 626's unit cost, not Job 627's."],
       ]),
       journalEntry: null,
-      review: pendingWithNote(
-        "The Spring 2025 solution shows Job 627's ordering cost as $203; $13.50 × 16 = $216, which matches its total of $24,536. Confirm before approving.",
-      ),
+      review: APPROVED,
     },
     {
       id: "cc-14",
@@ -324,7 +322,7 @@ export const costConcepts: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-15",
@@ -343,7 +341,7 @@ export const costConcepts: Topic = {
         ["3,219", "This divides by the variable cost per scan instead of the contribution margin."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-16",
@@ -365,7 +363,7 @@ export const costConcepts: Topic = {
         ["What the old machine could be sold for today", "Selling it is a future cash inflow that depends on the decision: relevant."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-17",
@@ -390,7 +388,7 @@ export const costConcepts: Topic = {
         ["Accept: profit rises by $60,000", "That's the revenue; the variable costs of $44,000 must be subtracted."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-18",
@@ -412,7 +410,7 @@ export const costConcepts: Topic = {
         ["Either way: the price covers variable cost", "Covering variable cost isn't enough when capacity is full; the lost margin counts too."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-19",
@@ -434,7 +432,7 @@ export const costConcepts: Topic = {
         ["It falls by $40,000", "The $30,000 of avoidable fixed costs is saved, partly offsetting the lost margin."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-20",
@@ -455,7 +453,7 @@ export const costConcepts: Topic = {
         ["Variable cost per unit falls; fixed cost per unit stays the same", "Within the relevant range, variable cost per unit is constant."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-21",
@@ -476,29 +474,7 @@ export const costConcepts: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
-    },
-    {
-      id: "cc-22",
-      origin: "original",
-      source: null,
-      concept: "Separating mixed costs (high-low method)",
-      courseSession: CVP,
-      difficulty: "medium",
-      format: "text",
-      prompt:
-        "A cost was $25,000 in a month with 1,000 units and $45,000 in a month with 3,000 units. Using the high-low method, what are its variable cost per unit and fixed cost per month?",
-      choices: textChoices(1, [
-        ["$15 per unit; $0 fixed", "$45,000 ÷ 3,000 = $15 assumes the whole cost is variable, but it rose less than in proportion."],
-        [
-          "$10 per unit; $15,000 fixed",
-          "Variable cost = ($45,000 − $25,000) ÷ (3,000 − 1,000) = $10 per unit. Fixed = $25,000 − 1,000 × $10 = $15,000.",
-        ],
-        ["$25 per unit; $0 fixed", "This divides the low month's cost by its units, ignoring the fixed part."],
-        ["$20 per unit; $5,000 fixed", "Variable cost is the change in cost ÷ the change in units: $20,000 ÷ 2,000."],
-      ]),
-      journalEntry: null,
-      review: pendingWithNote("Confirm the course covers the high-low method before approving."),
+      review: APPROVED,
     },
     {
       id: "cc-23",
@@ -520,7 +496,7 @@ export const costConcepts: Topic = {
         ["No difference: normal costing uses actual overhead", "Normal costing applies overhead at a predetermined rate, which creates differences."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-24",
@@ -541,7 +517,7 @@ export const costConcepts: Topic = {
         ["Facility-level", "Those support the whole plant, like rent, regardless of products or batches."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "cc-25",
@@ -563,7 +539,7 @@ export const costConcepts: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
   ],
 };

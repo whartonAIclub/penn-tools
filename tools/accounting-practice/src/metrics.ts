@@ -72,7 +72,12 @@ function ratio(part: number, whole: number): number | null {
  */
 export async function getMetrics(
   sql: Sql,
-  options: { window: MetricsWindow; excludeUserIds: readonly string[] },
+  options: {
+    window: MetricsWindow;
+    excludeUserIds: readonly string[];
+    /** A question's own topic, so Random Mix rounds count toward each question's topic. Defaults to the round's topic. */
+    topicOf?: (questionId: string) => string | undefined;
+  },
 ): Promise<Metrics> {
   const included = sql`
     (s.user_id IS NULL OR NOT (s.user_id = ANY(${textArray(sql, options.excludeUserIds)})))
@@ -123,21 +128,29 @@ export async function getMetrics(
     FROM per_user
   `;
 
-  const topics = await sql<{ topic_id: string; answered: number; correct: number }[]>`
-    SELECT s.topic_id, COUNT(*)::int AS answered, COUNT(*) FILTER (WHERE a.correct)::int AS correct
+  const questionRows = await sql<{ topic_id: string; question_id: string; answered: number; correct: number }[]>`
+    SELECT MIN(s.topic_id) AS topic_id, a.question_id, COUNT(*)::int AS answered, COUNT(*) FILTER (WHERE a.correct)::int AS correct
     FROM answers a JOIN sessions s ON s.id = a.session_id
     WHERE ${included}
-    GROUP BY s.topic_id
-    ORDER BY s.topic_id
-  `;
-
-  const questions = await sql<{ topic_id: string; question_id: string; answered: number; correct: number }[]>`
-    SELECT s.topic_id, a.question_id, COUNT(*)::int AS answered, COUNT(*) FILTER (WHERE a.correct)::int AS correct
-    FROM answers a JOIN sessions s ON s.id = a.session_id
-    WHERE ${included}
-    GROUP BY s.topic_id, a.question_id
+    GROUP BY a.question_id
     ORDER BY COUNT(*) FILTER (WHERE a.correct)::float / COUNT(*), a.question_id
   `;
+  const questions = questionRows.map((row) => ({
+    ...row,
+    topic_id: options.topicOf?.(row.question_id) ?? row.topic_id,
+  }));
+
+  // Topic totals from the question rows, so each answer counts toward its question's topic.
+  const byTopic = new Map<string, { answered: number; correct: number }>();
+  for (const row of questions) {
+    const total = byTopic.get(row.topic_id) ?? { answered: 0, correct: 0 };
+    total.answered += row.answered;
+    total.correct += row.correct;
+    byTopic.set(row.topic_id, total);
+  }
+  const topics = [...byTopic.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([topic_id, total]) => ({ topic_id, ...total }));
 
   const started = rounds?.started ?? 0;
   const completed = rounds?.completed ?? 0;

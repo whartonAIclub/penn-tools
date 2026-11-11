@@ -1,9 +1,9 @@
 // Final exam topic: transfer pricing (market, cost-based and negotiated prices,
 // minimum and maximum prices, goal congruence and tax effects). Historical
 // questions are past ACCT 6130 final exam questions adapted to multiple choice.
-// All are pending review until a team member checks them.
+// Approved by the team on 2026-11-11.
 
-import { PENDING, pendingWithNote, textChoices } from "./build.js";
+import { APPROVED, textChoices } from "./build.js";
 import type { Topic } from "./types.js";
 
 const TP = "Session 22: Transfer Pricing";
@@ -39,7 +39,7 @@ export const transferPricing: Topic = {
         ["Dual transfer prices", "Dual prices are an option when no single price works for both sides; here the market price does."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-02",
@@ -57,7 +57,7 @@ export const transferPricing: Topic = {
         ["£180", "That's the market price, not 200% of full cost."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-03",
@@ -75,7 +75,7 @@ export const transferPricing: Topic = {
         ["£144,000", "This taxes the whole price; costs come off before tax."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-04",
@@ -96,7 +96,7 @@ export const transferPricing: Topic = {
         ["£665,000", "This uses the 200%-of-full-cost price (£300 per raw carat) instead of the £180 market price."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-05",
@@ -117,7 +117,7 @@ export const transferPricing: Topic = {
         ["It depends on the exchange rate", "Both prices are in pounds here; the tax-rate difference decides it."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-06",
@@ -135,7 +135,7 @@ export const transferPricing: Topic = {
         ["$170", "That's Eastern's variable cost including transportation."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-07",
@@ -153,7 +153,7 @@ export const transferPricing: Topic = {
         ["$220", "That's the market price, not variable cost plus 40%."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-08",
@@ -171,7 +171,7 @@ export const transferPricing: Topic = {
         ["It depends on Western's costs", "Western's costs affect Western's income, not Eastern's."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-09",
@@ -192,7 +192,7 @@ export const transferPricing: Topic = {
         ["Whichever price Western's manager prefers", "The question is about total company after-tax income, which depends on the tax rates."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-10",
@@ -210,7 +210,7 @@ export const transferPricing: Topic = {
         ["$22", "That's Urban's full cost, which doesn't limit what Rural would pay."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-11",
@@ -234,7 +234,7 @@ export const transferPricing: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-12",
@@ -255,30 +255,7 @@ export const transferPricing: Topic = {
         ["They agree on $28", "Rural would refuse $28, since it can buy outside for $27."],
       ]),
       journalEntry: null,
-      review: PENDING,
-    },
-    {
-      id: "tp-13",
-      origin: "historical",
-      source: "Spring 2025 Final, V.15 (adapted)",
-      concept: "Transfer pricing and taxes",
-      courseSession: TP,
-      difficulty: "hard",
-      format: "text",
-      prompt: `${BYRNE} Urban can sell only 2,000 units outside. Rural's tax rate is 40% and Urban's is 20%. Byrne cares about profits, but also about its managers' incentives and the risk of a tax audit. Which transfer price is the best choice?`,
-      choices: textChoices(3, [
-        ["$12, Urban's variable cost", "That moves profit to Rural, the high-tax division, and leaves Urban with no margin."],
-        ["$22, Urban's full cost", "It still keeps profit away from low-tax Urban, and isn't a market-based price."],
-        ["$26, Rural's offer", "It works, but a higher defensible price would move more profit to low-tax Urban."],
-        [
-          "$27, the outside supplier's price",
-          "Byrne wants profit in low-tax Urban, so it wants the highest price it can justify. $27 is the market price Rural faces, so Rural's manager accepts it and it's defensible in an audit.",
-        ],
-      ]),
-      journalEntry: null,
-      review: pendingWithNote(
-        "Judgment question: the Spring 2025 solution calls $27 the best answer and $28 an acceptable one. $28 isn't offered here; confirm the wording.",
-      ),
+      review: APPROVED,
     },
     {
       id: "tp-14",
@@ -300,7 +277,7 @@ export const transferPricing: Topic = {
         ["$65", "Internal sales avoid the $5 selling cost, so the division is no worse off at $60."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-15",
@@ -322,7 +299,7 @@ export const transferPricing: Topic = {
         ["$65", "That's the most a buyer would pay outside, not the seller's minimum."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-16",
@@ -344,7 +321,7 @@ export const transferPricing: Topic = {
         ["It depends on which division is larger", "Size doesn't matter; the transfer cancels out within the company."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-17",
@@ -366,7 +343,7 @@ export const transferPricing: Topic = {
         ["Not affected", "Buying outside costs the company $50 instead of $30."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-18",
@@ -387,7 +364,7 @@ export const transferPricing: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-19",
@@ -406,7 +383,7 @@ export const transferPricing: Topic = {
         ["Exactly $35", "Any price between $20 and $35 leaves both no worse off; $35 is just the top of the range."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-20",
@@ -428,7 +405,7 @@ export const transferPricing: Topic = {
         ["$0: transfer prices don't affect the company", "With different tax rates, moving profit changes the total tax."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-21",
@@ -449,7 +426,7 @@ export const transferPricing: Topic = {
         ["Transfer prices must equal variable cost by law", "There's no such rule; arm's-length pricing is the standard."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-22",
@@ -471,7 +448,7 @@ export const transferPricing: Topic = {
         ["All unchanged", "Divisional profits do change; only the company total stays the same."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-23",
@@ -493,7 +470,7 @@ export const transferPricing: Topic = {
         ["The company's total tax rises", "Within one tax jurisdiction the price doesn't change the total tax."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-24",
@@ -512,7 +489,7 @@ export const transferPricing: Topic = {
         ["$6", "That's the cost avoided, not a price."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "tp-25",
@@ -531,7 +508,7 @@ export const transferPricing: Topic = {
         ["$0", "Making the part for $15 instead of paying $25 outside saves the company money."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
   ],
 };

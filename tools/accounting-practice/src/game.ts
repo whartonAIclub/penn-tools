@@ -28,17 +28,81 @@ export function playableTopics(topics: readonly Topic[], mode: GameMode): Topic[
     .filter((topic) => topic.questions.length >= QUESTIONS_PER_SESSION);
 }
 
-/**
- * Draws a session: QUESTIONS_PER_SESSION questions in random order. `random`
- * returns a number in [0, 1), like Math.random; tests pass their own.
- */
-export function startSession(questions: readonly Question[], random: () => number = Math.random): Question[] {
-  const shuffled = [...questions];
+/** A copy in random order. `random` returns a number in [0, 1), like Math.random; tests pass their own. */
+export function shuffle<T>(items: readonly T[], random: () => number = Math.random): T[] {
+  const shuffled = [...items];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j] as Question, shuffled[i] as Question];
+    [shuffled[i], shuffled[j]] = [shuffled[j] as T, shuffled[i] as T];
   }
-  return shuffled.slice(0, QUESTIONS_PER_SESSION);
+  return shuffled;
+}
+
+/** Draws a session: QUESTIONS_PER_SESSION questions in random order. */
+export function startSession(questions: readonly Question[], random: () => number = Math.random): Question[] {
+  return shuffle(questions, random).slice(0, QUESTIONS_PER_SESSION);
+}
+
+// ── Customizable sessions ─────────────────────────────────────────────────────
+
+/** The topic choice that draws from every topic. */
+export const MIX = "mix";
+
+/**
+ * How feedback is shown:
+ * - "practice": right or wrong and the explanation after each question.
+ * - "exam": nothing until every question is submitted, then the score and a full review.
+ */
+export type FeedbackMode = "practice" | "exam";
+
+export const DEFAULT_QUESTION_COUNT = 10;
+const MIX_COUNTS: readonly number[] = [5, 10, 15, 20];
+const TOPIC_COUNTS: readonly number[] = [5, 10];
+/** The longest session, also the cap on a "retry missed questions" session. */
+export const MAX_QUESTION_COUNT = 20;
+
+/** The session lengths a student can pick for a topic, or for the Random Mix. */
+export function allowedCounts(topicId: string): readonly number[] {
+  return topicId === MIX ? MIX_COUNTS : TOPIC_COUNTS;
+}
+
+/**
+ * Draws up to `count` different questions. For one topic, a random selection.
+ * For the Random Mix, round by round across the topics in random order, so
+ * every topic gets the same number of questions (give or take one) until a
+ * topic runs out. Returns fewer than `count` only when not enough exist.
+ */
+export function drawQuestions(
+  topics: readonly Topic[],
+  topicId: string,
+  count: number,
+  random: () => number = Math.random,
+): Question[] {
+  if (topicId !== MIX) {
+    const topic = topics.find((t) => t.id === topicId);
+    return topic ? shuffle(topic.questions, random).slice(0, count) : [];
+  }
+  const pools = shuffle(topics, random).map((topic) => shuffle(topic.questions, random));
+  const picked: Question[] = [];
+  const seen = new Set<string>();
+  while (picked.length < count && pools.some((pool) => pool.length > 0)) {
+    for (const pool of pools) {
+      if (picked.length >= count) break;
+      const next = pool.shift();
+      if (next && !seen.has(next.id)) {
+        seen.add(next.id);
+        picked.push(next);
+      }
+    }
+  }
+  return shuffle(picked, random);
+}
+
+/** "Past final (Fall 2024)" or "Original practice", for the small label on each question. */
+export function originLabel(question: Question): string {
+  if (question.origin !== "historical") return "Original practice";
+  const exam = question.source?.match(/(Fall|Spring) \d{4}/)?.[0];
+  return exam ? `Past final (${exam})` : "Past final";
 }
 
 export function correctChoice(question: Question): Choice {

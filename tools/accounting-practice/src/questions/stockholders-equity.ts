@@ -1,10 +1,10 @@
 // Final exam topic: stockholders' equity (stock issuance and repurchases,
 // dividends, splits, stock compensation and EPS). Historical questions are past
 // ACCT 6130 final exam questions adapted to multiple choice, with every number
-// they need stated in the question. All are pending review until a team member
-// checks them.
+// they need stated in the question. Approved by the team on
+// 2026-11-11.
 
-import { PENDING, cr, dr, effectChoices, pendingWithNote, textChoices } from "./build.js";
+import { APPROVED, cr, dr, effectChoices, textChoices } from "./build.js";
 import type { Topic } from "./types.js";
 
 const SE = "Session 17: Stockholders' Equity";
@@ -39,7 +39,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-02",
@@ -70,7 +70,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-03",
@@ -101,7 +101,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-04",
@@ -126,7 +126,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-05",
@@ -154,7 +154,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: [dr("Compensation Expense", 29_558), cr("Additional Paid-in Capital", 29_558)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-06",
@@ -185,7 +185,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-07",
@@ -207,7 +207,7 @@ export const stockholdersEquity: Topic = {
         ["There was a stock split", "A split doesn't involve dividends or cash."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-08",
@@ -231,7 +231,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-09",
@@ -250,7 +250,7 @@ export const stockholdersEquity: Topic = {
         ["13,149", "That's the number held in treasury."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-10",
@@ -269,7 +269,7 @@ export const stockholdersEquity: Topic = {
         ["It depends on the share price when they vest", "The expense is fixed at the grant-date fair value."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-11",
@@ -288,7 +288,7 @@ export const stockholdersEquity: Topic = {
         ["Their intrinsic value at the grant date", "The course uses fair value at the grant date, not intrinsic value."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-12",
@@ -309,7 +309,7 @@ export const stockholdersEquity: Topic = {
         [[250_000, 250_000, 0, 0], "Shareholders' investment is equity, not a liability."],
       ]),
       journalEntry: [dr("Cash", 250_000), cr("Common Stock", 10_000), cr("Additional Paid-in Capital", 240_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-13",
@@ -330,7 +330,7 @@ export const stockholdersEquity: Topic = {
         [[-200_000, -200_000, 0, 0], "The repurchase reduces equity; no liability is involved."],
       ]),
       journalEntry: [dr("Treasury Stock", 200_000), cr("Cash", 200_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-14",
@@ -351,7 +351,7 @@ export const stockholdersEquity: Topic = {
         [[-50_000, 0, -50_000, 0], "Cash isn't paid until next month; at declaration a liability is recorded instead."],
       ]),
       journalEntry: [dr("Retained Earnings", 50_000), cr("Dividends Payable", 50_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-15",
@@ -372,7 +372,7 @@ export const stockholdersEquity: Topic = {
         [[0, 0, 0, 0], "The payment is recorded: cash leaves and the liability is settled."],
       ]),
       journalEntry: [dr("Dividends Payable", 50_000), cr("Cash", 50_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-16",
@@ -394,7 +394,7 @@ export const stockholdersEquity: Topic = {
         [[0, 0, 0, 0], "Cash is received when options are exercised, and new shares are issued."],
       ]),
       journalEntry: [dr("Cash", 30_000), cr("Common Stock", 1_000), cr("Additional Paid-in Capital", 29_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-17",
@@ -419,7 +419,7 @@ export const stockholdersEquity: Topic = {
         [[-30_000, 0, -30_000, -30_000], "No cash is paid for stock compensation."],
       ]),
       journalEntry: [dr("Compensation Expense", 30_000), cr("Additional Paid-in Capital", 30_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-18",
@@ -447,9 +447,7 @@ export const stockholdersEquity: Topic = {
         ["No entry; only the number of shares changes", "That describes a stock split. A stock dividend moves retained earnings into paid-in capital."],
       ]),
       journalEntry: [dr("Retained Earnings", 200_000), cr("Common Stock", 10_000), cr("Additional Paid-in Capital", 190_000)],
-      review: pendingWithNote(
-        "Confirm the course records small stock dividends at market value (the past finals give the accounts but not the valuation basis).",
-      ),
+      review: APPROVED,
     },
     {
       id: "se-19",
@@ -480,7 +478,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: [dr("Common Stock", 150), dr("Retained Earnings", 771_669), cr("Treasury Stock", 771_819)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-20",
@@ -499,7 +497,7 @@ export const stockholdersEquity: Topic = {
         ["$2.50", "This uses year-end shares. EPS uses the weighted average outstanding during the year."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-21",
@@ -521,7 +519,7 @@ export const stockholdersEquity: Topic = {
         ["EPS falls and ROE rises", "With fewer shares and the same income, EPS goes up."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-22",
@@ -542,7 +540,7 @@ export const stockholdersEquity: Topic = {
         ["Cash received from employees exercising options", "Cash from issuing shares is a financing inflow."],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-23",
@@ -569,7 +567,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-24",
@@ -599,7 +597,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: [dr("Cash", 36_000), cr("Treasury Stock", 30_000), cr("Additional Paid-in Capital", 6_000)],
-      review: PENDING,
+      review: APPROVED,
     },
     {
       id: "se-25",
@@ -623,7 +621,7 @@ export const stockholdersEquity: Topic = {
         ],
       ]),
       journalEntry: null,
-      review: PENDING,
+      review: APPROVED,
     },
   ],
 };

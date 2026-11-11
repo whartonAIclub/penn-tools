@@ -7,12 +7,16 @@
 
 import { toolSql } from "@penntools/platform/db";
 import {
+  MAX_QUESTION_COUNT,
+  MIX,
   TOPICS,
+  allowedCounts,
+  drawQuestions,
   playableTopics,
   recordAnswer,
   recordSessionComplete,
   recordSessionStart,
-  startSession,
+  shuffle,
 } from "@penntools/tool-accounting-practice";
 import type { Question } from "@penntools/tool-accounting-practice";
 import { getCurrentUser } from "@/lib/auth";
@@ -83,19 +87,35 @@ async function save<T>(step: string, fallback: T, run: (sql: NonNullable<ReturnT
 }
 
 /**
- * Draws a round's questions and records its start. Returns null for a topic
- * this site doesn't offer; otherwise always returns the questions, so the game
+ * Draws a round's questions and records its start. `request` is
+ * { topicId, count } for a new session (topicId is a topic or "mix"), or
+ * { topicId, retryIds } to retry specific questions. Returns null for a request
+ * this site doesn't allow; otherwise always returns the questions, so the game
  * can go ahead even when saving fails.
  */
-export async function startRound(topicId: unknown): Promise<RoundStart | null> {
+export async function startRound(request: unknown): Promise<RoundStart | null> {
+  if (typeof request !== "object" || request === null) return null;
+  const { topicId, count, retryIds } = request as { topicId?: unknown; count?: unknown; retryIds?: unknown };
   if (!isId(topicId)) return null;
-  const topic = playableTopics(TOPICS, MODE).find((t) => t.id === topicId);
-  if (!topic) return null;
+  const topics = playableTopics(TOPICS, MODE);
+  if (topicId !== MIX && !topics.some((t) => t.id === topicId)) return null;
 
-  const questionIds = startSession(topic.questions).map((q) => q.id);
+  let questionIds: string[];
+  if (retryIds !== undefined) {
+    // Retry: only questions this site may show, each once, at most a full session.
+    if (!Array.isArray(retryIds) || retryIds.length === 0 || retryIds.length > MAX_QUESTION_COUNT) return null;
+    const unique = [...new Set(retryIds)];
+    if (unique.length !== retryIds.length || !unique.every((id) => isId(id) && playableQuestion(id) !== null)) return null;
+    questionIds = shuffle(unique as string[]);
+  } else {
+    if (typeof count !== "number" || !allowedCounts(topicId).includes(count)) return null;
+    questionIds = drawQuestions(topics, topicId, count).map((q) => q.id);
+    if (questionIds.length === 0) return null;
+  }
+
   const userId = await currentUserId();
   const sessionId = await save("a round start", null, (sql) =>
-    recordSessionStart(sql, { userId, topicId: topic.id, questionIds }),
+    recordSessionStart(sql, { userId, topicId, questionIds }),
   );
   return { questionIds, sessionId, signedIn: userId !== null };
 }
