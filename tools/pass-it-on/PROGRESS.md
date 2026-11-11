@@ -53,12 +53,12 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | 11 | **Exit test:** five real questions, correct cited answers | To do |
 | **Calendar import** (added 2026-11-10) | Upload a club's annual calendar (.xlsx); the AI proposes events; people approve, edit or skip; approved events are the master calendar (Events tab, grouped by month, `cancelled` flag). Spec and plan in `tools/pass-it-on/docs/`. 121 tool tests. Not yet tried in the browser with a real AI key | **Built, needs a manual check** |
 | **Week 2: checklist and board** | | |
-| 12 | Schema: template versions, modules, items, tasks, members | To do |
-| 13 | Date math, task generation and rescheduling | To do |
-| 14 | Pub template version 1, from the playbook, with the PO issue flagged | To do |
+| 12 | Schema: template versions, modules, items (with subtasks, phase, area, weekday anchors), tasks (with source and confirmed), members | **Done** |
+| 13 | Date math (`dueDate`, weekday anchors), task and subtask generation with owners by role, rescheduling. 161 tool tests | **Done** |
+| 14 | Pub template version 1, from the playbook and the Big Gay Halloween checklist, with modules (club collab, international, singles/GAPSA) and the PO issue flagged | To do |
 | 15 | Task and to-do storage; filters | To do |
 | 16 | Creating an event generates its checklist; moving the date reschedules | To do |
-| 17 | Board: columns, owner and due-window filters, "waiting on" | To do |
+| 17 | Board: columns, owner and due-window filters, "waiting on", subtasks, per-area readiness, "no Pub Leader" flag on events | To do |
 | 18 | Template tab: view, known issues, revert | To do |
 | 19 | **Exit test:** two overlapping events, correct dates and owners | To do |
 | **Week 3: AI layer, post-mortem, pilot** | | |
@@ -68,7 +68,7 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | 26 | **Pilot** with a current Pub leader | To do |
 | 27 | Pull request to `whartonAIclub/penn-tools` | To do |
 
-**Cut line, in this order:** proposed template changes → suggested modules → non-event to-dos → Drive zip and WhatsApp support. **Never cut:** cited search, event records, dated tasks with owners generated from the template, and human approval.
+**Cut line, in this order:** meeting-notes extraction → proposed template changes → suggested modules → non-event to-dos → Drive zip and WhatsApp support. **Never cut:** cited search, event records, dated tasks with owners generated from the template, and human approval.
 
 ## Step 11: exit test runbook
 
@@ -89,7 +89,10 @@ Needs real Pub files (kept outside the repo) and, for the AI answers, an OpenAI 
 
 - **PO timing conflict:** the playbook has the restricted fund PO due at T-10, but the budget isn't final until T-7. The template keeps the playbook's dates, shows this as a known issue, and the Pub leader decides in the app.
 - **Task owners:** chosen from a roster of Pub board names, defaulting to the Pub Leader. No emails are stored.
-- **WhatsApp reminders:** generated for Mondays and Thursdays from T-14 to T-0, and regenerated when the event moves.
+- **WhatsApp reminders** *(changed 2026-11-10, matching the club's real checklist)*: one message on the Monday of event week and one on T-0, both recomputed when the event moves. Replaces the earlier "every Monday and Thursday from T-14".
+- **Owners** *(2026-11-10)*: a task's owner is a plain name. The default is whoever holds the item's default role on the event (e.g. "Ops Lead"), else the Pub Leader, else "Unassigned". The `members` list is filled from names already used, only for dropdowns and filters.
+- **Provenance** *(2026-11-10)*: every task records where it came from (template, manual, meeting notes, inferred) and whether its owner has confirmed. Meeting-notes extraction is a Week 3 option after template-change proposals.
+- **Approval rule on the finance item:** a budget change over $1,500 needs a majority of the Co-Presidents (bylaws 4.2). Shown as a note on the item, not enforced.
 - **"Board-only" access:** not needed while the pilot runs on one laptop. It comes after the pilot, with the Platform team.
 
 ## What we reuse from earlier work

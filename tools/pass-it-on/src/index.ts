@@ -74,3 +74,5 @@ export {
 } from "./calendarStorage.js";
 export type { MatchKind, ProposalStatus, StoredProposal, CalendarImportSummary } from "./calendarStorage.js";
 export { groupByMonth, UNDATED_GROUP } from "./calendarView.js";
+export { dueDate, anchorOffset, generateTasks, rescheduleEvent } from "./checklist.js";
+export type { Phase, Area, TemplateItem, TaskDraft } from "./checklist.js";

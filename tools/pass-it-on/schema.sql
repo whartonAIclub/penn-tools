@@ -213,3 +213,85 @@ CREATE TABLE IF NOT EXISTS calendar_proposals (
 
 ALTER TABLE events ADD COLUMN IF NOT EXISTS import_id UUID REFERENCES calendar_imports (id) ON DELETE SET NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS cancelled BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ---------------------------------------------------------------------------
+-- Checklist engine (steps 12-13, additive). A versioned template of modules
+-- and items is expanded into per-event tasks. `tasks.event_id` is NULL for
+-- general (non-event) tasks.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS template_versions (
+  id            BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  version       INTEGER     NOT NULL UNIQUE,
+  note          TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  reverted_from INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS template_modules (
+  version_id  BIGINT REFERENCES template_versions (id) ON DELETE CASCADE,
+  key         TEXT,
+  name        TEXT   NOT NULL,
+  description TEXT,
+  PRIMARY KEY (version_id, key)
+);
+
+CREATE TABLE IF NOT EXISTS template_items (
+  version_id     BIGINT REFERENCES template_versions (id) ON DELETE CASCADE,
+  key            TEXT,
+  module_key     TEXT,
+  parent_key     TEXT,
+  title          TEXT    NOT NULL,
+  phase          TEXT    CHECK (phase IN ('pre', 'day_of', 'during', 'post')),
+  area           TEXT    CHECK (area IN ('general', 'finance', 'marketing', 'operations', 'entertainment')),
+  offset_days    INTEGER,
+  anchor_weekday INTEGER CHECK (anchor_weekday BETWEEN 0 AND 6),
+  default_role   TEXT,
+  notes          TEXT,
+  sort           INTEGER NOT NULL DEFAULT 0,
+  is_postmortem  BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (version_id, key),
+  CHECK (offset_days IS NULL OR anchor_weekday IS NULL)
+);
+
+CREATE TABLE IF NOT EXISTS event_modules (
+  event_id   UUID REFERENCES events (id) ON DELETE CASCADE,
+  module_key TEXT,
+  PRIMARY KEY (event_id, module_key)
+);
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS template_version_id BIGINT REFERENCES template_versions (id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id                BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  event_id          UUID        REFERENCES events (id) ON DELETE CASCADE,
+  template_item_key TEXT,
+  parent_task_id    BIGINT      REFERENCES tasks (id) ON DELETE CASCADE,
+  title             TEXT        NOT NULL,
+  phase             TEXT,
+  area              TEXT,
+  offset_days       INTEGER,
+  due_date          DATE,
+  owner             TEXT        NOT NULL DEFAULT 'Unassigned',
+  status            TEXT        NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'doing', 'blocked', 'done')),
+  waiting_on        TEXT,
+  completed_at      TIMESTAMPTZ,
+  is_postmortem     BOOLEAN     NOT NULL DEFAULT FALSE,
+  notes             TEXT,
+  source            TEXT        NOT NULL DEFAULT 'template' CHECK (source IN ('template', 'manual', 'meeting', 'inferred')),
+  confirmed         BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS tasks_event_idx ON tasks (event_id);
+CREATE INDEX IF NOT EXISTS tasks_status_idx ON tasks (status);
+-- Generating a checklist twice must not duplicate its tasks.
+CREATE UNIQUE INDEX IF NOT EXISTS tasks_event_item_idx ON tasks (event_id, template_item_key) WHERE event_id IS NOT NULL AND template_item_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS members (
+  id     BIGINT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name   TEXT    NOT NULL,
+  role   TEXT,
+  active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS members_name_lower_idx ON members (lower(name));
