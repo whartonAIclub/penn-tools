@@ -1,5 +1,5 @@
 export { ChooseMbaMajorTool } from "./ChooseMbaMajorTool.js";
-export { buildCatalog, courseCodesOf, departmentName, termLabel, DEPARTMENTS } from "./courses.js";
+export { buildCatalog, courseCodesOf, departmentName, isMajorsOnly, majorsOnlyFrom, termLabel, DEPARTMENTS } from "./courses.js";
 export type { Catalog, CatalogTerm, Course, CourseMatchCourse, CourseMatchSemester } from "./courses.js";
 export { CURRENT_CATALOG } from "./currentCatalog.js";
 export {

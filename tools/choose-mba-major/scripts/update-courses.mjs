@@ -8,12 +8,14 @@
 //
 //   {
 //     "term": "2026C", "label": "Fall 2026", "source": "…", "pulled": "2026-11-10",
-//     "columns": ["code", "title", "credits", "sections", "sessions", "crossListed", "rating", "description"],
-//     "courses": [["ACCT 6110", "Fundamentals of Financial Accounting", 1, 2, ["Full"], [], 3.14, "…"], …]
+//     "columns": ["code", "title", "credits", "sections", "sessions", "crossListed", "rating", "notes", "description"],
+//     "courses": [["ACCT 6110", "Fundamentals of Financial Accounting", 1, 2, ["Full"], [], 3.14, "Cannot be taken Pass/Fail.", "…"], …]
 //   }
 //
 // "rating" is the average of the course's sections' "3 YR Avg Course Rating"
-// in Course Match, or null when none is rated. Save only course details: no
+// in Course Match, or null when none is rated. "notes" is the line Course Match
+// shows under the course's title, such as "Open to 2nd year HCMG majors only";
+// the tool reads "… majors only" from it. Save only course details: no
 // one's bids, utilities, enrollment or schedule.
 //
 // The script combines every file it finds (buildCatalog in src/courses.ts)
@@ -37,7 +39,7 @@ for (const file of files) {
   const saved = JSON.parse(await readFile(dataDir + file, "utf8"));
   const courses = saved.courses.map((row) => {
     const course = Object.fromEntries(saved.columns.map((name, i) => [name, row[i]]));
-    return { ...course, rating: course.rating ?? null };
+    return { ...course, rating: course.rating ?? null, notes: course.notes ?? "" };
   });
   semesters.push({ term: saved.term, pulled: saved.pulled, courses });
   const rated = courses.filter((c) => c.rating !== null).length;

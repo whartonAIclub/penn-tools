@@ -5,7 +5,7 @@ import type { Ratings } from "../ratings.js";
 import { bestPair, fitMajor, recommendMajors } from "../recommend.js";
 
 function course(code: string, credits = 1): Course {
-  return { code, department: code.slice(0, 4), title: code, description: "", credits, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null };
+  return { code, department: code.slice(0, 4), title: code, description: "", credits, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null, majorsOnly: [] };
 }
 
 const courses = [

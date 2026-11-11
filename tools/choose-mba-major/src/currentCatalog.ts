@@ -30,7 +30,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.14
+      "rating": 3.14,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 6130",
@@ -47,7 +48,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.05
+      "rating": 3.05,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 7060",
@@ -63,7 +65,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.11
+      "rating": 3.11,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 7420",
@@ -81,7 +84,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Full",
         "Q1"
       ],
-      "rating": 2.57
+      "rating": 2.57,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 7430",
@@ -97,7 +101,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.31
+      "rating": 3.31,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 7470",
@@ -113,7 +118,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.55
+      "rating": 3.55,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 7700",
@@ -129,7 +135,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 7900",
@@ -145,7 +152,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "ACCT 7970",
@@ -161,7 +169,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "BEPP 6200",
@@ -177,7 +186,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.19
+      "rating": 3.19,
+      "majorsOnly": []
     },
     {
       "code": "BEPP 7640",
@@ -193,7 +203,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "BEPP 7660",
@@ -209,7 +220,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "BEPP 7700",
@@ -225,7 +237,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.5
+      "rating": 2.5,
+      "majorsOnly": []
     },
     {
       "code": "BEPP 7720",
@@ -241,7 +254,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "BEPP 7890",
@@ -257,7 +271,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.58
+      "rating": 3.58,
+      "majorsOnly": []
     },
     {
       "code": "BEPP 8050",
@@ -275,7 +290,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.73
+      "rating": 2.73,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 6110",
@@ -292,7 +308,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.83
+      "rating": 2.83,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 6130",
@@ -309,7 +326,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.67
+      "rating": 2.67,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 6210",
@@ -325,7 +343,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3
+      "rating": 3,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 6230",
@@ -341,7 +360,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.34
+      "rating": 2.34,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7030",
@@ -357,7 +377,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.15
+      "rating": 3.15,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7050",
@@ -374,7 +395,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.72
+      "rating": 2.72,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7070",
@@ -391,7 +413,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.95
+      "rating": 2.95,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7170",
@@ -407,7 +430,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.49
+      "rating": 2.49,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7190",
@@ -423,7 +447,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.75
+      "rating": 2.75,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7250",
@@ -439,7 +464,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.26
+      "rating": 3.26,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7310",
@@ -455,7 +481,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.77
+      "rating": 2.77,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7320",
@@ -471,7 +498,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.59
+      "rating": 2.59,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7370",
@@ -487,7 +515,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.49
+      "rating": 2.49,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7390",
@@ -503,7 +532,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.39
+      "rating": 2.39,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7400",
@@ -519,7 +549,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.64
+      "rating": 2.64,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7450",
@@ -536,7 +567,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7500",
@@ -553,7 +585,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.15
+      "rating": 3.15,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7510",
@@ -571,7 +604,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Full",
         "Q1"
       ],
-      "rating": 2.6
+      "rating": 2.6,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7530",
@@ -587,7 +621,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.56
+      "rating": 2.56,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7540",
@@ -603,7 +638,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.05
+      "rating": 2.05,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7570",
@@ -619,7 +655,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.75
+      "rating": 2.75,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7680",
@@ -635,7 +672,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7800",
@@ -651,7 +689,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.39
+      "rating": 2.39,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7830",
@@ -667,7 +706,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.93
+      "rating": 2.93,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 7910",
@@ -683,7 +723,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.1
+      "rating": 3.1,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 8010",
@@ -700,7 +741,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.08
+      "rating": 3.08,
+      "majorsOnly": []
     },
     {
       "code": "FNCE 8020",
@@ -716,7 +758,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.62
+      "rating": 2.62,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8450",
@@ -732,7 +775,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.75
+      "rating": 2.75,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8500",
@@ -748,7 +792,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.54
+      "rating": 3.54,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8530",
@@ -764,7 +809,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.11
+      "rating": 3.11,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8550",
@@ -780,7 +826,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.1
+      "rating": 3.1,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8580",
@@ -796,7 +843,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8600",
@@ -812,7 +860,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.15
+      "rating": 3.15,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8630",
@@ -828,7 +877,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.5
+      "rating": 3.5,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8660",
@@ -844,7 +894,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.68
+      "rating": 2.68,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8680",
@@ -860,7 +911,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.74
+      "rating": 2.74,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8700",
@@ -876,7 +928,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.6
+      "rating": 2.6,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8740",
@@ -892,7 +945,10 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": [
+        "HCMG"
+      ]
     },
     {
       "code": "HCMG 8770",
@@ -908,7 +964,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "HCMG 8900",
@@ -924,7 +981,10 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.25
+      "rating": 3.25,
+      "majorsOnly": [
+        "HCMG"
+      ]
     },
     {
       "code": "LGST 6110",
@@ -942,7 +1002,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.84
+      "rating": 2.84,
+      "majorsOnly": []
     },
     {
       "code": "LGST 6120",
@@ -960,7 +1021,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.84
+      "rating": 2.84,
+      "majorsOnly": []
     },
     {
       "code": "LGST 6130",
@@ -978,7 +1040,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.79
+      "rating": 2.79,
+      "majorsOnly": []
     },
     {
       "code": "LGST 6420",
@@ -996,7 +1059,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.54
+      "rating": 2.54,
+      "majorsOnly": []
     },
     {
       "code": "LGST 6430",
@@ -1012,7 +1076,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.72
+      "rating": 2.72,
+      "majorsOnly": []
     },
     {
       "code": "LGST 6440",
@@ -1028,7 +1093,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.81
+      "rating": 2.81,
+      "majorsOnly": []
     },
     {
       "code": "LGST 6470",
@@ -1044,7 +1110,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "LGST 7620",
@@ -1062,7 +1129,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.81
+      "rating": 2.81,
+      "majorsOnly": []
     },
     {
       "code": "LGST 7820",
@@ -1080,7 +1148,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "LGST 7990",
@@ -1096,7 +1165,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.46
+      "rating": 3.46,
+      "majorsOnly": []
     },
     {
       "code": "LGST 8020",
@@ -1112,7 +1182,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "LGST 8050",
@@ -1130,7 +1201,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "LGST 8060",
@@ -1150,7 +1222,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "LGST 8090",
@@ -1168,7 +1241,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.29
+      "rating": 3.29,
+      "majorsOnly": []
     },
     {
       "code": "LGST 8130",
@@ -1185,7 +1259,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.61
+      "rating": 3.61,
+      "majorsOnly": []
     },
     {
       "code": "LGST 8140",
@@ -1201,7 +1276,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "LGST 8150",
@@ -1217,7 +1293,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.24
+      "rating": 3.24,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 6110",
@@ -1234,7 +1311,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.77
+      "rating": 2.77,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 6120",
@@ -1251,7 +1329,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.61
+      "rating": 2.61,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 6240",
@@ -1269,7 +1348,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.7
+      "rating": 2.7,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 6250",
@@ -1285,7 +1365,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.08
+      "rating": 3.08,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7010",
@@ -1303,7 +1384,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.97
+      "rating": 2.97,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7150",
@@ -1319,7 +1401,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.08
+      "rating": 3.08,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7210",
@@ -1336,7 +1419,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.97
+      "rating": 2.97,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7230",
@@ -1352,7 +1436,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7280",
@@ -1368,7 +1453,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7290",
@@ -1386,7 +1472,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.19
+      "rating": 3.19,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7310",
@@ -1402,7 +1489,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.79
+      "rating": 2.79,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7400",
@@ -1420,7 +1508,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 3.27
+      "rating": 3.27,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7430",
@@ -1436,7 +1525,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7480",
@@ -1452,7 +1542,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.06
+      "rating": 2.06,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7720",
@@ -1468,7 +1559,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3
+      "rating": 3,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7820",
@@ -1484,7 +1576,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.9
+      "rating": 2.9,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7840",
@@ -1502,7 +1595,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.54
+      "rating": 3.54,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7850",
@@ -1518,7 +1612,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7860",
@@ -1535,7 +1630,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7880",
@@ -1551,7 +1647,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7900",
@@ -1567,7 +1664,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7940",
@@ -1583,7 +1681,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.16
+      "rating": 3.16,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 7990",
@@ -1599,7 +1698,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.2
+      "rating": 3.2,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8010",
@@ -1617,7 +1717,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.99
+      "rating": 2.99,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8040",
@@ -1635,7 +1736,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.76
+      "rating": 2.76,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8090",
@@ -1651,7 +1753,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.69
+      "rating": 2.69,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8110",
@@ -1669,7 +1772,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.84
+      "rating": 2.84,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8120",
@@ -1685,7 +1789,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2
+      "rating": 2,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8130",
@@ -1703,7 +1808,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8140",
@@ -1721,7 +1827,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8170",
@@ -1737,7 +1844,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.94
+      "rating": 2.94,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8310",
@@ -1755,7 +1863,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8330",
@@ -1772,7 +1881,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.13
+      "rating": 3.13,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8600",
@@ -1788,7 +1898,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8710",
@@ -1805,7 +1916,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 3.44
+      "rating": 3.44,
+      "majorsOnly": []
     },
     {
       "code": "MGMT 8750",
@@ -1821,7 +1933,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 6120",
@@ -1839,7 +1952,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.84
+      "rating": 2.84,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 6130",
@@ -1855,7 +1969,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Modular"
       ],
-      "rating": 2.57
+      "rating": 2.57,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7110",
@@ -1871,7 +1986,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.58
+      "rating": 3.58,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7120",
@@ -1888,7 +2004,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.17
+      "rating": 3.17,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7250",
@@ -1904,7 +2021,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.64
+      "rating": 2.64,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7340",
@@ -1920,7 +2038,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.52
+      "rating": 2.52,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7370",
@@ -1936,7 +2055,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.31
+      "rating": 2.31,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7380",
@@ -1952,7 +2072,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7470",
@@ -1968,7 +2089,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.32
+      "rating": 2.32,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7520",
@@ -1984,7 +2106,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7540",
@@ -2001,7 +2124,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.99
+      "rating": 2.99,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7680",
@@ -2017,7 +2141,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.56
+      "rating": 2.56,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7710",
@@ -2033,7 +2158,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.99
+      "rating": 2.99,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7760",
@@ -2051,7 +2177,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.69
+      "rating": 3.69,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 7790",
@@ -2067,7 +2194,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "MKTG 8060",
@@ -2083,7 +2211,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.75
+      "rating": 2.75,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 5150",
@@ -2100,7 +2229,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 5250",
@@ -2116,7 +2246,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.52
+      "rating": 2.52,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6110",
@@ -2133,7 +2264,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 3.15
+      "rating": 3.15,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6120",
@@ -2150,7 +2282,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.66
+      "rating": 2.66,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6130",
@@ -2166,7 +2299,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.69
+      "rating": 2.69,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6140",
@@ -2182,7 +2316,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.02
+      "rating": 3.02,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6150",
@@ -2199,7 +2334,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.82
+      "rating": 2.82,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6360",
@@ -2215,7 +2351,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.76
+      "rating": 3.76,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6590",
@@ -2231,7 +2368,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.26
+      "rating": 3.26,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6620",
@@ -2248,7 +2386,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 3.12
+      "rating": 3.12,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6650",
@@ -2266,7 +2405,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6670",
@@ -2283,7 +2423,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.04
+      "rating": 3.04,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6730",
@@ -2299,7 +2440,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.08
+      "rating": 3.08,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6750",
@@ -2315,7 +2457,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6900",
@@ -2333,7 +2476,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.88
+      "rating": 2.88,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6920",
@@ -2349,7 +2493,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.64
+      "rating": 2.64,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6930",
@@ -2365,7 +2510,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.4
+      "rating": 3.4,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 6970",
@@ -2381,7 +2527,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 3.02
+      "rating": 3.02,
+      "majorsOnly": []
     },
     {
       "code": "OIDD 7050",
@@ -2397,7 +2544,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.01
+      "rating": 3.01,
+      "majorsOnly": []
     },
     {
       "code": "REAL 7050",
@@ -2413,7 +2561,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 3.01
+      "rating": 3.01,
+      "majorsOnly": []
     },
     {
       "code": "REAL 7080",
@@ -2431,7 +2580,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "REAL 7210",
@@ -2448,7 +2598,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.89
+      "rating": 2.89,
+      "majorsOnly": []
     },
     {
       "code": "REAL 7240",
@@ -2464,7 +2615,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.61
+      "rating": 2.61,
+      "majorsOnly": []
     },
     {
       "code": "REAL 7300",
@@ -2480,7 +2632,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.65
+      "rating": 2.65,
+      "majorsOnly": []
     },
     {
       "code": "REAL 8040",
@@ -2496,7 +2649,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "REAL 8210",
@@ -2513,7 +2667,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "REAL 8360",
@@ -2531,7 +2686,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "REAL 8400",
@@ -2547,7 +2703,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.8
+      "rating": 2.8,
+      "majorsOnly": []
     },
     {
       "code": "REAL 8700",
@@ -2563,7 +2720,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "REAL 8750",
@@ -2579,7 +2737,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": 2.11
+      "rating": 2.11,
+      "majorsOnly": []
     },
     {
       "code": "REAL 8910",
@@ -2595,7 +2754,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.39
+      "rating": 3.39,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7010",
@@ -2611,7 +2771,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7050",
@@ -2627,7 +2788,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 2.9
+      "rating": 2.9,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7100",
@@ -2643,7 +2805,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q2"
       ],
-      "rating": 2.84
+      "rating": 2.84,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7110",
@@ -2659,7 +2822,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7220",
@@ -2676,7 +2840,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Q1"
       ],
-      "rating": 3.08
+      "rating": 3.08,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7230",
@@ -2693,7 +2858,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7700",
@@ -2710,7 +2876,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7730",
@@ -2726,7 +2893,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "STAT 7770",
@@ -2746,7 +2914,8 @@ export const CURRENT_CATALOG: Catalog = {
         "Q1",
         "Q2"
       ],
-      "rating": 2.85
+      "rating": 2.85,
+      "majorsOnly": []
     },
     {
       "code": "WHCP 6160",
@@ -2763,7 +2932,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     },
     {
       "code": "WHCP 6180",
@@ -2780,7 +2950,8 @@ export const CURRENT_CATALOG: Catalog = {
       "sessions": [
         "Full"
       ],
-      "rating": null
+      "rating": null,
+      "majorsOnly": []
     }
   ]
 };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildCatalog, courseCodesOf, termLabel, type Course, type CourseMatchCourse } from "../courses.js";
+import { buildCatalog, courseCodesOf, isMajorsOnly, majorsOnlyFrom, termLabel, type Course, type CourseMatchCourse } from "../courses.js";
 import { migrateOneToFiveRatings, rankCourses, ratingOf, sanitizeRatings, sanitizeTaken, setRating, toggleTaken } from "../ratings.js";
 import { CURRENT_CATALOG } from "../currentCatalog.js";
 
@@ -13,6 +13,7 @@ function listed(code: string, extra: Partial<CourseMatchCourse> = {}): CourseMat
     crossListed: [],
     description: `About ${code}.`,
     rating: null,
+    notes: "",
     ...extra,
   };
 }
@@ -27,6 +28,7 @@ describe("buildCatalog", () => {
       listed("LGST 8060", { title: "Negotiations", sections: 3, crossListed: ["MGMT 6910", "OIDD 6910"] }),
       listed("MGMT 6910", { title: "Negotiations", crossListed: ["LGST 8060", "OIDD 6910"] }),
       listed("MKTG 7340", { title: "BW: Creativity", sessions: ["Modular"] }),
+      listed("HCMG 8900", { description: "Prerequisites: HCMG 8410. Health Care Management MBA majors only" }),
     ],
   };
   const spring = {
@@ -35,6 +37,7 @@ describe("buildCatalog", () => {
     courses: [
       listed("FNCE 7050", { title: "Investment Management", sections: 2, rating: null }),
       listed("MKTG 7760", { crossListed: ["STAT 7760"], rating: 3.6857, description: "" }),
+      listed("HCMG 8740", { notes: "Open to 2nd year HCMG majors only" }),
     ],
   };
   const catalog = buildCatalog([spring, fall], "Wharton Course Match");
@@ -62,11 +65,19 @@ describe("buildCatalog", () => {
       sessions: ["Full", "Q1"],
       // Spring has no rating, so fall's is kept.
       rating: 3.1,
+      majorsOnly: [],
     });
   });
 
   it("joins cross-listed listings into one course, leaves out block week, and sorts by code", () => {
-    expect(catalog.courses.map((c) => c.code)).toEqual(["ACCT 6110", "FNCE 7050", "LGST 8060", "MKTG 7760"]);
+    expect(catalog.courses.map((c) => c.code)).toEqual([
+      "ACCT 6110",
+      "FNCE 7050",
+      "HCMG 8740",
+      "HCMG 8900",
+      "LGST 8060",
+      "MKTG 7760",
+    ]);
     const negotiations = catalog.courses.find((c) => c.code === "LGST 8060")!;
     expect(negotiations.crossListed).toEqual(["MGMT 6910", "OIDD 6910"]);
     expect(negotiations.sections).toBe(4);
@@ -80,9 +91,24 @@ describe("buildCatalog", () => {
     expect(mktg.crossListed).toEqual(["STAT 7760"]);
   });
 
+  it("marks courses only a department's majors may take, from notes or description", () => {
+    const hcm = catalog.courses.filter((c) => isMajorsOnly(c, "HCMG")).map((c) => c.code);
+    expect(hcm).toEqual(["HCMG 8740", "HCMG 8900"]);
+    expect(catalog.courses.find((c) => c.code === "ACCT 6110")!.majorsOnly).toEqual([]);
+  });
+
   it("labels terms", () => {
     expect(termLabel("2027C")).toBe("Fall 2027");
     expect(termLabel("odd")).toBe("odd");
+  });
+});
+
+describe("majorsOnlyFrom", () => {
+  it("reads '<DEPT> majors only' from notes and '<department name> MBA majors only' from descriptions", () => {
+    expect(majorsOnlyFrom({ notes: "Open to 2nd year HCMG majors only", description: "" })).toEqual(["HCMG"]);
+    expect(majorsOnlyFrom({ notes: "", description: "… Health Care Management MBA majors only" })).toEqual(["HCMG"]);
+    expect(majorsOnlyFrom({ notes: "Real Estate majors only", description: "" })).toEqual([]);
+    expect(majorsOnlyFrom({ notes: "Cannot be taken Pass/Fail.", description: "Open to all majors" })).toEqual([]);
   });
 });
 
@@ -97,6 +123,13 @@ describe("CURRENT_CATALOG", () => {
     const codes = new Set(CURRENT_CATALOG.courses.map((c) => c.code));
     const doubled = CURRENT_CATALOG.courses.flatMap((c) => c.crossListed.filter((code) => codes.has(code)));
     expect(doubled).toEqual([]);
+  });
+
+  it("marks the two HCM-majors-only courses", () => {
+    expect(CURRENT_CATALOG.courses.filter((c) => isMajorsOnly(c, "HCMG")).map((c) => c.code)).toEqual([
+      "HCMG 8740",
+      "HCMG 8900",
+    ]);
   });
 
   it("covers a fall and a spring semester from Course Match", () => {
@@ -117,6 +150,7 @@ describe("ratings", () => {
     terms: ["Spring 2027"],
     sessions: ["Full"],
     rating: null,
+    majorsOnly: [],
   });
   const courses = [course("ACCT 7470"), course("FNCE 7310"), course("MGMT 6910")];
 

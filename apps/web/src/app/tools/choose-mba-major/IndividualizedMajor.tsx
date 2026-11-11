@@ -144,6 +144,7 @@ export function IndividualizedMajor({
   ratingLabels,
   step,
   suggestionAccess,
+  hideHcmOnly,
 }: {
   catalog: Catalog;
   ratings: Ratings;
@@ -151,6 +152,8 @@ export function IndividualizedMajor({
   ratingLabels: Readonly<Record<Rating, string>>;
   step: number;
   suggestionAccess: SuggestionAccess;
+  /** The student isn't an HCM major, so Claude shouldn't suggest HCM-majors-only courses. */
+  hideHcmOnly: boolean;
 }) {
   const { courses } = catalog;
   const [draft, setDraft] = useState<IndividualizedDraft>(EMPTY_DRAFT);
@@ -193,7 +196,7 @@ export function IndividualizedMajor({
     setBusy("themes");
     setThemeError(null);
     try {
-      const result = await suggestThemesAction(ratings, [...taken]);
+      const result = await suggestThemesAction(ratings, [...taken], hideHcmOnly);
       if (!result.ok) setThemeError(result.error);
       else if (result.data.length === 0) setThemeError({ message: "Claude didn't find a theme in these courses. Try rating more." });
       else setThemes(result.data);
@@ -208,7 +211,7 @@ export function IndividualizedMajor({
     setBusy("alignments");
     setAlignmentError(null);
     try {
-      const result = await suggestAlignmentsAction(draft.theme, draft.courses);
+      const result = await suggestAlignmentsAction(draft.theme, plan.map((c) => c.code));
       if (!result.ok) setAlignmentError(result.error);
       else setAlignmentSuggestions((current) => ({ ...current, ...result.data }));
     } catch {

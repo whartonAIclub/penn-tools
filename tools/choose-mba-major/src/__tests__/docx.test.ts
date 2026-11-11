@@ -80,8 +80,8 @@ const catalog: Catalog = {
   updated: "2026-11-03",
   source: "test",
   courses: [
-    { code: "HCMG 8410", department: "HCMG", title: "Health Care Systems", description: "", credits: 1, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null },
-    { code: "OIDD 6530", department: "OIDD", title: "Ops Analytics", description: "", credits: 0.5, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null },
+    { code: "HCMG 8410", department: "HCMG", title: "Health Care Systems", description: "", credits: 1, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null, majorsOnly: [] },
+    { code: "OIDD 6530", department: "OIDD", title: "Ops Analytics", description: "", credits: 0.5, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null, majorsOnly: [] },
   ],
 };
 

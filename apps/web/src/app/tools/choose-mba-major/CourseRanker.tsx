@@ -1,6 +1,8 @@
 "use client";
 
-// First the student says whether they're considering an individualized major.
+// First the student says whether they're a Health Care Management major (if
+// not, courses only HCM majors may take are left out everywhere) and whether
+// they're considering an individualized major.
 // Step 1 rates each course offered this term from 0 to 5 (every course starts
 // at 0) and marks the ones they're taking or have taken; step 2 recommends
 // majors from those ratings (Recommendations.tsx); for students who said yes,
@@ -12,6 +14,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   RATING_VALUES,
+  isMajorsOnly,
   migrateOneToFiveRatings,
   rankCourses,
   ratingOf,
@@ -34,6 +37,9 @@ const STORAGE_KEY = "choose-mba-major:ratings-v2";
 const OLD_STORAGE_KEY = "choose-mba-major:ratings";
 const TAKEN_KEY = "choose-mba-major:taken";
 const INTEREST_KEY = "choose-mba-major:individualized-interest";
+const HCM_KEY = "choose-mba-major:hcm-major";
+/** Health Care Management: its department code, which marks HCM-majors-only courses. */
+const HCM = "HCMG";
 
 type Show = "all" | "unrated" | "rated" | "taken";
 type Sort = "code" | "rating" | "courseRating";
@@ -74,22 +80,47 @@ function saveRatings(ratings: Ratings) {
   }
 }
 
-/** Whether the student is considering an individualized major; null until they answer. */
-function loadInterest(): boolean | null {
+/** A saved yes/no answer; null until the student answers. */
+function loadAnswer(key: string): boolean | null {
   try {
-    const raw = window.localStorage.getItem(INTEREST_KEY);
+    const raw = window.localStorage.getItem(key);
     return raw === "yes" ? true : raw === "no" ? false : null;
   } catch {
     return null;
   }
 }
 
-function saveInterest(interested: boolean) {
+function saveAnswer(key: string, answer: boolean) {
   try {
-    window.localStorage.setItem(INTEREST_KEY, interested ? "yes" : "no");
+    window.localStorage.setItem(key, answer ? "yes" : "no");
   } catch {
     // Storage is blocked; the answer still holds for this visit.
   }
+}
+
+/** A Yes / No question as two radio buttons. */
+function YesNo({
+  name,
+  value,
+  onChange,
+}: {
+  name: string;
+  value: boolean | null;
+  onChange: (answer: boolean) => void;
+}) {
+  return (
+    <div className={styles.choices}>
+      {[
+        { answer: true, label: "Yes" },
+        { answer: false, label: "No" },
+      ].map(({ answer, label }) => (
+        <label key={label} className={`${styles.choice} ${value === answer ? styles.choiceOn : ""}`}>
+          <input type="radio" name={name} checked={value === answer} onChange={() => onChange(answer)} />
+          {label}
+        </label>
+      ))}
+    </div>
+  );
 }
 
 function formatCredits(credits: number | null): string | null {
@@ -97,7 +128,7 @@ function formatCredits(credits: number | null): string | null {
 }
 
 export function CourseRanker({
-  catalog,
+  catalog: fullCatalog,
   departments,
   ratingLabels,
   suggestionAccess,
@@ -107,6 +138,17 @@ export function CourseRanker({
   ratingLabels: Readonly<Record<Rating, string>>;
   suggestionAccess: SuggestionAccess;
 }) {
+  const [hcmMajor, setHcmMajor] = useState<boolean | null>(null);
+  // Students who aren't HCM majors don't see courses only HCM majors may take,
+  // anywhere on the page. Until they answer, every course shows.
+  const catalog = useMemo(
+    () =>
+      hcmMajor === false
+        ? { ...fullCatalog, courses: fullCatalog.courses.filter((c) => !isMajorsOnly(c, HCM)) }
+        : fullCatalog,
+    [fullCatalog, hcmMajor],
+  );
+  const hiddenCount = fullCatalog.courses.length - catalog.courses.length;
   const { courses } = catalog;
   const [ratings, setRatings] = useState<Ratings>({});
   const [taken, setTaken] = useState<Taken>(() => new Set());
@@ -121,13 +163,19 @@ export function CourseRanker({
   useEffect(() => {
     setRatings(loadRatings());
     setTaken(loadTaken());
-    setIndividualized(loadInterest());
+    setIndividualized(loadAnswer(INTEREST_KEY));
+    setHcmMajor(loadAnswer(HCM_KEY));
     setRestored(true);
   }, []);
 
   function answerInterest(interested: boolean) {
     setIndividualized(interested);
-    saveInterest(interested);
+    saveAnswer(INTEREST_KEY, interested);
+  }
+
+  function answerHcm(isMajor: boolean) {
+    setHcmMajor(isMajor);
+    saveAnswer(HCM_KEY, isMajor);
   }
 
   useEffect(() => {
@@ -192,7 +240,19 @@ export function CourseRanker({
         ratings are Course Match&apos;s 3-year average course ratings, out of 4, where available.
       </p>
 
-      {/* ── First question: individualized major? ──────────────────────── */}
+      {/* ── First questions: HCM major? Individualized major? ─────────────── */}
+      <section className={styles.card}>
+        <fieldset className={styles.question}>
+          <legend className={styles.cardTitle}>Are you a Health Care Management (HCM) major?</legend>
+          <p className={styles.note}>
+            Some courses are open to HCM majors only. If you&apos;re not an HCM major, they&apos;re left out of the
+            course list and your results.
+            {hiddenCount > 0 && ` ${hiddenCount} HCM-majors-only ${hiddenCount === 1 ? "course is" : "courses are"} hidden.`}
+          </p>
+          <YesNo name="hcm-major" value={hcmMajor} onChange={answerHcm} />
+        </fieldset>
+      </section>
+
       <section className={styles.card}>
         <fieldset className={styles.question}>
           <legend className={styles.cardTitle}>Are you considering an individualized major?</legend>
@@ -200,22 +260,7 @@ export function CourseRanker({
             Wharton lets you design a major of your own around a theme. If you&apos;re considering one, this tool will
             also help you put together the proposal, alongside its recommendations for standard majors.
           </p>
-          <div className={styles.choices}>
-            {[
-              { value: true, label: "Yes" },
-              { value: false, label: "No" },
-            ].map(({ value, label }) => (
-              <label key={label} className={`${styles.choice} ${individualized === value ? styles.choiceOn : ""}`}>
-                <input
-                  type="radio"
-                  name="individualized"
-                  checked={individualized === value}
-                  onChange={() => answerInterest(value)}
-                />
-                {label}
-              </label>
-            ))}
-          </div>
+          <YesNo name="individualized" value={individualized} onChange={answerInterest} />
         </fieldset>
       </section>
 
@@ -374,6 +419,7 @@ export function CourseRanker({
           ratingLabels={ratingLabels}
           step={3}
           suggestionAccess={suggestionAccess}
+          hideHcmOnly={hcmMajor === false}
         />
       )}
 

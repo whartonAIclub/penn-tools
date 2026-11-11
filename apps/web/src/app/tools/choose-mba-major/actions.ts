@@ -15,6 +15,7 @@ import {
   MAX_SUGGESTION_COURSES,
   MAX_THEME_LENGTH,
   candidateCourses,
+  isMajorsOnly,
   sanitizeRatings,
   sanitizeTaken,
   suggestAlignments,
@@ -59,10 +60,14 @@ const COURSES_BY_CODE = new Map(CURRENT_CATALOG.courses.map((c) => [c.code, c]))
 export async function suggestThemesAction(
   ratings: unknown,
   taken: unknown,
+  hideHcmOnly: unknown = false,
 ): Promise<SuggestionResult<ThemeSuggestion[]>> {
   const ai = await getAI();
   if (!ai) return signedOut;
-  const candidates = candidateCourses(CURRENT_CATALOG.courses, sanitizeRatings(ratings), sanitizeTaken(taken));
+  // Students who aren't HCM majors don't see HCM-majors-only courses.
+  const courses =
+    hideHcmOnly === true ? CURRENT_CATALOG.courses.filter((c) => !isMajorsOnly(c, "HCMG")) : CURRENT_CATALOG.courses;
+  const candidates = candidateCourses(courses, sanitizeRatings(ratings), sanitizeTaken(taken));
   return run(() => suggestThemes(ai, candidates));
 }
 

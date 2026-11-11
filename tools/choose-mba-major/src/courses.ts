@@ -30,6 +30,11 @@ export interface Course {
    * sections (out of 4), or null when no section has one.
    */
   rating: number | null;
+  /**
+   * Departments whose majors alone may take it, e.g. ["HCMG"] for a course
+   * Course Match marks "Open to 2nd year HCMG majors only". Usually empty.
+   */
+  majorsOnly: string[];
 }
 
 export interface CatalogTerm {
@@ -76,6 +81,36 @@ export function termLabel(term: string): string {
   return match ? `${SEASONS[match[2]!]} ${match[1]}` : term;
 }
 
+/** Whether only majors in `department` (e.g. "HCMG") may take the course. */
+export function isMajorsOnly(course: Pick<Course, "majorsOnly">, department: string): boolean {
+  return course.majorsOnly.includes(department);
+}
+
+/**
+ * The departments a Course Match listing says only their majors may take,
+ * from its notes ("Open to 2nd year HCMG majors only") or description
+ * ("Health Care Management MBA majors only").
+ */
+export function majorsOnlyFrom(listing: Pick<CourseMatchCourse, "notes" | "description">): string[] {
+  const found = new Set<string>();
+  for (const match of listing.notes.matchAll(/\b([A-Z]{3,4}) majors only\b/gi)) {
+    const department = match[1]!.toUpperCase();
+    if (department in DEPARTMENTS) found.add(department);
+  }
+  // Longest names first, each match removed, so "Health Care Management MBA
+  // majors only" doesn't also count as "Management MBA majors only".
+  let description = listing.description;
+  const byLength = Object.entries(DEPARTMENTS).sort((a, b) => b[1].length - a[1].length);
+  for (const [department, name] of byLength) {
+    const pattern = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} (MBA )?majors only\\b`, "gi");
+    if (pattern.test(description)) {
+      found.add(department);
+      description = description.replace(pattern, " ");
+    }
+  }
+  return [...found].sort();
+}
+
 /** A course's code and its cross-listed codes: a major's list may name any of them. */
 export function courseCodesOf(course: Pick<Course, "code" | "crossListed">): string[] {
   return [course.code, ...course.crossListed];
@@ -95,6 +130,8 @@ export interface CourseMatchCourse {
   description: string;
   /** The average of its sections' 3-year average course ratings, or null when none is rated. */
   rating: number | null;
+  /** The restrictions Course Match shows under the course's title, e.g. "Open to 2nd year HCMG majors only". */
+  notes: string;
 }
 
 /** One semester's list from Course Match. */
@@ -186,6 +223,7 @@ export function buildCatalog(semesters: readonly CourseMatchSemester[], source: 
       terms: labels.filter((label) => group.some((l) => l.label === label)),
       sessions: [...new Set(group.flatMap((l) => l.course.sessions))].sort(),
       rating: latestRating(group.map((l) => l.course)),
+      majorsOnly: [...new Set(group.flatMap((l) => majorsOnlyFrom(l.course)))].sort(),
     };
   });
   courses.sort((a, b) => a.code.localeCompare(b.code));
