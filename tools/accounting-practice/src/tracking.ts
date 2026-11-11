@@ -10,6 +10,16 @@ import type { Question } from "./questions/types.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * A list of strings as a SQL text[] value. Sent as JSON text rather than with
+ * sql.array, which sends a malformed array on a connection's first query,
+ * before the client has loaded Postgres's array types.
+ */
+export function textArray(sql: Sql, values: readonly string[]) {
+  // ::text first, so the client sends the JSON as-is instead of encoding it again.
+  return sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(values)}::text::jsonb))`;
+}
+
 /** Rows a caller may touch: the round's own user's, or a signed-out round. */
 function ownedBy(sql: Sql, userId: string | null) {
   return userId === null ? sql`user_id IS NULL` : sql`(user_id IS NULL OR user_id = ${userId})`;
@@ -22,7 +32,7 @@ export async function recordSessionStart(
 ): Promise<string> {
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO sessions (user_id, topic_id, question_ids)
-    VALUES (${round.userId}, ${round.topicId}, ${sql.array([...round.questionIds])}::text[])
+    VALUES (${round.userId}, ${round.topicId}, ${textArray(sql, round.questionIds)})
     RETURNING id
   `;
   return row!.id;

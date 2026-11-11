@@ -237,6 +237,50 @@ describe.skipIf(!databaseUrl)("metrics (Postgres)", () => {
   });
 });
 
+// A connection's first query once sent lists malformed (sql.array before the
+// client loaded Postgres's array types), so a round's start failed to save
+// whenever the app opened a new connection. Each check here uses a brand-new
+// connection whose first query sends a list.
+describe.skipIf(!databaseUrl)("on a brand-new connection (Postgres)", () => {
+  const freshSchema = `${schema}_fresh`;
+  const fresh = () => postgres(databaseUrl!, { max: 1, onnotice: () => {}, connection: { search_path: freshSchema } });
+
+  beforeAll(async () => {
+    admin = postgres(databaseUrl!, { max: 1, onnotice: () => {} });
+    await admin.unsafe(`CREATE SCHEMA ${freshSchema}`);
+    const setup = fresh();
+    await setup.unsafe(schemaSql);
+    await setup.end();
+  });
+
+  afterAll(async () => {
+    await admin?.unsafe(`DROP SCHEMA IF EXISTS ${freshSchema} CASCADE`);
+    await admin?.end();
+  });
+
+  it("saves a round's start as the first query", async () => {
+    const db = fresh();
+    try {
+      const sessionId = await recordSessionStart(db, { userId: "u-fresh", topicId: "transaction-effects", questionIds: ids });
+      const [row] = await db<{ question_ids: string[] }[]>`SELECT question_ids FROM sessions WHERE id = ${sessionId}`;
+      expect(row?.question_ids).toEqual(ids);
+    } finally {
+      await db.end();
+    }
+  });
+
+  it("computes metrics with excluded accounts as the first query", async () => {
+    const db = fresh();
+    try {
+      const m = await getMetrics(db, { window: "all", excludeUserIds: ["u-fresh"] });
+      expect(m.signedIn.uniqueUsers).toBe(0);
+      expect(m.allRounds.started).toBe(0);
+    } finally {
+      await db.end();
+    }
+  });
+});
+
 describe("who can see the stats page", () => {
   it("allows only listed team accounts on the live site", () => {
     expect(canViewStats(null, "live")).toBe(false);

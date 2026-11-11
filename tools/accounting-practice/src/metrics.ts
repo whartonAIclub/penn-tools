@@ -7,6 +7,7 @@
 // a student's calendar.
 
 import type { Sql } from "postgres";
+import { textArray } from "./tracking.js";
 
 export type MetricsWindow = "7d" | "all";
 
@@ -74,7 +75,7 @@ export async function getMetrics(
   options: { window: MetricsWindow; excludeUserIds: readonly string[] },
 ): Promise<Metrics> {
   const included = sql`
-    (s.user_id IS NULL OR NOT (s.user_id = ANY(${sql.array([...options.excludeUserIds])}::text[])))
+    (s.user_id IS NULL OR NOT (s.user_id = ANY(${textArray(sql, options.excludeUserIds)})))
     ${options.window === "7d" ? sql`AND s.started_at >= NOW() - INTERVAL '7 days'` : sql``}
   `;
 
