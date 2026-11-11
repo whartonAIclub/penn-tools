@@ -62,7 +62,8 @@ const capped: Major = {
 
 describe("fitMajor", () => {
   it("takes required courses, then favorites, and reports what's missing", () => {
-    const ratings: Ratings = { "REAL 7210": 5, "REAL 7240": 4, "REAL 8700": 5, "REAL 8910": 1 };
+    // REAL 8910 is at 0 (not rated), so it's never chosen.
+    const ratings: Ratings = { "REAL 7210": 5, "REAL 7240": 4, "REAL 8700": 5 };
     const fit = fitMajor(realEstate, courses, ratings);
 
     expect(fit.plan.map((p) => [p.course.code, p.required])).toEqual([
@@ -108,6 +109,30 @@ describe("fitMajor", () => {
   it("scores a major with nothing rated as 0", () => {
     expect(fitMajor(finance, courses, {}).score).toBe(0);
   });
+
+  it("chooses courses rated 1 (slightly interested)", () => {
+    expect(fitMajor(capped, courses, { "FNCE 7050": 1 }).plan.map((p) => p.course.code)).toEqual(["FNCE 7050"]);
+  });
+
+  it("puts courses the student is taking or has taken in first, counted as a 5, whatever their rating", () => {
+    const fit = fitMajor(finance, courses, { "FNCE 7050": 5, "FNCE 7170": 4, "FNCE 7310": 4 }, {
+      taken: new Set(["FNCE 7500", "FNCE 6110"]),
+    });
+    // FNCE 6110 is core, so it stays out even though it's taken.
+    expect(fit.plan.map((p) => [p.course.code, p.taken])).toEqual([
+      ["FNCE 7500", true],
+      ["FNCE 7050", false],
+      ["FNCE 7170", false],
+      ["FNCE 7310", false],
+    ]);
+    // (5 + 5 + 4 + 4) / (5 × 4)
+    expect(fit.score).toBeCloseTo(18 / 20);
+  });
+
+  it("doesn't place a taken course past a group's cap", () => {
+    const fit = fitMajor(capped, courses, {}, { taken: new Set(["FNCE 7170", "FNCE 7310"]) });
+    expect(fit.plan.map((p) => p.course.code)).toEqual(["FNCE 7170"]);
+  });
 });
 
 describe("recommendMajors and bestPair", () => {
@@ -126,5 +151,13 @@ describe("recommendMajors and bestPair", () => {
     const ids = [pair.first.major.id, pair.second.major.id].sort();
     expect(ids).not.toEqual(["capped", "finance"]);
     expect(pair.sharedCredits).toBeLessThanOrEqual(2);
+  });
+
+  it("lifts a major the student has taken courses toward", () => {
+    const realEstateScore = (taken?: Set<string>) =>
+      recommendMajors(courses, ratings, [realEstate, finance], taken).find((f) => f.major.id === "real-estate")!.score;
+    // REAL 7210 rated 3: 3 / 25. With two taken electives: (3 + 5 + 5) / 25.
+    expect(realEstateScore()).toBeCloseTo(3 / 25);
+    expect(realEstateScore(new Set(["REAL 7240", "REAL 8400"]))).toBeCloseTo(13 / 25);
   });
 });

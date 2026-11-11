@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest, AISchema } from "@penntools/core/ai";
 import type { Course } from "../courses.js";
-import type { RankedCourse } from "../ratings.js";
+import type { CandidateCourse } from "../individualized.js";
 import { AlignmentSuggestions, shortDescription, suggestAlignments, suggestThemes, ThemeSuggestions } from "../suggestions.js";
 
 function fakeAI(object: unknown) {
@@ -29,11 +29,11 @@ function course(code: string, description = "About it."): Course {
   return { code, department: code.slice(0, 4), title: `${code} title`, description, credits: 1, sections: 1 };
 }
 
-const rated: RankedCourse[] = [
-  { course: course("HCMG 8410"), rating: 5 },
-  { course: course("OIDD 6530"), rating: 4 },
-  { course: course("STAT 7050"), rating: 3 },
-  { course: course("FNCE 7050"), rating: 2 },
+const rated: CandidateCourse[] = [
+  { course: course("HCMG 8410"), rating: 5, taken: false },
+  { course: course("OIDD 6530"), rating: 4, taken: false },
+  { course: course("STAT 7050"), rating: 3, taken: false },
+  { course: course("FNCE 7050"), rating: 2, taken: false },
 ];
 
 function userText(request: GenerateObjectRequest<AISchema>): string {
@@ -59,6 +59,15 @@ describe("suggestThemes", () => {
     expect(userText(request)).toContain("HCMG 8410");
     expect(userText(request)).toContain("interest 5/5");
     expect(userText(request)).not.toContain("FNCE 7050");
+  });
+
+  it("includes courses the student is taking or has taken, whatever their rating, listed first", async () => {
+    const { ai, requests } = fakeAI({ themes: [] });
+    await suggestThemes(ai, [...rated, { course: course("MGMT 8010"), rating: 0, taken: true }]);
+    const text = userText(requests[0]!);
+    expect(text).toContain("MGMT 8010");
+    expect(text).toContain("the student is taking or has taken it");
+    expect(text.indexOf("MGMT 8010")).toBeLessThan(text.indexOf("HCMG 8410"));
   });
 
   it("keeps only course codes it was given, and at most three themes", async () => {

@@ -13,8 +13,20 @@ export {
 export type { Major, CourseGroup, DepartmentSelector } from "./majors.js";
 export { fitMajor, recommendMajors, bestPair, MAX_SHARED_CREDITS } from "./recommend.js";
 export type { MajorFit, MajorPair, PlannedCourse, Gap } from "./recommend.js";
-export { rankCourses, setRating, sanitizeRatings, isRating, RATING_LABELS } from "./ratings.js";
-export type { Rating, Ratings, RankedCourse } from "./ratings.js";
+export {
+  NO_TAKEN,
+  RATING_LABELS,
+  RATING_VALUES,
+  isRating,
+  migrateOneToFiveRatings,
+  rankCourses,
+  ratingOf,
+  sanitizeRatings,
+  sanitizeTaken,
+  setRating,
+  toggleTaken,
+} from "./ratings.js";
+export type { Rating, Ratings, RankedCourse, Taken } from "./ratings.js";
 export {
   EMPTY_DRAFT,
   INDIVIDUALIZED_MAX_CREDITS,
@@ -32,12 +44,13 @@ export {
   toggleCourse,
   totalCredits,
 } from "./individualized.js";
-export type { IndividualizedDraft, MajorOverlap, Requirement, RequirementId } from "./individualized.js";
+export type { CandidateCourse, IndividualizedDraft, MajorOverlap, Requirement, RequirementId } from "./individualized.js";
 export {
   MAX_SUGGESTION_COURSES,
   SUGGESTION_PROVIDER,
   THEME_MIN_COURSES,
   THEME_MIN_RATING,
+  isThemeSource,
   suggestAlignments,
   suggestThemes,
 } from "./suggestions.js";

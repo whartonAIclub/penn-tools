@@ -16,6 +16,7 @@ import {
   MAX_THEME_LENGTH,
   candidateCourses,
   sanitizeRatings,
+  sanitizeTaken,
   suggestAlignments,
   suggestThemes,
   type Course,
@@ -51,12 +52,18 @@ async function run<T>(fn: () => Promise<T>): Promise<SuggestionResult<T>> {
 
 const COURSES_BY_CODE = new Map(CURRENT_CATALOG.courses.map((c) => [c.code, c]));
 
-/** Possible themes from the student's ratings (sent from their browser, where they're stored). */
-export async function suggestThemesAction(ratings: unknown): Promise<SuggestionResult<ThemeSuggestion[]>> {
+/**
+ * Possible themes from the student's ratings and taken courses (sent from
+ * their browser, where they're stored).
+ */
+export async function suggestThemesAction(
+  ratings: unknown,
+  taken: unknown,
+): Promise<SuggestionResult<ThemeSuggestion[]>> {
   const ai = await getAI();
   if (!ai) return signedOut;
-  const rated = candidateCourses(CURRENT_CATALOG.courses, sanitizeRatings(ratings));
-  return run(() => suggestThemes(ai, rated));
+  const candidates = candidateCourses(CURRENT_CATALOG.courses, sanitizeRatings(ratings), sanitizeTaken(taken));
+  return run(() => suggestThemes(ai, candidates));
 }
 
 /** A draft alignment statement for each course in the plan, by course code. */

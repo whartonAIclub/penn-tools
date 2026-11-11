@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildCatalog, termLabel, type Course, type PennCoursePlanCourse } from "../courses.js";
-import { rankCourses, sanitizeRatings, setRating } from "../ratings.js";
+import { migrateOneToFiveRatings, rankCourses, ratingOf, sanitizeRatings, sanitizeTaken, setRating, toggleTaken } from "../ratings.js";
 import { CURRENT_CATALOG } from "../currentCatalog.js";
 
 function raw(id: string, extra: Partial<PennCoursePlanCourse> = {}): PennCoursePlanCourse {
@@ -73,12 +73,30 @@ describe("ratings", () => {
     ]);
   });
 
-  it("clears a rating", () => {
+  it("puts a course back at 0", () => {
     expect(setRating({ "FNCE 7310": 4 }, "FNCE 7310", null)).toEqual({});
+    expect(setRating({ "FNCE 7310": 4 }, "FNCE 7310", 0)).toEqual({});
   });
 
-  it("drops invalid stored ratings", () => {
-    expect(sanitizeRatings({ a: 3, b: 7, c: "5", d: 1 })).toEqual({ a: 3, d: 1 });
+  it("treats a course with no rating as 0, and leaves 0s out of the ranking", () => {
+    expect(ratingOf({}, "FNCE 7310")).toBe(0);
+    expect(rankCourses(courses, { "FNCE 7310": 0 })).toEqual([]);
+  });
+
+  it("drops invalid stored ratings, and 0s, which are the default", () => {
+    expect(sanitizeRatings({ a: 3, b: 7, c: "5", d: 1, e: 0 })).toEqual({ a: 3, d: 1 });
     expect(sanitizeRatings("nope")).toEqual({});
+  });
+
+  it("moves ratings from the old 1–5 scale to 0–5", () => {
+    expect(migrateOneToFiveRatings({ a: 1, b: 2, c: 3, d: 4, e: 5, f: 9 })).toEqual({ b: 1, c: 3, d: 4, e: 5 });
+  });
+
+  it("marks and unmarks courses as taking or taken", () => {
+    const taken = toggleTaken(new Set(), "FNCE 7310");
+    expect([...taken]).toEqual(["FNCE 7310"]);
+    expect([...toggleTaken(taken, "FNCE 7310")]).toEqual([]);
+    expect([...sanitizeTaken(["FNCE 7310", 4, null])]).toEqual(["FNCE 7310"]);
+    expect([...sanitizeTaken("nope")]).toEqual([]);
   });
 });

@@ -1,39 +1,68 @@
 "use client";
 
 // First the student says whether they're considering an individualized major.
-// Step 1 rates each course offered this term from 1 to 5; step 2 recommends
+// Step 1 rates each course offered this term from 0 to 5 (every course starts
+// at 0) and marks the ones they're taking or have taken; step 2 recommends
 // majors from those ratings (Recommendations.tsx); for students who said yes,
 // step 3 builds an individualized major proposal (IndividualizedMajor.tsx);
-// the last step shows the course ranking. Ratings and the answer are saved in
-// this browser only; ratings are keyed by course code, so they carry over to
-// next term's list for courses offered again.
+// the last step shows the course ranking. Ratings, taken courses and the
+// answer are saved in this browser only, keyed by course code, so they carry
+// over to next term's list for courses offered again.
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  RATING_VALUES,
+  migrateOneToFiveRatings,
   rankCourses,
+  ratingOf,
   sanitizeRatings,
+  sanitizeTaken,
   setRating,
+  toggleTaken,
   type Catalog,
   type Rating,
   type Ratings,
+  type Taken,
 } from "@penntools/tool-choose-mba-major";
 import { IndividualizedMajor, type SuggestionAccess } from "./IndividualizedMajor";
 import { MIN_RATINGS, Recommendations } from "./Recommendations";
 import styles from "./CourseRanker.module.css";
 
-const STORAGE_KEY = "choose-mba-major:ratings";
+/** Ratings on the 0–5 scale. */
+const STORAGE_KEY = "choose-mba-major:ratings-v2";
+/** Ratings from the first version, on a 1–5 scale; moved to STORAGE_KEY on first load. */
+const OLD_STORAGE_KEY = "choose-mba-major:ratings";
+const TAKEN_KEY = "choose-mba-major:taken";
 const INTEREST_KEY = "choose-mba-major:individualized-interest";
-const RATING_VALUES: Rating[] = [1, 2, 3, 4, 5];
 
-type Show = "all" | "unrated" | "rated";
+type Show = "all" | "unrated" | "rated" | "taken";
 type Sort = "code" | "rating";
 
 function loadRatings(): Ratings {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? sanitizeRatings(JSON.parse(raw)) : {};
+    if (raw) return sanitizeRatings(JSON.parse(raw));
+    const old = window.localStorage.getItem(OLD_STORAGE_KEY);
+    return old ? migrateOneToFiveRatings(JSON.parse(old)) : {};
   } catch {
     return {};
+  }
+}
+
+function loadTaken(): Taken {
+  try {
+    const raw = window.localStorage.getItem(TAKEN_KEY);
+    return raw ? sanitizeTaken(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveTaken(taken: Taken) {
+  try {
+    window.localStorage.setItem(TAKEN_KEY, JSON.stringify([...taken]));
+  } catch {
+    // Storage is blocked or full; the page still works for this visit.
   }
 }
 
@@ -80,6 +109,7 @@ export function CourseRanker({
 }) {
   const { courses } = catalog;
   const [ratings, setRatings] = useState<Ratings>({});
+  const [taken, setTaken] = useState<Taken>(() => new Set());
   const [restored, setRestored] = useState(false);
   const [individualized, setIndividualized] = useState<boolean | null>(null);
   const [query, setQuery] = useState("");
@@ -89,6 +119,7 @@ export function CourseRanker({
 
   useEffect(() => {
     setRatings(loadRatings());
+    setTaken(loadTaken());
     setIndividualized(loadInterest());
     setRestored(true);
   }, []);
@@ -102,6 +133,10 @@ export function CourseRanker({
     if (restored) saveRatings(ratings);
   }, [restored, ratings]);
 
+  useEffect(() => {
+    if (restored) saveTaken(taken);
+  }, [restored, taken]);
+
   const ratedCount = courses.filter((c) => ratings[c.code]).length;
   const presentDepartments = useMemo(() => [...new Set(courses.map((c) => c.department))].sort(), [courses]);
 
@@ -111,18 +146,19 @@ export function CourseRanker({
       if (department !== "all" && c.department !== department) return false;
       if (show === "rated" && !ratings[c.code]) return false;
       if (show === "unrated" && ratings[c.code]) return false;
+      if (show === "taken" && !taken.has(c.code)) return false;
       return !q || `${c.code} ${c.title} ${c.description}`.toLowerCase().includes(q);
     });
     if (sort === "rating") {
       return [...list].sort((a, b) => (ratings[b.code] ?? 0) - (ratings[a.code] ?? 0) || a.code.localeCompare(b.code));
     }
     return list;
-  }, [courses, ratings, query, department, show, sort]);
+  }, [courses, ratings, taken, query, department, show, sort]);
 
   const ranking = useMemo(() => rankCourses(courses, ratings), [courses, ratings]);
 
   function rate(code: string, rating: Rating) {
-    setRatings((current) => setRating(current, code, current[code] === rating ? null : rating));
+    setRatings((current) => setRating(current, code, rating));
   }
 
   if (courses.length === 0) {
@@ -140,6 +176,10 @@ export function CourseRanker({
       <p className={styles.intro}>
         Rate how interested you are in each Wharton MBA course offered in {catalog.termLabel}. Your ratings are
         saved in this browser only.
+      </p>
+      <p className={styles.qualifier}>
+        This tool doesn&apos;t include block week courses or Global Modular Courses (GMCs) and Global Immersion
+        Programs (GIPs).
       </p>
       <p className={styles.note}>
         {courses.length} courses for {catalog.termLabel}, updated {catalog.updated} from {catalog.source}.
@@ -194,7 +234,8 @@ export function CourseRanker({
           <div className={styles.progressBar} style={{ width: `${(ratedCount / courses.length) * 100}%` }} />
         </div>
         <p className={styles.note}>
-          1 = {ratingLabels[1]}, 5 = {ratingLabels[5]}. Click a rating again to clear it.
+          Every course starts at 0 = {ratingLabels[0]}; 5 = {ratingLabels[5]}. Tick &ldquo;Taking / taken&rdquo; for
+          courses you&apos;re taking or have already taken.
         </p>
 
         <div className={styles.toolbar}>
@@ -216,8 +257,9 @@ export function CourseRanker({
           </select>
           <select value={show} onChange={(e) => setShow(e.target.value as Show)} aria-label="Show">
             <option value="all">All courses</option>
-            <option value="unrated">Not rated yet</option>
-            <option value="rated">Rated</option>
+            <option value="unrated">Still at 0</option>
+            <option value="rated">Rated 1–5</option>
+            <option value="taken">Taking / taken</option>
           </select>
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
             <option value="code">Sort by code</option>
@@ -230,7 +272,8 @@ export function CourseRanker({
         ) : (
           <ul className={styles.list}>
             {visible.map((course) => {
-              const current = ratings[course.code];
+              const current = ratingOf(ratings, course.code);
+              const takenId = `taken-${course.code.replace(" ", "-")}`;
               const meta = [
                 departments[course.department] ?? course.department,
                 formatCredits(course.credits),
@@ -251,6 +294,7 @@ export function CourseRanker({
                       </details>
                     )}
                   </div>
+                  <div className={styles.courseActions}>
                   <div className={styles.rating} role="radiogroup" aria-label={`Interest in ${course.code}`}>
                     {RATING_VALUES.map((value) => (
                       <button
@@ -266,6 +310,16 @@ export function CourseRanker({
                       </button>
                     ))}
                   </div>
+                  <label htmlFor={takenId} className={styles.takenToggle}>
+                    <input
+                      id={takenId}
+                      type="checkbox"
+                      checked={taken.has(course.code)}
+                      onChange={() => setTaken((current) => toggleTaken(current, course.code))}
+                    />
+                    Taking / taken
+                  </label>
+                  </div>
                 </li>
               );
             })}
@@ -274,13 +328,20 @@ export function CourseRanker({
       </section>
 
       {/* ── Step 2: recommended majors ─────────────────────────────────── */}
-      <Recommendations catalog={catalog} ratings={ratings} ratedCount={ratedCount} ratingLabels={ratingLabels} />
+      <Recommendations
+        catalog={catalog}
+        ratings={ratings}
+        taken={taken}
+        ratedCount={ratedCount}
+        ratingLabels={ratingLabels}
+      />
 
       {/* ── Step 3, for students who said yes: individualized major ─────── */}
       {individualized && (
         <IndividualizedMajor
           catalog={catalog}
           ratings={ratings}
+          taken={taken}
           ratingLabels={ratingLabels}
           step={3}
           suggestionAccess={suggestionAccess}

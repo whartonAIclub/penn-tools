@@ -13,6 +13,7 @@ import {
   type MajorFit,
   type Rating,
   type Ratings,
+  type Taken,
 } from "@penntools/tool-choose-mba-major";
 import styles from "./CourseRanker.module.css";
 
@@ -74,6 +75,7 @@ function MajorCard({
               <span className={styles.planTitle}>{item.course.title}</span>
               <span className={styles.planMeta}>
                 {cu(item.credits)}
+                {item.taken && " · Taking / taken"}
                 {item.required && " · Required"}
               </span>
             </li>
@@ -120,22 +122,24 @@ function MajorCard({
 export function Recommendations({
   catalog,
   ratings,
+  taken,
   ratedCount,
   ratingLabels,
 }: {
   catalog: Catalog;
   ratings: Ratings;
+  taken: Taken;
   ratedCount: number;
   ratingLabels: Readonly<Record<Rating, string>>;
 }) {
   const enough = ratedCount >= MIN_RATINGS;
   const fits = useMemo(
-    () => (enough ? recommendMajors(catalog.courses, ratings) : []),
-    [enough, catalog.courses, ratings],
+    () => (enough ? recommendMajors(catalog.courses, ratings, undefined, taken) : []),
+    [enough, catalog.courses, ratings, taken],
   );
   const pair = useMemo(
-    () => (enough ? bestPair(fits, catalog.courses, ratings) : null),
-    [enough, fits, catalog.courses, ratings],
+    () => (enough ? bestPair(fits, catalog.courses, ratings, { taken }) : null),
+    [enough, fits, catalog.courses, ratings, taken],
   );
 
   return (
@@ -148,14 +152,15 @@ export function Recommendations({
 
       {!enough ? (
         <p className={styles.note}>
-          Rate at least {MIN_RATINGS} courses to see recommendations ({ratedCount} so far). The more you rate, the
+          Rate at least {MIN_RATINGS} courses above 0 to see recommendations ({ratedCount} so far). The more you rate, the
           better they get.
         </p>
       ) : (
         <>
           <p className={styles.note}>
             Fit is how much of each major you could fill with courses you rated highly: 100% means every credit is a
-            course you rated 5. Courses you rated 1 are never chosen.
+            course you rated 5 or are taking or have taken. Courses you&apos;re taking or have taken go in first;
+            courses at 0 are never chosen.
           </p>
 
           {fits.slice(0, TOP).map((fit, i) => (

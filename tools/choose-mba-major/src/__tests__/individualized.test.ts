@@ -79,9 +79,17 @@ describe("toggleCourse", () => {
 });
 
 describe("candidateCourses", () => {
-  it("offers courses rated 2 or higher, favorites first", () => {
-    const ratings = { "HCMG 8410": 3, "OIDD 6530": 5, "STAT 7050": 1, "FNCE 7050": 2 } as const;
-    expect(candidateCourses(courses, ratings).map((r) => r.course.code)).toEqual(["OIDD 6530", "HCMG 8410", "FNCE 7050"]);
+  it("offers courses rated above 0, favorites first", () => {
+    const ratings = { "HCMG 8410": 3, "OIDD 6530": 5, "STAT 7050": 1 } as const;
+    expect(candidateCourses(courses, ratings).map((r) => r.course.code)).toEqual(["OIDD 6530", "HCMG 8410", "STAT 7050"]);
+  });
+
+  it("also offers courses the student is taking or has taken, even at 0", () => {
+    const candidates = candidateCourses(courses, { "OIDD 6530": 5 }, new Set(["FNCE 7050", "OIDD 6530"]));
+    expect(candidates.map((r) => [r.course.code, r.rating, r.taken])).toEqual([
+      ["OIDD 6530", 5, true],
+      ["FNCE 7050", 0, true],
+    ]);
   });
 });
 

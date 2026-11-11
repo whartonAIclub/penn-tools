@@ -10,7 +10,7 @@
 
 import type { Course } from "./courses.js";
 import { groupIncludes, MAJORS, type Major } from "./majors.js";
-import { rankCourses, type RankedCourse, type Ratings } from "./ratings.js";
+import { NO_TAKEN, ratingOf, type Rating, type Ratings, type Taken } from "./ratings.js";
 
 /** Wharton: an individualized major has at most 21 CU. */
 export const INDIVIDUALIZED_MAX_CREDITS = 21;
@@ -22,8 +22,6 @@ export const MAX_ALIGNMENT_LENGTH = 2000;
 /** A plan with at least this share of its credits in one standard major gets a warning. */
 export const OVERLAP_WARNING_SHARE = 0.75;
 
-/** Courses rated below this aren't offered for the plan. */
-const LOWEST_PLAN_RATING = 2;
 
 export interface IndividualizedDraft {
   title: string;
@@ -67,9 +65,27 @@ export function toggleCourse(draft: IndividualizedDraft, code: string): Individu
   return { ...draft, courses };
 }
 
-/** The courses a student can put in their plan: the ones they rated 2 or higher, favorites first. */
-export function candidateCourses(courses: readonly Course[], ratings: Ratings): RankedCourse[] {
-  return rankCourses(courses, ratings).filter((r) => r.rating >= LOWEST_PLAN_RATING);
+export interface CandidateCourse {
+  course: Course;
+  rating: Rating;
+  /** The student is taking or has taken it. */
+  taken: boolean;
+}
+
+/**
+ * The courses a student can put in their plan: the ones they rated above 0
+ * or are taking or have taken. Highest rated first, then taken courses at 0;
+ * ties keep course-code order.
+ */
+export function candidateCourses(
+  courses: readonly Course[],
+  ratings: Ratings,
+  taken: Taken = NO_TAKEN,
+): CandidateCourse[] {
+  return courses
+    .map((course) => ({ course, rating: ratingOf(ratings, course.code), taken: taken.has(course.code) }))
+    .filter((c) => c.rating > 0 || c.taken)
+    .sort((a, b) => b.rating - a.rating || a.course.code.localeCompare(b.course.code));
 }
 
 /** The plan's courses, in plan order. Codes no longer in the course list are skipped. */

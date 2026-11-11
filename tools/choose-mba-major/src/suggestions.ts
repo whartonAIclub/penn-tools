@@ -10,12 +10,11 @@ import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
 import type { Course } from "./courses.js";
 import { departmentName } from "./courses.js";
-import { creditsOf, MAX_THEME_LENGTH } from "./individualized.js";
-import type { RankedCourse } from "./ratings.js";
+import { creditsOf, MAX_THEME_LENGTH, type CandidateCourse } from "./individualized.js";
 
 export const SUGGESTION_PROVIDER: AIProvider = "anthropic";
 
-/** Themes come from courses rated at least this. */
+/** Themes come from courses rated at least this, and ones the student is taking or has taken. */
 export const THEME_MIN_RATING = 3;
 /** Fewest such courses to ask for themes from. */
 export const THEME_MIN_COURSES = 3;
@@ -32,8 +31,8 @@ export function shortDescription(description: string): string {
   return text.length > DESCRIPTION_LENGTH ? `${text.slice(0, DESCRIPTION_LENGTH)}…` : text;
 }
 
-function describeCourse(course: Course, rating?: number): string {
-  const interest = rating ? `, student's interest ${rating}/5` : "";
+function describeCourse(course: Course, rating?: number, taken?: boolean): string {
+  const interest = taken ? ", the student is taking or has taken it" : rating ? `, student's interest ${rating}/5` : "";
   return `- ${course.code} "${course.title}" (${departmentName(course.department)}, ${creditsOf(course)} CU${interest}): ${shortDescription(course.description)}`;
 }
 
@@ -54,13 +53,21 @@ const THEME_SYSTEM = [
   "You help Wharton MBA students design an individualized major: a major of their own, built around a theme, a course plan and a title.",
   `From the courses a student rated highly, suggest ${MAX_THEMES} distinct themes that a coherent set of their courses could support.`,
   "Each theme should cut across departments in a way no single standard Wharton major does, be specific enough to explain to an advisor, and use at least three of the listed courses.",
-  "Prefer the courses the student rated higher. Use only course codes from the list, written exactly as given.",
+  "Build on courses the student is taking or has taken, and prefer the ones they rated higher. Use only course codes from the list, written exactly as given.",
   "Write plainly, without marketing language.",
 ].join(" ");
 
-/** Up to three possible themes from the student's highly rated courses. */
-export async function suggestThemes(ai: AI, rated: readonly RankedCourse[]): Promise<ThemeSuggestion[]> {
-  const courses = rated.filter((r) => r.rating >= THEME_MIN_RATING).slice(0, MAX_SUGGESTION_COURSES);
+/** Whether a course is one themes are built from. */
+export function isThemeSource(candidate: CandidateCourse): boolean {
+  return candidate.taken || candidate.rating >= THEME_MIN_RATING;
+}
+
+/** Up to three possible themes from the student's taken and highly rated courses. */
+export async function suggestThemes(ai: AI, candidates: readonly CandidateCourse[]): Promise<ThemeSuggestion[]> {
+  const courses = [...candidates]
+    .filter(isThemeSource)
+    .sort((a, b) => Number(b.taken) - Number(a.taken))
+    .slice(0, MAX_SUGGESTION_COURSES);
   if (courses.length < THEME_MIN_COURSES) return [];
 
   const { object } = await ai.generateObject({
@@ -73,7 +80,7 @@ export async function suggestThemes(ai: AI, rated: readonly RankedCourse[]): Pro
     messages: [
       {
         role: "user",
-        content: `The courses I'm interested in, most interested first:\n${courses.map((r) => describeCourse(r.course, r.rating)).join("\n")}`,
+        content: `The courses I'm taking or have taken, then the ones I'm interested in, most interested first:\n${courses.map((c) => describeCourse(c.course, c.rating, c.taken)).join("\n")}`,
       },
     ],
   });

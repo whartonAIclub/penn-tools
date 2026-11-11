@@ -719,3 +719,45 @@
 .checkDetail {
   color: var(--muted);
 }
+
+/* ── Scope qualifier and taking/taken ──────────────────────────────────────── */
+
+.qualifier {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--penn-blue);
+  border-radius: 4px;
+  background: var(--sidebar-bg);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.courseActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.takenToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+  cursor: pointer;
+  user-select: none;
+}
+
+.takenToggle input {
+  accent-color: var(--penn-blue);
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .courseActions {
+    align-items: flex-start;
+  }
+}

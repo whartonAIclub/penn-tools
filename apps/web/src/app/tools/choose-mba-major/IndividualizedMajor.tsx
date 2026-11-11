@@ -23,6 +23,7 @@ import {
   THEME_MIN_COURSES,
   THEME_MIN_RATING,
   candidateCourses,
+  isThemeSource,
   checkDraft,
   creditsOf,
   isReady,
@@ -37,6 +38,7 @@ import {
   type IndividualizedDraft,
   type Rating,
   type Ratings,
+  type Taken,
   type ThemeSuggestion,
 } from "@penntools/tool-choose-mba-major";
 import { suggestAlignmentsAction, suggestThemesAction, type SuggestionError } from "./actions";
@@ -138,12 +140,14 @@ function AccessNote({ access }: { access: SuggestionAccess }) {
 export function IndividualizedMajor({
   catalog,
   ratings,
+  taken,
   ratingLabels,
   step,
   suggestionAccess,
 }: {
   catalog: Catalog;
   ratings: Ratings;
+  taken: Taken;
   ratingLabels: Readonly<Record<Rating, string>>;
   step: number;
   suggestionAccess: SuggestionAccess;
@@ -170,14 +174,14 @@ export function IndividualizedMajor({
     if (restored) save({ draft, themes, alignmentSuggestions });
   }, [restored, draft, themes, alignmentSuggestions]);
 
-  const candidates = useMemo(() => candidateCourses(courses, ratings), [courses, ratings]);
+  const candidates = useMemo(() => candidateCourses(courses, ratings, taken), [courses, ratings, taken]);
   const plan = useMemo(() => planCourses(draft, courses), [draft, courses]);
   const credits = totalCredits(plan);
   const overlaps = useMemo(() => majorOverlaps(plan), [plan]);
   const requirements = useMemo(() => checkDraft(draft, courses), [draft, courses]);
   const ready = isReady(requirements);
   const courseByCode = useMemo(() => new Map(courses.map((c) => [c.code, c])), [courses]);
-  const themeSourceCount = candidates.filter((r) => r.rating >= THEME_MIN_RATING).length;
+  const themeSourceCount = candidates.filter(isThemeSource).length;
   const canSuggest = suggestionAccess === "ready" && busy === null;
   const topOverlap = overlaps[0];
 
@@ -189,7 +193,7 @@ export function IndividualizedMajor({
     setBusy("themes");
     setThemeError(null);
     try {
-      const result = await suggestThemesAction(ratings);
+      const result = await suggestThemesAction(ratings, [...taken]);
       if (!result.ok) setThemeError(result.error);
       else if (result.data.length === 0) setThemeError({ message: "Claude didn't find a theme in these courses. Try rating more." });
       else setThemes(result.data);
@@ -272,8 +276,8 @@ export function IndividualizedMajor({
           </div>
           {themeSourceCount < THEME_MIN_COURSES && (
             <p className={styles.note}>
-              Rate at least {THEME_MIN_COURSES} courses {THEME_MIN_RATING} or higher to get theme ideas ({themeSourceCount}{" "}
-              so far).
+              Rate at least {THEME_MIN_COURSES} courses {THEME_MIN_RATING} or higher, or mark them as taking or taken, to
+              get theme ideas ({themeSourceCount} so far).
             </p>
           )}
           {themeError && <ErrorNote error={themeError} />}
@@ -364,12 +368,17 @@ export function IndividualizedMajor({
           </p>
         )}
         {candidates.length === 0 ? (
-          <p className={styles.note}>Rate courses above to choose from them here. Courses you rated 1 aren&apos;t listed.</p>
+          <p className={styles.note}>
+            Rate courses above 0, or mark them as taking or taken, to choose from them here.
+          </p>
         ) : (
           <>
-            <p className={styles.note}>Your rated courses, favorites first. Courses you rated 1 aren&apos;t listed.</p>
+            <p className={styles.note}>
+              Your rated and taken courses, favorites first. Courses at 0 aren&apos;t listed unless you&apos;re taking
+              or have taken them.
+            </p>
             <ul className={styles.planPicker}>
-              {candidates.map(({ course, rating }) => {
+              {candidates.map(({ course, rating, taken: isTaken }) => {
                 const id = `im-course-${course.code.replace(" ", "-")}`;
                 return (
                   <li key={course.code}>
@@ -380,12 +389,15 @@ export function IndividualizedMajor({
                       onChange={() => setDraft((current) => toggleCourse(current, course.code))}
                     />
                     <label htmlFor={id} className={styles.pickLabel}>
-                      <span className={styles.rankRating} title={ratingLabels[rating]}>
+                      <span className={rating > 0 ? styles.rankRating : styles.unrated} title={ratingLabels[rating]}>
                         {rating}
                       </span>
                       <span className={styles.code}>{course.code}</span>
                       <span className={styles.planTitle}>{course.title}</span>
-                      <span className={styles.planMeta}>{cu(creditsOf(course))}</span>
+                      <span className={styles.planMeta}>
+                        {isTaken && "Taking / taken · "}
+                        {cu(creditsOf(course))}
+                      </span>
                     </label>
                   </li>
                 );
