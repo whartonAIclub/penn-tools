@@ -24,7 +24,7 @@ The AI is replaced by a fake in these tests, so they need no key and don't spend
 | Storage | `src/__tests__/storage.test.ts` | 15 | `schema.sql` can be re-run on every deploy; each user sees, edits and deletes only their own profile and items; the list is ranked best first; re-pasting a posting (same link, company and role) or person (same name and company) replaces it and keeps the earlier link, outreach draft and email, while two people with the same name at different companies, or two roles sharing a careers-page link, stay apart; a full list (500 items) refuses new items but still updates repeats; re-scoring after a profile change needs no AI and leaves drafts and emails alone; the outreach style survives a profile save |
 | **Total** | | **118** | |
 
-`pnpm typecheck` checks every package, including this one; `pnpm check:tools` checks the platform rules (no vendor SDKs, no direct provider calls, no reading saved API keys). The full `pnpm test` passes too. On Node 20 its last step can't expand `scripts/*.test.mjs`, so run those files by name there: `node --test scripts/check-tool-imports.test.mjs scripts/new-tool.test.mjs`.
+`pnpm typecheck` checks every package, including this one; `pnpm check:tools` checks the platform rules (no vendor SDKs, no direct provider calls, no reading saved API keys). The full `pnpm test` passes too.
 
 ## 2. Manual test specifications
 

@@ -1,5 +1,5 @@
 // Tests for new-tool.mjs: runs it in a temporary repo with a minimal web app.
-// Run: node --test "scripts/*.test.mjs"
+// Run: node --test scripts/new-tool.test.mjs
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
