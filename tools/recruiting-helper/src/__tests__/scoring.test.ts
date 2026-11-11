@@ -275,6 +275,11 @@ describe("checkProfile", () => {
     ["no companies", { ...SAMPLE_PROFILE, companies: [] }],
     ["a bad tier", { ...SAMPLE_PROFILE, companies: [{ name: "X", tier: "dream" }] }],
     ["too many signals", { ...SAMPLE_PROFILE, bonusSignals: Array(11).fill("x") }],
+    // Postgres can't store the null character.
+    ["a null character in the background", { ...SAMPLE_PROFILE, background: "BD at Acme\0" }],
+    ["a null character in the roles", { ...SAMPLE_PROFILE, targetRoles: "Partnerships\0" }],
+    ["a null character in a company", { ...SAMPLE_PROFILE, companies: [{ name: "Goo\0gle", tier: "target" }] }],
+    ["a null character in a signal", { ...SAMPLE_PROFILE, bonusSignals: ["Wharton\0"] }],
   ])("rejects %s", (_label, value) => {
     expect(checkProfile(value)).toEqual(expect.any(String));
   });

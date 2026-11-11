@@ -10,7 +10,10 @@ import type { Sql } from "postgres";
 import {
   getContact,
   getProfile,
+  isListFull,
   listItems,
+  ListFullError,
+  MAX_ITEMS,
   removeItem,
   rescoreItems,
   saveItem,
@@ -56,12 +59,12 @@ function posting(score: number, link: string | null, title = "Partner Manager"):
   };
 }
 
-function contact(score: number, name: string | null, link: string | null = null): NewItem {
+function contact(score: number, name: string | null, link: string | null = null, company = "Google"): NewItem {
   return {
     kind: "contact",
     link,
     name,
-    company: "Google",
+    company,
     title: "Head of Partnerships",
     relevantRole: true,
     matchedSignals: [],
@@ -132,6 +135,34 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
     expect((await listItems(sql, "dave")).map((i) => i.score)).toEqual([5, 4, 1, 1]);
   });
 
+  it("keeps two people with the same name at different companies apart", async () => {
+    const google = await saveItem(sql, "fay", contact(4, "John Smith"));
+    await saveEmail(sql, "fay", google.item.id, "john@google.com");
+    const mckinsey = await saveItem(sql, "fay", contact(3, "John Smith", null, "McKinsey"));
+    expect(mckinsey.replaced).toBe(false);
+    expect(mckinsey.item.kind === "contact" && mckinsey.item.email).toBeUndefined();
+    expect(await listItems(sql, "fay")).toHaveLength(2);
+  });
+
+  it("keeps different roles that share a careers-page link apart", async () => {
+    const careers = "https://careers.example.com/";
+    await saveItem(sql, "fay", posting(4, careers, "Partner Manager"));
+    expect((await saveItem(sql, "fay", posting(3, careers, "Alliances Lead"))).replaced).toBe(false);
+    expect((await saveItem(sql, "fay", posting(5, careers, "Partner Manager"))).replaced).toBe(true);
+  });
+
+  it("refuses new items once the list is full, but still updates repeats", async () => {
+    await sql`
+      INSERT INTO items (user_id, kind, match_key, score, result)
+      SELECT 'full', 'posting', NULL, 1, '{}'::jsonb FROM generate_series(1, ${MAX_ITEMS - 1})
+    `;
+    expect(await isListFull(sql, "full")).toBe(false);
+    await saveItem(sql, "full", contact(3, "Last One"));
+    expect(await isListFull(sql, "full")).toBe(true);
+    await expect(saveItem(sql, "full", contact(3, "One Too Many"))).rejects.toBeInstanceOf(ListFullError);
+    expect((await saveItem(sql, "full", contact(4, "Last One"))).replaced).toBe(true);
+  });
+
   it("keeps a person's LinkedIn link and outreach draft when they're scored again without a link", async () => {
     const { item } = await saveItem(sql, "gus", contact(3, "Pat Lee", "https://www.linkedin.com/in/patlee"));
     expect(await saveOutreach(sql, "gus", item.id, { subject: "Hi", body: "Hello Pat" })).toBe(true);
@@ -170,6 +201,24 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
     expect(person?.kind === "contact" && person.schools).toEqual([]);
     expect(job?.score).toBe(4); // role fit 3 + 1 Target
     expect(await rescoreItems(sql, "ivy", withNvidia)).toBe(0); // nothing left to change
+  });
+
+  it("re-scores without touching a person's draft or email", async () => {
+    await saveProfile(sql, "zed", SAMPLE_PROFILE);
+    const { item } = await saveItem(sql, "zed", { ...contact(1, "Nvidia Person"), company: "NVIDIA", tier: "off-list" } as NewItem);
+    await saveOutreach(sql, "zed", item.id, { subject: "Hi", body: "Hello" });
+    await saveEmail(sql, "zed", item.id, "p@nvidia.com");
+
+    const withNvidia = { ...SAMPLE_PROFILE, companies: [{ name: "NVIDIA", tier: "target" as const }] };
+    expect(await rescoreItems(sql, "zed", withNvidia)).toBe(1);
+    expect(await getContact(sql, "zed", item.id)).toMatchObject({
+      score: 4,
+      outreach: { subject: "Hi", body: "Hello" },
+      email: "p@nvidia.com",
+    });
+
+    const updated = await saveSchools(sql, "zed", item.id, ["Wharton"], withNvidia);
+    expect(updated).toMatchObject({ schools: ["Wharton"], pennAlum: true, email: "p@nvidia.com" });
   });
 
   it("remembers an outreach style until it's cleared, even when the profile is saved again", async () => {

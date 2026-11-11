@@ -17,12 +17,14 @@ import { AI_PROVIDERS, isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
 import { toolSql } from "@penntools/platform/db";
 import {
+  ListFullError,
   MAX_REQUEST_BYTES,
   UnclearPasteError,
   checkPaste,
   cleanLink,
   draftOutreach,
   getProfile,
+  isListFull,
   reviewPaste,
   saveItem,
   saveOutreach,
@@ -52,6 +54,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const profile = await getProfile(sql, user.id);
   if (!profile) return fail("Save your profile first.", 400);
+  // Before spending AI credit on an item that couldn't be saved.
+  if (await isListFull(sql, user.id)) return fail(new ListFullError().message, 409);
 
   // Only the fields checkPaste checked, whatever else the browser sent.
   const paste: Paste = {
@@ -62,7 +66,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   let scored: NewItem;
   try {
     // The link is the posting's, or the person's LinkedIn profile.
-    scored = { ...(await reviewPaste((await getAI())!, provider as AIProvider, profile, paste)), link };
+    scored = { ...(await reviewPaste((await getAI("recruiting-helper"))!, provider as AIProvider, profile, paste)), link };
   } catch (error) {
     if (error instanceof UnclearPasteError) return fail(error.message, 422);
     if (isAIError(error)) return Response.json({ ok: false, error: error.toJSON() }, { status: 502 });
@@ -76,14 +80,22 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const { item, replaced } = await saveItem(sql, user.id, scored);
+  let saved: Awaited<ReturnType<typeof saveItem>>;
+  try {
+    saved = await saveItem(sql, user.id, scored);
+  } catch (error) {
+    if (error instanceof ListFullError) return fail(error.message, 409);
+    throw error;
+  }
+  const { item, replaced } = saved;
 
   // Every person gets an outreach draft, written now unless they already have
   // one (a re-scored person keeps theirs). If it fails, the person is still
-  // saved, and the page drafts it later (draftMissingOutreach in actions.ts).
+  // saved, and the student can write it later with the list's "Write the missing
+  // drafts" button (draftMissingOutreach in actions.ts).
   if (item.kind === "contact" && !item.outreach) {
     try {
-      const draft = await draftOutreach((await getAI())!, provider as AIProvider, profile, item);
+      const draft = await draftOutreach((await getAI("recruiting-helper"))!, provider as AIProvider, profile, item);
       if (await saveOutreach(sql, user.id, item.id, draft)) item.outreach = draft;
     } catch (error) {
       if (!isAIError(error)) throw error;

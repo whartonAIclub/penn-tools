@@ -69,7 +69,7 @@ export async function removeMyItem(itemId: string): Promise<ActionResult> {
 /** Drafts a cold outreach email to one of the user's people, and saves it on them. */
 export async function draftMyOutreach(provider: AIProvider, itemId: string): Promise<ActionResult<OutreachDraft>> {
   const user = await getCurrentUser();
-  const ai = await getAI();
+  const ai = await getAI("recruiting-helper");
   if (!user || !ai) return signedOut;
   if (!AI_PROVIDERS.includes(provider)) return { ok: false, message: "Pick an AI provider." };
   const sql = db();
@@ -101,18 +101,22 @@ async function forEachPerson(
   const queue = [...people];
   let done = 0;
   let failure: { ok: false; message: string; kind?: string } | null = null;
+  // Any other error stops every worker too, and is thrown only once they've all
+  // stopped, so nothing keeps writing (and spending credit) after it returns.
+  let unexpected: { error: unknown } | null = null;
   async function worker() {
-    for (let contact = queue.shift(); contact && !failure; contact = queue.shift()) {
+    for (let contact = queue.shift(); contact && !failure && !unexpected; contact = queue.shift()) {
       try {
         await write(contact);
         done++;
       } catch (error) {
-        if (!isAIError(error)) throw error;
-        failure = { ok: false, message: error.message, kind: error.kind };
+        if (isAIError(error)) failure = { ok: false, message: error.message, kind: error.kind };
+        else unexpected = { error };
       }
     }
   }
   await Promise.all(Array.from({ length: Math.min(DRAFTS_AT_ONCE, queue.length) }, worker));
+  if (unexpected) throw (unexpected as { error: unknown }).error;
   return { done, failure };
 }
 
@@ -125,7 +129,7 @@ export async function draftMissingOutreach(
   provider: AIProvider,
 ): Promise<ActionResult<{ items: SavedItem[]; drafted: number; total: number }>> {
   const user = await getCurrentUser();
-  const ai = await getAI();
+  const ai = await getAI("recruiting-helper");
   if (!user || !ai) return signedOut;
   if (!AI_PROVIDERS.includes(provider)) return { ok: false, message: "Pick an AI provider." };
   const sql = db();
@@ -154,7 +158,7 @@ export async function reviseAllMyOutreach(
   remember: boolean,
 ): Promise<ActionResult<{ items: SavedItem[]; revised: number; total: number }>> {
   const user = await getCurrentUser();
-  const ai = await getAI();
+  const ai = await getAI("recruiting-helper");
   if (!user || !ai) return signedOut;
   if (!AI_PROVIDERS.includes(provider)) return { ok: false, message: "Pick an AI provider." };
   const problem = checkInstruction(instruction);

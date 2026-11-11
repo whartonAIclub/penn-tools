@@ -32,7 +32,7 @@ export default async function RecruitingHelperPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Recruiting Helper" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("recruiting-helper"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="Recruiting Helper" />;
 
   const sql = toolSql("recruitinghelper");

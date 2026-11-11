@@ -1,15 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Reading an uploaded résumé into the profile's background text.
+// Reading an uploaded PDF résumé into the profile's background text.
 //
-// Word (.docx) files are read here, with mammoth: their text is in the file, so
-// no AI is needed. PDFs go to the AI API, which reads them like a person would
-// (including scanned ones and multi-column layouts) and copies out the text.
+// PDFs go to the AI API, which reads them like a person would (including
+// scanned ones and multi-column layouts) and copies out the text. Word (.docx)
+// files never reach the server: the page reads them itself (docx.ts), since
+// unzipping an uploaded file here could exhaust the server's memory.
 // The file itself is never stored; only the text the user then saves.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import mammoth from "mammoth";
 import { base64Bytes, base64FileType, isBase64, z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
+import { tidy } from "./docx.js";
 import { MAX_BACKGROUND_LENGTH } from "./scoring.js";
 
 export const MAX_RESUME_BYTES = 5 * 1024 * 1024;
@@ -18,54 +19,23 @@ export const MAX_RESUME_PAGES = 5;
 /** The largest résumé request: the file as base64, plus room for the rest. */
 export const MAX_RESUME_REQUEST_BYTES = Math.ceil(MAX_RESUME_BYTES / 3) * 4 + 16 * 1024;
 
-export type ResumeType = "pdf" | "docx";
-
 export interface ResumeFile {
   name: string;
   /** The file's bytes as base64, without a data: prefix. */
   data: string;
 }
 
-/** A .docx is a zip file, which starts "PK\x03\x04". */
-function isZip(data: string): boolean {
-  try {
-    return atob(data.slice(0, 8)).startsWith("PK\x03\x04");
-  } catch {
-    return false;
-  }
-}
-
-/** The résumé's type, or why it can't be read. */
-export function checkResume(value: unknown): { type: ResumeType } | { problem: string } {
+/** Null if the file is a PDF the server can read, or why it can't be read. */
+export function checkResume(value: unknown): string | null {
   const { name, data } = (typeof value === "object" && value !== null ? value : {}) as Partial<ResumeFile>;
-  if (typeof name !== "string" || !name.trim() || name.length > 200) return { problem: "The file needs a name." };
-  if (typeof data !== "string" || !data || !isBase64(data)) return { problem: `${name} is empty or couldn't be read.` };
-  if (base64Bytes(data) > MAX_RESUME_BYTES) return { problem: `${name} is over ${MAX_RESUME_BYTES / 1024 / 1024} MB.` };
-
-  const lower = name.toLowerCase();
-  if (base64FileType(data) === "application/pdf") return { type: "pdf" };
-  if (lower.endsWith(".docx") && isZip(data)) return { type: "docx" };
-  if (lower.endsWith(".doc")) {
-    return { problem: `${name} is an older Word file. In Word, use File → Save As → Word Document (.docx) or PDF.` };
+  if (typeof name !== "string" || !name.trim() || name.length > 200) return "The file needs a name.";
+  if (typeof data !== "string" || !data || !isBase64(data)) return `${name} is empty or couldn't be read.`;
+  if (base64Bytes(data) > MAX_RESUME_BYTES) return `${name} is over ${MAX_RESUME_BYTES / 1024 / 1024} MB.`;
+  if (base64FileType(data) === "application/pdf") return null;
+  if (name.toLowerCase().endsWith(".doc")) {
+    return `${name} is an older Word file. In Word, use File → Save As → Word Document (.docx) or PDF.`;
   }
-  return { problem: `${name} isn't a PDF or Word (.docx) file.` };
-}
-
-/** Blank lines and runs of spaces collapsed, trimmed to the background's limit. */
-function tidy(text: string): string {
-  const cleaned = text
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t ]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  return cleaned.slice(0, MAX_BACKGROUND_LENGTH);
-}
-
-/** The text of a .docx, from its base64 bytes. */
-export async function readDocx(data: string): Promise<string> {
-  const { value } = await mammoth.extractRawText({ buffer: Buffer.from(data, "base64") });
-  return tidy(value);
+  return `${name} isn't a PDF.`;
 }
 
 const ResumeText = z.object({

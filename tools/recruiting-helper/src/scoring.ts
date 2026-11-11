@@ -64,6 +64,8 @@ export const TIER_LABELS: Record<CompanyTier | "off-list", string> = {
 export function checkText(value: unknown, label: string, maxLength: number): string | null {
   if (typeof value !== "string" || !value.trim()) return `Enter ${label}.`;
   if (value.length > maxLength) return `Keep ${label} to at most ${maxLength.toLocaleString()} characters.`;
+  // Postgres can't store the null character, which text copied from a PDF can carry.
+  if (value.includes("\0")) return `${label[0]!.toUpperCase()}${label.slice(1)} has a character that can't be saved. Copy it again, or delete the odd character.`;
   return null;
 }
 
@@ -79,12 +81,14 @@ export function checkProfile(value: unknown): string | null {
   if (p.companies.length > MAX_COMPANIES) return `Keep your list to at most ${MAX_COMPANIES} companies.`;
   for (const c of p.companies) {
     if (typeof c?.name !== "string" || !c.name.trim() || c.name.length > 100) return "Each company needs a name.";
+    if (c.name.includes("\0")) return "A company name has a character that can't be saved.";
     if (!["target", "secondary", "practice"].includes(c.tier)) return `Pick a tier for ${c.name}.`;
   }
   if (!Array.isArray(p.bonusSignals) || p.bonusSignals.length > MAX_SIGNALS) {
     return `Keep bonus signals to at most ${MAX_SIGNALS}.`;
   }
   if (p.bonusSignals.some((s) => typeof s !== "string" || s.length > 200)) return "Keep each bonus signal short.";
+  if (p.bonusSignals.some((s) => s.includes("\0"))) return "A bonus signal has a character that can't be saved.";
   return null;
 }
 

@@ -1,9 +1,10 @@
-// Tests for reading uploaded résumés: file checks, Word files (read here, with
-// a tiny real .docx), and PDFs (with a fake AI: no keys, no network, no cost).
+// Tests for reading uploaded résumés: file checks, Word files (read in the
+// browser; here with a tiny real .docx), and PDFs (with a fake AI: no keys, no network, no cost).
 
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest, AISchema } from "@penntools/core/ai";
-import { checkResume, readDocx, readPdfResume } from "../resume.js";
+import { checkResume, readPdfResume } from "../resume.js";
+import { isDocx, readDocx } from "../docx.js";
 
 /** A minimal .docx with two paragraphs and blank lines between them. */
 const DOCX = await makeDocx("Business development manager, Acme\n\n\n\nWharton MBA");
@@ -73,6 +74,12 @@ function zipStored(files: Record<string, string>): Uint8Array {
   return Buffer.concat([...local, ...central, end]);
 }
 
+/** A base64 file's bytes, as the browser's File.arrayBuffer() gives them. */
+function bytes(base64: string): ArrayBuffer {
+  const buffer = Buffer.from(base64, "base64");
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+}
+
 const PDF = Buffer.from("%PDF-1.4\n%fake résumé").toString("base64");
 
 function fakeAI(object: unknown) {
@@ -87,30 +94,40 @@ function fakeAI(object: unknown) {
 }
 
 describe("checkResume", () => {
-  it("recognizes PDFs by their bytes and Word files as .docx zips", () => {
-    expect(checkResume({ name: "cv.pdf", data: PDF })).toEqual({ type: "pdf" });
-    expect(checkResume({ name: "CV.DOCX", data: DOCX })).toEqual({ type: "docx" });
+  it("accepts PDFs, recognized by their bytes", () => {
+    expect(checkResume({ name: "cv.pdf", data: PDF })).toBeNull();
+    expect(checkResume({ name: "scan", data: PDF })).toBeNull();
   });
 
   it.each([
+    // Word files are read in the browser, so the server never unzips an upload.
+    ["a Word file", { name: "cv.docx", data: DOCX }],
     ["an old .doc", { name: "cv.doc", data: DOCX }],
-    ["a .docx that isn't a zip", { name: "cv.docx", data: PDF.replace("JVBER", "AAAAA") }],
     ["a picture", { name: "me.png", data: "iVBORw0KGgo=" }],
     ["no data", { name: "cv.pdf", data: "" }],
     ["no name", { data: PDF }],
     ["nothing", null],
   ])("rejects %s", (_label, file) => {
-    expect(checkResume(file)).toEqual({ problem: expect.any(String) });
+    expect(checkResume(file)).toEqual(expect.any(String));
   });
 
   it("explains how to convert an old .doc", () => {
-    expect(checkResume({ name: "cv.doc", data: DOCX })).toEqual({ problem: expect.stringContaining("Save As") });
+    expect(checkResume({ name: "cv.doc", data: DOCX })).toContain("Save As");
+  });
+});
+
+describe("isDocx", () => {
+  it("wants a .docx name and zip bytes", () => {
+    expect(isDocx("CV.DOCX", bytes(DOCX))).toBe(true);
+    expect(isDocx("cv.pdf", bytes(DOCX))).toBe(false);
+    expect(isDocx("cv.docx", bytes(PDF))).toBe(false);
+    expect(isDocx("cv.docx", new ArrayBuffer(0))).toBe(false);
   });
 });
 
 describe("readDocx", () => {
   it("returns the document's text, with extra blank lines removed", async () => {
-    expect(await readDocx(DOCX)).toBe("Business development manager, Acme\n\nWharton MBA");
+    expect(await readDocx(bytes(DOCX))).toBe("Business development manager, Acme\n\nWharton MBA");
   });
 });
 

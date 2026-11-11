@@ -55,6 +55,8 @@ export {
   saveEmail,
   setOutreachStyle,
   matchKey,
+  isListFull,
+  ListFullError,
   MAX_ITEMS,
 } from "./storage.js";
 export {
@@ -69,11 +71,10 @@ export {
 export type { SavedItem, SavedPosting, SavedContact, NewItem } from "./storage.js";
 export {
   checkResume,
-  readDocx,
   readPdfResume,
   MAX_RESUME_BYTES,
   MAX_RESUME_PAGES,
   MAX_RESUME_REQUEST_BYTES,
 } from "./resume.js";
-export type { ResumeFile, ResumeType } from "./resume.js";
+export type { ResumeFile } from "./resume.js";
 export { SAMPLE_PROFILE, SAMPLE_POSTING, SAMPLE_LINKEDIN } from "./samples.js";

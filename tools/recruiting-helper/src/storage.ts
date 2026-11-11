@@ -2,12 +2,22 @@
 // Callers pass the database client (toolSql("recruitinghelper")) and the
 // signed-in user's id; every read and write is scoped to that user.
 
-import type { Sql } from "postgres";
-import { scoreContactReview, scorePostingReview, withSchools } from "./scoring.js";
+import type { Sql, TransactionSql } from "postgres";
+
+/** A transaction, as the Sql it is: postgres.js's TransactionSql type drops the call signature. */
+const asSql = (tx: TransactionSql): Sql => tx as unknown as Sql;
+import { normalizeCompany, scoreContactReview, scorePostingReview, withSchools } from "./scoring.js";
 import type { OutreachDraft, RecruitingProfile, ScoredContact, ScoredPosting } from "./scoring.js";
 
-/** The most items one user keeps; the lowest-ranked beyond this aren't listed. */
+/** The most items one user keeps. Once the list is full, saving a new one fails with ListFullError. */
 export const MAX_ITEMS = 500;
+
+/** Thrown by saveItem when the user's list already has MAX_ITEMS items. */
+export class ListFullError extends Error {
+  constructor() {
+    super(`Your list is full (${MAX_ITEMS} items). Remove some you no longer need, then try again.`);
+  }
+}
 
 /** What scoring produced, before it's saved, with the link the student gave: the posting's, or the person's LinkedIn. */
 export type NewItem = (ScoredPosting | ScoredContact) & { link: string | null };
@@ -27,10 +37,26 @@ function normalName(name: string): string {
     .replace(/[^a-z]/g, "");
 }
 
-/** What makes a repeat of `item`: a posting's link or a person's name; null if neither. */
+/**
+ * What makes a repeat of `item`, which replaces the saved one and keeps its
+ * outreach draft and email; null if nothing does. Only clearly the same counts:
+ * - a person: the same name at the same company (John Smith at Google isn't
+ *   John Smith at McKinsey), with or without their LinkedIn link
+ * - a posting: the same link for the same role at the same company, since
+ *   several roles can share a link to a general careers page
+ */
 export function matchKey(item: NewItem): string | null {
-  if (item.kind === "posting") return item.link;
-  return item.name ? normalName(item.name) || null : null;
+  if (item.kind === "posting") {
+    return item.link ? `${item.link} ${normalizeCompany(item.company)} ${normalizeCompany(item.title)}` : null;
+  }
+  const name = item.name ? normalName(item.name) : "";
+  return name ? `${name} ${normalizeCompany(item.company)}` : null;
+}
+
+/** Whether the user's list is full, so a new item can't be saved; check before spending AI credit on one. */
+export async function isListFull(sql: Sql, userId: string): Promise<boolean> {
+  const [row] = await sql<{ count: number }[]>`SELECT COUNT(*)::int AS count FROM items WHERE user_id = ${userId}`;
+  return row!.count >= MAX_ITEMS;
 }
 
 export async function getProfile(sql: Sql, userId: string): Promise<RecruitingProfile | null> {
@@ -83,15 +109,20 @@ export async function listItems(sql: Sql, userId: string): Promise<SavedItem[]> 
 }
 
 /**
- * Saves a scored item. A repeat of one the user already has (same posting link,
- * same person) replaces it, and `replaced` says so. A repeat keeps the earlier
- * link when this one has none, and the person's outreach draft and email address.
+ * Saves a scored item. A repeat of one the user already has (see matchKey)
+ * replaces it, and `replaced` says so. A repeat keeps the earlier link when
+ * this one has none, and the person's outreach draft and email address.
+ * Throws ListFullError for a new item when the list has MAX_ITEMS already.
  */
 export async function saveItem(sql: Sql, userId: string, item: NewItem): Promise<{ item: SavedItem; replaced: boolean }> {
-  // xmax is 0 for a freshly inserted row and set when ON CONFLICT updated one.
+  const key = matchKey(item);
+  // Inserts only while the list has room, or when it's a repeat (which ON CONFLICT
+  // updates). xmax is 0 for a freshly inserted row and set when ON CONFLICT updated one.
   const [row] = await sql<{ id: string; result: NewItem; updated_at: Date; replaced: boolean }[]>`
     INSERT INTO items (user_id, kind, match_key, score, result)
-    VALUES (${userId}, ${item.kind}, ${matchKey(item)}, ${item.score}, ${sql.json(item as never)})
+    SELECT ${userId}, ${item.kind}, ${key}, ${item.score}, ${sql.json(item as never)}
+    WHERE (SELECT COUNT(*) FROM items WHERE user_id = ${userId}) < ${MAX_ITEMS}
+       OR EXISTS (SELECT 1 FROM items WHERE user_id = ${userId} AND kind = ${item.kind} AND match_key = ${key})
     ON CONFLICT (user_id, kind, match_key) DO UPDATE
       SET score = EXCLUDED.score,
           result = EXCLUDED.result
@@ -104,7 +135,16 @@ export async function saveItem(sql: Sql, userId: string, item: NewItem): Promise
           updated_at = NOW()
     RETURNING id, result, updated_at, (xmax <> 0) AS replaced
   `;
-  return { item: toSaved(row!.id, row!.result, row!.updated_at), replaced: row!.replaced };
+  if (!row) throw new ListFullError();
+  return { item: toSaved(row.id, row.result, row.updated_at), replaced: row.replaced };
+}
+
+/** The fields scoring sets, which re-scoring updates; everything else on a saved item is left alone. */
+const POSTING_SCORE_FIELDS = ["score", "tier", "matchedCompany", "adjustment"] as const;
+const CONTACT_SCORE_FIELDS = ["score", "priority", "tier", "matchedCompany", "points", "capped", "matchedSignals"] as const;
+
+function pick<T extends object>(value: T, fields: readonly string[]): Partial<T> {
+  return Object.fromEntries(fields.map((f) => [f, (value as Record<string, unknown>)[f]])) as Partial<T>;
 }
 
 /**
@@ -112,32 +152,45 @@ export async function saveItem(sql: Sql, userId: string, item: NewItem): Promise
  * company tiers, and which of the signals already seen still count, are plain
  * code. The AI's judgments (role fit, what was on a profile) stay as they were,
  * so a newly added bonus signal counts only once that person is pasted again.
- * Returns the items whose scores changed.
+ * Only the scoring fields are written, in one statement, so an outreach draft
+ * or email saved meanwhile is kept. Returns the items whose scores changed.
  */
 export async function rescoreItems(sql: Sql, userId: string, profile: RecruitingProfile): Promise<number> {
-  const rows = await sql<{ id: string; score: number; result: NewItem }[]>`
-    SELECT id, score, result FROM items WHERE user_id = ${userId}
-  `;
-  let changed = 0;
-  for (const { id, score, result } of rows) {
-    const rescored: NewItem =
-      result.kind === "posting"
-        ? { ...result, ...scorePostingReview(result, profile.companies) }
-        : {
-            ...result,
-            ...scoreContactReview({ ...result, schools: result.schools ?? [] }, profile.companies, profile.bonusSignals),
-            // Keep what scoring can't recompute: unknown schools stay unknown.
-            schools: result.schools ?? null,
-            pennAlum: result.pennAlum ?? null,
-          };
-    if (rescored.score === score && JSON.stringify(rescored) === JSON.stringify(result)) continue;
-    await sql`
-      UPDATE items SET score = ${rescored.score}, result = ${sql.json(rescored as never)}
-      WHERE id = ${id} AND user_id = ${userId}
+  return sql.begin(async (t) => {
+    const tx = asSql(t);
+    // Locked until the update, so schools typed in meanwhile aren't scored from a stale copy.
+    const rows = await tx<{ id: string; result: NewItem }[]>`
+      SELECT id, result FROM items WHERE user_id = ${userId} FOR UPDATE
     `;
-    changed++;
+    return writeRescores(tx, userId, profile, rows);
+  });
+}
+
+async function writeRescores(
+  sql: Sql,
+  userId: string,
+  profile: RecruitingProfile,
+  rows: { id: string; result: NewItem }[],
+): Promise<number> {
+  const changes: [string, number, string][] = [];
+  for (const { id, result } of rows) {
+    const changed =
+      result.kind === "posting"
+        ? pick(scorePostingReview(result, profile.companies), POSTING_SCORE_FIELDS)
+        : pick(
+            scoreContactReview({ ...result, schools: result.schools ?? [] }, profile.companies, profile.bonusSignals),
+            CONTACT_SCORE_FIELDS,
+          );
+    const before = pick(result, Object.keys(changed));
+    if (JSON.stringify(changed) !== JSON.stringify(before)) changes.push([id, changed.score!, JSON.stringify(changed)]);
   }
-  return changed;
+  if (changes.length === 0) return 0;
+  await sql`
+    UPDATE items SET score = v.score::int, result = items.result || v.changed::jsonb
+    FROM (VALUES ${sql(changes)}) AS v (id, score, changed)
+    WHERE items.id = v.id::uuid AND items.user_id = ${userId}
+  `;
+  return changes.length;
 }
 
 /** One of the user's people, or null if it doesn't exist, isn't theirs or isn't a person. */
@@ -177,16 +230,24 @@ export async function saveSchools(
   schools: string[],
   profile: RecruitingProfile,
 ): Promise<SavedContact | null> {
-  const contact = await getContact(sql, userId, itemId);
-  if (!contact) return null;
-  const { id: _id, addedAt: _addedAt, ...stored } = contact;
-  const updated = { ...stored, ...withSchools(contact, schools, profile), link: contact.link };
-  const [row] = await sql<{ updated_at: Date }[]>`
-    UPDATE items SET score = ${updated.score}, result = ${sql.json(updated as never)}
-    WHERE id = ${itemId} AND user_id = ${userId} AND kind = 'contact'
-    RETURNING updated_at
-  `;
-  return row ? (toSaved(itemId, updated, row.updated_at) as SavedContact) : null;
+  if (!UUID_RE.test(itemId)) return null;
+  // Locked while it's re-scored, and only the fields that change are written,
+  // so a draft or email saved at the same time is kept.
+  return sql.begin(async (t) => {
+    const tx = asSql(t);
+    const [row] = await tx<{ result: NewItem }[]>`
+      SELECT result FROM items WHERE id = ${itemId} AND user_id = ${userId} AND kind = 'contact' FOR UPDATE
+    `;
+    if (!row || row.result.kind !== "contact") return null;
+    const updated = withSchools(row.result, schools, profile);
+    const changed = { ...pick(updated, CONTACT_SCORE_FIELDS), schools: updated.schools, pennAlum: updated.pennAlum };
+    const [saved] = await tx<{ result: NewItem; updated_at: Date }[]>`
+      UPDATE items SET score = ${updated.score}, result = result || ${tx.json(changed as never)}
+      WHERE id = ${itemId} AND user_id = ${userId}
+      RETURNING result, updated_at
+    `;
+    return toSaved(itemId, saved!.result, saved!.updated_at) as SavedContact;
+  });
 }
 
 /**

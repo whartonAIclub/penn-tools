@@ -16,6 +16,7 @@ import type {
   SavedItem,
   Screenshot,
 } from "@penntools/tool-recruiting-helper";
+import { isDocx, readDocx } from "@penntools/tool-recruiting-helper/docx";
 import {
   clearMyOutreachStyle,
   draftMissingOutreach,
@@ -42,7 +43,7 @@ type ScoreResponse = { ok: true; item: SavedItem; replaced: boolean } | { ok: fa
 
 type Status = { state: "idle" } | { state: "loading" } | { state: "error"; error: ScoreError };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 const TIERS: CompanyTier[] = ["target", "secondary", "practice"];
 const TIER_HELP: Record<CompanyTier, string> = {
   target: "Target companies: your top choices (+1 on jobs, +2 on people)",
@@ -97,28 +98,6 @@ export function RecruitingHelper({
   useEffect(() => {
     if (!initialProfile) setBrowserProfile(oldBrowserProfile(userId));
   }, [userId, initialProfile]);
-
-  // Every person gets an email draft: write any that are missing (people scored
-  // before drafts were automatic, or whose draft failed) once, when the page opens.
-  const [autoDrafts, setAutoDrafts] = useState<{ state: "writing"; count: number } | { state: "error"; error: ScoreError } | null>(null);
-  const autoDraftStarted = useRef(false);
-  useEffect(() => {
-    if (autoDraftStarted.current || !initialProfile) return;
-    const count = initialItems.filter((i) => i.kind === "contact" && !i.outreach).length;
-    if (count === 0) return;
-    autoDraftStarted.current = true;
-    setAutoDrafts({ state: "writing", count });
-    draftMissingOutreach(providers[0]!)
-      .then((result) => {
-        if (result.ok) {
-          setItems(result.data.items);
-          setAutoDrafts(null);
-        } else {
-          setAutoDrafts({ state: "error", error: { message: result.message, ...(result.kind && { kind: result.kind }) } });
-        }
-      })
-      .catch(() => setAutoDrafts({ state: "error", error: { message: "Couldn't write the missing email drafts. Reload to try again." } }));
-  }, [initialItems, initialProfile, providers]);
 
   return (
     <div className={styles.page}>
@@ -175,7 +154,6 @@ export function RecruitingHelper({
           <RankedList
             items={items}
             provider={provider}
-            autoDrafts={autoDrafts}
             outreachStyle={profile.outreachStyle ?? null}
             onStyleChange={(outreachStyle) =>
               setProfile((old) => {
@@ -235,13 +213,32 @@ function ProfileEditor({
   const [upload, setUpload] = useState<Upload>({ state: "idle" });
   const resumeInput = useRef<HTMLInputElement>(null);
 
-  /** Reads the résumé on the server (resume/route.ts) and puts its text in the background box. */
+  /**
+   * Puts the résumé's text in the background box: a Word file is read here, in
+   * the browser (the server never unzips uploads); a PDF is read on the server
+   * by the AI (resume/route.ts).
+   */
   async function uploadResume(file: File) {
     if (file.size > maxResumeBytes) {
       setUpload({ state: "error", error: { message: `${file.name} is over ${maxResumeBytes / 1024 / 1024} MB.` } });
       return;
     }
     setUpload({ state: "reading" });
+    if (file.name.toLowerCase().endsWith(".docx")) {
+      try {
+        const bytes = await file.arrayBuffer();
+        const text = isDocx(file.name, bytes) ? await readDocx(bytes) : null;
+        if (text) {
+          setForm((old) => ({ ...old, background: text }));
+          setUpload({ state: "done", name: file.name });
+        } else {
+          setUpload({ state: "error", error: { message: `${file.name} has no text in it, or isn't a Word file. Try saving it as a PDF.` } });
+        }
+      } catch {
+        setUpload({ state: "error", error: { message: `${file.name} couldn't be read. Try saving it as a PDF.` } });
+      }
+      return;
+    }
     try {
       const res = await fetch("/tools/recruiting-helper/resume", {
         method: "POST",
@@ -714,7 +711,6 @@ type Filter = "all" | SavedItem["kind"];
 function RankedList({
   items,
   provider,
-  autoDrafts,
   outreachStyle,
   onStyleChange,
   onItemsReplaced,
@@ -723,8 +719,6 @@ function RankedList({
 }: {
   items: SavedItem[];
   provider: AIProvider;
-  /** Missing email drafts being written, or why they couldn't be. */
-  autoDrafts: { state: "writing"; count: number } | { state: "error"; error: ScoreError } | null;
   /** The remembered instruction new drafts follow, if any. */
   outreachStyle: string | null;
   onStyleChange: (style: string | null) => void;
@@ -736,6 +730,26 @@ function RankedList({
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+
+  // People with no email draft: scored before drafts were automatic, or whose
+  // draft failed. Written only when the student asks, since it spends AI credit.
+  const missingDrafts = items.filter((i) => i.kind === "contact" && !i.outreach).length;
+  const [drafting, setDrafting] = useState<Status>({ state: "idle" });
+
+  async function writeMissingDrafts() {
+    setDrafting({ state: "loading" });
+    try {
+      const result = await draftMissingOutreach(provider);
+      if (result.ok) {
+        onItemsReplaced(result.data.items);
+        setDrafting({ state: "idle" });
+      } else {
+        setDrafting({ state: "error", error: { message: result.message, ...(result.kind && { kind: result.kind }) } });
+      }
+    } catch {
+      setDrafting({ state: "error", error: { message: "Couldn't reach PennTools. Check your connection and try again." } });
+    }
+  }
 
   const ranked = useMemo(() => items.filter((i) => filter === "all" || i.kind === filter).sort(byRank), [items, filter]);
 
@@ -770,15 +784,21 @@ function RankedList({
         </div>
       </div>
 
-      {autoDrafts?.state === "writing" && (
+      {missingDrafts > 0 && (
         <p className={styles.notice} role="status">
-          Writing email drafts for {autoDrafts.count} {autoDrafts.count === 1 ? "person" : "people"}…
+          {missingDrafts === 1 ? "1 person on your list has" : `${missingDrafts} people on your list have`} no email
+          draft yet.{" "}
+          <button className={styles.textButton} onClick={() => void writeMissingDrafts()} disabled={drafting.state === "loading"}>
+            {drafting.state === "loading"
+              ? "Writing…"
+              : `Write ${missingDrafts === 1 ? "the missing draft" : `the ${missingDrafts} missing drafts`}`}
+          </button>
         </p>
       )}
-      {autoDrafts?.state === "error" && (
+      {drafting.state === "error" && (
         <p className={styles.error}>
-          Couldn&apos;t write the missing email drafts: {autoDrafts.error.message}
-          {autoDrafts.error.kind && KEY_PROBLEMS.has(autoDrafts.error.kind) && (
+          Couldn&apos;t write the missing email drafts: {drafting.error.message}
+          {drafting.error.kind && KEY_PROBLEMS.has(drafting.error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>
@@ -842,7 +862,7 @@ function RankedList({
                       key={`${item.id}:${draftKey(item.outreach)}`}
                       contact={item}
                       provider={provider}
-                      writing={autoDrafts?.state === "writing"}
+                      writing={drafting.state === "loading"}
                       onSaved={onUpdated}
                     />
                   )}
