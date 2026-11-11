@@ -32,7 +32,7 @@ interface ReplySettings {
 const SPEEDS: Record<AITier, string> = { fast: "Fast", standard: "Balanced", best: "Best" };
 const THINKING: Record<AIReasoning, string> = { low: "Low", medium: "Medium", high: "High" };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 const SETTINGS_STORAGE_KEY = "askpenn_settings";
 const URL_RE = /(https?:\/\/[^\s)]+)/g;
 const MB = 1024 * 1024;
@@ -56,7 +56,7 @@ export function AskPenn({
   attachmentLimits: limits,
 }: {
   initialChats: ChatSummary[];
-  /** Providers the user has saved keys for; never empty. */
+  /** Providers the user can call (ai.providers()); never empty. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   defaultTier: AITier;
