@@ -64,6 +64,7 @@ export interface EventFormValues {
   dropIns: string;
   ticketRevenue: string;
   costs: string;
+  cancelled: boolean;
 }
 
 /** Creates an event (id null) or saves changes to one. */

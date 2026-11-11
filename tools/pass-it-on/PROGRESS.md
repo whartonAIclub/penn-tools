@@ -8,7 +8,7 @@ Pass It On is a **live planning tool for Pub's weekly events**, built from four 
 
 1. **A file library with AI search.** Upload Pub's documents (playbook, club rider, catering and merch sheets, reimbursement instructions, bylaws, planning docs) and ask questions. Every answer cites the source passage.
 2. **Event records.** Each Pub is one record: date, theme, venue, partner clubs, budget and Pub Leader. Files, tasks and lessons attach to it.
-3. **A checklist engine.** One base template plus optional modules (club collab, international, singles/GAPSA) generates dated tasks, each with one owner, for every event. Dates are relative (T-14 … T+5), so they move when the event moves.
+3. **A checklist engine** (reads its events from the master calendar built by the calendar import). One base template plus optional modules (club collab, international, singles/GAPSA) generates dated tasks, each with one owner, for every event. Dates are relative (T-14 … T+5), so they move when the event moves.
 4. **A board.** A Trello-style view of every in-flight event's tasks plus ongoing to-dos, such as merch inventory, vendor relationships and succession planning.
 
 **An AI layer** ties these together. It:
@@ -51,6 +51,7 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | 9 | Ask-the-library page, linking to source passages | **Done** |
 | 10 | Event list and edit pages | **Done** |
 | 11 | **Exit test:** five real questions, correct cited answers | To do |
+| **Calendar import** (added 2026-11-10) | Upload a club's annual calendar (.xlsx); the AI proposes events; people approve, edit or skip; approved events are the master calendar (Events tab, grouped by month, `cancelled` flag). Spec and plan in `tools/pass-it-on/docs/`. 121 tool tests. Not yet tried in the browser with a real AI key | **Built, needs a manual check** |
 | **Week 2: checklist and board** | | |
 | 12 | Schema: template versions, modules, items, tasks, members | To do |
 | 13 | Date math, task generation and rescheduling | To do |

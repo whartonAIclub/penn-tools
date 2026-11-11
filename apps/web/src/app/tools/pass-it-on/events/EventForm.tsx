@@ -29,6 +29,7 @@ export const emptyEventForm: EventFormValues = {
   dropIns: "",
   ticketRevenue: "",
   costs: "",
+  cancelled: false,
 };
 
 // Suggestions for a role's name; any text is accepted.
@@ -169,6 +170,10 @@ export function EventForm({ id, initial }: { id: string | null; initial: EventFo
         <label className={styles.row}>
           <input type="checkbox" checked={values.confirmedVenue} onChange={(e) => setValues({ ...values, confirmedVenue: e.target.checked })} />
           Confirmed with venue
+        </label>
+        <label className={styles.row}>
+          <input type="checkbox" checked={values.cancelled} onChange={(e) => setValues({ ...values, cancelled: e.target.checked })} />
+          Cancelled
         </label>
       </div>
       <label className={styles.field}>

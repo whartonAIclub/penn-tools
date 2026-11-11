@@ -10,3 +10,5 @@ export { MAX_EXCERPT_CHARS } from "./excerpts.js";
 export type { ExcerptDraft, ExcerptMeta } from "./excerpts.js";
 export { uploadLibraryFile, MAX_UPLOAD_BYTES } from "./upload.js";
 export type { LibraryUpload, LibraryUploadResult } from "./upload.js";
+export { calendarRows, CalendarFormatError, MAX_CALENDAR_ROWS } from "./calendar.js";
+export type { CalendarRow } from "./calendar.js";

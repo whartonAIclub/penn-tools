@@ -120,6 +120,7 @@ describe("input checks", () => {
         dropIns: null,
         ticketRevenue: null,
         costs: null,
+        cancelled: false,
       },
     });
     for (const bad of [{}, { title: "x", eventDate: "2026-02-31" }, { title: "x", budget: -5 }, { title: "x", budget: "lots" }, { title: "x", partnerClubs: "a" }, { title: "x", roles: [{ role: "", person: "Ada" }] }, { title: "x", totalAttendees: 1.5 }, { title: "x", costs: -1 }]) {
@@ -289,6 +290,7 @@ function planned(title: string, overrides: Partial<PlannedEventInput> = {}): Pla
     dropIns: null,
     ticketRevenue: 1800,
     costs: null,
+    cancelled: false,
     ...overrides,
   };
 }

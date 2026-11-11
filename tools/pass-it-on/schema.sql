@@ -181,3 +181,35 @@ CREATE TABLE IF NOT EXISTS event_roles (
 );
 
 CREATE INDEX IF NOT EXISTS event_roles_event_idx ON event_roles (event_id, position);
+
+-- ---------------------------------------------------------------------------
+-- Calendar import (additive). An uploaded calendar becomes an import whose
+-- rows are proposed as events; nothing reaches `events` until a person
+-- approves it. Proposals sit in their own table so a half-approved import
+-- never shows up in the master calendar.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS calendar_imports (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  filename    TEXT        NOT NULL,
+  uploaded_by TEXT        NOT NULL,
+  imported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS calendar_proposals (
+  id             BIGINT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  import_id      UUID    NOT NULL REFERENCES calendar_imports (id) ON DELETE CASCADE,
+  position       INTEGER NOT NULL,
+  sheet          TEXT    NOT NULL,
+  row_number     INTEGER NOT NULL,
+  source_text    TEXT    NOT NULL,
+  proposal       JSONB,
+  skip_reason    TEXT,
+  match_kind     TEXT    NOT NULL DEFAULT 'new' CHECK (match_kind IN ('new', 'changed', 'unchanged')),
+  match_event_id UUID    REFERENCES events (id) ON DELETE SET NULL,
+  status         TEXT    NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'skipped')),
+  event_id       UUID    REFERENCES events (id) ON DELETE SET NULL,
+  UNIQUE (import_id, position)
+);
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS import_id UUID REFERENCES calendar_imports (id) ON DELETE SET NULL;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS cancelled BOOLEAN NOT NULL DEFAULT FALSE;

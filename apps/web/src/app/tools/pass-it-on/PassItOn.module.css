@@ -223,3 +223,24 @@
   font-size: 0.875rem;
   color: var(--section-label);
 }
+
+.monthHeading {
+  margin: 16px 0 4px;
+  font-size: 0.95rem;
+  color: var(--section-label);
+}
+
+.cardGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}

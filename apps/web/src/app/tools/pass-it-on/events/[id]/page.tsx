@@ -28,6 +28,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
         dropIns: event.dropIns === null ? "" : String(event.dropIns),
         ticketRevenue: event.ticketRevenue === null ? "" : String(event.ticketRevenue),
         costs: event.costs === null ? "" : String(event.costs),
+        cancelled: event.cancelled,
       }}
     />
   );

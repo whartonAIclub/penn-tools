@@ -58,3 +58,18 @@ export {
   MAX_PARTIES,
 } from "./planning.js";
 export type { PlannedEventInput, PlannedEvent, PlannedEventSummary, VendorInput, RoleInput } from "./planning.js";
+export { proposeEvents, CalendarProposalSchema, CALENDAR_SYSTEM_PROMPT } from "./calendar.js";
+export type { EventProposal, SourceRow } from "./calendar.js";
+export {
+  createCalendarImport,
+  listCalendarImports,
+  getCalendarImport,
+  updateProposal,
+  skipProposal,
+  restoreProposal,
+  approveProposal,
+  approveAllPending,
+  deleteCalendarImport,
+} from "./calendarStorage.js";
+export type { MatchKind, ProposalStatus, StoredProposal, CalendarImportSummary } from "./calendarStorage.js";
+export { groupByMonth, UNDATED_GROUP } from "./calendarView.js";

@@ -1,7 +1,7 @@
-// The Events tab: every Pub, soonest first.
+// The Events tab: the master calendar, every Pub grouped by month, soonest first.
 
 import Link from "next/link";
-import { listPlannedEvents } from "@penntools/tool-pass-it-on";
+import { groupByMonth, listPlannedEvents } from "@penntools/tool-pass-it-on";
 import { db } from "./db";
 import styles from "./PassItOn.module.css";
 
@@ -19,22 +19,28 @@ export default async function PassItOnPage() {
         </Link>
       </div>
       {events.length === 0 ? (
-        <p className={styles.muted}>No events yet. Add the next Pub to start planning.</p>
+        <p className={styles.muted}>
+          No events yet. Add the next Pub, or <Link href="/tools/pass-it-on/calendar" className={styles.link}>upload your calendar</Link> to add the whole year at once.
+        </p>
       ) : (
-        <ul className={styles.list}>
-          {events.map((e) => (
-            <li key={e.id} className={styles.item}>
-              <Link href={`/tools/pass-it-on/events/${e.id}`} className={styles.itemTitle}>
-                {e.title}
-              </Link>
-              <span className={styles.muted}>
-                {[e.eventDate ?? "Date to be decided", e.eventTime, e.theme, e.venue, e.pubLeader && `Leader: ${e.pubLeader}`, e.budget !== null && money.format(e.budget)]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </li>
-          ))}
-        </ul>
+        groupByMonth(events).map((group) => (
+          <div key={group.month}>
+            <h3 className={styles.monthHeading}>{group.month}</h3>
+            <ul className={styles.list}>
+              {group.events.map((e) => (
+                <li key={e.id} className={styles.item}>
+                  <Link href={`/tools/pass-it-on/events/${e.id}`} className={styles.itemTitle}>
+                    {e.title}
+                  </Link>
+                  {e.cancelled && <span className={styles.tag}>Cancelled</span>}
+                  <span className={styles.muted}>
+                    {[e.eventDate, e.eventTime, e.theme, e.venue, e.pubLeader && `Leader: ${e.pubLeader}`, e.budget !== null && money.format(e.budget)].filter(Boolean).join(" · ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
       )}
     </section>
   );

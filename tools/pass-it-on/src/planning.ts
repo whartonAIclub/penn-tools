@@ -48,10 +48,14 @@ export interface PlannedEventInput {
   dropIns: number | null;
   ticketRevenue: number | null;
   costs: number | null;
+  /** Called off, but kept on the calendar so it's seen. */
+  cancelled: boolean;
 }
 
 export interface PlannedEvent extends PlannedEventInput {
   id: string;
+  /** The calendar import this event was approved from, if any. */
+  importId: string | null;
   /** The first Pub Leader named (or, failing that, the first person named). */
   pubLeader: string | null;
 }
@@ -65,6 +69,7 @@ export interface PlannedEventSummary {
   budget: number | null;
   pubLeader: string | null;
   eventTime: string | null;
+  cancelled: boolean;
 }
 
 type Checked<T> = { ok: true; value: T } | { ok: false; message: string };
@@ -194,6 +199,7 @@ export function checkPlannedEventInput(input: unknown): Checked<PlannedEventInpu
       dropIns: dropIns.value,
       ticketRevenue: ticketRevenue.value,
       costs: costs.value,
+      cancelled: raw["cancelled"] === true,
     },
   };
 }
@@ -213,45 +219,50 @@ function checkNames(value: unknown, label: string): Checked<string[]> {
 
 /** Creates a planned event; returns its id. */
 export async function createPlannedEvent(sql: Sql, input: PlannedEventInput, createdBy: string): Promise<string> {
-  return sql.begin(async (transaction) => {
-    const tx = transaction as unknown as Sql; // see saveEvent in storage.ts
-    const leader = leaderOf(input.roles);
-    const [row] = await tx<{ id: string }[]>`
-      INSERT INTO events (title, event_type, event_date, organizer_name, created_by, theme, venue, budget, pub_leader,
-                          event_time, notes, confirmed_club, confirmed_venue, club_contact,
-                          total_attendees, drop_ins, ticket_revenue, costs)
-      VALUES (${input.title}, ${DEFAULT_EVENT_TYPE}, ${input.eventDate}, ${leader ?? "Unassigned"}, ${createdBy},
-              ${input.theme}, ${input.venue}, ${input.budget}, ${leader},
-              ${input.eventTime}, ${input.notes}, ${input.confirmedClub}, ${input.confirmedVenue}, ${input.clubContact},
-              ${input.totalAttendees}, ${input.dropIns}, ${input.ticketRevenue}, ${input.costs})
-      RETURNING id
-    `;
-    await setParties(tx, row!.id, input);
-    return row!.id;
-  });
+  return sql.begin(async (transaction) => createPlannedEventIn(transaction as unknown as Sql, input, createdBy, null)); // see saveEvent in storage.ts
+}
+
+/** createPlannedEvent inside a transaction the caller already opened (`tx`), optionally recording the calendar import it came from. */
+export async function createPlannedEventIn(tx: Sql, input: PlannedEventInput, createdBy: string, importId: string | null): Promise<string> {
+  const leader = leaderOf(input.roles);
+  const [row] = await tx<{ id: string }[]>`
+    INSERT INTO events (title, event_type, event_date, organizer_name, created_by, theme, venue, budget, pub_leader,
+                        event_time, notes, confirmed_club, confirmed_venue, club_contact,
+                        total_attendees, drop_ins, ticket_revenue, costs, cancelled, import_id)
+    VALUES (${input.title}, ${DEFAULT_EVENT_TYPE}, ${input.eventDate}, ${leader ?? "Unassigned"}, ${createdBy},
+            ${input.theme}, ${input.venue}, ${input.budget}, ${leader},
+            ${input.eventTime}, ${input.notes}, ${input.confirmedClub}, ${input.confirmedVenue}, ${input.clubContact},
+            ${input.totalAttendees}, ${input.dropIns}, ${input.ticketRevenue}, ${input.costs}, ${input.cancelled}, ${importId})
+    RETURNING id
+  `;
+  await setParties(tx, row!.id, input);
+  return row!.id;
 }
 
 /** Replaces an event's fields, partner clubs and vendors. Returns false if it doesn't exist. */
 export async function updatePlannedEvent(sql: Sql, id: string, input: PlannedEventInput): Promise<boolean> {
   if (!UUID_RE.test(id)) return false;
-  return sql.begin(async (transaction) => {
-    const tx = transaction as unknown as Sql;
-    const leader = leaderOf(input.roles);
-    const rows = await tx`
-      UPDATE events
-      SET title = ${input.title}, event_date = ${input.eventDate}, theme = ${input.theme}, venue = ${input.venue},
-          budget = ${input.budget}, pub_leader = ${leader}, organizer_name = ${leader ?? "Unassigned"},
-          event_time = ${input.eventTime}, notes = ${input.notes}, confirmed_club = ${input.confirmedClub},
-          confirmed_venue = ${input.confirmedVenue}, club_contact = ${input.clubContact},
-          total_attendees = ${input.totalAttendees}, drop_ins = ${input.dropIns},
-          ticket_revenue = ${input.ticketRevenue}, costs = ${input.costs}, updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING id
-    `;
-    if (rows.length === 0) return false;
-    await setParties(tx, id, input);
-    return true;
-  });
+  return sql.begin(async (transaction) => updatePlannedEventIn(transaction as unknown as Sql, id, input));
+}
+
+/** updatePlannedEvent inside a transaction the caller already opened (`tx`). */
+export async function updatePlannedEventIn(tx: Sql, id: string, input: PlannedEventInput): Promise<boolean> {
+  if (!UUID_RE.test(id)) return false;
+  const leader = leaderOf(input.roles);
+  const rows = await tx`
+    UPDATE events
+    SET title = ${input.title}, event_date = ${input.eventDate}, theme = ${input.theme}, venue = ${input.venue},
+        budget = ${input.budget}, pub_leader = ${leader}, organizer_name = ${leader ?? "Unassigned"},
+        event_time = ${input.eventTime}, notes = ${input.notes}, confirmed_club = ${input.confirmedClub},
+        confirmed_venue = ${input.confirmedVenue}, club_contact = ${input.clubContact},
+        total_attendees = ${input.totalAttendees}, drop_ins = ${input.dropIns},
+        ticket_revenue = ${input.ticketRevenue}, costs = ${input.costs}, cancelled = ${input.cancelled}, updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  if (rows.length === 0) return false;
+  await setParties(tx, id, input);
+  return true;
 }
 
 async function setParties(tx: Sql, eventId: string, input: PlannedEventInput): Promise<void> {
@@ -289,6 +300,7 @@ interface PlannedRow {
   budget: string | null;
   pub_leader: string | null;
   event_time: string | null;
+  cancelled: boolean;
 }
 
 interface DetailRow extends PlannedRow {
@@ -300,6 +312,7 @@ interface DetailRow extends PlannedRow {
   drop_ins: number | null;
   ticket_revenue: string | null;
   costs: string | null;
+  import_id: string | null;
 }
 
 const toSummary = (r: PlannedRow): PlannedEventSummary => ({
@@ -311,12 +324,13 @@ const toSummary = (r: PlannedRow): PlannedEventSummary => ({
   budget: r.budget === null ? null : Number(r.budget),
   pubLeader: r.pub_leader,
   eventTime: r.event_time,
+  cancelled: r.cancelled,
 });
 
 /** Planned events, soonest first; events with no date come last. */
 export async function listPlannedEvents(sql: Sql): Promise<PlannedEventSummary[]> {
   const rows = await sql<PlannedRow[]>`
-    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time
+    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time, cancelled
     FROM events WHERE event_type = ${DEFAULT_EVENT_TYPE}
     ORDER BY event_date ASC NULLS LAST, created_at DESC
     LIMIT 200
@@ -328,7 +342,7 @@ export async function listPlannedEvents(sql: Sql): Promise<PlannedEventSummary[]
 export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEvent | null> {
   if (!UUID_RE.test(id)) return null;
   const [row] = await sql<DetailRow[]>`
-    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time,
+    SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time, cancelled, import_id,
            notes, confirmed_club, confirmed_venue, club_contact, total_attendees, drop_ins,
            ticket_revenue::text AS ticket_revenue, costs::text AS costs
     FROM events WHERE id = ${id}
@@ -347,6 +361,7 @@ export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEven
   `;
   return {
     ...toSummary(row),
+    importId: row.import_id,
     roles: roles.map((r) => ({ role: r.role, person: r.person })),
     notes: row.notes,
     confirmedClub: row.confirmed_club,
