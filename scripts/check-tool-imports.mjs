@@ -9,6 +9,7 @@
 //     freeCreditLeft), or builds an AI object for an arbitrary user
 //     (createUserAI, createUserEmbeddingProvider): tools use
 //     getAI / getEmbeddings, which are bound to the signed-in user
+//   - imports the platform's admins or tool visits (admins, toolVisits)
 //   - imports Prisma or platform internals; the one platform import allowed is
 //     toolSql from @penntools/platform/db
 //
@@ -50,6 +51,12 @@ const RULES = [
     name: "users' API keys",
     test: (src) => matches(src, /\b(?:userApiKeys|aiUsage|freeCreditLeft|createUserAI|createUserEmbeddingProvider)\b/g),
     fix: "use getAI / getEmbeddings from @/lib/ai, which read keys for the signed-in user",
+  },
+  {
+    name: "platform data",
+    test: (src) =>
+      matches(src, /import\s+(?:type\s+)?\{[^}]*\b(?:admins|toolVisits)\b[^}]*\}\s*from\s*["']@\/lib\/container["']/g),
+    fix: "admins and tool visits are the platform's; tools don't read or change them",
   },
   {
     name: "Prisma",

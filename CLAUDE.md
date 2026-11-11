@@ -142,7 +142,7 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 - **Do not create routes under `apps/web/src/app/api/`.** Those are platform routes; only the Platform team creates them. A tool may add its own routes or server actions inside its landing page folder (`apps/web/src/app/tools/{id}/`), as AskPenn and the Platform Playground do.
 - **Do not duplicate platform logic.** If the Platform Playground or AskPenn already demonstrates the pattern, adapt it — don't reinvent it.
 - **New tools use the AI API, not the legacy LLM API.**
-- **Never read users' saved API keys, or use them for anyone but the signed-in user.** Keys are stored in plain text. Tool code must not import `userApiKeys`, `aiUsage`, `freeCreditLeft`, `createUserAI` or `createUserEmbeddingProvider` from `@/lib/container`, or query the `user_api_keys` or `ai_usage` tables; use `getAI` and `getEmbeddings`. `pnpm check:tools` enforces this, along with no vendor SDKs, no direct provider API calls and no platform imports besides `toolSql`.
+- **Never read users' saved API keys, or use them for anyone but the signed-in user.** Keys are stored in plain text. Tool code must not import `userApiKeys`, `aiUsage`, `freeCreditLeft`, `createUserAI` or `createUserEmbeddingProvider` from `@/lib/container`, or query the `user_api_keys` or `ai_usage` tables; use `getAI` and `getEmbeddings`. `pnpm check:tools` enforces this, along with no vendor SDKs, no direct provider API calls, no importing the platform's `admins` or `toolVisits`, and no platform imports besides `toolSql`.
 
 ---
 

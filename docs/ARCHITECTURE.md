@@ -381,7 +381,8 @@ Key design choices:
   with `navigator.sendBeacon` each time a tool is opened; moving between pages
   within a tool isn't another visit. `/admin` shows visits and distinct
   signed-in users per tool, for the last 30 days and all time. Anyone can
-  call the route, so the counts are a guide, not an audit.
+  call the route, and some ad blockers stop the beacon, so the counts are a
+  guide, not an audit. Tool code must not import `toolVisits` or `admins`.
 - `admins` lists, by email, who can open `/admin` (AI usage, tool visits, and
   the admins themselves, who add and remove each other there; no one can remove
   themselves). `db:deploy` adds the first admins

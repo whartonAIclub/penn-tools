@@ -20,8 +20,7 @@ export function ToolsShell({ fullWidth, children }: { fullWidth: string[]; child
   useEffect(() => {
     if (segment === null || recorded.current === segment) return;
     recorded.current = segment;
-    const body = new Blob([JSON.stringify({ toolId: segment })], { type: "application/json" });
-    navigator.sendBeacon?.("/api/visits", body);
+    navigator.sendBeacon?.("/api/visits", JSON.stringify({ toolId: segment }));
   }, [segment]);
 
   return (

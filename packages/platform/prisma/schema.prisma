@@ -138,7 +138,6 @@ model ToolVisit {
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([toolId, createdAt])
   @@map("tool_visits")
 }
 
