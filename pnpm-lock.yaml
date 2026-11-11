@@ -53,6 +53,9 @@ importers:
       '@penntools/tool-platform-playground':
         specifier: workspace:*
         version: link:../../tools/platform-playground
+      '@penntools/tool-recruiting-helper':
+        specifier: workspace:*
+        version: link:../../tools/recruiting-helper
       '@penntools/tool-resume-customizer':
         specifier: workspace:*
         version: link:../../tools/resume-customizer
@@ -263,6 +266,25 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.33)
+
+  tools/recruiting-helper:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      mammoth:
+        specifier: ^1.8.0
+        version: 1.12.0
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
