@@ -18,6 +18,8 @@ import {
 const ai = createAI({
   getKey: async (provider) => `key-${provider}`,
   listProviders: async () => ["openai", "anthropic"],
+  credit: null,
+  recordUsage: async () => {},
   logger: silentLogger,
 });
 const hi = [{ role: "user" as const, content: "hi" }];

@@ -51,6 +51,7 @@ test("flags each kind of violation on its own line", () => {
       `const zod = await import("@anthropic-ai/sdk/helpers/zod");`,
       `await fetch("https://api.anthropic.com/v1/messages");`,
       `const keys = userApiKeys;`,
+      `const spend = await aiUsage.platformSpend(id);`,
     ].join("\n"),
   });
   assert.equal(code, 1);
@@ -63,6 +64,7 @@ test("flags each kind of violation on its own line", () => {
     "bad.ts:7  vendor SDK",
     "bad.ts:8  provider API URL",
     "bad.ts:9  users' API keys",
+    "bad.ts:10  users' API keys",
   ]) {
     assert.ok(output.includes(expected), `missing "${expected}" in:\n${output}`);
   }

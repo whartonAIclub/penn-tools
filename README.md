@@ -27,8 +27,8 @@ Locally, you don't need Google credentials: without them, **Sign in** logs you i
 Copy `.env.example` to `apps/web/.env.local` (the setup script does this automatically) and fill in:
 
 ```bash
-# The platform's keys: OpenAI for embeddings and the legacy LLM API, Anthropic for
-# the legacy LLM API only. New tools generate with users' own keys from Settings.
+# The platform's keys: they pay for each user's free AI credit ($0.50), the legacy
+# LLM API and, for OpenAI, embeddings. Past the credit, tools use users' own keys.
 OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""
 
@@ -96,7 +96,7 @@ Leave the build command empty: Railway runs the root `build` script (`turbo buil
 On each push to the tracked branch, Railway:
 
 1. **Builds** the monorepo.
-2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). If this fails, the previous version keeps serving. On a fresh database, the first deploy takes about a minute longer while Career Canvas embeds the course catalog.
+2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, adds the first admins if there are none yet (`packages/platform/scripts/seed-platform.mjs`), then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). If this fails, the previous version keeps serving. On a fresh database, the first deploy takes about a minute longer while Career Canvas embeds the course catalog.
 3. **Starts** the app with `next start`.
 
 The database is Railway's pgvector Postgres template (the platform schema needs the `vector` extension). Set these variables on the app service:
@@ -104,7 +104,8 @@ The database is Railway's pgvector Postgres template (the platform schema needs 
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `${{pgvector.DATABASE_URL}}` — a reference to the database service |
-| `OPENAI_API_KEY` | The platform's OpenAI key: embeddings (deploys use it to embed Career Canvas's course catalog, and searches use it for users without their own OpenAI key) and the legacy LLM API. New tools generate with users' own keys from Settings |
+| `OPENAI_API_KEY` | The platform's OpenAI key: embeddings (deploys use it to embed Career Canvas's course catalog, and searches use it for users without their own OpenAI key), the legacy LLM API, and each user's free AI credit ($0.50, then their own keys from Settings) |
+| `ANTHROPIC_API_KEY` | The platform's Anthropic key: the free AI credit and the legacy LLM API |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The Google OAuth client (redirect URI `<public URL>/api/auth/callback/google`) |
 | `NEXTAUTH_SECRET` | Signs session cookies; generate with `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | The app's public URL |

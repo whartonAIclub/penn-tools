@@ -18,7 +18,7 @@ export default function PrivacyPage() {
     <div className={cardPage.page}>
       <div>
         <h1 className={cardPage.title}>Privacy policy</h1>
-        <p className={cardPage.muted}>Last updated: October 29, 2026</p>
+        <p className={cardPage.muted}>Last updated: November 11, 2026</p>
       </div>
 
       <p>
@@ -37,6 +37,11 @@ export default function PrivacyPage() {
           <li>
             <strong>AI API keys you save.</strong> If you add an OpenAI or Anthropic key in Settings, we store it so
             tools can make AI requests for you. Your key is used only for your own requests.
+          </li>
+          <li>
+            <strong>How much you use AI features.</strong> For each AI request we record which tool made it, the
+            model, how many tokens it used, what it cost and whose key paid, so we can give everyone free AI credit
+            and see what our tools cost to run. We don&apos;t store the request itself here.
           </li>
           <li>
             <strong>What you enter into tools.</strong> Some tools save what you enter so you can come back to it,
@@ -75,8 +80,9 @@ export default function PrivacyPage() {
             <strong>Railway</strong>, which hosts the site and its database.
           </li>
           <li>
-            <strong>OpenAI and Anthropic</strong>, which receive what you send to AI features. Requests use your
-            own API key where you&apos;ve saved one; some older features use PennTools&apos; key instead.
+            <strong>OpenAI and Anthropic</strong>, which receive what you send to AI features. Requests use
+            PennTools&apos; key until you&apos;ve used your free AI credit, then your own key where you&apos;ve saved
+            one.
           </li>
         </ul>
       </section>

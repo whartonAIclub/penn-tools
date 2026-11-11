@@ -41,6 +41,7 @@ model User {
   pennId    String?  @unique @map("penn_id")
 
   apiKeys   UserApiKey[]
+  aiUsage   AiUsage[]
 
   @@map("users")
 }
@@ -68,4 +69,66 @@ model UserApiKey {
 enum ApiKeyProvider {
   OPENAI
   ANTHROPIC
+}
+
+// ── Admins ────────────────────────────────────────────────────────────────────
+
+/// Who can open /admin (AI usage, and this list). Keyed by email rather than
+/// user, so someone can be made an admin before they first sign in. Admins
+/// add and remove each other on /admin; `db:deploy` adds the first ones
+/// (scripts/seed-platform.mjs) only while the table is empty.
+model Admin {
+  /// Lowercase.
+  email   String   @id
+  addedAt DateTime @default(now()) @map("added_at")
+  /// The admin who added them, or null for the first admins.
+  addedBy String?  @map("added_by")
+
+  @@map("admins")
+}
+
+// ── AI usage ──────────────────────────────────────────────────────────────────
+
+/// One AI call made for a user: which tool and model, its tokens and cost, and
+/// whose key paid. A user's free AI credit is spent once their PLATFORM rows,
+/// pending reservations included, add up to FREE_CREDIT_USD
+/// (packages/core/src/ai/pricing.ts).
+model AiUsage {
+  id           String         @id @default(uuid())
+  createdAt    DateTime       @default(now()) @map("created_at")
+  userId       String         @map("user_id")
+  /// The calling tool's manifest id, or "unknown" for a legacy call from outside a tool's pages.
+  toolId       String         @map("tool_id")
+  api          AiUsageApi
+  provider     ApiKeyProvider
+  model        String
+  keySource    AiKeySource    @map("key_source")
+  inputTokens  Int            @map("input_tokens")
+  /// Reasoning included.
+  outputTokens Int            @map("output_tokens")
+  /// US dollars at the model's price when the call was made.
+  costUsd      Float          @map("cost_usd")
+  /// The provider didn't report usage (e.g. a cancelled stream), so the tokens are estimated.
+  estimated    Boolean        @default(false)
+  /// A reservation for a call on the platform's key that hasn't finished: costUsd
+  /// is its expected cost until it's settled. Counts toward the free credit
+  /// for RESERVATION_TTL_MINUTES, then is treated as abandoned.
+  pending      Boolean        @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, keySource])
+  @@index([toolId])
+  @@map("ai_usage")
+}
+
+enum AiUsageApi {
+  AI
+  EMBEDDINGS
+  LEGACY
+}
+
+enum AiKeySource {
+  PLATFORM
+  USER
 }

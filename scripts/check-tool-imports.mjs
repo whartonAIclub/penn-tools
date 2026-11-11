@@ -5,8 +5,9 @@
 // Scans every tool's code (tools/*, apps/web/src/app/tools/*) and fails if it:
 //   - imports an AI vendor SDK (openai, @anthropic-ai/sdk) or calls their APIs
 //     directly: tools use the AI API (@penntools/core/ai) instead
-//   - touches users' saved API keys (userApiKeys) or builds an AI object for an
-//     arbitrary user (createUserAI, createUserEmbeddingProvider): tools use
+//   - touches users' saved API keys (userApiKeys) or AI usage (aiUsage,
+//     freeCreditLeft), or builds an AI object for an arbitrary user
+//     (createUserAI, createUserEmbeddingProvider): tools use
 //     getAI / getEmbeddings, which are bound to the signed-in user
 //   - imports Prisma or platform internals; the one platform import allowed is
 //     toolSql from @penntools/platform/db
@@ -47,7 +48,7 @@ const RULES = [
   },
   {
     name: "users' API keys",
-    test: (src) => matches(src, /\b(?:userApiKeys|createUserAI|createUserEmbeddingProvider)\b/g),
+    test: (src) => matches(src, /\b(?:userApiKeys|aiUsage|freeCreditLeft|createUserAI|createUserEmbeddingProvider)\b/g),
     fix: "use getAI / getEmbeddings from @/lib/ai, which read keys for the signed-in user",
   },
   {
