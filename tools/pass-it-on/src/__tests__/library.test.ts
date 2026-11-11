@@ -16,6 +16,7 @@ import {
   parseVendorLines,
   createPlannedEvent,
   deletePlannedEvent,
+  deletePlannedEvents,
   getPlannedEvent,
   listPlannedEvents,
   updatePlannedEvent,
@@ -268,6 +269,35 @@ describe.skipIf(!databaseUrl)("library and planned events (Postgres)", () => {
     expect(await getPlannedEvent(sql, id)).toBeNull();
     expect(await updatePlannedEvent(sql, id, planned("gone"))).toBe(false);
     expect(await getPlannedEvent(sql, "nope")).toBeNull();
+  });
+});
+
+describe.skipIf(!databaseUrl)("bulk delete", () => {
+  let admin: Sql;
+  let sql: Sql;
+  const bulkSchema = `${schema}_bulk`;
+
+  beforeAll(async () => {
+    admin = postgres(databaseUrl!, { max: 1, onnotice: () => {} });
+    await admin.unsafe(`CREATE SCHEMA ${bulkSchema}`);
+    sql = postgres(databaseUrl!, { max: 1, onnotice: () => {}, connection: { search_path: bulkSchema } });
+    await sql.unsafe(schemaSql);
+  });
+  afterAll(async () => {
+    await sql?.end();
+    await admin?.unsafe(`DROP SCHEMA IF EXISTS ${bulkSchema} CASCADE`);
+    await admin?.end();
+  });
+
+  it("deletes the listed events, ignoring bad and unknown ids, and returns how many went", async () => {
+    const a = await createPlannedEvent(sql, planned("A"), "u1");
+    const b = await createPlannedEvent(sql, planned("B"), "u1");
+    const keep = await createPlannedEvent(sql, planned("Keep"), "u1");
+    const unknown = "00000000-0000-0000-0000-000000000000";
+    expect(await deletePlannedEvents(sql, [a, b, "nope", unknown, a])).toBe(2);
+    expect(await getPlannedEvent(sql, a)).toBeNull();
+    expect(await getPlannedEvent(sql, keep)).not.toBeNull();
+    expect(await deletePlannedEvents(sql, [])).toBe(0);
   });
 });
 

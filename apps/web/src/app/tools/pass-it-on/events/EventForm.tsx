@@ -11,27 +11,6 @@ import { useState } from "react";
 import { deleteEvent, saveEvent, type EventFormValues } from "../actions";
 import styles from "../PassItOn.module.css";
 
-export const emptyEventForm: EventFormValues = {
-  title: "",
-  eventDate: "",
-  eventTime: "",
-  theme: "",
-  venue: "",
-  budget: "",
-  roles: [{ role: "Pub Leader", person: "" }],
-  partnerClubs: [""],
-  vendors: "",
-  notes: "",
-  confirmedClub: false,
-  confirmedVenue: false,
-  clubContact: "",
-  totalAttendees: "",
-  dropIns: "",
-  ticketRevenue: "",
-  costs: "",
-  cancelled: false,
-};
-
 // Suggestions for a role's name; any text is accepted.
 const ROLE_SUGGESTIONS = ["Pub Leader", "C-suite owner", "Ops Lead", "President owner", "Club contact"];
 

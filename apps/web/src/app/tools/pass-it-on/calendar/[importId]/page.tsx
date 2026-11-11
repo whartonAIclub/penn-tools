@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { getCalendarImport } from "@penntools/tool-pass-it-on";
 import { db } from "../../db";
 import styles from "../../PassItOn.module.css";
+import { ApprovedList } from "../ApprovedList";
 import { ImportActions } from "../ImportActions";
 import { ProposalCard } from "../ProposalCard";
 
@@ -36,11 +37,7 @@ export default async function ImportPage({ params }: { params: { importId: strin
       {approved.length > 0 && (
         <details>
           <summary>Approved ({approved.length})</summary>
-          <div className={styles.cardGroup}>
-            {approved.map((p) => (
-              <ProposalCard key={p.id} proposal={p} />
-            ))}
-          </div>
+          <ApprovedList proposals={approved} />
         </details>
       )}
       {skipped.length > 0 && (

@@ -17,6 +17,7 @@ import {
   databaseProblem,
   databaseProblemMessage,
   deletePlannedEvent,
+  deletePlannedEvents,
   deleteSource,
   parseVendorLines,
   searchLibrary,
@@ -87,6 +88,13 @@ export async function saveEvent(id: string | null, values: EventFormValues): Pro
 export async function deleteEvent(id: string): Promise<ActionResult<null>> {
   if (!(await getCurrentUser())) return signedOut;
   return run(async () => ((await deletePlannedEvent(db(), String(id))) ? { ok: true, data: null } : fail("That event no longer exists.")));
+}
+
+/** Deletes several events at once; returns how many were deleted. */
+export async function deleteEvents(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
+  if (!(await getCurrentUser())) return signedOut;
+  if (!Array.isArray(ids)) return fail("Choose the events to delete.");
+  return run(async () => ({ ok: true, data: { deleted: await deletePlannedEvents(db(), ids.map(String)) } }));
 }
 
 /** Answers a question from the library, with citations, or says it couldn't find one. */

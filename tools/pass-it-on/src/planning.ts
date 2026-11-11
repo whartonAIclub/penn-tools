@@ -8,6 +8,7 @@ import { MAX_FIELD_LENGTH } from "./records.js";
 
 export const MAX_PARTIES = 20;
 export const MAX_ROLES = 20;
+export const MAX_BULK_DELETE = 500;
 export const MAX_COUNT = 1_000_000;
 /** The most NUMERIC(10, 2) can hold. */
 export const MAX_BUDGET = 99_999_999.99;
@@ -376,11 +377,29 @@ export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEven
   };
 }
 
+/** Marks the calendar-import proposals behind these events as skipped (restorable), so they don't show as approved once the events are gone. */
+async function releaseProposals(tx: Sql, ids: string[]): Promise<void> {
+  await tx`
+    UPDATE calendar_proposals SET status = 'skipped', skip_reason = 'Deleted from the calendar', event_id = NULL
+    WHERE event_id = ANY(${ids}::uuid[])
+  `;
+}
+
 /** Deletes an event with its attached tasks, lessons and links. Returns false if it doesn't exist. */
 export async function deletePlannedEvent(sql: Sql, id: string): Promise<boolean> {
-  if (!UUID_RE.test(id)) return false;
-  const rows = await sql`DELETE FROM events WHERE id = ${id} RETURNING id`;
-  return rows.length > 0;
+  return (await deletePlannedEvents(sql, [id])) > 0;
+}
+
+/** Deletes several events at once (as deletePlannedEvent does one). Ignores ids that aren't valid or don't exist; returns how many were deleted. */
+export async function deletePlannedEvents(sql: Sql, ids: string[]): Promise<number> {
+  const valid = [...new Set(ids.filter((id) => typeof id === "string" && UUID_RE.test(id)))].slice(0, MAX_BULK_DELETE);
+  if (valid.length === 0) return 0;
+  return sql.begin(async (transaction) => {
+    const tx = transaction as unknown as Sql;
+    await releaseProposals(tx, valid);
+    const rows = await tx`DELETE FROM events WHERE id = ANY(${valid}::uuid[]) RETURNING id`;
+    return rows.length;
+  });
 }
 
 /** Names typed one per line or separated by commas, trimmed and with blanks dropped. */

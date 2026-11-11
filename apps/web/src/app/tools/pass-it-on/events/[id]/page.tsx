@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { formatVendorLines, getPlannedEvent } from "@penntools/tool-pass-it-on";
 import { db } from "../../db";
-import { EventForm, emptyEventForm } from "../EventForm";
+import { emptyEventForm } from "../emptyEventForm";
+import { EventForm } from "../EventForm";
 
 export default async function EditEventPage({ params }: { params: { id: string } }) {
   const event = await getPlannedEvent(db(), params.id);

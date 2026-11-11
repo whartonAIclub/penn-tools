@@ -18,7 +18,7 @@ import {
   skipProposal,
   updateProposal,
 } from "../calendarStorage.js";
-import { createPlannedEvent, getPlannedEvent, listPlannedEvents, type PlannedEventInput } from "../planning.js";
+import { createPlannedEvent, deletePlannedEvent, deletePlannedEvents, getPlannedEvent, listPlannedEvents, type PlannedEventInput } from "../planning.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -223,5 +223,23 @@ describe.skipIf(!databaseUrl)("calendar storage", () => {
     const before = (await listCalendarImports(sql)).length;
     await expect(createCalendarImport(sql, { filename: "L.xlsx", uploadedBy: "u1", proposals: [proposal(1, input("A", { eventDate: "2027-06-01" })), { ...proposal(2, null), sourceText: "bad\u0000text" }] })).rejects.toThrow();
     expect((await listCalendarImports(sql)).length).toBe(before);
+  });
+
+  it("deleting an approved event returns its proposal to skipped, and it can be restored and approved again", async () => {
+    const id = await createCalendarImport(sql, {
+      filename: "M.xlsx",
+      uploadedBy: "u1",
+      proposals: [proposal(1, input("Pub One", { eventDate: "2027-05-01" })), proposal(2, input("Pub Two", { eventDate: "2027-05-08" }))],
+    });
+    const [one, two] = (await getCalendarImport(sql, id))!.proposals;
+    const a = (await approveProposal(sql, one!.id, "u1")) as { eventId: string };
+    const b = (await approveProposal(sql, two!.id, "u1")) as { eventId: string };
+    expect(await deletePlannedEvents(sql, [a.eventId])).toBe(1);
+    expect(await deletePlannedEvent(sql, b.eventId)).toBe(true);
+    const after = (await getCalendarImport(sql, id))!.proposals;
+    expect(after.map((p) => [p.status, p.eventId, p.skipReason])).toEqual([["skipped", null, "Deleted from the calendar"], ["skipped", null, "Deleted from the calendar"]]);
+    expect(await restoreProposal(sql, one!.id)).toBe(true);
+    const again = await approveProposal(sql, one!.id, "u1");
+    expect(again.ok && again.eventId !== a.eventId).toBe(true);
   });
 });

@@ -51,6 +51,7 @@ export {
   getPlannedEvent,
   listPlannedEvents,
   deletePlannedEvent,
+  deletePlannedEvents,
   parseNameList,
   parseVendorLines,
   formatVendorLines,
