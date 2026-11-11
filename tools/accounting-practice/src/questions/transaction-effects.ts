@@ -16,6 +16,8 @@ export const transactionEffects: Topic = {
   questions: [
     {
       id: "te-01",
+      origin: "original",
+      source: null,
       concept: "Unearned revenue",
       courseSession: "Session 4: Revenue Recognition",
       difficulty: "medium",
@@ -63,6 +65,8 @@ export const transactionEffects: Topic = {
     },
     {
       id: "te-02",
+      origin: "original",
+      source: null,
       concept: "Allowance method: write-offs",
       courseSession: "Session 8: Accounts Receivable",
       difficulty: "medium",
@@ -110,6 +114,8 @@ export const transactionEffects: Topic = {
     },
     {
       id: "te-03",
+      origin: "original",
+      source: null,
       concept: "Selling equipment: gains, losses and cash flow classification",
       courseSession: "Session 10: Long-lived Assets (PP&E); Sessions 5–6: Statement of Cash Flows",
       difficulty: "hard",
@@ -160,6 +166,8 @@ export const transactionEffects: Topic = {
     },
     {
       id: "te-04",
+      origin: "original",
+      source: null,
       concept: "Accrued interest",
       courseSession: "Session 13: Long-term Debt (Notes)",
       difficulty: "medium",
@@ -206,6 +214,8 @@ export const transactionEffects: Topic = {
     },
     {
       id: "te-05",
+      origin: "original",
+      source: null,
       concept: "Paying interest: operating or financing cash flow",
       courseSession: "Session 13: Long-term Debt (Notes); Sessions 5–6: Statement of Cash Flows",
       difficulty: "hard",

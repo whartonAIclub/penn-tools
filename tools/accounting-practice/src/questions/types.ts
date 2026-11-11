@@ -61,9 +61,19 @@ export interface Review {
   readonly note: string | null;
 }
 
+/**
+ * Where a question comes from:
+ * - "original": written for this tool (it may vary a past exam question; `source` then says which).
+ * - "historical": a past ACCT 6130 exam question, adapted to multiple choice; `source` names the exam and question.
+ */
+export type QuestionOrigin = "original" | "historical";
+
 export interface Question {
   /** Unique across all topics, e.g. "te-01". Never reuse or change one: saved answers will refer to it. */
   readonly id: string;
+  readonly origin: QuestionOrigin;
+  /** The past exam question it comes from or varies, e.g. "Fall 2024 Final, IV.1a"; required for historical questions. */
+  readonly source: string | null;
   /** The concept a wrong answer tells the student to review, e.g. "Unearned revenue". */
   readonly concept: string;
   /** Where the course teaches it, e.g. "Session 4: Revenue Recognition". */

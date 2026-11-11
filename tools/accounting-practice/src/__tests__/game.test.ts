@@ -43,8 +43,9 @@ describe("which questions the game may show", () => {
 
   it("shows pending questions in a local preview", () => {
     const preview = playableTopics(TOPICS, "preview");
-    expect(preview.map((t) => t.id)).toEqual(["transaction-effects"]);
-    expect(preview[0]?.questions).toHaveLength(5);
+    expect(preview.map((t) => t.id)).toEqual(TOPICS.map((t) => t.id));
+    expect(preview.find((t) => t.id === "transaction-effects")?.questions).toHaveLength(5);
+    expect(preview.find((t) => t.id === "income-taxes")?.questions).toHaveLength(25);
   });
 
   it("keeps only verified questions live, whatever the mix", () => {

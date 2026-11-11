@@ -33,6 +33,8 @@ export function validateQuestion(question: Question): string[] {
   if (isBlank(question.concept)) at("has no concept");
   if (isBlank(question.courseSession)) at("has no course session");
   if (isBlank(question.prompt)) at("has no question text");
+  if (question.origin !== "original" && question.origin !== "historical") at("has no origin (original or historical)");
+  if (question.origin === "historical" && isBlank(question.source)) at("is historical but names no source exam");
 
   // Choices: exactly four, labelled A to D, exactly one correct, each explained.
   if (question.choices.length !== CHOICES_PER_QUESTION) {

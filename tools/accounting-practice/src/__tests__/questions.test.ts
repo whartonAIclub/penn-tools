@@ -14,15 +14,50 @@ describe("the question bank", () => {
     expect(validateTopics(TOPICS)).toEqual([]);
   });
 
-  it("starts with the five Topic 1 questions", () => {
-    expect(TOPICS.map((topic) => topic.id)).toEqual(["transaction-effects"]);
-    expect(transactionEffects.questions.map((q) => q.id)).toEqual([
-      "te-01",
-      "te-02",
-      "te-03",
-      "te-04",
-      "te-05",
+  it("has 25 questions for each of the five final exam topics, then Topic 1's five", () => {
+    expect(TOPICS.map((topic) => [topic.id, topic.questions.length])).toEqual([
+      ["long-term-liabilities", 25],
+      ["income-taxes", 25],
+      ["stockholders-equity", 25],
+      ["cost-concepts", 25],
+      ["transfer-pricing", 25],
+      ["transaction-effects", 5],
     ]);
+    expect(transactionEffects.questions.map((q) => q.id)).toEqual(["te-01", "te-02", "te-03", "te-04", "te-05"]);
+  });
+
+  it("labels every historical question with the exam it comes from", () => {
+    const historical = allQuestions.filter((q) => q.origin === "historical");
+    expect(historical.length).toBeGreaterThan(0);
+    for (const question of historical) expect(question.source, question.id).toMatch(/(Fall|Spring) 20\d\d Final/);
+  });
+
+  it("has no two questions with the same wording", () => {
+    const prompts = allQuestions.map((q) => q.prompt.trim().toLowerCase());
+    expect(new Set(prompts).size).toBe(prompts.length);
+  });
+
+  it("spreads the correct answers across A to D within each topic", () => {
+    for (const topic of TOPICS.filter((t) => t.questions.length >= 25)) {
+      const letters = topic.questions.map((q) => q.choices.find((c) => c.correct)?.label);
+      expect([...new Set(letters)].sort(), topic.id).toEqual(["A", "B", "C", "D"]);
+      // No letter is the answer often enough to reward always guessing it.
+      for (const letter of ["A", "B", "C", "D"]) {
+        const share = letters.filter((l) => l === letter).length / letters.length;
+        expect(share, `${topic.id}: ${letter}`).toBeLessThanOrEqual(0.36);
+      }
+    }
+  });
+
+  it("mixes conceptual, calculation and journal-entry questions in each final exam topic", () => {
+    for (const topic of TOPICS.filter((t) => t.questions.length >= 25)) {
+      const withEntry = topic.questions.filter((q) => q.journalEntry !== null).length;
+      const difficulties = new Set(topic.questions.map((q) => q.difficulty));
+      expect(difficulties.size, topic.id).toBeGreaterThanOrEqual(3);
+      if (topic.id !== "cost-concepts" && topic.id !== "transfer-pricing") {
+        expect(withEntry, topic.id).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("keeps every question pending until a team member reviews it", () => {
@@ -143,6 +178,11 @@ describe("the rules catch", () => {
     expect(validateQuestion(verified("Alex Salinas", "2026-02-30")).join()).toMatch(
       /no valid review date/,
     );
+  });
+
+  it("a historical question with no source exam", () => {
+    expect(validateQuestion({ ...good, origin: "historical", source: null }).join()).toMatch(/names no source exam/);
+    expect(validateQuestion({ ...good, origin: "historical", source: "Fall 2024 Final, IV.1" })).toEqual([]);
   });
 
   it("a question id used twice", () => {
