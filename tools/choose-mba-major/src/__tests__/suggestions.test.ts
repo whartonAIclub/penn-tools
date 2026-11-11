@@ -26,7 +26,7 @@ function fakeAI(object: unknown) {
 }
 
 function course(code: string, description = "About it."): Course {
-  return { code, department: code.slice(0, 4), title: `${code} title`, description, credits: 1, sections: 1 };
+  return { code, department: code.slice(0, 4), title: `${code} title`, description, credits: 1, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null };
 }
 
 const rated: CandidateCourse[] = [

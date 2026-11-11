@@ -9,7 +9,7 @@
 // beside it but never copied in.
 
 import type { Course } from "./courses.js";
-import { groupIncludes, MAJORS, type Major } from "./majors.js";
+import { groupIncludesCourse, MAJORS, type Major } from "./majors.js";
 import { NO_TAKEN, ratingOf, type Rating, type Ratings, type Taken } from "./ratings.js";
 
 /** Wharton: an individualized major has at most 21 CU. */
@@ -123,7 +123,7 @@ export function majorOverlaps(plan: readonly Course[], majors: readonly Major[] 
   return majors
     .map((major) => {
       const groups = major.groups.filter((g) => !g.core);
-      const credits = totalCredits(plan.filter((c) => groups.some((g) => groupIncludes(g, c.code))));
+      const credits = totalCredits(plan.filter((c) => groups.some((g) => groupIncludesCourse(g, c))));
       return { major, credits, share: credits / total };
     })
     .filter((o) => o.credits > 0)

@@ -5,7 +5,7 @@ import type { Ratings } from "../ratings.js";
 import { bestPair, fitMajor, recommendMajors } from "../recommend.js";
 
 function course(code: string, credits = 1): Course {
-  return { code, department: code.slice(0, 4), title: code, description: "", credits, sections: 1 };
+  return { code, department: code.slice(0, 4), title: code, description: "", credits, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null };
 }
 
 const courses = [
@@ -127,6 +127,12 @@ describe("fitMajor", () => {
     ]);
     // (5 + 5 + 4 + 4) / (5 × 4)
     expect(fit.score).toBeCloseTo(18 / 20);
+  });
+
+  it("counts a course toward a major under a cross-listed code", () => {
+    const listedAsMktg = { ...course("MKTG 7760"), crossListed: ["STAT 7760"] };
+    const stats: Major = { ...capped, groups: [{ label: "Stats", courses: ["STAT 7760"], minCredits: 1 }] };
+    expect(fitMajor(stats, [listedAsMktg], { "MKTG 7760": 4 }).plan.map((p) => p.course.code)).toEqual(["MKTG 7760"]);
   });
 
   it("doesn't place a taken course past a group's cap", () => {

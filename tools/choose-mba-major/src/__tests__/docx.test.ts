@@ -75,13 +75,13 @@ describe("createDocx", () => {
 });
 
 const catalog: Catalog = {
-  term: "2027A",
+  terms: [{ term: "2027A", label: "Spring 2027" }],
   termLabel: "Spring 2027",
   updated: "2026-11-03",
   source: "test",
   courses: [
-    { code: "HCMG 8410", department: "HCMG", title: "Health Care Systems", description: "", credits: 1, sections: 1 },
-    { code: "OIDD 6530", department: "OIDD", title: "Ops Analytics", description: "", credits: 0.5, sections: 1 },
+    { code: "HCMG 8410", department: "HCMG", title: "Health Care Systems", description: "", credits: 1, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null },
+    { code: "OIDD 6530", department: "OIDD", title: "Ops Analytics", description: "", credits: 0.5, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null },
   ],
 };
 

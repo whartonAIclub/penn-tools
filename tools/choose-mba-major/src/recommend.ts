@@ -18,7 +18,8 @@
 // so does a required course the student hasn't rated.
 
 import type { Course } from "./courses.js";
-import { courseCodes, groupIncludes, MAJORS, type CourseGroup, type Major } from "./majors.js";
+import { courseCodesOf } from "./courses.js";
+import { courseCodes, groupIncludesCourse, MAJORS, type CourseGroup, type Major } from "./majors.js";
 import { NO_TAKEN, ratingOf, type Rating, type Ratings, type Taken } from "./ratings.js";
 
 export interface PlannedCourse {
@@ -120,7 +121,7 @@ export function fitMajor(
   for (const group of groups.filter((g) => g.required)) {
     for (const entry of group.courses ?? []) {
       const codes = courseCodes(entry);
-      const course = courses.find((c) => codes.includes(c.code));
+      const course = courses.find((c) => courseCodesOf(c).some((code) => codes.includes(code)));
       if (course && !used.has(course.code)) place(course, group, true);
       else if (!course) requiredNotOffered.push(codes[0]!);
     }
@@ -129,7 +130,7 @@ export function fitMajor(
   // 2. Courses the student is taking or has taken, wherever they count.
   for (const course of courses) {
     if (!taken.has(course.code) || used.has(course.code) || !withinSharedLimit(course)) continue;
-    const group = groups.find((g) => !g.required && groupIncludes(g, course.code) && hasRoom(g, course));
+    const group = groups.find((g) => !g.required && groupIncludesCourse(g, course) && hasRoom(g, course));
     if (group) place(course, group, false);
   }
 
@@ -138,7 +139,7 @@ export function fitMajor(
   for (const group of groups.filter((g) => !g.required && g.minCredits > 0)) {
     for (const course of ranked) {
       if (groupCredits.get(group)! >= group.minCredits) break;
-      if (usable(course) && groupIncludes(group, course.code) && hasRoom(group, course)) place(course, group, false);
+      if (usable(course) && groupIncludesCourse(group, course) && hasRoom(group, course)) place(course, group, false);
     }
   }
 
@@ -150,7 +151,7 @@ export function fitMajor(
   for (const course of ranked) {
     if (plannedCredits >= fillTo) break;
     if (!usable(course)) continue;
-    const group = groups.find((g) => !g.required && groupIncludes(g, course.code) && hasRoom(g, course));
+    const group = groups.find((g) => !g.required && groupIncludesCourse(g, course) && hasRoom(g, course));
     if (group) place(course, group, false);
   }
 

@@ -16,7 +16,7 @@ import {
 } from "../individualized.js";
 
 function course(code: string, credits: number | null = 1): Course {
-  return { code, department: code.slice(0, 4), title: code, description: "", credits, sections: 1 };
+  return { code, department: code.slice(0, 4), title: code, description: "", credits, sections: 1, crossListed: [], terms: ["Spring 2027"], sessions: ["Full"], rating: null };
 }
 
 const courses = [course("HCMG 8410"), course("OIDD 6530", 0.5), course("STAT 7050"), course("FNCE 7050"), course("MGMT 8010", null)];

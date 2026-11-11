@@ -36,7 +36,7 @@ const TAKEN_KEY = "choose-mba-major:taken";
 const INTEREST_KEY = "choose-mba-major:individualized-interest";
 
 type Show = "all" | "unrated" | "rated" | "taken";
-type Sort = "code" | "rating";
+type Sort = "code" | "rating" | "courseRating";
 
 function loadRatings(): Ratings {
   try {
@@ -114,6 +114,7 @@ export function CourseRanker({
   const [individualized, setIndividualized] = useState<boolean | null>(null);
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("all");
+  const [term, setTerm] = useState("all");
   const [show, setShow] = useState<Show>("all");
   const [sort, setSort] = useState<Sort>("code");
 
@@ -144,16 +145,21 @@ export function CourseRanker({
     const q = query.trim().toLowerCase();
     const list = courses.filter((c) => {
       if (department !== "all" && c.department !== department) return false;
+      if (term !== "all" && !c.terms.includes(term)) return false;
       if (show === "rated" && !ratings[c.code]) return false;
       if (show === "unrated" && ratings[c.code]) return false;
       if (show === "taken" && !taken.has(c.code)) return false;
-      return !q || `${c.code} ${c.title} ${c.description}`.toLowerCase().includes(q);
+      return !q || `${c.code} ${c.crossListed.join(" ")} ${c.title} ${c.description}`.toLowerCase().includes(q);
     });
     if (sort === "rating") {
       return [...list].sort((a, b) => (ratings[b.code] ?? 0) - (ratings[a.code] ?? 0) || a.code.localeCompare(b.code));
     }
+    if (sort === "courseRating") {
+      // Unrated courses last.
+      return [...list].sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || a.code.localeCompare(b.code));
+    }
     return list;
-  }, [courses, ratings, taken, query, department, show, sort]);
+  }, [courses, ratings, taken, query, department, term, show, sort]);
 
   const ranking = useMemo(() => rankCourses(courses, ratings), [courses, ratings]);
 
@@ -182,7 +188,8 @@ export function CourseRanker({
         Programs (GIPs).
       </p>
       <p className={styles.note}>
-        {courses.length} courses for {catalog.termLabel}, updated {catalog.updated} from {catalog.source}.
+        {courses.length} courses for {catalog.termLabel}, updated {catalog.updated} from {catalog.source}. Course
+        ratings are Course Match&apos;s 3-year average course ratings, out of 4, where available.
       </p>
 
       {/* ── First question: individualized major? ──────────────────────── */}
@@ -255,6 +262,16 @@ export function CourseRanker({
               </option>
             ))}
           </select>
+          {catalog.terms.length > 1 && (
+            <select value={term} onChange={(e) => setTerm(e.target.value)} aria-label="Semester">
+              <option value="all">Both semesters</option>
+              {catalog.terms.map((t) => (
+                <option key={t.term} value={t.label}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          )}
           <select value={show} onChange={(e) => setShow(e.target.value as Show)} aria-label="Show">
             <option value="all">All courses</option>
             <option value="unrated">Still at 0</option>
@@ -264,6 +281,7 @@ export function CourseRanker({
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
             <option value="code">Sort by code</option>
             <option value="rating">Sort by my rating</option>
+            <option value="courseRating">Sort by course rating</option>
           </select>
         </div>
 
@@ -277,7 +295,8 @@ export function CourseRanker({
               const meta = [
                 departments[course.department] ?? course.department,
                 formatCredits(course.credits),
-                course.sections > 1 ? `${course.sections} sections` : null,
+                course.terms.join(" & "),
+                course.crossListed.length > 0 ? `Also ${course.crossListed.join(", ")}` : null,
               ].filter(Boolean);
               return (
                 <li key={course.code} className={styles.course}>
@@ -286,7 +305,17 @@ export function CourseRanker({
                       <span className={styles.code}>{course.code}</span>
                       <span className={styles.courseTitle}>{course.title}</span>
                     </div>
-                    <div className={styles.meta}>{meta.join(" · ")}</div>
+                    <div className={styles.meta}>
+                      {meta.join(" · ")}
+                      {" · "}
+                      {course.rating !== null ? (
+                        <span className={styles.courseRating} title="Course Match's 3-year average course rating, out of 4">
+                          ★ {course.rating.toFixed(2)} course rating
+                        </span>
+                      ) : (
+                        <span className={styles.noRating}>No course rating yet</span>
+                      )}
+                    </div>
                     {course.description && (
                       <details className={styles.description}>
                         <summary>Description</summary>

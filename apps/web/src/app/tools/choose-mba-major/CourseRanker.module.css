@@ -761,3 +761,16 @@
     align-items: flex-start;
   }
 }
+
+/* ── Course rating (Course Match's 3-year average) ─────────────────────────── */
+
+.courseRating {
+  font-weight: 600;
+  color: var(--penn-blue);
+  white-space: nowrap;
+}
+
+.noRating {
+  color: var(--muted);
+  white-space: nowrap;
+}

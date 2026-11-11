@@ -763,6 +763,11 @@ export function groupIncludes(group: CourseGroup, code: string): boolean {
   );
 }
 
+/** Whether a course counts toward a group under its code or any cross-listed code. */
+export function groupIncludesCourse(group: CourseGroup, course: { code: string; crossListed: readonly string[] }): boolean {
+  return groupIncludes(group, course.code) || course.crossListed.some((code) => groupIncludes(group, code));
+}
+
 /** Whether a course code counts toward a major. */
 export function majorIncludes(major: Major, code: string): boolean {
   return major.groups.some((group) => groupIncludes(group, code));

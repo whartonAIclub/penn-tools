@@ -1,6 +1,6 @@
 export { ChooseMbaMajorTool } from "./ChooseMbaMajorTool.js";
-export { buildCatalog, departmentName, termLabel, DEPARTMENTS } from "./courses.js";
-export type { Catalog, Course, PennCoursePlanCourse } from "./courses.js";
+export { buildCatalog, courseCodesOf, departmentName, termLabel, DEPARTMENTS } from "./courses.js";
+export type { Catalog, CatalogTerm, Course, CourseMatchCourse, CourseMatchSemester } from "./courses.js";
 export { CURRENT_CATALOG } from "./currentCatalog.js";
 export {
   MAJORS,
@@ -8,6 +8,7 @@ export {
   MULTIPLE_MAJOR_RULES,
   courseCodes,
   groupIncludes,
+  groupIncludesCourse,
   majorIncludes,
 } from "./majors.js";
 export type { Major, CourseGroup, DepartmentSelector } from "./majors.js";
