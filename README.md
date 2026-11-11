@@ -14,7 +14,7 @@ This runs the setup script, `scripts/setup.sh`, then starts the dev server at **
 
 | Tool | Min version | Install |
 |---|---|---|
-| Node.js | 20.12 | https://nodejs.org |
+| Node.js | 22 | https://nodejs.org |
 | pnpm | 9 | `npm install -g pnpm` |
 | Docker | any | https://docs.docker.com/get-docker |
 

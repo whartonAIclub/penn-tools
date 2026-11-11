@@ -7,7 +7,7 @@
     "dev": "turbo dev --concurrency=50",
     "postinstall": "pnpm --filter @penntools/platform db:generate",
     "build": "turbo build",
-    "test": "turbo test && node --test scripts/check-tool-imports.test.mjs scripts/new-tool.test.mjs",
+    "test": "turbo test && node --test \"scripts/*.test.mjs\"",
     "typecheck": "turbo typecheck",
     "check:tools": "node scripts/check-tool-imports.mjs",
     "new-tool": "node scripts/new-tool.mjs",
@@ -19,7 +19,7 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
   }

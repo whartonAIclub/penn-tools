@@ -85,7 +85,7 @@ an admin of the `whartonAIclub` organization.
 
    Leave the build command empty: Railway runs the root `build` script. Railway
    picks pnpm and the Node version up from the repo (`packageManager` in
-   `package.json` and `.nvmrc`); the app needs Node 20.12 or later.
+   `package.json` and `.nvmrc`, Node 24); the app needs Node 22 or later.
 4. Under **Settings → Networking**, generate a public domain, and note the URL,
    e.g. `https://penntools-team8.up.railway.app`. You need it in the next two
    steps.
