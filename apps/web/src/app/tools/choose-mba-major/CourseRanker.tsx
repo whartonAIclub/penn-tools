@@ -233,7 +233,9 @@ export function CourseRanker({
       </p>
       <p className={styles.qualifier}>
         This tool doesn&apos;t include block week courses or Global Modular Courses (GMCs) and Global Immersion
-        Programs (GIPs).
+        Programs (GIPs). It also leaves out the core courses Wharton schedules for you rather than ones you pick in
+        Course Match: Microeconomics, Advanced Microeconomics, Foundations of Teamwork &amp; Leadership, Marketing
+        Management and Regression Analysis.
       </p>
       <p className={styles.note}>
         {courses.length} courses for {catalog.termLabel}, updated {catalog.updated} from {catalog.source}. Course
