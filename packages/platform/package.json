@@ -34,7 +34,7 @@
     "test": "vitest run",
     "clean": "rm -rf dist",
     "db:generate": "prisma generate",
-    "db:deploy": "prisma db push --skip-generate && node scripts/setup-tools.mjs"
+    "db:deploy": "prisma db push --skip-generate && node scripts/seed-platform.mjs && node scripts/setup-tools.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
