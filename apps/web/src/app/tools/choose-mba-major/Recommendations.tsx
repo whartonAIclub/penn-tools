@@ -160,7 +160,8 @@ export function Recommendations({
           <p className={styles.note}>
             Fit is how much of each major you could fill with courses you rated highly: 100% means every credit is a
             course you rated 5 or are taking or have taken. Courses you&apos;re taking or have taken go in first;
-            courses at 0 are never chosen.
+            courses at 0 are never chosen. Core courses don&apos;t count toward a major; an OID flex-core course counts
+            only once your other taking/taken OID courses meet the core, or where a major&apos;s rules count the core.
           </p>
 
           {fits.slice(0, TOP).map((fit, i) => (

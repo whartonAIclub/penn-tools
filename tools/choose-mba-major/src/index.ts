@@ -12,6 +12,8 @@ export {
   majorIncludes,
 } from "./majors.js";
 export type { Major, CourseGroup, DepartmentSelector } from "./majors.js";
+export { CORE_RETRIEVED, WHARTON_CORE, coreRequirementOf, isFixedCore, reservedForCore } from "./core.js";
+export type { CoreRequirement } from "./core.js";
 export { fitMajor, recommendMajors, bestPair, MAX_SHARED_CREDITS } from "./recommend.js";
 export type { MajorFit, MajorPair, PlannedCourse, Gap } from "./recommend.js";
 export {

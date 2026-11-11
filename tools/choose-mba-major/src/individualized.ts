@@ -9,6 +9,7 @@
 // beside it but never copied in.
 
 import type { Course } from "./courses.js";
+import { isFixedCore } from "./core.js";
 import { groupIncludesCourse, MAJORS, type Major } from "./majors.js";
 import { NO_TAKEN, ratingOf, type Rating, type Ratings, type Taken } from "./ratings.js";
 
@@ -74,8 +75,9 @@ export interface CandidateCourse {
 
 /**
  * The courses a student can put in their plan: the ones they rated above 0
- * or are taking or have taken. Highest rated first, then taken courses at 0;
- * ties keep course-code order.
+ * or are taking or have taken, leaving out fixed-core courses, which can't
+ * count toward a major. Highest rated first, then taken courses at 0; ties
+ * keep course-code order.
  */
 export function candidateCourses(
   courses: readonly Course[],
@@ -84,7 +86,7 @@ export function candidateCourses(
 ): CandidateCourse[] {
   return courses
     .map((course) => ({ course, rating: ratingOf(ratings, course.code), taken: taken.has(course.code) }))
-    .filter((c) => c.rating > 0 || c.taken)
+    .filter((c) => (c.rating > 0 || c.taken) && !isFixedCore(c.course))
     .sort((a, b) => b.rating - a.rating || a.course.code.localeCompare(b.course.code));
 }
 

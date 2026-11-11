@@ -38,6 +38,12 @@ export interface CourseGroup {
   required?: boolean;
   /** Wharton core courses, which most students take regardless of major. */
   core?: boolean;
+  /**
+   * Core courses in this group count toward the major. Wharton's page for the
+   * major says so (e.g. "OID courses (including the flex core)"); otherwise
+   * core courses never count (see core.ts).
+   */
+  allowsCore?: boolean;
 }
 
 export interface Major {
@@ -204,8 +210,8 @@ export const MAJORS: readonly Major[] = [
     credits: 6,
     groups: [
       { label: "Statistics core", courses: ["STAT 6130", "STAT 6210"], minCredits: 1, core: true },
-      { label: "OIDD requirement", courses: ["OIDD 6120"], minCredits: 0.5, required: true },
-      { label: "OIDD requirement (one of)", courses: ["OIDD 6110", "OIDD 6150"], minCredits: 0.5 },
+      { label: "OIDD requirement", allowsCore: true, courses: ["OIDD 6120"], minCredits: 0.5, required: true },
+      { label: "OIDD requirement (one of)", allowsCore: true, courses: ["OIDD 6110", "OIDD 6150"], minCredits: 0.5 },
       {
         label: "Analytics electives",
         courses: [
@@ -556,6 +562,7 @@ export const MAJORS: readonly Major[] = [
     groups: [
       {
         label: "OID courses (including the flex core)",
+        allowsCore: true,
         courses: [NEGOTIATIONS, "BEPP 8110"],
         departments: [{ department: "OIDD" }],
         minCredits: 5,

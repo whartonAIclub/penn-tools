@@ -378,7 +378,7 @@ export function IndividualizedMajor({
           <>
             <p className={styles.note}>
               Your rated and taken courses, favorites first. Courses at 0 aren&apos;t listed unless you&apos;re taking
-              or have taken them.
+              or have taken them, and core courses aren&apos;t listed, since they can&apos;t count toward a major.
             </p>
             <ul className={styles.planPicker}>
               {candidates.map(({ course, rating, taken: isTaken }) => {

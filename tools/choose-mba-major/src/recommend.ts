@@ -3,9 +3,14 @@
 // For each major, fitMajor builds the plan a student would most enjoy from
 // this term's courses: every required course, then each group's minimum from
 // the student's highest-rated courses, then the highest-rated remaining
-// courses up to the major's total, never past a group's cap. Core courses are
-// left out, since everyone takes them. Courses at 0 ("not interested at all")
-// are never chosen, except required ones.
+// courses up to the major's total, never past a group's cap. Courses at 0
+// ("not interested at all") are never chosen, except required ones.
+//
+// Core courses don't count toward a major (core.ts): fixed-core courses
+// never do, and an OID flex-core course does only when the student's other
+// taking/taken courses already meet the OID requirement. A group whose major
+// explicitly counts the core (allowsCore) is the exception. A major that
+// lists core courses as core groups has them taken out of its total.
 //
 // Courses the student is taking or has taken go in right after the required
 // ones, wherever they count, whatever their rating: those credits are done.
@@ -19,6 +24,7 @@
 
 import type { Course } from "./courses.js";
 import { courseCodesOf } from "./courses.js";
+import { reservedForCore } from "./core.js";
 import { courseCodes, groupIncludesCourse, MAJORS, type CourseGroup, type Major } from "./majors.js";
 import { NO_TAKEN, ratingOf, type Rating, type Ratings, type Taken } from "./ratings.js";
 
@@ -83,6 +89,10 @@ export function fitMajor(
   const shared = options.shared ?? new Set<string>();
   const taken = options.taken ?? NO_TAKEN;
   const groups = major.groups.filter((g) => !g.core);
+  const reserved = reservedForCore(major, courses, taken);
+  /** Whether a course counts toward a group: it's on the group's list and not needed for the core. */
+  const counts = (group: CourseGroup, course: Course) =>
+    groupIncludesCourse(group, course) && (group.allowsCore === true || !reserved.has(course.code));
   const targetCredits = major.credits - major.groups.filter((g) => g.core).reduce((sum, g) => sum + g.minCredits, 0);
 
   const plan: PlannedCourse[] = [];
@@ -122,7 +132,9 @@ export function fitMajor(
     for (const entry of group.courses ?? []) {
       const codes = courseCodes(entry);
       const course = courses.find((c) => courseCodesOf(c).some((code) => codes.includes(code)));
-      if (course && !used.has(course.code)) place(course, group, true);
+      if (course && !used.has(course.code) && (group.allowsCore === true || !reserved.has(course.code))) {
+        place(course, group, true);
+      }
       else if (!course) requiredNotOffered.push(codes[0]!);
     }
   }
@@ -130,7 +142,7 @@ export function fitMajor(
   // 2. Courses the student is taking or has taken, wherever they count.
   for (const course of courses) {
     if (!taken.has(course.code) || used.has(course.code) || !withinSharedLimit(course)) continue;
-    const group = groups.find((g) => !g.required && groupIncludesCourse(g, course) && hasRoom(g, course));
+    const group = groups.find((g) => !g.required && counts(g, course) && hasRoom(g, course));
     if (group) place(course, group, false);
   }
 
@@ -139,7 +151,7 @@ export function fitMajor(
   for (const group of groups.filter((g) => !g.required && g.minCredits > 0)) {
     for (const course of ranked) {
       if (groupCredits.get(group)! >= group.minCredits) break;
-      if (usable(course) && groupIncludesCourse(group, course) && hasRoom(group, course)) place(course, group, false);
+      if (usable(course) && counts(group, course) && hasRoom(group, course)) place(course, group, false);
     }
   }
 
@@ -151,7 +163,7 @@ export function fitMajor(
   for (const course of ranked) {
     if (plannedCredits >= fillTo) break;
     if (!usable(course)) continue;
-    const group = groups.find((g) => !g.required && groupIncludesCourse(g, course) && hasRoom(g, course));
+    const group = groups.find((g) => !g.required && counts(g, course) && hasRoom(g, course));
     if (group) place(course, group, false);
   }
 
