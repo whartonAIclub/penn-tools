@@ -376,8 +376,14 @@ Key design choices:
   it.
   Reports leave pending rows out. The repository is `aiUsage` in
   `container.ts`; tool code must not import it.
-- `admins` lists, by email, who can open `/admin` (AI usage, and the admins
-  themselves, who add and remove each other there; no one can remove
+- `tool_visits` has one row per visit to a tool: the tool, when, and the user
+  if signed in. The tools frame (`ToolsShell`) sends it to `POST /api/visits`
+  with `navigator.sendBeacon` each time a tool is opened; moving between pages
+  within a tool isn't another visit. `/admin` shows visits and distinct
+  signed-in users per tool, for the last 30 days and all time. Anyone can
+  call the route, so the counts are a guide, not an audit.
+- `admins` lists, by email, who can open `/admin` (AI usage, tool visits, and
+  the admins themselves, who add and remove each other there; no one can remove
   themselves). `db:deploy` adds the first admins
   (`packages/platform/scripts/seed-platform.mjs`) only while the table is
   empty, so a removed admin stays removed. In development without Google

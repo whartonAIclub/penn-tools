@@ -40,8 +40,9 @@ model User {
   /// UPenn identifier (pennid / eppn), reserved for Penn SSO.
   pennId    String?  @unique @map("penn_id")
 
-  apiKeys   UserApiKey[]
-  aiUsage   AiUsage[]
+  apiKeys    UserApiKey[]
+  aiUsage    AiUsage[]
+  toolVisits ToolVisit[]
 
   @@map("users")
 }
@@ -120,6 +121,25 @@ model AiUsage {
   @@index([userId, keySource])
   @@index([toolId])
   @@map("ai_usage")
+}
+
+// ── Tool visits ───────────────────────────────────────────────────────────────
+
+/// One visit to a tool: opening its pages, signed in or not (moving between
+/// pages within a tool isn't another visit). Recorded by the site's tools
+/// frame through POST /api/visits; read by /admin.
+model ToolVisit {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  /// The tool's manifest id.
+  toolId    String   @map("tool_id")
+  /// Null for a signed-out visitor.
+  userId    String?  @map("user_id")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([toolId, createdAt])
+  @@map("tool_visits")
 }
 
 enum AiUsageApi {

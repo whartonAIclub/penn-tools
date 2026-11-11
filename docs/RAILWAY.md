@@ -155,7 +155,7 @@ On your public URL:
 - [ ] The home page loads, with the tools listed in the sidebar at the left.
 - [ ] **Sign in** works with one of the Google accounts you sent in step 6.
 - [ ] In **Settings**, you can save an OpenAI or Anthropic API key.
-- [ ] As an admin, **/admin** shows AI usage and the admins. On a new
+- [ ] As an admin, **/admin** shows AI usage, tool visits and the admins. On a new
       instance, the first admins are the ones in
       `packages/platform/scripts/seed-platform.mjs`; to see the page on your
       own instance, ask one of them to add you, or edit that list before your

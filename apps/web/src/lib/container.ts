@@ -15,8 +15,14 @@ import {
   PrismaUserApiKeyRepository,
   PrismaAiUsageRepository,
   PrismaAdminRepository,
+  PrismaToolVisitRepository,
 } from "@penntools/platform/db";
-import type { AdminRepository, AiUsageRepository, UserApiKeyRepository } from "@penntools/core/repositories";
+import type {
+  AdminRepository,
+  AiUsageRepository,
+  ToolVisitRepository,
+  UserApiKeyRepository,
+} from "@penntools/core/repositories";
 import { createAI, createUserEmbeddings } from "@penntools/platform/ai";
 import { EMBEDDING_MODEL, FREE_CREDIT_USD, MIN_CALL_USD } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
@@ -65,6 +71,9 @@ export const aiUsage: AiUsageRepository = new PrismaAiUsageRepository(prisma);
 
 // Who can open /admin; see lib/admin.ts.
 export const admins: AdminRepository = new PrismaAdminRepository(prisma);
+
+// Visits to each tool, recorded by POST /api/visits for the admin page.
+export const toolVisits: ToolVisitRepository = new PrismaToolVisitRepository(prisma);
 
 // ── Embedding provider ─────────────────────────────────────────────────────
 // The platform's OpenAI key, for tools that embed with it directly (Career

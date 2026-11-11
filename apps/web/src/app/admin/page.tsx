@@ -1,5 +1,5 @@
-// /admin — AI spend by tool and by user, and who the admins are, for the
-// Platform team
+// /admin — AI spend by tool and by user, visits to each tool, and who the
+// admins are, for the Platform team
 //
 // Only admins (lib/admin.ts) can see it; everyone else gets a 404, so the
 // page's existence isn't advertised. "Free credit" is what the platform's
@@ -9,10 +9,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FREE_CREDIT_USD } from "@penntools/core/ai";
+import { VISIT_RECENT_DAYS } from "@penntools/core/repositories";
 import { toolRegistry } from "@penntools/core/tools";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
-import { admins, aiUsage } from "@/lib/container";
+import { admins, aiUsage, toolVisits } from "@/lib/container";
 import cardPage from "@/components/layout/CardPage.module.css";
 import { Admins } from "./Admins";
 import styles from "./page.module.css";
@@ -49,10 +50,17 @@ export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!user || !(await isAdmin(user))) notFound();
 
-  const [{ totals, byTool, byUser }, adminList] = await Promise.all([
+  const [{ totals, byTool, byUser }, visited, adminList] = await Promise.all([
     aiUsage.report({ limit: USER_LIMIT, lowCreditUsd: LOW_CREDIT_USD }),
+    toolVisits.report(),
     admins.list(),
   ]);
+  // Every registered tool, so ones no one has opened show too.
+  const unvisited = toolRegistry
+    .listManifests()
+    .filter((manifest) => !visited.some((tool) => tool.toolId === manifest.id))
+    .map((manifest) => ({ toolId: manifest.id, visits: 0, users: 0, recentVisits: 0, recentUsers: 0 }));
+  const visits = [...visited, ...unvisited];
 
   return (
     <div className={styles.page}>
@@ -152,6 +160,38 @@ export default async function AdminPage() {
         {byUser.length === USER_LIMIT && (
           <p className={cardPage.muted}>Showing the {USER_LIMIT} users who&apos;ve spent the most.</p>
         )}
+      </section>
+
+      <h2 className={styles.heading}>Tool visits</h2>
+      <section className={cardPage.card}>
+        <p className={cardPage.muted}>
+          A visit is opening a tool, signed in or not; moving between its pages isn&apos;t another one. Users counts
+          signed-in people only.
+        </p>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th className={styles.num}>Visits ({VISIT_RECENT_DAYS} days)</th>
+                <th className={styles.num}>Users ({VISIT_RECENT_DAYS} days)</th>
+                <th className={styles.num}>Visits (all time)</th>
+                <th className={styles.num}>Users (all time)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visits.map((tool) => (
+                <tr key={tool.toolId}>
+                  <td>{toolName(tool.toolId)}</td>
+                  <td className={styles.num}>{count(tool.recentVisits)}</td>
+                  <td className={styles.num}>{count(tool.recentUsers)}</td>
+                  <td className={styles.num}>{count(tool.visits)}</td>
+                  <td className={styles.num}>{count(tool.users)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className={cardPage.card}>
