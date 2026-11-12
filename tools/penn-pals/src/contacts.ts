@@ -50,6 +50,22 @@ export function customRelationships(contacts: Contact[]): string[] {
 export const VIBES = ["great", "good", "neutral", "lukewarm"] as const;
 export type Vibe = (typeof VIBES)[number];
 
+/** How senior the person is: one level each, from student to executive. */
+export const SENIORITIES = ["student", "entry", "mid", "senior", "executive"] as const;
+export type Seniority = (typeof SENIORITIES)[number];
+
+export const SENIORITY_LABELS: Record<Seniority, string> = {
+  student: "Student or intern",
+  entry: "Entry level (Analyst, Associate)",
+  mid: "Mid level (Manager, Senior Associate)",
+  senior: "Senior (Director, Principal)",
+  executive: "Executive (VP, Partner, C-suite, Founder)",
+};
+
+/** How far back a conversation can be dated, and how far ahead a follow-up, so a mistyped year (0011, 2206) is caught. */
+export const MAX_YEARS_BACK = 10;
+export const MAX_YEARS_AHEAD = 2;
+
 /** The next steps the form offers. */
 export const STEP_ACTIONS = ["Send a thank-you email", "Follow up"] as const;
 
@@ -78,6 +94,8 @@ export const Contact = z.object({
   /** The user's own label when the relationship is "other"; null or missing otherwise (optional so older contacts load). */
   relationshipOther: z.string().nullable().optional(),
   classYear: z.string().nullable(),
+  /** Optional so contacts saved before it existed still load. */
+  seniority: z.enum(SENIORITIES).nullable().optional(),
   company: z.string().nullable(),
   role: z.string().nullable(),
   area: z.string().nullable(),
@@ -109,6 +127,8 @@ export interface ContactDraft {
   /** The user's own label, used when the relationship is "other". */
   relationshipOther: string;
   classYear: string;
+  /** Empty when not given. */
+  seniority: Seniority | "";
   company: string;
   role: string;
   area: string;
@@ -134,6 +154,7 @@ export function emptyDraft(today: string): ContactDraft {
     relationship: "industry",
     relationshipOther: "",
     classYear: "",
+    seniority: "",
     company: "",
     role: "",
     area: "",
@@ -181,7 +202,11 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
   if (email && !/^\S+@\S+\.\S+$/.test(email)) errors.push("Enter a valid email address.");
 
   const meetingDate = draft.meetingDate.trim() || today;
+  const earliest = addDays(today, -365 * MAX_YEARS_BACK);
+  const latest = addDays(today, 365 * MAX_YEARS_AHEAD);
   if (!isDate(meetingDate)) errors.push("Enter a valid date of conversation.");
+  else if (meetingDate > today) errors.push("The date of conversation can't be in the future.");
+  else if (meetingDate < earliest) errors.push(`The date of conversation can't be more than ${MAX_YEARS_BACK} years ago. Check the year.`);
 
   if (draft.notes.length > MAX_NOTES_LENGTH) errors.push(`Keep the notes to at most ${MAX_NOTES_LENGTH} characters.`);
 
@@ -193,6 +218,8 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
     }
     const dueDate = s.dueDate.trim();
     if (dueDate && !isDate(dueDate)) errors.push(`"${s.action.trim()}" has an invalid due date.`);
+    else if (dueDate && dueDate < meetingDate) errors.push(`"${s.action.trim()}" is due before the conversation. Check the date.`);
+    else if (dueDate && dueDate > latest) errors.push(`"${s.action.trim()}" is due more than ${MAX_YEARS_AHEAD} years from now. Check the year.`);
     return { action: s.action.trim(), owner: s.owner, dueDate: dueDate || null, done: false, doneOn: null };
   });
 
@@ -206,6 +233,7 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
       relationship: draft.relationship,
       relationshipOther,
       classYear,
+      seniority: draft.seniority || null,
       company,
       role,
       area,
@@ -241,6 +269,7 @@ export function contactToDraft(contact: Contact): ContactDraft {
     relationship: contact.relationship,
     relationshipOther: contact.relationshipOther ?? "",
     classYear: contact.classYear ?? "",
+    seniority: contact.seniority ?? "",
     company: contact.company ?? "",
     role: contact.role ?? "",
     area: contact.area ?? "",

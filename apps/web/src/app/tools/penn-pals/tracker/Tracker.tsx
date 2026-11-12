@@ -16,10 +16,15 @@ import {
   emptyDraft,
   FORM_RELATIONSHIPS,
   parseStoredContacts,
+  MAX_YEARS_AHEAD,
+  MAX_YEARS_BACK,
   RELATIONSHIP_LABELS,
+  SENIORITIES,
+  SENIORITY_LABELS,
   STEP_ACTIONS,
   updateContact,
   VIBES,
+  addDays,
   workshopDue,
   type Contact,
   type ContactDraft,
@@ -140,7 +145,7 @@ function Form({
   const [writingOwn, setWritingOwn] = useState(false);
 
   const set = <K extends keyof ContactDraft>(key: K, value: ContactDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
-  const text = (key: "name" | "classYear" | "company" | "role" | "area" | "location" | "email" | "phone" | "linkedin") => ({
+  const text = (key: "name" | "company" | "role" | "area" | "location" | "email" | "phone" | "linkedin") => ({
     value: draft[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, e.target.value),
   });
@@ -249,7 +254,13 @@ function Form({
         </label>
         <label className={styles.field}>
           Date of conversation
-          <input type="date" value={draft.meetingDate} onChange={(e) => set("meetingDate", e.target.value)} />
+          <input
+            type="date"
+            value={draft.meetingDate}
+            min={addDays(today, -365 * MAX_YEARS_BACK)}
+            max={today}
+            onChange={(e) => set("meetingDate", e.target.value)}
+          />
         </label>
       </div>
 
@@ -271,6 +282,8 @@ function Form({
                     title="Due date"
                     type="date"
                     value={step.dueDate}
+                    min={isIsoDate(draft.meetingDate) ? draft.meetingDate : undefined}
+                    max={addDays(today, 365 * MAX_YEARS_AHEAD)}
                     onChange={(e) => setDue(action, e.target.value)}
                   />
                   {!step.dueDate && auto && (
@@ -305,8 +318,15 @@ function Form({
         <summary>Additional details</summary>
         <div className={styles.grid}>
           <label className={styles.field}>
-            Class year
-            <input {...text("classYear")} placeholder="e.g. 2022" />
+            Seniority
+            <select value={draft.seniority} onChange={(e) => set("seniority", e.target.value as ContactDraft["seniority"])}>
+              <option value="">Not sure</option>
+              {SENIORITIES.map((level) => (
+                <option key={level} value={level}>
+                  {SENIORITY_LABELS[level]}
+                </option>
+              ))}
+            </select>
           </label>
           <label className={styles.field}>
             Function or industry

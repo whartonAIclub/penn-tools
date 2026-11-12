@@ -342,3 +342,35 @@ describe("relationships", () => {
     expect(relationshipLabel(loaded!)).toBe("Recruiter");
   });
 });
+
+describe("date checks", () => {
+  const draft = { ...emptyDraft(TODAY), name: "Maria" };
+  const step = (dueDate: string) => [{ action: "Follow up", owner: "me" as const, dueDate }];
+
+  it("rejects a conversation in the future or with a mistyped year", () => {
+    expect(buildContact({ ...draft, meetingDate: "2026-11-09" }, TODAY, "a")).toMatchObject({ ok: false });
+    expect(buildContact({ ...draft, meetingDate: "0011-11-11" }, TODAY, "a")).toMatchObject({ ok: false });
+    expect(buildContact({ ...draft, meetingDate: "111111-11-11" }, TODAY, "a")).toMatchObject({ ok: false });
+  });
+
+  it("accepts today and a chat a few years back", () => {
+    expect(buildContact({ ...draft, meetingDate: TODAY }, TODAY, "a")).toMatchObject({ ok: true });
+    expect(buildContact({ ...draft, meetingDate: "2023-05-01" }, TODAY, "a")).toMatchObject({ ok: true });
+  });
+
+  it("rejects a follow-up due before the chat or years ahead", () => {
+    expect(buildContact({ ...draft, nextSteps: step("2026-11-01") }, TODAY, "a")).toMatchObject({ ok: false });
+    expect(buildContact({ ...draft, nextSteps: step("2206-11-01") }, TODAY, "a")).toMatchObject({ ok: false });
+    expect(buildContact({ ...draft, nextSteps: step("2026-12-08") }, TODAY, "a")).toMatchObject({ ok: true });
+  });
+});
+
+describe("seniority", () => {
+  it("is stored when given and null when left blank", () => {
+    expect(buildContact({ ...emptyDraft(TODAY), name: "Maria", seniority: "senior" }, TODAY, "a")).toMatchObject({
+      ok: true,
+      contact: { seniority: "senior" },
+    });
+    expect(buildContact({ ...emptyDraft(TODAY), name: "Maria" }, TODAY, "a")).toMatchObject({ ok: true, contact: { seniority: null } });
+  });
+});

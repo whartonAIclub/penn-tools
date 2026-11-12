@@ -10,10 +10,14 @@ export {
   emptyDraft,
   nextDue,
   FORM_RELATIONSHIPS,
+  MAX_YEARS_AHEAD,
+  MAX_YEARS_BACK,
   parseStoredContacts,
   RELATIONSHIP_LABELS,
   relationshipLabel,
   RELATIONSHIPS,
+  SENIORITIES,
+  SENIORITY_LABELS,
   sortByFollowUp,
   splitByDue,
   STEP_ACTIONS,
@@ -25,6 +29,7 @@ export {
   type DueStatus,
   type NextStep,
   type Relationship,
+  type Seniority,
   type Vibe,
 } from "./contacts.js";
 export {
