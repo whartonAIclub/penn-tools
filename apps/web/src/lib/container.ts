@@ -13,11 +13,19 @@ import {
   prisma,
   PrismaUserRepository,
   PrismaUserApiKeyRepository,
+  PrismaAiUsageRepository,
+  PrismaAdminRepository,
+  PrismaToolVisitRepository,
 } from "@penntools/platform/db";
-import type { UserApiKeyRepository } from "@penntools/core/repositories";
+import type {
+  AdminRepository,
+  AiUsageRepository,
+  ToolVisitRepository,
+  UserApiKeyRepository,
+} from "@penntools/core/repositories";
 import { createAI, createUserEmbeddings } from "@penntools/platform/ai";
-import { EMBEDDING_MODEL } from "@penntools/core/ai";
-import type { AI } from "@penntools/core/ai";
+import { EMBEDDING_MODEL, FREE_CREDIT_USD, MIN_CALL_USD } from "@penntools/core/ai";
+import type { AI, AIProvider } from "@penntools/core/ai";
 import { OpenAIAdapter, AnthropicAdapter } from "@penntools/platform/llm";
 import { OpenAIEmbeddingAdapter } from "@penntools/platform/embeddings";
 import type { EmbeddingProvider } from "@penntools/core/embeddings";
@@ -44,6 +52,8 @@ import { PitchCoachTool } from "@penntools/tool-pitch-coach";
 toolRegistry.register(new PitchCoachTool());
 import { AskPennTool } from "@penntools/tool-askpenn";
 toolRegistry.register(new AskPennTool());
+import { RecruitingHelperTool } from "@penntools/tool-recruiting-helper";
+toolRegistry.register(new RecruitingHelperTool());
 import { ChatprepTool } from "@penntools/tool-chatprep";
 toolRegistry.register(new ChatprepTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
@@ -58,6 +68,16 @@ export const users = new PrismaUserRepository(prisma);
 // Users' saved keys. Tool code must not import this (CLAUDE.md, and
 // `pnpm check:tools`); the AI API below reads keys on the tool's behalf.
 export const userApiKeys: UserApiKeyRepository = new PrismaUserApiKeyRepository(prisma);
+
+// Every AI call's tokens and cost, by user and tool: the free credit is checked
+// against it, and the admin page reads it. Tool code must not import this.
+export const aiUsage: AiUsageRepository = new PrismaAiUsageRepository(prisma);
+
+// Who can open /admin; see lib/admin.ts.
+export const admins: AdminRepository = new PrismaAdminRepository(prisma);
+
+// Visits to each tool, recorded by POST /api/visits for the admin page.
+export const toolVisits: ToolVisitRepository = new PrismaToolVisitRepository(prisma);
 
 // ── Embedding provider ─────────────────────────────────────────────────────
 // The platform's OpenAI key, for tools that embed with it directly (Career
@@ -75,15 +95,49 @@ if (!embeddingProvider) {
 }
 
 // ── AI API (new tools) ────────────────────────────────────────────────────────
-// Generation uses only the user's saved keys, never the platform's. Search-query
-// embeddings use the user's OpenAI key, or OPENAI_API_KEY when they have none
-// (logged as "embeddings.platform_key"). Tool routes reach these through
-// getAI / getEmbeddings in lib/ai.ts.
+// Generation uses the platform's keys (OPENAI_API_KEY, ANTHROPIC_API_KEY) while
+// the user's FREE_CREDIT_USD covers the call (each call reserves its expected
+// cost first; see createAI), then the user's saved keys.
+// Search-query embeddings use the user's OpenAI key, or OPENAI_API_KEY when
+// they have none. Every call is recorded in aiUsage with the user and tool.
+// Tool routes reach these through getAI / getEmbeddings in lib/ai.ts.
 
-export function createUserAI(userId: UserId): AI {
+const platformKeys: Record<AIProvider, string | null> = {
+  openai: process.env["OPENAI_API_KEY"] || null,
+  anthropic: process.env["ANTHROPIC_API_KEY"] || null,
+};
+
+/**
+ * The user's free credit left in USD, less calls in progress, or 0 when it's
+ * too little for any call (MIN_CALL_USD); null when the platform has no keys,
+ * so there's no free credit to offer.
+ */
+export async function freeCreditLeft(userId: UserId): Promise<number | null> {
+  if (!Object.values(platformKeys).some(Boolean)) return null;
+  const left = FREE_CREDIT_USD - (await aiUsage.platformSpend(userId));
+  return left >= MIN_CALL_USD ? left : 0;
+}
+
+export function createUserAI(userId: UserId, toolId: string): AI {
   return createAI({
     getKey: (provider) => userApiKeys.get(userId, provider),
     listProviders: async () => (await userApiKeys.list(userId)).map((key) => key.provider),
+    credit: {
+      platformKey: (provider) => platformKeys[provider],
+      spent: () => aiUsage.platformSpend(userId),
+      limitUsd: FREE_CREDIT_USD,
+      reserve: async ({ provider, model, amountUsd }) => {
+        const id = await aiUsage.reserve({ userId, toolId, api: "ai", provider, model, amountUsd }, FREE_CREDIT_USD);
+        return id
+          ? {
+              settle: ({ model, inputTokens, outputTokens, costUsd, estimated }) =>
+                aiUsage.settle(id, { model, inputTokens, outputTokens, costUsd, estimated }),
+              release: () => aiUsage.release(id),
+            }
+          : null;
+      },
+    },
+    recordUsage: (usage) => aiUsage.record({ ...usage, userId, toolId, api: "ai" }),
     logger,
   });
 }
@@ -94,10 +148,10 @@ export async function createUserEmbeddingProvider(
 ): Promise<EmbeddingProvider | null> {
   return createUserEmbeddings({
     userKey: await userApiKeys.get(userId, "openai"),
-    platformKey: process.env["OPENAI_API_KEY"] || null,
+    platformKey: platformKeys.openai,
     model: EMBEDDING_MODEL,
+    recordUsage: (usage) => aiUsage.record({ ...usage, userId, toolId, api: "embeddings" }),
     logger,
-    logFields: { userId, toolId },
   });
 }
 

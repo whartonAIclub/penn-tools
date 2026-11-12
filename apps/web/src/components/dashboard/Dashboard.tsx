@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CatalogSection, CatalogTool } from "@/lib/toolCatalog";
+import { trackClicks } from "@/lib/visits";
 import styles from "./Dashboard.module.css";
 
 function hostOf(url: string): string {
@@ -41,7 +42,7 @@ export function Dashboard({ sections }: { sections: CatalogSection[] }) {
           )}
           <div className={styles.grid}>
             {section.tools.map((tool) => (
-              <ToolTile key={tool.key} tool={tool} />
+              <ToolTile key={tool.visitId} tool={tool} />
             ))}
           </div>
         </section>
@@ -102,10 +103,11 @@ function ToolTile({ tool }: { tool: CatalogTool }) {
     </>
   );
 
-  // Community tools open in a new tab; registered tools navigate within the app,
-  // as the sidebar's links do, so the page doesn't fully reload.
+  // Community tools open in a new tab, counting the click; registered tools
+  // navigate within the app, as the sidebar's links do, so the page doesn't
+  // fully reload (ToolsShell records those visits).
   return tool.external ? (
-    <a href={tool.href} className={styles.tile} target="_blank" rel="noopener noreferrer">
+    <a href={tool.href} className={styles.tile} target="_blank" rel="noopener noreferrer" {...trackClicks(tool.visitId)}>
       {content}
     </a>
   ) : (
