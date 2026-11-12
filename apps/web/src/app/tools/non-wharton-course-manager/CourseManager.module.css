@@ -1011,7 +1011,63 @@
 }
 .startOver:hover { color: #fff; }
 
+/* ---- "Find an email" panel ---- */
+
+.panelBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(1, 31, 91, 0.25);
+}
+
+.searchPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  width: min(460px, 100%);
+  overflow-y: auto;
+  background: var(--paper);
+  box-shadow: -8px 0 32px #011f5b26;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: nwcmSlideIn 0.25s ease-out;
+}
+@keyframes nwcmSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) { .searchPanel { animation: none; } }
+
+.searchPanelHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.searchPanelTitle { margin: 0; font-family: var(--nwcm-serif), Georgia, serif; font-size: 26px; font-weight: 400; }
+.panelText { margin: 0 0 10px; }
+.searchResults { min-height: 120px; }
+/* Google's search box and results: drop their own frame so they sit on the panel. */
+.searchResults :global(.gsc-control-cse) { padding: 0; border: 0; background: transparent; font-family: inherit; }
+/* The engine's "Overlay" layout floats results over the page; keep them in the panel instead. */
+/* Google's stylesheet marks its own rules important, so these must be too. */
+.searchResults :global(.gsc-results-wrapper-overlay) {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  transform: none !important;
+}
+.searchResults :global(.gsc-modal-background-image),
+.searchResults :global(.gsc-results-close-btn) { display: none !important; }
+.searchResults :global(.gsc-control-wrapper-cse),
+.searchResults :global(.gsc-wrapper) { font-family: inherit; }
+
 @media (max-width: 600px) {
+  .searchPanel { width: 100%; padding: 20px 16px; }
   .donePanel { padding: 24px 16px; }
   .doneArt { display: none; }
   .cardHead { padding: 16px; gap: 12px; flex-wrap: wrap; }

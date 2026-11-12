@@ -3,7 +3,7 @@
 // Step 2: the student's name and year, then one card per picked course with
 // the permission email and where the request stands.
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   CONTACT_SOURCES,
@@ -19,7 +19,9 @@ import {
 } from "@penntools/tool-non-wharton-course-manager";
 import type { Course, Sender, Year } from "@penntools/tool-non-wharton-course-manager";
 import { ArrowIcon, ChevronIcon, InfoIcon, MailIcon, SearchIcon } from "./icons";
+import { loadSearch, searchStatus } from "./googleSearch";
 import { openBeside } from "./openSearch";
+import { SearchPanel } from "./SearchPanel";
 import styles from "./CourseManager.module.css";
 
 interface Props {
@@ -40,6 +42,9 @@ interface Props {
 export function Step2({ courses, sender, terms, onNameChange, onYearChange, onTermChange, onUpdate, canContinue, onBack, onContinue }: Props) {
   // One card open at a time; the first opens automatically.
   const [openId, setOpenId] = useState<string | null>(courses[0]?.id ?? null);
+  /** The search shown in the "Find an email" panel, if it's open. */
+  const [search, setSearch] = useState<{ query: string; href: string } | null>(null);
+  const closeSearch = useCallback(() => setSearch(null), []);
 
   return (
     <>
@@ -114,9 +119,12 @@ export function Step2({ courses, sender, terms, onNameChange, onYearChange, onTe
             open={openId === c.id}
             onToggle={() => setOpenId(openId === c.id ? null : c.id)}
             onChange={onUpdate}
+            onFind={setSearch}
           />
         ))}
       </div>
+
+      {search && <SearchPanel query={search.query} href={search.href} onClose={closeSearch} />}
 
       <div className={styles.navRow}>
         <button type="button" className={styles.secondaryButton} onClick={onBack}>
@@ -141,14 +149,23 @@ interface CardProps {
   open: boolean;
   onToggle: () => void;
   onChange: (course: Course) => void;
+  /** Opens the "Find an email" panel. */
+  onFind: (search: { query: string; href: string }) => void;
 }
 
-function PermissionCard({ number, course, sender, open, onToggle, onChange }: CardProps) {
+function PermissionCard({ number, course, sender, open, onToggle, onChange, onFind }: CardProps) {
   const code = courseCode(course);
   const email = permissionEmail(course, sender);
   const source = CONTACT_SOURCES[course.contactSource];
   const search = findEmailSearch(course);
   const ready = senderReady(sender);
+
+  // Start loading Google's search as soon as its button shows, so by the
+  // click we know whether it works here.
+  const showsFind = open && search !== null;
+  useEffect(() => {
+    if (showsFind) loadSearch().catch(() => undefined);
+  }, [showsFind]);
   const inputId = `nwcm-contact-${course.id}`;
   const panelId = `nwcm-card-${course.id}`;
 
@@ -198,13 +215,19 @@ function PermissionCard({ number, course, sender, open, onToggle, onChange }: Ca
                   rel="noreferrer"
                   className={styles.findButton}
                   onClick={(e) => {
-                    if (openBeside(search.href)) e.preventDefault();
+                    if (searchStatus() !== "failed") {
+                      e.preventDefault();
+                      onFind({ query: search.query, href: search.href });
+                    } else if (openBeside(search.href)) {
+                      // Search can't show inside the tool: a window beside it instead.
+                      e.preventDefault();
+                    } // Pop-ups blocked too: the link opens in a new tab.
                   }}
                 >
                   <SearchIcon />
                   {search.label}
                 </a>
-                <span className={styles.reason}>Copy the email from the search and paste it above.</span>
+                <span className={styles.reason}>Copy the email from the results and paste it above.</span>
               </div>
             )}
           </div>

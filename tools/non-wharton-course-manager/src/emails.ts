@@ -97,13 +97,14 @@ export const PERMISSION_STATUSES: readonly PermissionStatus[] = ["not-sent", "wa
  * A Google search for the contact, for when the course details had no email.
  * The student reads the results and types the email; the tool never fills it in.
  */
-export function findEmailSearch(course: Course): { label: string; href: string } | null {
+export function findEmailSearch(course: Course): { label: string; query: string; href: string } | null {
   if (course.contactSource === "details") return null;
   const query = course.instructor
-    ? `"${course.instructor}" contact upenn`
-    : `${departmentName(course.dept) ?? course.dept} department contact upenn`;
+    ? `"${course.instructor}" email upenn`
+    : `${departmentName(course.dept) ?? course.dept} department email upenn`;
   return {
-    label: course.instructor ? `Find ${course.instructor}'s email` : "Find the department contact",
+    label: course.instructor ? `Find ${course.instructor}'s email` : "Find the department email",
+    query,
     href: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
   };
 }
