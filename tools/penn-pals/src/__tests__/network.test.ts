@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { bestAdvice, countByKind, followUpStatus, followUpsFor, markFollowUpDone } from "../network.js";
-import { referralStepAction } from "../contacts.js";
-import { addDays } from "../debrief.js";
 import type { Contact } from "../contacts.js";
 
 const contact: Contact = {
@@ -66,7 +64,7 @@ describe("followUpsFor", () => {
 
 describe("countByKind", () => {
   it("counts open thank-yous and follow-ups", () => {
-    expect(countByKind(followUpsFor(contact))).toEqual({ thankYou: 1, referral: 0, followUp: 1 });
+    expect(countByKind(followUpsFor(contact))).toEqual({ thankYou: 1, followUp: 1 });
   });
 });
 
@@ -92,32 +90,5 @@ describe("followUpStatus", () => {
     expect(followUpStatus(today, "2026-02-10")).toBe("today");
     expect(followUpStatus(today, "2026-02-17")).toBe("thisWeek");
     expect(followUpStatus(today, "2026-02-18")).toBe("later");
-  });
-});
-
-describe("the referral step", () => {
-  const step = (action: string) => ({ action, owner: "me" as const, dueDate: null, done: false, doneOn: null });
-
-  it("asks who to talk to next a week after the chat", () => {
-    const [f] = followUpsFor({ ...contact, nextSteps: [step("Ask who to talk to next")] });
-    expect(f).toMatchObject({ kind: "referral", due: addDays(contact.meetingDate, 7) });
-    expect(f!.action).toMatch(/who to talk to next/);
-  });
-
-  it("updates them on a referral two weeks after the chat", () => {
-    const [f] = followUpsFor({ ...contact, nextSteps: [step("Update them on the referral")] });
-    expect(f).toMatchObject({ kind: "referral", due: addDays(contact.meetingDate, 14) });
-    expect(f!.action).toMatch(/on the referral/);
-  });
-
-  it("is picked by whether they offered a referral or an intro", () => {
-    expect(referralStepAction(false)).toBe("Ask who to talk to next");
-    expect(referralStepAction(true)).toBe("Update them on the referral");
-  });
-
-  it("doesn't schedule another step when done", () => {
-    const c = { ...contact, nextSteps: [step("Ask who to talk to next")] };
-    const done = markFollowUpDone(c, followUpsFor(c)[0]!, "2026-02-01");
-    expect(followUpsFor(done)).toEqual([]);
   });
 });

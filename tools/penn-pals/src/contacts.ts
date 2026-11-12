@@ -66,18 +66,8 @@ export const SENIORITY_LABELS: Record<Seniority, string> = {
 export const MAX_YEARS_BACK = 10;
 export const MAX_YEARS_AHEAD = 2;
 
-/**
- * The next steps the form offers, in the workshop's order: the thank-you, the
- * follow-ups, then the step between: asking who to talk to next (no referral
- * offered) or updating them on the referral (one was). New actions go at the
- * end, since code reads the first two by position.
- */
-export const STEP_ACTIONS = ["Send a thank-you email", "Follow up", "Ask who to talk to next", "Update them on the referral"] as const;
-
-/** The step between the thank-you and the monthly follow-ups, which depends on whether they offered a referral or an intro. */
-export function referralStepAction(offeredReferralOrIntro: boolean): string {
-  return offeredReferralOrIntro ? STEP_ACTIONS[3] : STEP_ACTIONS[2];
-}
+/** The next steps the form offers. */
+export const STEP_ACTIONS = ["Send a thank-you email", "Follow up"] as const;
 
 /** Days ahead that count as "due this week". */
 export const DUE_SOON_DAYS = 7;
