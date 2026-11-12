@@ -31,9 +31,10 @@ const BUCKETS: { label: string; statuses: FollowUpStatus[]; empty: string; class
   { label: "Coming up", statuses: ["thisWeek", "later"], empty: "Nothing coming up.", className: styles.bucketLater! },
 ];
 
-// The two buckets the debrief sorts next steps into, each with its own color
+// The three kinds of follow-up, each with its own color, in the workshop's order
 const KINDS: Record<FollowUpKind, { label: string; card: string; tag: string }> = {
   thankYou: { label: "Thank-you email", card: styles.kindThankYou!, tag: styles.tagThankYou! },
+  referral: { label: "Referral step", card: styles.kindReferral!, tag: styles.tagReferral! },
   followUp: { label: "Follow-up meeting", card: styles.kindFollowUp!, tag: styles.tagFollowUp! },
 };
 
@@ -332,6 +333,10 @@ export function Landing({ today: todayIso }: { today: string }) {
         <div className={`${styles.stat} ${styles.statThankYou}`}>
           <span className={styles.statNumber}>{totals.thankYou}</span>
           <span className={styles.statLabel}>{totals.thankYou === 1 ? "Thank-you note" : "Thank-you notes"} to send</span>
+        </div>
+        <div className={`${styles.stat} ${styles.statReferral}`}>
+          <span className={styles.statNumber}>{totals.referral}</span>
+          <span className={styles.statLabel}>{totals.referral === 1 ? "Referral step" : "Referral steps"} to take</span>
         </div>
         <div className={`${styles.stat} ${styles.statFollowUp}`}>
           <span className={styles.statNumber}>{totals.followUp}</span>

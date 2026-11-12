@@ -16,6 +16,7 @@ import {
   emptyDraft,
   FORM_RELATIONSHIPS,
   parseStoredContacts,
+  referralStepAction,
   MAX_YEARS_AHEAD,
   MAX_YEARS_BACK,
   RELATIONSHIP_LABELS,
@@ -28,7 +29,6 @@ import {
   workshopDue,
   type Contact,
   type ContactDraft,
-  type FollowUpKind,
 } from "@penntools/tool-penn-pals";
 import styles from "./Tracker.module.css";
 
@@ -143,14 +143,23 @@ function useConfirmLeave(unsaved: boolean) {
 // ── Form ──────────────────────────────────────────────────────────────────────
 
 // The two follow-ups the workshop recommends, shown up front as checkboxes.
-const STEPS: { kind: FollowUpKind; action: string; label: string; timing: string }[] = [
-  { kind: "thankYou", action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after your chat" },
-  { kind: "followUp", action: STEP_ACTIONS[1], label: "Follow up", timing: "one month after your chat" },
-];
+// The follow-ups the workshop recommends, in order, shown up front as checkboxes.
+// The middle one depends on whether they offered a referral or an intro.
+function stepRows(offered: boolean): { action: string; label: string; timing: string }[] {
+  return [
+    { action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after your chat" },
+    offered
+      ? { action: referralStepAction(true), label: "Update them on the referral", timing: "two weeks after your chat" }
+      : { action: referralStepAction(false), label: "Ask who to talk to next", timing: "one week after your chat" },
+    { action: STEP_ACTIONS[1], label: "Monthly follow-up", timing: "one month after your chat, then monthly" },
+  ];
+}
 
-/** A new contact starts with both follow-ups on, dated by the workshop timing. */
+const REFERRAL_ACTIONS = [referralStepAction(false), referralStepAction(true)];
+
+/** A new contact starts with every follow-up on, dated by the workshop timing. */
 function newDraft(today: string): ContactDraft {
-  return { ...emptyDraft(today), nextSteps: STEPS.map((s) => ({ action: s.action, owner: "me", dueDate: "" })) };
+  return { ...emptyDraft(today), nextSteps: stepRows(false).map((s) => ({ action: s.action, owner: "me", dueDate: "" })) };
 }
 
 // A custom relationship is picked from the menu as "custom:<label>".
@@ -212,6 +221,15 @@ function Form({
   }
 
   // Each follow-up is on when the draft has an open step for it.
+  // Ticking "offered a referral/intro" swaps the middle step to match.
+  function setOffer(key: "offeredReferral" | "offeredIntro", value: boolean) {
+    setDraft((d) => {
+      const next = { ...d, [key]: value };
+      const action = referralStepAction(next.offeredReferral || next.offeredIntro);
+      return { ...next, nextSteps: next.nextSteps.map((s) => (REFERRAL_ACTIONS.includes(s.action) ? { ...s, action } : s)) };
+    });
+  }
+
   const stepFor = (action: string) => draft.nextSteps.find((s) => s.action === action);
   function toggleStep(action: string, on: boolean) {
     set(
@@ -297,12 +315,23 @@ function Form({
         </label>
       </div>
 
+      <div className={styles.checks}>
+        <label className={styles.check}>
+          <input type="checkbox" checked={draft.offeredReferral} onChange={(e) => setOffer("offeredReferral", e.target.checked)} />
+          Offered a referral
+        </label>
+        <label className={styles.check}>
+          <input type="checkbox" checked={draft.offeredIntro} onChange={(e) => setOffer("offeredIntro", e.target.checked)} />
+          Offered an introduction
+        </label>
+      </div>
+
       <fieldset className={styles.steps}>
         <legend>Your follow-ups</legend>
-        {STEPS.map(({ kind, action, label, timing }) => {
+        {stepRows(draft.offeredReferral || draft.offeredIntro).map(({ action, label, timing }) => {
           const step = stepFor(action);
           // A blank date means the suggested one, shown in the box; it moves if the chat's date changes.
-          const suggested = isIsoDate(draft.meetingDate) ? workshopDue(kind, draft.meetingDate) : "";
+          const suggested = (isIsoDate(draft.meetingDate) && workshopDue(action, draft.meetingDate)) || "";
           return (
             <div key={action} className={styles.stepRow}>
               <label className={styles.check}>
@@ -334,16 +363,6 @@ function Form({
         })}
       </fieldset>
 
-      <div className={styles.checks}>
-        <label className={styles.check}>
-          <input type="checkbox" checked={draft.offeredReferral} onChange={(e) => set("offeredReferral", e.target.checked)} />
-          Offered a referral
-        </label>
-        <label className={styles.check}>
-          <input type="checkbox" checked={draft.offeredIntro} onChange={(e) => set("offeredIntro", e.target.checked)} />
-          Offered an introduction
-        </label>
-      </div>
 
       <label className={styles.field}>
         Key takeaways

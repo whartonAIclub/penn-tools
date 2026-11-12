@@ -2,8 +2,11 @@
 // the contacts the intake saves (contacts.ts) with the "2-Hour Job Search"
 // rules for after an informational meeting:
 //   - a thank-you email within 24 hours that highlights their best advice
+//   - a week later, if no referral was offered, ask how they'd pursue it and
+//     who to talk to next; if a referral or intro was offered, update them on
+//     it two weeks later instead
 //   - a follow-up a month later that recaps that advice, then every month
-// The intake decides which of the two a contact gets (its next steps); these
+// The intake decides which of these a contact gets (its next steps); these
 // rules only date them when the intake didn't, and schedule the next follow-up.
 // A contact's best advice is its first key takeaway.
 
@@ -14,7 +17,7 @@ import type { Contact, NextStep } from "./contacts.js";
 /** Where the browser keeps saved contacts, shared by the tracker and landing pages. */
 export const CONTACTS_STORAGE_KEY = "penn-pals:contacts:v1";
 
-export type FollowUpKind = "thankYou" | "followUp";
+export type FollowUpKind = "thankYou" | "referral" | "followUp";
 
 export interface FollowUp {
   /** `${contactId}:${stepIndex}` */
@@ -34,8 +37,12 @@ export type FollowUpStatus = "overdue" | "today" | "thisWeek" | "later";
 export const THANK_YOU_DAYS = 1;
 /** Months between follow-ups, counted from the call or the last follow-up. */
 export const FOLLOW_UP_MONTHS = 1;
+/** Days after the call to ask who to talk to next, when no referral was offered ("1 week later"). */
+export const ASK_NEXT_DAYS = 7;
+/** Days after the call to update them on a referral or intro they offered ("an update in 2 weeks"). */
+export const REFERRAL_UPDATE_DAYS = 14;
 
-const [THANK_YOU_ACTION, FOLLOW_UP_ACTION] = STEP_ACTIONS;
+const [THANK_YOU_ACTION, FOLLOW_UP_ACTION, ASK_NEXT_ACTION, REFERRAL_UPDATE_ACTION] = STEP_ACTIONS;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** `months` later, on the same day of the month or the month's last day (Jan 31 → Feb 28). */
@@ -66,20 +73,34 @@ export function bestAdvice(contact: Contact): string | null {
 }
 
 /** When a step is due if the user gave no date: the workshop timing, counted from the chat. */
-export function workshopDue(kind: FollowUpKind, meetingDate: string): string {
-  return kind === "thankYou" ? addDays(meetingDate, THANK_YOU_DAYS) : addMonths(meetingDate, FOLLOW_UP_MONTHS);
+export function workshopDue(action: string, meetingDate: string): string | null {
+  if (action === THANK_YOU_ACTION) return addDays(meetingDate, THANK_YOU_DAYS);
+  if (action === ASK_NEXT_ACTION) return addDays(meetingDate, ASK_NEXT_DAYS);
+  if (action === REFERRAL_UPDATE_ACTION) return addDays(meetingDate, REFERRAL_UPDATE_DAYS);
+  if (action === FOLLOW_UP_ACTION) return addMonths(meetingDate, FOLLOW_UP_MONTHS);
+  return null;
 }
 
 function kindOf(step: NextStep): FollowUpKind | null {
   if (step.action === THANK_YOU_ACTION) return "thankYou";
+  if (step.action === ASK_NEXT_ACTION || step.action === REFERRAL_UPDATE_ACTION) return "referral";
   if (step.action === FOLLOW_UP_ACTION) return "followUp";
   return null;
+}
+
+/** The to-do list's short wording for a step. */
+function actionText(step: NextStep, firstName: string | undefined): string {
+  if (step.action === THANK_YOU_ACTION) return `Thank ${firstName}`;
+  if (step.action === ASK_NEXT_ACTION) return `Ask ${firstName} who to talk to next`;
+  if (step.action === REFERRAL_UPDATE_ACTION) return `Update ${firstName} on the referral`;
+  return `Follow up with ${firstName}`;
 }
 
 /** Open follow-ups of each kind, for the page's summary. */
 export function countByKind(followUps: FollowUp[]): Record<FollowUpKind, number> {
   return {
     thankYou: followUps.filter((f) => f.kind === "thankYou").length,
+    referral: followUps.filter((f) => f.kind === "referral").length,
     followUp: followUps.filter((f) => f.kind === "followUp").length,
   };
 }
@@ -91,8 +112,8 @@ export function followUpsFor(contact: Contact): FollowUp[] {
     const kind = kindOf(step);
     if (!kind || step.done || step.owner !== "me") return [];
     // Kept short for the to-do list; the contact's card shows the advice to mention.
-    const action = kind === "thankYou" ? `Thank ${firstName}` : `Follow up with ${firstName}`;
-    const due = step.dueDate ?? workshopDue(kind, contact.meetingDate);
+    const action = actionText(step, firstName);
+    const due = step.dueDate ?? workshopDue(step.action, contact.meetingDate)!;
     return [{ id: `${contact.id}:${stepIndex}`, contactId: contact.id, stepIndex, kind, action, due }];
   });
 }

@@ -8,6 +8,8 @@
   --thank-you-bg: #ecfdf3;
   --meeting: #5925dc;
   --meeting-bg: #f4f3ff;
+  --referral: #0e7090;
+  --referral-bg: #ecfdff;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -17,7 +19,7 @@
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -44,6 +46,14 @@
 
 .statFollowUp {
   border-top-color: var(--meeting);
+}
+
+.statReferral {
+  border-top-color: var(--referral);
+}
+
+.statReferral .statNumber {
+  color: var(--referral);
 }
 
 .statNumber {
@@ -218,6 +228,10 @@
   border-left-color: var(--meeting);
 }
 
+.kindReferral {
+  border-left-color: var(--referral);
+}
+
 .legend {
   display: flex;
   gap: 8px;
@@ -240,6 +254,11 @@
 .tagFollowUp {
   background: var(--meeting-bg);
   color: var(--meeting);
+}
+
+.tagReferral {
+  background: var(--referral-bg);
+  color: var(--referral);
 }
 
 .check {
