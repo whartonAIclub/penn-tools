@@ -206,3 +206,74 @@
   font-weight: 400;
   cursor: pointer;
 }
+
+/* ── AI intake ─────────────────────────────────────────────────────────────── */
+.ai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 12px;
+  background: var(--penn-blue-bg, transparent);
+}
+.aiTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+.aiNote {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+.aiStory {
+  padding: 10px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  resize: vertical;
+}
+.aiStory::placeholder {
+  color: var(--section-label);
+  opacity: 0.55;
+  font-style: italic;
+}
+.aiQuestions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.aiQuestions input {
+  padding: 7px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+}
+.aiDone {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.aiUsage {
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.aiError {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.85rem;
+}
+.aiBanner {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--penn-blue-bg, transparent);
+  color: var(--penn-blue);
+  font-size: 0.85rem;
+  font-weight: 500;
+}

@@ -33,6 +33,7 @@ import {
   type FollowUpInterval,
   type FollowUpKind,
 } from "@penntools/tool-penn-pals";
+import { AiIntake, type AiAccess } from "./AiIntake";
 import styles from "./Tracker.module.css";
 
 const LANDING = "/tools/penn-pals";
@@ -53,7 +54,7 @@ function newId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 }
 
-export function Tracker() {
+export function Tracker({ ai }: { ai: AiAccess }) {
   const router = useRouter();
   // null until the browser's saved contacts are read, so the page doesn't flash empty.
   const [contacts, setContacts] = useState<Contact[] | null>(null);
@@ -72,6 +73,9 @@ export function Tracker() {
   }, []);
 
   const editing = editId ? contacts?.find((c) => c.id === editId) : undefined;
+  // The AI's fields; a new key remounts the form with them.
+  const [prefill, setPrefill] = useState<{ draft: ContactDraft; key: number } | null>(null);
+  const [storyTyped, setStoryTyped] = useState(false);
 
   function save(contact: Contact) {
     // An edit replaces the contact where it was; a new one goes first.
@@ -103,7 +107,19 @@ export function Tracker() {
         clearing its data removes them.
       </p>
 
-      <Form today={today} onSave={save} original={editing} customLabels={customRelationships(contacts)} />
+      {!editing && (
+        <AiIntake ai={ai} onFilled={(draft) => setPrefill((p) => ({ draft, key: (p?.key ?? 0) + 1 }))} onTyping={setStoryTyped} />
+      )}
+
+      <Form
+        key={prefill?.key ?? 0}
+        today={today}
+        onSave={save}
+        original={editing}
+        prefill={prefill?.draft}
+        storyTyped={storyTyped}
+        customLabels={customRelationships(contacts)}
+      />
     </div>
   );
 }
@@ -170,18 +186,25 @@ function Form({
   today,
   onSave,
   original,
+  prefill,
+  storyTyped = false,
   customLabels,
 }: {
   today: string;
   onSave: (contact: Contact) => void;
   original?: Contact | undefined;
+  /** Fields the AI filled in, to check before saving. */
+  prefill?: ContactDraft | undefined;
+  /** The AI box has text the user would lose by leaving. */
+  storyTyped?: boolean;
   /** Relationships the user wrote in before, offered again. */
   customLabels: string[];
 }) {
-  const [initial] = useState<ContactDraft>(() => (original ? contactToDraft(original) : newDraft(today)));
+  const [initial] = useState<ContactDraft>(() => prefill ?? (original ? contactToDraft(original) : newDraft(today)));
   const [draft, setDraft] = useState<ContactDraft>(initial);
   const [saved, setSaved] = useState(false);
-  useConfirmLeave(!saved && JSON.stringify(draft) !== JSON.stringify(initial));
+  // AI-filled fields count as unsaved even before any edit.
+  useConfirmLeave(!saved && (Boolean(prefill) || storyTyped || JSON.stringify(draft) !== JSON.stringify(initial)));
   const [errors, setErrors] = useState<string[]>([]);
   // True after "Other (write your own)" is picked, so the text box stays open while typing.
   const [writingOwn, setWritingOwn] = useState(false);
@@ -239,7 +262,8 @@ function Form({
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <h2 className={styles.formTitle}>{original ? `Edit ${original.name}` : "Log a chat"}</h2>
+      <h2 className={styles.formTitle}>{original ? `Edit ${original.name}` : prefill ? "Check and save" : "Or fill it in yourself"}</h2>
+      {prefill && <p className={styles.aiBanner}>✨ Filled in by AI from your story. Fix anything it got wrong, then save.</p>}
 
       <div className={styles.grid}>
         <label className={styles.field}>
