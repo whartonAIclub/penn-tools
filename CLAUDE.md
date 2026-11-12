@@ -47,7 +47,7 @@ If a user requests a change outside their scope, explain the boundary politely a
 
 When the user says "Register new team", collect these inputs one at a time:
 
-1. **Tool ID** — a short name in lowercase words joined by hyphens, e.g. `course-finder`. It becomes the page URL (`/tools/course-finder`), the package name and the class name (`CourseFinderTool`), so check that `tools/{id}/` doesn't already exist and that the ID isn't retired (`apps/web/next.config.mjs` redirects a retired tool's URL elsewhere); the scaffold refuses both
+1. **Tool ID** — a short name in lowercase words joined by hyphens, e.g. `course-finder`. It becomes the page URL (`/tools/course-finder`), the package name and the class name (`CourseFinderTool`), so check that `tools/{id}/` doesn't already exist, that it doesn't start with `community-` (kept for community tools' click counts), and that the ID isn't retired (`apps/web/next.config.mjs` redirects a retired tool's URL elsewhere) or a removed tool's (`packages/platform/scripts/removed-tools.json`); the scaffold refuses all of these
 2. **Tool title** — human-readable, e.g. `"Course Finder"`
 3. **Short description** — one sentence
 4. **Contributors** — comma-separated names
@@ -156,6 +156,7 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 | Tool registration | `apps/web/src/lib/container.ts` | `pnpm new-tool` writes it; otherwise the Platform team |
 | Tool categories (sidebar and dashboard sections) | `TOOL_CATEGORIES` in `packages/core/src/tools/Tool.ts` | Platform team, who add categories when tool teams ask; a tool team picks one in its manifest |
 | Community tools (apps outside this repo) | `apps/web/src/data/communityTools.ts` | Platform team |
+| Removing or renaming a tool, registered or community | To remove one, take out its code and list it in `packages/platform/scripts/removed-tools.json`; a rename is not a removal. See **Removing a tool** in `README.md` | Platform team |
 | Tool landing pages | `apps/web/src/app/tools/{id}/` | That tool's team |
 | Tool implementations | `tools/{id}/` | That tool's team |
 
@@ -182,7 +183,7 @@ See **Site header**, **Site sidebar** and **Page layout** in `docs/ARCHITECTURE.
 
 Tools that need their own tables get a dedicated Postgres role and schema in the shared database — never tables in `public` (which `prisma db push` manages and would drop):
 
-- Name the role and schema the same short, lowercase word for the tool: its tool ID without hyphens (`course-finder` → `coursefinder`), or for an older tool with a numeric ID, a word for its name (e.g. `compass` for tool 19). Use it everywhere the tool's database is referenced (`TOOLS`, `toolSql`).
+- Name the role and schema the same short, lowercase word for the tool: its tool ID without hyphens (`course-finder` → `coursefinder`), or for an older tool with a numeric ID, a word for its name (e.g. `compass` for tool 19). Use it everywhere the tool's database is referenced (`TOOLS`, `toolSql`). It can't be a removed tool's name (in `packages/platform/scripts/removed-tools.json`), whose database every deploy drops; `db:deploy` fails if it is.
 - Register the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs`. The `db:deploy` pre-deploy step (see **Deploying** in `README.md`) runs `prisma db push`, then creates the role and schema and, as that role, applies `tools/{id}/schema.sql` and runs `tools/{id}/seed.mjs` if present — no manual setup.
 - There are no migrations: `schema.sql` is the tool's full schema and runs on every deploy, so every statement must be safe to re-run (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`). To add a column to a table that may already exist, append `ALTER TABLE … ADD COLUMN IF NOT EXISTS`. `seed.mjs` (optional) default-exports `async ({ sql, embeddings }) => {}` to fill reference data (`embeddings` is the platform's `EmbeddingProvider`, or `null` without `OPENAI_API_KEY`); it also runs every deploy, so it must skip work already done. A failed seed is logged and does not block the deploy.
 - The tool's API routes in `apps/web/src/app/tools/{id}/` (web-app code, where platform imports are allowed) get a shared database client from `toolSql("<role>")` in `@penntools/platform/db` and pass it into the tool's functions. The tool package itself (`tools/{id}/src/`) never creates connections; its only non-core import is `import type { Sql } from "postgres"` to type that parameter. The role's `search_path` is its schema; it cannot read other tools' or platform tables. The password is derived from `DATABASE_URL`, so there is no per-tool secret. This isolation guards against mistakes, not deliberate misuse: tool code runs in the same process as platform code (the web app, and `db:deploy` for seeds), which holds the admin `DATABASE_URL`, so reviewing tool PRs is what guards against that.

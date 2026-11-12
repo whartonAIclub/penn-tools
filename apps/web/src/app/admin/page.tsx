@@ -14,6 +14,7 @@ import { toolRegistry } from "@penntools/core/tools";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { admins, aiUsage, toolVisits } from "@/lib/container";
+import { communityToolByVisitId, communityTools, communityVisitId, isCommunityVisitId } from "@/data/communityTools";
 import cardPage from "@/components/layout/CardPage.module.css";
 import { Admins } from "./Admins";
 import styles from "./page.module.css";
@@ -42,8 +43,9 @@ function count(n: number): string {
   return n.toLocaleString("en-US");
 }
 
+/** A tool's title, or its ID once it's been removed. */
 function toolName(toolId: string): string {
-  return toolRegistry.get(toolId)?.manifest.title ?? toolId;
+  return toolRegistry.get(toolId)?.manifest.title ?? communityToolByVisitId(toolId)?.title ?? toolId;
 }
 
 export default async function AdminPage() {
@@ -55,11 +57,13 @@ export default async function AdminPage() {
     toolVisits.report(),
     admins.list(),
   ]);
-  // Every registered tool, so ones no one has opened show too.
-  const unvisited = toolRegistry
-    .listManifests()
-    .filter((manifest) => !visited.some((tool) => tool.toolId === manifest.id))
-    .map((manifest) => ({ toolId: manifest.id, visits: 0, users: 0, recentVisits: 0, recentUsers: 0 }));
+  // Every tool on the site, so ones no one has opened show too.
+  const unvisited = [
+    ...toolRegistry.listManifests().map((manifest) => manifest.id),
+    ...communityTools.map((tool) => communityVisitId(tool.id)),
+  ]
+    .filter((toolId) => !visited.some((tool) => tool.toolId === toolId))
+    .map((toolId) => ({ toolId, visits: 0, users: 0, recentVisits: 0, recentUsers: 0 }));
   const visits = [...visited, ...unvisited];
 
   return (
@@ -165,8 +169,9 @@ export default async function AdminPage() {
       <h2 className={styles.heading}>Tool visits</h2>
       <section className={cardPage.card}>
         <p className={cardPage.muted}>
-          A visit is opening a tool, signed in or not; moving between its pages isn&apos;t another one. Users counts
-          signed-in people only.
+          A visit is opening a tool, signed in or not; moving between its pages isn&apos;t another one. For an
+          external tool, it&apos;s a click on its link in the sidebar or on the dashboard, so people who reach its
+          site another way aren&apos;t counted. Users counts signed-in people only.
         </p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
@@ -182,7 +187,10 @@ export default async function AdminPage() {
             <tbody>
               {visits.map((tool) => (
                 <tr key={tool.toolId}>
-                  <td>{toolName(tool.toolId)}</td>
+                  <td>
+                    {toolName(tool.toolId)}
+                    {isCommunityVisitId(tool.toolId) && <span className={cardPage.muted}> · external</span>}
+                  </td>
                   <td className={styles.num}>{count(tool.recentVisits)}</td>
                   <td className={styles.num}>{count(tool.recentUsers)}</td>
                   <td className={styles.num}>{count(tool.visits)}</td>

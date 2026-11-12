@@ -154,6 +154,33 @@ for (const [label, id] of [
   });
 }
 
+test("rejects an ID that community tools' click counts use", (t) => {
+  const r = repo(t);
+  const args = [...ARGS];
+  args[1] = "community-finder";
+  const result = r.run(...args);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /can't start with "community-"/);
+  assert.ok(!r.exists("tools"));
+});
+
+test("rejects a removed tool's ID, and only that one", (t) => {
+  const r = repo(t);
+  mkdirSync(join(r.root, "packages/platform/scripts"), { recursive: true });
+  writeFileSync(
+    join(r.root, "packages/platform/scripts/removed-tools.json"),
+    JSON.stringify([{ id: "course-finder", name: "coursefinder" }, { id: "community-other" }]),
+  );
+  const result = r.run(...ARGS);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /"course-finder" belonged to a removed tool/);
+  assert.ok(!r.exists("tools"));
+
+  const args = [...ARGS];
+  args[1] = "course-search";
+  assert.equal(r.run(...args).status, 0);
+});
+
 test("rejects an ID that's already taken", (t) => {
   const r = repo(t);
   mkdirSync(join(r.root, "tools", "course-finder"), { recursive: true });

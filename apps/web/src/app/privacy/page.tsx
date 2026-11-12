@@ -44,8 +44,9 @@ export default function PrivacyPage() {
             and see what our tools cost to run. We don&apos;t store the request itself here.
           </li>
           <li>
-            <strong>Which tools you open.</strong> Each time a tool is opened we record which tool and when, and who
-            opened it if they&apos;re signed in, so we can see how much each tool is used.
+            <strong>Which tools you open.</strong> Each time a tool is opened, or a link to a community tool on
+            another site is clicked, we record which tool and when, and who it was if they&apos;re signed in, so we can
+            see how much each tool is used.
           </li>
           <li>
             <strong>What you enter into tools.</strong> Some tools save what you enter so you can come back to it,

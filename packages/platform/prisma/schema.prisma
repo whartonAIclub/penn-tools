@@ -126,12 +126,12 @@ model AiUsage {
 // ── Tool visits ───────────────────────────────────────────────────────────────
 
 /// One visit to a tool: opening its pages, signed in or not (moving between
-/// pages within a tool isn't another visit). Recorded by the site's tools
-/// frame through POST /api/visits; read by /admin.
+/// pages within a tool isn't another visit), or for a community tool, a click
+/// on its link. Recorded by the site through POST /api/visits; read by /admin.
 model ToolVisit {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now()) @map("created_at")
-  /// The tool's manifest id.
+  /// The tool's manifest id, or community-<id> for a community tool.
   toolId    String   @map("tool_id")
   /// Null for a signed-out visitor.
   userId    String?  @map("user_id")

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { communityTools, communityVisitId } from "@/data/communityTools";
 
 const record = vi.fn(async (_toolId: string, _userId: string | null) => {});
 const getCurrentUser = vi.fn(async (): Promise<{ id: string } | null> => null);
@@ -16,7 +17,7 @@ vi.mock("@penntools/core/tools", () => ({
 
 const { POST } = await import("../route");
 
-/** A request like the one ToolsShell's beacon sends: JSON as plain text. */
+/** A request like the one lib/visits.ts's beacon sends: JSON as plain text. */
 function beacon(body: string): NextRequest {
   return new NextRequest("http://localhost/api/visits", {
     method: "POST",
@@ -44,8 +45,18 @@ describe("POST /api/visits", () => {
     expect(record).toHaveBeenCalledWith("askpenn", "user-1");
   });
 
+  it("records a click on a community tool's link under its visit ID", async () => {
+    getCurrentUser.mockResolvedValue({ id: "user-1" });
+    const visitId = communityVisitId(communityTools[0]!.id);
+    const res = await POST(beacon(JSON.stringify({ toolId: visitId })));
+    expect(res.status).toBe(204);
+    expect(record).toHaveBeenCalledWith(visitId, "user-1");
+  });
+
   it.each([
     ["an unknown tool", JSON.stringify({ toolId: "no-such-tool" })],
+    ["a community tool's bare ID", JSON.stringify({ toolId: communityTools[0]!.id })],
+    ["an unknown community tool", JSON.stringify({ toolId: communityVisitId("no-such-tool") })],
     ["a tool ID that isn't a string", JSON.stringify({ toolId: 7 })],
     ["no tool ID", "{}"],
     ["JSON that isn't an object", "null"],

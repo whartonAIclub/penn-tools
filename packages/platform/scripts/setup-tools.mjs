@@ -5,7 +5,8 @@
 // shared database, then, as that role, applies the tool's schema and runs its
 // seed. A tool role owns only its schema, so it cannot read or write platform
 // tables or other tools' tables, and `prisma db push` (which manages only
-// `public`) never sees — or tries to drop — tool tables.
+// `public`) never sees — or tries to drop — tool tables. It also clears what
+// removed tools left in the database (removed-tools.json; see REMOVED_TOOLS).
 //
 // Each tool directory holds:
 //   schema.sql  the tool's full schema, applied on every run, so every
@@ -65,10 +66,74 @@ const TOOLS = [
   { name: "recruitinghelper", dir: "tools/recruiting-helper", connectionLimit: 30 },
 ];
 
+// Tools that have been removed (see "Removing a tool" in the README), as
+// { id, name? }: the tool's ID (community-<id> for a community tool) and, if
+// it had its own database, its former name in TOOLS. Each run clears what they
+// left: their visits, and their role and schema with every table in them.
+// Their AI usage stays, since users' free credit is counted from it. Entries
+// stay too, so databases that deploy later (team instances) are cleared as
+// well; for the same reason, a removed tool's ID and name can't be used again
+// (`pnpm new-tool` refuses the ID, this script the name, and the web app's
+// tests a listed ID still on the site). A renamed tool isn't a removed one:
+// it keeps its name in TOOLS, and isn't listed here.
+const REMOVED_TOOLS = JSON.parse(await readFile(new URL("./removed-tools.json", import.meta.url), "utf8"));
+
+// Checked before anything runs, so a mistake changes nothing. Names go into
+// DDL (which cannot take bind parameters), so they must be plain words. The web
+// app's tests check the same, so a mistake is caught before it's merged.
+if (!Array.isArray(REMOVED_TOOLS)) {
+  console.error("removed-tools.json must be a list of { id, name? } entries; use [] for none.");
+  process.exit(1);
+}
+const malformed = REMOVED_TOOLS.filter(
+  (removed) =>
+    typeof removed?.id !== "string" ||
+    !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(removed.id) ||
+    (removed.name !== undefined && (typeof removed.name !== "string" || !/^[a-z0-9]+$/.test(removed.name))),
+);
+if (malformed.length > 0) {
+  console.error(
+    `removed-tools.json: each entry needs an "id" (a tool ID, or community-<id>) and, optionally, ` +
+      `a "name" (lowercase letters and digits). Not: ${malformed.map((m) => JSON.stringify(m)).join(", ")}`,
+  );
+  process.exit(1);
+}
+
+const reused = REMOVED_TOOLS.filter((removed) => TOOLS.some((tool) => tool.name === removed.name));
+if (reused.length > 0) {
+  console.error(
+    `${reused.map((r) => r.name).join(", ")}: in both TOOLS and removed-tools.json. A removed tool's ` +
+      "database is cleared on every deploy, so its name can't be used again; pick another.",
+  );
+  process.exit(1);
+}
+
 const adminUrl = process.env["DATABASE_URL"];
 if (!adminUrl) {
   console.error("DATABASE_URL is not set. Point it at the database as an admin user.");
   process.exit(1);
+}
+
+async function clearRemovedTool(admin, { id, name }) {
+  const visits = await admin`DELETE FROM tool_visits WHERE tool_id = ${id}`;
+  let dropped = false;
+  if (name) {
+    const [{ role, schema }] = await admin`
+      SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = ${name}) AS role,
+             EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = ${name}) AS schema`;
+    await admin.unsafe(`DROP SCHEMA IF EXISTS "${name}" CASCADE`);
+    if (role) {
+      // Revokes anything granted to the role (such as another tool's shared
+      // view), which would otherwise stop DROP ROLE.
+      await admin.unsafe(`DROP OWNED BY "${name}"`);
+      await admin.unsafe(`DROP ROLE "${name}"`);
+    }
+    dropped = role || schema;
+  }
+  if (visits.count > 0 || dropped) {
+    const cleared = [`${visits.count} visit${visits.count === 1 ? "" : "s"}`, ...(dropped ? [`database ${name}`] : [])];
+    console.log(`✔ ${id}: removed tool's data cleared (${cleared.join(", ")})`);
+  }
 }
 
 async function setupRole(admin, { name, connectionLimit }) {
@@ -117,6 +182,9 @@ async function applySchemaAndSeed({ name, dir }) {
 
 const admin = postgres(postgresConnectionUrl(adminUrl), { max: 1, onnotice: () => {} });
 try {
+  for (const removed of REMOVED_TOOLS) {
+    await clearRemovedTool(admin, removed);
+  }
   for (const tool of TOOLS) {
     await setupRole(admin, tool);
     await applySchemaAndSeed(tool);

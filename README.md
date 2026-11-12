@@ -96,7 +96,7 @@ Leave the build command empty: Railway runs the root `build` script (`turbo buil
 On each push to the tracked branch, Railway:
 
 1. **Builds** the monorepo.
-2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, adds the first admins if there are none yet (`packages/platform/scripts/seed-platform.mjs`), then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). If this fails, the previous version keeps serving. On a fresh database, the first deploy takes about a minute longer while Career Canvas embeds the course catalog.
+2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, adds the first admins if there are none yet (`packages/platform/scripts/seed-platform.mjs`), then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). It also clears removed tools' data (see Removing a tool). If this fails, the previous version keeps serving. On a fresh database, the first deploy takes about a minute longer while Career Canvas embeds the course catalog.
 3. **Starts** the app with `next start`.
 
 The database is Railway's pgvector Postgres template (the platform schema needs the `vector` extension). Set these variables on the app service:
@@ -124,3 +124,58 @@ pnpm new-tool --id course-finder --title "Course Finder" --description "Find Pen
 ```
 
 Then build the tool with the platform APIs (user, AI, embeddings, database): section 4 of `CLAUDE.md` says how, with AskPenn (`tools/askpenn`) and the Platform Playground (`tools/platform-playground`) as the reference tools. Tool code may only use those APIs, and `pnpm check:tools` checks it. See `docs/ARCHITECTURE.md` for how the tool system works.
+
+## Removing a tool
+
+Removing a tool is one change: take out its code, and list it in `removed-tools.json` so the deploy clears its data from the database.
+
+**Take out the code.** For a registered tool (in `tools/<id>/`):
+
+- Delete `tools/<id>/` and `apps/web/src/app/tools/<id>/`.
+- Remove the tool from `apps/web/src/lib/container.ts` (its two lines) and `apps/web/package.json`, then run `pnpm install`.
+- If the tool has its own database, remove its entry from `TOOLS` in `packages/platform/scripts/setup-tools.mjs`.
+- Delete its screenshot, `apps/web/public/dashboard/<id>.jpg`, and its row in `TARGETS` in `scripts/capture-tool-screenshots.py`.
+- If it's listed in `KNOWN_EXCEPTIONS` in `scripts/check-tool-imports.mjs`, remove it there.
+- If the tool now lives elsewhere and is listed as a community tool, redirect its old URL there in `apps/web/next.config.mjs`, as `/tools/ai-compass` does. (A tool that stays on this site under a new ID isn't being removed; see **Renaming a registered tool** below.)
+- Search the repo for the tool's ID and its database name, and update anything else that mentions them, such as the docs.
+
+For a community tool (in `apps/web/src/data/communityTools.ts`), delete its entry, its screenshot and its row in `TARGETS`.
+
+**List it as removed.** In the same change, add the tool to `packages/platform/scripts/removed-tools.json`: its ID, and if it had its own database, its former name in `TOOLS`. For a community tool, the ID is `community-<id>`, the ID its clicks are stored under.
+
+```json
+[
+  { "id": "course-finder", "name": "coursefinder" },
+  { "id": "community-quakercal" }
+]
+```
+
+From then on, every `db:deploy` deletes the tool's visits, and drops its role and its schema with every table in it. Dropping the schema also drops anything elsewhere that depends on its tables, so if the tool shared data with another tool (a `GRANT` in `setup-tools.mjs`), take out that sharing, and whatever the other tool built on it, before listing the tool. Anything granted to the removed tool's role is revoked when the role is dropped. That covers every database the change reaches: production, and each team instance once its branch merges `main`. `db:deploy` runs before the new version starts serving, so for that deploy the old version still serves the tool without its tables. Anyone using the tool for that minute or so gets errors. The visits the old version records in that time are deleted on the next deploy.
+
+Keep the entries, which are safe to run again. A listed ID and name can't be used again, because the next deploy would clear the new tool's data too:
+
+- `pnpm new-tool` refuses a listed ID.
+- `db:deploy` fails if a listed name is back in `TOOLS`.
+- The web app's tests fail if a listed ID is still on the site: a tool's page folder in `apps/web/src/app/tools/`, or a community tool. That also catches listing a tool before its code is taken out.
+
+**The tool's AI usage is kept.** A user's free AI credit is the total of their `ai_usage` rows paid with the platform's keys. Deleting a tool's rows would give its users that credit back and remove its spending from `/admin`'s totals. After the tool is gone, `/admin` shows those rows under its ID. No later tool can take that ID, so their totals aren't combined.
+
+**Renaming a community tool's `id`** works like removing it and adding it again: its clicks stay under the old ID. To keep them, don't list the old ID in `removed-tools.json`. Instead, once the rename is live, move the clicks to the new ID in each database:
+
+```sql
+UPDATE tool_visits SET tool_id = 'community-<new id>' WHERE tool_id = 'community-<old id>';
+```
+
+**Renaming a registered tool** isn't removing it either. Don't list it in `removed-tools.json`: if you did, every deploy would drop the database the renamed tool still uses.
+
+- Rename everything named after its ID: its folders (`tools/<id>/` and `apps/web/src/app/tools/<id>/`), its package (`@penntools/tool-<id>`, also in `apps/web/package.json`), its class, its manifest's `id`, its lines in `container.ts`, its screenshot and its row in `TARGETS`. Then run `pnpm install`.
+- Keep its name in `TOOLS`. The database name doesn't have to match the tool's ID (tool `19` uses `compass`), so its tables carry over unchanged.
+- Redirect its old URL to the new one in `apps/web/next.config.mjs`, as `/tools/1` does. The redirect also stops `pnpm new-tool` from giving the old ID to a new tool.
+- Once the rename is live, move its history to the new ID in each database. Moving its AI usage is safe, because free credit is counted per user, not per tool:
+
+  ```sql
+  UPDATE tool_visits SET tool_id = '<new id>' WHERE tool_id = '<old id>';
+  UPDATE ai_usage SET tool_id = '<new id>' WHERE tool_id = '<old id>';
+  ```
+
+To run SQL locally, use `docker exec -it penntools-db psql -U penntools -d penntools`. On a Railway instance, use `railway connect pgvector`, which needs Railway's CLI and `psql` installed.

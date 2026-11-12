@@ -374,15 +374,23 @@ Key design choices:
   expected cost until settled); one older than 30 minutes stops counting, as
   its call was probably abandoned, but is kept so a slow call can still settle
   it.
-  Reports leave pending rows out. The repository is `aiUsage` in
-  `container.ts`; tool code must not import it.
+  Reports leave pending rows out. A removed tool's rows are kept, since they
+  count toward users' credit (see **Removing a tool** in the README). The
+  repository is `aiUsage` in `container.ts`; tool code must not import it.
 - `tool_visits` has one row per visit to a tool: the tool, when, and the user
   if signed in. The tools frame (`ToolsShell`) sends it to `POST /api/visits`
-  with `navigator.sendBeacon` each time a tool is opened; moving between pages
-  within a tool isn't another visit. `/admin` shows visits and distinct
-  signed-in users per tool, for the last 30 days and all time. Anyone can
-  call the route, and some ad blockers stop the beacon, so the counts are a
-  guide, not an audit. Tool code must not import `toolVisits` or `admins`.
+  with `navigator.sendBeacon` (`lib/visits.ts`) each time a tool is opened;
+  moving between pages within a tool isn't another visit. A community tool's
+  visit is a click on its link in the sidebar or on the dashboard (a click,
+  with or without a modifier key, a tap, or a middle-click; "Open in new tab"
+  from the right-click or long-press menu can't be seen), recorded as
+  `community-<id>` (`communityVisitId`) so it stays apart from registered
+  tools' IDs. People who reach its site any other way aren't counted. `/admin`
+  shows visits and distinct signed-in users per tool, for the last 30 days and
+  all time. Anyone can call the route, and some ad blockers stop the beacon, so
+  the counts are a guide, not an audit. A removed tool's rows are deleted on
+  every deploy once it's listed in `removed-tools.json` (see **Removing a
+  tool** in the README). Tool code must not import `toolVisits` or `admins`.
 - `admins` lists, by email, who can open `/admin` (AI usage, tool visits, and
   the admins themselves, who add and remove each other there; no one can remove
   themselves). `db:deploy` adds the first admins
@@ -398,7 +406,9 @@ Key design choices:
   `tools/{id}/seed.mjs`. Like `prisma db push` for the platform, both run on
   every deploy and must be safe to re-run; there are no migrations. A tool role
   cannot read platform or other tools' tables. AskPenn (schema `askpenn`) is
-  the reference.
+  the reference. Removing a tool from `TOOLS` leaves its role and schema;
+  listing it in `packages/platform/scripts/removed-tools.json` drops them on
+  the next deploy.
 - Tools use pgvector from `public`, where the platform installs it. That schema is
   not on a tool role's `search_path`, so tool SQL schema-qualifies the type and
   operators (`public.vector`, `OPERATOR(public.<=>)`). Each vector is stored
