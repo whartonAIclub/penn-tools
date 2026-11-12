@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest } from "@penntools/core/ai";
-import { Brief, briefContent, buildBrief, checkBriefRequest } from "../brief.js";
+import { Brief, MAX_NEWS_LENGTH, MAX_REQUEST_BYTES, MAX_WEIGHING_LENGTH, briefContent, buildBrief, checkBriefRequest } from "../brief.js";
 import { MAX_FILES_BYTES, MAX_NEWS_FILES, MAX_PROFILE_FILES, checkFiles, fileParts, type UploadedFile } from "../files.js";
 
 const b64 = (bytes: string) => Buffer.from(bytes, "binary").toString("base64");
@@ -51,6 +51,25 @@ describe("checkBriefRequest", () => {
   it("needs text or files for both the resume and the profile", () => {
     expect(checkBriefRequest({ provider: "anthropic", student: { ...student, resume: "" }, chat })).toContain("your resume");
     expect(checkBriefRequest({ provider: "anthropic", student, chat: { ...chat, profile: "", profileFiles: [] } })).toContain("their profile");
+  });
+
+  it("checks every text field's limit and the company name", () => {
+    expect(checkBriefRequest({ provider: "anthropic", student, chat: { ...chat, company: " " } })).toContain("company");
+    expect(checkBriefRequest({ provider: "anthropic", student: { ...student, targetRoles: "" }, chat })).toContain("target roles");
+    expect(checkBriefRequest({ provider: "anthropic", student: { ...student, weighing: "x".repeat(MAX_WEIGHING_LENGTH + 1) }, chat })).toContain(
+      `${MAX_WEIGHING_LENGTH}`,
+    );
+    expect(checkBriefRequest({ provider: "anthropic", student, chat: { ...chat, news: "x".repeat(MAX_NEWS_LENGTH + 1) } })).toContain(`${MAX_NEWS_LENGTH}`);
+  });
+
+  it("refuses files that aren't a list, and a resume file that isn't a file", () => {
+    expect(checkBriefRequest({ provider: "anthropic", student, chat: { ...chat, newsFiles: "a.pdf" } })).toContain("must be a list");
+    expect(checkBriefRequest({ provider: "anthropic", student: { ...student, resumeFile: "resume.pdf" }, chat })).toContain("must be an object");
+  });
+
+  it("allows the largest request the limits permit within MAX_REQUEST_BYTES", () => {
+    // Every file byte as base64 must fit, or the route would refuse a valid request.
+    expect(MAX_REQUEST_BYTES).toBeGreaterThan(Math.ceil(MAX_FILES_BYTES / 3) * 4);
   });
 
   it("accepts up to MAX_NEWS_FILES news files and refuses more", () => {
