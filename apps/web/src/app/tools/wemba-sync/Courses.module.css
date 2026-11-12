@@ -1,0 +1,284 @@
+.courses {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Deadlines across courses ──────────────────────────────────────────────── */
+
+.deadlines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+.deadlines li {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+}
+
+.due {
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+
+.deadlineCourse {
+  font-weight: 600;
+}
+
+/* ── Course picker ─────────────────────────────────────────────────────────── */
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.chip:hover { color: var(--text); border-color: var(--input-border); }
+.chip[aria-selected="true"] {
+  background: var(--penn-blue);
+  border-color: var(--penn-blue);
+  color: #fff;
+}
+
+/* ── One course ────────────────────────────────────────────────────────────── */
+
+.course {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.courseHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+
+.code {
+  margin-right: 8px;
+  color: var(--penn-blue);
+}
+
+.remove {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--section-label);
+  text-decoration: underline;
+}
+.remove:hover { color: #b91c1c; }
+
+.sectionTabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 10px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.sectionTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--section-label);
+}
+.sectionTab:hover { color: var(--text); }
+.sectionTab[aria-current="true"] {
+  color: var(--penn-blue);
+  border-bottom-color: var(--penn-blue);
+}
+
+.count {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--nav-active);
+  font-size: 0.7rem;
+}
+
+.sectionBody {
+  padding: 14px 16px 16px;
+  font-size: 0.85rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary {
+  line-height: 1.6;
+}
+
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.people li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.email {
+  width: fit-content;
+}
+
+/* Sessions, assignments and materials: one row each. */
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+}
+.row + .row,
+.material + .material { border-top: 1px solid var(--border); }
+
+.past { opacity: 0.55; }
+
+.next {
+  margin: 0 -10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f5f7ff;
+}
+
+.when {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+
+.nextTag {
+  width: fit-content;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.7rem;
+}
+
+.what {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.labeled {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 8px;
+}
+.labeled ul {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--section-label);
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--section-label);
+}
+
+.material {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 10px 0;
+}
+
+@media (max-width: 520px) {
+  .deadlines li,
+  .row,
+  .labeled {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* ── Upload progress ───────────────────────────────────────────────────────── */
+
+.uploadsHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+.uploads li {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+}
+
+.uploadState {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.reading .uploadState { color: var(--penn-blue); }
+.done .uploadState { color: #047857; }
+.failed .uploadState { color: #b91c1c; }
+
+.uploadName {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.uploadError {
+  font-size: 0.8rem;
+  color: #b91c1c;
+}

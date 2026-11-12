@@ -1,11 +1,12 @@
 "use client";
 
-// AMA: questions about the uploaded weekend, answered from the schedule the
-// page shows (see tools/wemba-sync/src/ama.ts). A button in the bottom-right
+// AMA: questions about everything the student uploaded, answered from their
+// saved weekends and syllabi and the weekend the page shows (see
+// tools/wemba-sync/src/ama.ts). A button in the bottom-right
 // corner opens it as a chat panel; minimizing keeps the conversation, and a
 // dot on the button marks an answer that finished while it was minimized.
 // Answers stream from ama/route.ts. The conversation lives in this component
-// only: a new upload or a reload starts over.
+// only: switching weekends, a new upload or a reload starts over.
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
@@ -16,7 +17,7 @@ import styles from "./WembaSync.module.css";
 const MAX_QUESTION_LENGTH = 1000;
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 
-const SUGGESTIONS = ["Where's lunch on Saturday?", "When does my first class start?", "What's happening Friday evening?"];
+const SUGGESTIONS = ["When does my first class start?", "What's due before this weekend?", "What do I need to read for Saturday?"];
 
 interface ShownError {
   kind?: string;
@@ -40,7 +41,8 @@ export function AMA({
   section,
 }: {
   provider: AIProvider;
-  schedule: WeekendSchedule;
+  /** The weekend the page shows, or null. */
+  schedule: WeekendSchedule | null;
   section: string | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -176,7 +178,7 @@ export function AMA({
         <header className={styles.amaHeader}>
           <div>
             <h3 className={styles.amaTitle}>AMA</h3>
-            <p className={styles.meta}>Ask me anything about this weekend{section ? `, for ${section}` : ""}.</p>
+            <p className={styles.meta}>Ask me anything about your weekends and courses{section ? `, for ${section}` : ""}.</p>
           </div>
           <button type="button" className={styles.amaMinimize} onClick={minimize} aria-label="Minimize AMA" title="Minimize">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
@@ -230,7 +232,7 @@ export function AMA({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about times, rooms, meals, events…"
+            placeholder="Ask about classes, rooms, readings, deadlines…"
             rows={1}
             maxLength={MAX_QUESTION_LENGTH}
             aria-label="Your question"
@@ -240,7 +242,7 @@ export function AMA({
           </button>
         </form>
         <p className={`${styles.meta} ${styles.amaFooter}`}>
-          Answers come from this weekend&apos;s schedule and can be wrong. Check the PDF for anything important.
+          Answers come from your uploaded schedules and syllabi and can be wrong. Check the originals for anything important.
         </p>
       </section>
 

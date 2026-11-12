@@ -491,5 +491,50 @@
   .amaPanel { right: 16px; bottom: 80px; width: calc(100% - 32px); }
 }
 
-/* Room at the end of the schedule, so the AMA button never covers its last lines. */
-.weekend { padding-bottom: 72px; }
+/* Room at the end of the page, so the AMA button never covers its last lines. */
+.withAMA { padding-bottom: 72px; }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: 8px 14px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] {
+  color: var(--penn-blue);
+  border-bottom-color: var(--penn-blue);
+}
+
+.tabPanel[hidden] { display: none; }
+
+/* ── Weekend menu ──────────────────────────────────────────────────────────── */
+
+.weekendPicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The current weekend (under way or next) in the menu. Browsers that draw the
+   menu themselves, such as Chrome on Windows, show it bold; Mac menus don't
+   take styles, but its "Current weekend:" label marks it everywhere. */
+.currentOption { font-weight: 700; }
+
+.textButton {
+  font-size: 0.8rem;
+  color: var(--section-label);
+  text-decoration: underline;
+}
+.textButton:hover { color: #b91c1c; }
