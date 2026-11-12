@@ -6,6 +6,7 @@
 import { courseCode, mailtoLink, registrationEmail, senderReady } from "@penntools/tool-non-wharton-course-manager";
 import type { Course, Sender } from "@penntools/tool-non-wharton-course-manager";
 import { OpenInEmail } from "./Step2";
+import { delay } from "./motion";
 import styles from "./CourseManager.module.css";
 
 interface Props {
@@ -23,7 +24,7 @@ export function Step3({ courses, sender, sent, onSent, onBack }: Props) {
 
   if (sent) {
     return (
-      <div className={styles.donePanel}>
+      <div className={`${styles.donePanel} ${styles.rise}`}>
         <svg aria-hidden="true" className={styles.doneArt} width="160" height="160" viewBox="0 0 160 160">
           <circle cx="80" cy="80" r="78" fill="#F6E7B4" fillOpacity=".7" />
           <circle cx="112" cy="48" r="16" fill="#990000" />
@@ -41,7 +42,7 @@ export function Step3({ courses, sender, sent, onSent, onBack }: Props) {
 
   return (
     <>
-      <section className={styles.card}>
+      <section className={`${styles.card} ${styles.rise}`} style={delay(0.1)}>
         <div className={styles.field}>
           <span className={`${styles.label} ${styles.red}`}>{`${courses.length} APPROVED`}</span>
           <ul className={styles.approvedList}>

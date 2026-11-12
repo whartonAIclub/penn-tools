@@ -22,6 +22,7 @@ import { ArrowIcon, ChevronIcon, InfoIcon, MailIcon, SearchIcon } from "./icons"
 import { loadSearch, searchStatus } from "./googleSearch";
 import { openBeside } from "./openSearch";
 import { SearchPanel } from "./SearchPanel";
+import { delay } from "./motion";
 import styles from "./CourseManager.module.css";
 
 interface Props {
@@ -48,7 +49,7 @@ export function Step2({ courses, sender, terms, onNameChange, onYearChange, onTe
 
   return (
     <>
-      <section className={styles.senderCard}>
+      <section className={`${styles.senderCard} ${styles.rise}`} style={delay(0.1)}>
         <div className={styles.senderIntro}>
           <span className={styles.senderIcon}>
             <InfoIcon />
@@ -114,6 +115,7 @@ export function Step2({ courses, sender, terms, onNameChange, onYearChange, onTe
           <PermissionCard
             key={c.id}
             number={i + 1}
+            appearAt={0.2 + i * 0.08}
             course={c}
             sender={sender}
             open={openId === c.id}
@@ -144,6 +146,8 @@ export function Step2({ courses, sender, terms, onNameChange, onYearChange, onTe
 
 interface CardProps {
   number: number;
+  /** When the card fades in, so cards appear one after another. */
+  appearAt: number;
   course: Course;
   sender: Sender;
   open: boolean;
@@ -153,7 +157,7 @@ interface CardProps {
   onFind: (search: { query: string; href: string }) => void;
 }
 
-function PermissionCard({ number, course, sender, open, onToggle, onChange, onFind }: CardProps) {
+function PermissionCard({ number, appearAt, course, sender, open, onToggle, onChange, onFind }: CardProps) {
   const code = courseCode(course);
   const email = permissionEmail(course, sender);
   const source = CONTACT_SOURCES[course.contactSource];
@@ -170,7 +174,7 @@ function PermissionCard({ number, course, sender, open, onToggle, onChange, onFi
   const panelId = `nwcm-card-${course.id}`;
 
   return (
-    <article className={styles.permissionCard} data-open={open} data-status={course.permission}>
+    <article className={`${styles.permissionCard} ${styles.rise}`} style={delay(appearAt)} data-open={open} data-status={course.permission}>
       <button type="button" className={styles.cardHead} aria-expanded={open} aria-controls={panelId} onClick={onToggle}>
         <span className={styles.cardNumber}>{number}</span>
         <span className={styles.resultText}>
@@ -184,7 +188,7 @@ function PermissionCard({ number, course, sender, open, onToggle, onChange, onFi
       </button>
 
       {open && (
-        <div id={panelId} className={styles.cardBody}>
+        <div id={panelId} className={`${styles.cardBody} ${styles.rise}`}>
           <div className={styles.contactField}>
             <div className={styles.titleRow}>
               <label htmlFor={inputId} className={styles.fieldLabel}>

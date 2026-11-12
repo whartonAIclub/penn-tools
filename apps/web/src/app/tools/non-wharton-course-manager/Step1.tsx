@@ -17,6 +17,7 @@ import {
 } from "@penntools/tool-non-wharton-course-manager";
 import type { Course } from "@penntools/tool-non-wharton-course-manager";
 import { ArrowIcon, CloseIcon, InfoIcon } from "./icons";
+import { delay } from "./motion";
 import styles from "./CourseManager.module.css";
 
 /** How long "Reading the course details…" shows, so adding doesn't feel like a flicker. */
@@ -82,7 +83,7 @@ export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props)
 
   return (
     <>
-      <section className={styles.card}>
+      <section className={`${styles.card} ${styles.rise}`} style={delay(0.1)}>
         <h3 className={styles.cardTitle}>
           <span className={styles.letter}>A</span>
           Find courses on Path@Penn
@@ -118,7 +119,7 @@ export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props)
       </section>
 
       {adding && (
-        <section className={styles.card}>
+        <section className={`${styles.card} ${styles.rise}`}>
           <div className={styles.titleRow}>
             <h3 className={styles.cardTitle}>
               <span className={styles.letter}>B</span>
@@ -137,7 +138,7 @@ export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props)
           </div>
 
           {infoOpen && (
-            <div id="nwcm-rules" className={styles.callout}>
+            <div id="nwcm-rules" className={`${styles.callout} ${styles.rise}`}>
               <span className={`${styles.label} ${styles.red}`}>WHAT WE CHECK</span>
               <span>To count toward your MBA a course must be:</span>
               <span className={styles.ruleChips}>
@@ -175,13 +176,13 @@ export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props)
             />
           </div>
           {notFound && (
-            <p id="nwcm-not-found" className={styles.warning} role="alert">
+            <p id="nwcm-not-found" className={`${styles.warning} ${styles.rise}`} role="alert">
               We couldn&apos;t find a course code like <strong>CLST 5324</strong> in that text. Copy the details panel
               again, starting from the course code.
             </p>
           )}
           {othersNote && (
-            <p className={styles.note} role="status">
+            <p className={`${styles.note} ${styles.rise}`} role="status">
               {othersNote}
             </p>
           )}
@@ -205,7 +206,7 @@ export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props)
       )}
 
       {courses.length > 0 && (
-        <section className={styles.card}>
+        <section className={`${styles.card} ${styles.rise}`}>
           <div className={styles.resultsHead}>
             <h3 className={styles.cardTitle}>
               <span className={styles.letter}>C</span>
@@ -255,7 +256,7 @@ function CourseRow({ course, onChange, onRemove }: { course: Course; onChange: (
   const cross = course.crossListing;
 
   return (
-    <li className={styles.resultRow} data-result={result}>
+    <li className={`${styles.resultRow} ${styles.rise}`} data-result={result}>
       <div className={styles.resultMain}>
         <input
           type="checkbox"

@@ -136,7 +136,7 @@ export function CourseManager() {
             onOverview={() => setView("overview")}
           />
           <div className={styles.stepArea}>
-            <section className={styles.stepHeader}>
+            <section key={step} className={`${styles.stepHeader} ${styles.rise}`}>
               <span className={styles.goldPill}>{`STEP ${step} OF 3`}</span>
               <h2 className={styles.stepTitle}>{STEP_TITLES[step]}</h2>
               <p className={styles.stepIntro}>{STEP_INTROS[step]}</p>

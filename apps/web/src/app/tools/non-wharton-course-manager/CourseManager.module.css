@@ -29,6 +29,21 @@
 
 /* ---- Shared pieces ---- */
 
+/* Cards fade up gently as they appear; overview bars fill one after another. */
+@keyframes nwcmRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes nwcmFill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.rise { animation: nwcmRise 0.5s ease both; }
+.fill { animation: nwcmFill 0.9s ease-in-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .rise, .fill { animation: none; }
+}
+
 .label {
   font-family: var(--nwcm-mono), Menlo, monospace;
   font-size: 12px;
