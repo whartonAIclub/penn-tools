@@ -71,10 +71,14 @@ export async function suggestThemesAction(
   return run(() => suggestThemes(ai, candidates));
 }
 
-/** A draft alignment statement for each course in the plan, by course code. */
+/**
+ * A draft alignment statement for each course in the plan, by course code, or
+ * only for the plan courses in `only` (e.g. ones the student just ticked).
+ */
 export async function suggestAlignmentsAction(
   theme: unknown,
   codes: unknown,
+  only?: unknown,
 ): Promise<SuggestionResult<Record<string, string>>> {
   const ai = await getAI();
   if (!ai) return signedOut;
@@ -89,5 +93,12 @@ export async function suggestAlignmentsAction(
     return course ? [course] : [];
   });
   if (plan.length === 0) return invalid("None of these courses are offered this term.");
-  return run(() => suggestAlignments(ai, theme, plan));
+  let targets: string[] | undefined;
+  if (only !== undefined) {
+    if (!Array.isArray(only)) return invalid("Choose which courses to draft statements for.");
+    const inPlan = new Set(plan.map((c) => c.code));
+    targets = only.filter((code): code is string => typeof code === "string" && inPlan.has(code));
+    if (targets.length === 0) return { ok: true, data: {} };
+  }
+  return run(() => suggestAlignments(ai, theme, plan, targets));
 }

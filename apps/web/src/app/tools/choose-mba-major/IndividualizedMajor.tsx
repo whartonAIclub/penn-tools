@@ -5,10 +5,12 @@
 // for how the courses align with the theme; this step collects each, checks
 // them, and downloads the proposal as a Word document.
 //
-// Claude can suggest themes and alignment statements (actions.ts), but they're
-// always shown apart from the student's own text, and only the student's text
-// goes into the proposal. The draft and the suggestions are saved in this
-// browser only, like the ratings.
+// Claude suggests themes (actions.ts). Choosing one fills in the theme, a
+// Claude-suggested title, the theme's courses and a Claude-drafted alignment
+// statement for each course, all editable. Ticking another course drafts a
+// statement for it too. A statement the student has edited is never
+// replaced. The draft and the suggestions are saved in this browser only,
+// like the ratings.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -60,9 +62,17 @@ function sanitizeThemes(value: unknown): ThemeSuggestion[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((t): ThemeSuggestion[] => {
     if (typeof t !== "object" || t === null) return [];
-    const { name, summary, courseCodes } = t as Record<string, unknown>;
+    const { name, title, summary, courseCodes } = t as Record<string, unknown>;
     if (typeof name !== "string" || typeof summary !== "string" || !Array.isArray(courseCodes)) return [];
-    return [{ name, summary, courseCodes: courseCodes.filter((c): c is string => typeof c === "string") }];
+    return [
+      {
+        name,
+        // Themes saved before titles were suggested use their name.
+        title: typeof title === "string" && title.trim() ? title : name,
+        summary,
+        courseCodes: courseCodes.filter((c): c is string => typeof c === "string"),
+      },
+    ];
   });
 }
 
@@ -160,10 +170,21 @@ export function IndividualizedMajor({
   const [themes, setThemes] = useState<ThemeSuggestion[]>([]);
   const [alignmentSuggestions, setAlignmentSuggestions] = useState<Record<string, string>>({});
   const [restored, setRestored] = useState(false);
-  const [busy, setBusy] = useState<"themes" | "alignments" | null>(null);
+  const [busy, setBusy] = useState<"themes" | null>(null);
+  /** Courses Claude is drafting a statement for right now. */
+  const [drafting, setDrafting] = useState<ReadonlySet<string>>(() => new Set());
   const [themeError, setThemeError] = useState<SuggestionError | null>(null);
   const [alignmentError, setAlignmentError] = useState<SuggestionError | null>(null);
   const themeInput = useRef<HTMLTextAreaElement>(null);
+  // The latest draft and suggestions, for code that runs after an await.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const suggestionsRef = useRef(alignmentSuggestions);
+  suggestionsRef.current = alignmentSuggestions;
+  /** The plan's courses as last seen, to spot newly ticked ones; null until the saved draft loads. */
+  const knownCourses = useRef<readonly string[] | null>(null);
+  const newlyTicked = useRef(new Set<string>());
+  const tickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const saved = load();
@@ -185,7 +206,8 @@ export function IndividualizedMajor({
   const ready = isReady(requirements);
   const courseByCode = useMemo(() => new Map(courses.map((c) => [c.code, c])), [courses]);
   const themeSourceCount = candidates.filter(isThemeSource).length;
-  const canSuggest = suggestionAccess === "ready" && busy === null;
+  const canDraft = suggestionAccess === "ready";
+  const canSuggest = canDraft && busy === null;
   const topOverlap = overlaps[0];
 
   function update(change: Partial<IndividualizedDraft>) {
@@ -207,27 +229,95 @@ export function IndividualizedMajor({
     }
   }
 
-  async function askForAlignments() {
-    setBusy("alignments");
+  /** Whether a statement box is empty or still holds Claude's draft, so a new draft may replace it. */
+  function isUntouched(
+    code: string,
+    current: IndividualizedDraft = draftRef.current,
+    suggestions: Record<string, string> = suggestionsRef.current,
+  ): boolean {
+    const text = (current.alignments[code] ?? "").trim();
+    return !text || text === (suggestions[code] ?? "").trim();
+  }
+
+  /**
+   * Asks Claude to draft statements for `only` (courses in `planCodes`), then
+   * fills them into the boxes the student hasn't edited.
+   */
+  async function draftStatements(theme: string, planCodes: readonly string[], only: readonly string[]) {
+    if (!canDraft || !theme.trim() || only.length === 0) return;
+    setDrafting((current) => new Set([...current, ...only]));
     setAlignmentError(null);
     try {
-      const result = await suggestAlignmentsAction(draft.theme, plan.map((c) => c.code));
-      if (!result.ok) setAlignmentError(result.error);
-      else setAlignmentSuggestions((current) => ({ ...current, ...result.data }));
+      const result = await suggestAlignmentsAction(theme, [...planCodes], [...only]);
+      if (!result.ok) {
+        setAlignmentError(result.error);
+        return;
+      }
+      const before = suggestionsRef.current;
+      setDraft((current) => {
+        const alignments = { ...current.alignments };
+        for (const [code, text] of Object.entries(result.data)) {
+          if (current.courses.includes(code) && isUntouched(code, current, before)) alignments[code] = text;
+        }
+        return { ...current, alignments };
+      });
+      setAlignmentSuggestions((current) => ({ ...current, ...result.data }));
     } catch {
       setAlignmentError({ message: "Something went wrong. Try again." });
     } finally {
-      setBusy(null);
+      setDrafting((current) => new Set([...current].filter((code) => !only.includes(code))));
     }
   }
 
+  // When the student ticks courses, draft statements for them, together once
+  // they pause for a moment.
+  useEffect(() => {
+    if (!restored) return;
+    const before = knownCourses.current;
+    knownCourses.current = draft.courses;
+    if (before === null) return;
+    // Only empty boxes: a course ticked again keeps the statement it had.
+    const added = draft.courses.filter((code) => !before.includes(code) && !(draft.alignments[code] ?? "").trim());
+    if (added.length === 0 || !canDraft || !draft.theme.trim()) return;
+    for (const code of added) newlyTicked.current.add(code);
+    if (tickTimer.current) clearTimeout(tickTimer.current);
+    tickTimer.current = setTimeout(() => {
+      const current = draftRef.current;
+      const only = [...newlyTicked.current].filter((code) => current.courses.includes(code));
+      newlyTicked.current.clear();
+      void draftStatements(current.theme, current.courses, only);
+    }, 700);
+    // Runs on changes to the plan's courses only; the rest is read fresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored, draft.courses]);
+
+  useEffect(() => () => {
+    if (tickTimer.current) clearTimeout(tickTimer.current);
+  }, []);
+
+  /** Redrafts every statement the student hasn't edited. */
+  function redraftAll() {
+    const codes = plan.map((c) => c.code);
+    void draftStatements(draft.theme, codes, codes.filter((code) => isUntouched(code)));
+  }
+
+  /**
+   * Fills in the theme, Claude's title and the theme's courses, then drafts a
+   * statement for each course. Statements the student wrote themselves stay.
+   */
   function applyTheme(theme: ThemeSuggestion) {
-    setDraft((current) => ({
-      ...current,
-      theme: theme.summary,
-      title: current.title.trim() ? current.title : theme.name,
-      courses: [...current.courses, ...theme.courseCodes.filter((code) => !current.courses.includes(code))],
-    }));
+    const courses = theme.courseCodes.filter((code) => courseByCode.has(code));
+    const kept = Object.fromEntries(
+      Object.entries(draft.alignments).filter(([code]) => courses.includes(code) && !isUntouched(code)),
+    );
+    // The theme's courses are drafted below, so the tick watcher skips them.
+    knownCourses.current = courses;
+    setDraft((current) => ({ ...current, theme: theme.summary, title: theme.title, courses, alignments: kept }));
+    void draftStatements(
+      theme.summary,
+      courses,
+      courses.filter((code) => !(code in kept)),
+    );
   }
 
   function writeOwnTheme() {
@@ -291,6 +381,7 @@ export function IndividualizedMajor({
                 return (
                   <li key={theme.name} className={`${styles.theme} ${chosen ? styles.themeChosen : ""}`}>
                     <div className={styles.themeName}>{theme.name}</div>
+                    <div className={styles.meta}>Suggested title: {theme.title}</div>
                     <p className={styles.themeSummary}>{theme.summary}</p>
                     <div className={styles.meta}>{theme.courseCodes.join(" · ")}</div>
                     <button type="button" className={styles.secondary} onClick={() => applyTheme(theme)} aria-pressed={chosen}>
@@ -303,8 +394,9 @@ export function IndividualizedMajor({
           )}
           {themes.length > 0 && (
             <p className={styles.note}>
-              Using a theme fills in your theme below, adds its courses to your plan and, if you haven&apos;t written one
-              yet, uses its name as your title. Edit any of them freely.
+              Using a theme fills in your theme, Claude&apos;s suggested title, the theme&apos;s courses and a drafted
+              statement for each course. Everything stays editable, and ticking another course drafts a statement for
+              it too.
             </p>
           )}
         </div>
@@ -417,14 +509,21 @@ export function IndividualizedMajor({
           <button
             type="button"
             className={styles.secondary}
-            disabled={!canSuggest || plan.length === 0 || !draft.theme.trim()}
-            onClick={askForAlignments}
+            disabled={!canDraft || drafting.size > 0 || plan.length === 0 || !draft.theme.trim()}
+            onClick={redraftAll}
+            title="Redrafts every statement you haven't edited"
           >
-            {busy === "alignments" ? "Thinking…" : "Get Claude's suggestions"}
+            {drafting.size > 0 ? "Drafting…" : "Redraft with Claude"}
           </button>
         </div>
-        {plan.length > 0 && !draft.theme.trim() && suggestionAccess === "ready" && (
-          <p className={styles.note}>Choose or write a theme to get Claude&apos;s suggestions.</p>
+        {plan.length > 0 && !draft.theme.trim() && canDraft && (
+          <p className={styles.note}>Choose or write a theme, and Claude will draft each course&apos;s statement.</p>
+        )}
+        {plan.length > 0 && draft.theme.trim() && canDraft && (
+          <p className={styles.note}>
+            Claude drafts a statement for each course, including any you tick. Edit them to make them your own:
+            Claude never replaces a statement you&apos;ve edited.
+          </p>
         )}
         {alignmentError && <ErrorNote error={alignmentError} />}
         {plan.length === 0 ? (
@@ -434,7 +533,8 @@ export function IndividualizedMajor({
             {draft.courses.map((code) => {
               const course = courseByCode.get(code);
               if (!course) return null;
-              const suggestion = alignmentSuggestions[code];
+              const text = draft.alignments[code] ?? "";
+              const byClaude = text.trim() !== "" && text.trim() === (alignmentSuggestions[code] ?? "").trim();
               const id = `im-align-${code.replace(" ", "-")}`;
               return (
                 <li key={code} className={styles.alignment}>
@@ -442,21 +542,22 @@ export function IndividualizedMajor({
                     <span className={styles.code}>{code}</span>
                     <span className={styles.courseTitle}>{course.title}</span>
                   </div>
-                  {suggestion && (
-                    <div className={styles.claudeBox}>
-                      <span className={styles.claudeLabel}>Claude&apos;s suggestion</span>
-                      <p className={styles.claudeText}>{suggestion}</p>
-                    </div>
-                  )}
-                  <label htmlFor={id} className={styles.label}>
-                    Your statement, in your own words
-                  </label>
+                  <div className={styles.fieldHead}>
+                    <label htmlFor={id} className={styles.label}>
+                      How it aligns with your theme
+                    </label>
+                    {drafting.has(code) ? (
+                      <span className={styles.claudeLabel}>Claude is drafting…</span>
+                    ) : byClaude ? (
+                      <span className={styles.claudeLabel}>Drafted by Claude · edit to make it yours</span>
+                    ) : null}
+                  </div>
                   <textarea
                     id={id}
                     className={styles.textarea}
                     rows={3}
                     maxLength={MAX_ALIGNMENT_LENGTH}
-                    value={draft.alignments[code] ?? ""}
+                    value={text}
                     onChange={(e) =>
                       setDraft((current) => ({ ...current, alignments: { ...current.alignments, [code]: e.target.value } }))
                     }
@@ -485,8 +586,9 @@ export function IndividualizedMajor({
           </button>
         </div>
         <p className={styles.note}>
-          The document has your title, theme, course plan and statements, in your words; Claude&apos;s suggestions
-          aren&apos;t included. Review it with your academic advisor before you submit it.
+          The document has exactly what&apos;s in your boxes: your title, theme, course plan and statements, including
+          any of Claude&apos;s drafts you haven&apos;t edited. Make sure it says what you mean, and review it with your
+          academic advisor before you submit it.
         </p>
       </div>
     </section>

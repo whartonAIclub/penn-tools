@@ -1,7 +1,7 @@
-// Claude's suggestions for an individualized major: possible themes from the
-// courses a student rated highly, and a draft alignment statement for each
-// course in their plan. Both are ideas for the student to react to; the
-// proposal itself holds only what the student writes (see individualized.ts).
+// Claude's suggestions for an individualized major: possible themes (each with
+// a title and the courses that fit it) from the courses a student rated
+// highly, and a draft alignment statement for each course in their plan. The
+// page fills these into the student's boxes as drafts they can edit.
 //
 // Called from the tool's server actions with the signed-in student's AI API,
 // which uses their own Anthropic key. Each function is one request.
@@ -41,7 +41,10 @@ function describeCourse(course: Course, rating?: number, taken?: boolean): strin
 export const ThemeSuggestions = z.object({
   themes: z.array(
     z.object({
-      name: z.string().describe("A short name for the theme, usable as the major's title, at most 8 words"),
+      name: z.string().describe("A short name for the theme, at most 8 words"),
+      title: z
+        .string()
+        .describe("A title for the individualized major as it would appear on the proposal, at most 10 words"),
       summary: z.string().describe("Two or three sentences: what the theme is about and why these courses belong together"),
       courseCodes: z.array(z.string()).describe("Codes of the listed courses that fit this theme, exactly as written"),
     }),
@@ -89,6 +92,7 @@ export async function suggestThemes(ai: AI, candidates: readonly CandidateCourse
   return object.themes
     .map((theme) => ({
       name: theme.name.trim(),
+      title: theme.title.trim() || theme.name.trim(),
       summary: theme.summary.trim(),
       courseCodes: [...new Set(theme.courseCodes.map((code) => code.trim()))].filter((code) => offered.has(code)),
     }))
@@ -109,19 +113,30 @@ export const AlignmentSuggestions = z.object({
 
 const ALIGNMENT_SYSTEM = [
   "You help a Wharton MBA student write the part of an individualized major proposal that shows how each selected course aligns with the major's theme.",
-  "For every listed course, write a short draft statement, in the first person, explaining how that course's content serves the theme, using specifics from its description.",
+  "For each course you're asked about, write a short draft statement, in the first person, explaining how that course's content serves the theme, using specifics from its description.",
   "Mention how it connects to other courses in the plan where that's true. Don't invent facts about the course or the student.",
   "The student will rewrite these in their own words, so keep them concrete and plain.",
 ].join(" ");
 
-/** A draft alignment statement for each course in the plan, by course code. */
+/**
+ * A draft alignment statement for each course in the plan, by course code, or
+ * only for the courses in `only` (e.g. ones just added), with the rest of the
+ * plan as context.
+ */
 export async function suggestAlignments(
   ai: AI,
   theme: string,
   plan: readonly Course[],
+  only?: readonly string[],
 ): Promise<Record<string, string>> {
   const courses = plan.slice(0, MAX_SUGGESTION_COURSES);
-  if (!theme.trim() || courses.length === 0) return {};
+  const wanted = new Set(only ?? courses.map((c) => c.code));
+  const targets = courses.filter((c) => wanted.has(c.code));
+  if (!theme.trim() || targets.length === 0) return {};
+  const ask =
+    targets.length === courses.length
+      ? "Write a statement for every course in my plan."
+      : `Write statements only for: ${targets.map((c) => c.code).join(", ")}. The other courses are context.`;
 
   const { object } = await ai.generateObject({
     provider: SUGGESTION_PROVIDER,
@@ -133,12 +148,12 @@ export async function suggestAlignments(
     messages: [
       {
         role: "user",
-        content: `My theme:\n${theme.trim().slice(0, MAX_THEME_LENGTH)}\n\nMy course plan:\n${courses.map((c) => describeCourse(c)).join("\n")}`,
+        content: `My theme:\n${theme.trim().slice(0, MAX_THEME_LENGTH)}\n\nMy course plan:\n${courses.map((c) => describeCourse(c)).join("\n")}\n\n${ask}`,
       },
     ],
   });
 
-  const inPlan = new Set(courses.map((c) => c.code));
+  const inPlan = new Set(targets.map((c) => c.code));
   const out: Record<string, string> = {};
   for (const { courseCode, statement } of object.statements) {
     const code = courseCode.trim();

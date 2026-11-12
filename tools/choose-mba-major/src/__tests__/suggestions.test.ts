@@ -71,7 +71,7 @@ describe("suggestThemes", () => {
   });
 
   it("keeps only course codes it was given, and at most three themes", async () => {
-    const theme = (name: string, courseCodes: string[]) => ({ name, summary: ` ${name} summary `, courseCodes });
+    const theme = (name: string, courseCodes: string[]) => ({ name, title: ` ${name} title `, summary: ` ${name} summary `, courseCodes });
     const { ai } = fakeAI({
       themes: [
         theme("Care Ops", ["HCMG 8410", "OIDD 6530", "MADE 9999", "HCMG 8410"]),
@@ -82,10 +82,15 @@ describe("suggestThemes", () => {
       ],
     });
     expect(await suggestThemes(ai, rated)).toEqual([
-      { name: "Care Ops", summary: "Care Ops summary", courseCodes: ["HCMG 8410", "OIDD 6530"] },
-      { name: "Two", summary: "Two summary", courseCodes: ["STAT 7050"] },
-      { name: "Three", summary: "Three summary", courseCodes: ["OIDD 6530"] },
+      { name: "Care Ops", title: "Care Ops title", summary: "Care Ops summary", courseCodes: ["HCMG 8410", "OIDD 6530"] },
+      { name: "Two", title: "Two title", summary: "Two summary", courseCodes: ["STAT 7050"] },
+      { name: "Three", title: "Three title", summary: "Three summary", courseCodes: ["OIDD 6530"] },
     ]);
+  });
+
+  it("uses the theme's name as its title when Claude gives none", async () => {
+    const { ai } = fakeAI({ themes: [{ name: "Care Ops", title: "  ", summary: "S", courseCodes: ["HCMG 8410"] }] });
+    expect((await suggestThemes(ai, rated))[0]!.title).toBe("Care Ops");
   });
 
   it("doesn't call Claude with fewer than three highly rated courses", async () => {
@@ -110,6 +115,25 @@ describe("suggestAlignments", () => {
     expect(requests[0]).toMatchObject({ provider: "anthropic", schema: AlignmentSuggestions });
     expect(userText(requests[0]!)).toContain("My theme:\nCare delivery");
     expect(userText(requests[0]!)).toContain("OIDD 6530");
+  });
+
+  it("can draft only some courses, with the rest of the plan as context", async () => {
+    const { ai, requests } = fakeAI({
+      statements: [
+        { courseCode: "OIDD 6530", statement: "Adds operations." },
+        { courseCode: "HCMG 8410", statement: "Not asked for." },
+      ],
+    });
+    expect(await suggestAlignments(ai, "Care delivery", plan, ["OIDD 6530"])).toEqual({ "OIDD 6530": "Adds operations." });
+    const text = userText(requests[0]!);
+    expect(text).toContain("HCMG 8410");
+    expect(text).toContain("Write statements only for: OIDD 6530.");
+  });
+
+  it("doesn't call Claude when none of the asked-for courses are in the plan", async () => {
+    const { ai, requests } = fakeAI({ statements: [] });
+    expect(await suggestAlignments(ai, "Care delivery", plan, ["MADE 1000"])).toEqual({});
+    expect(requests).toHaveLength(0);
   });
 
   it("doesn't call Claude without a theme or courses", async () => {
