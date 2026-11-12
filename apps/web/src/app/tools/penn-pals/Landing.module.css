@@ -521,3 +521,15 @@
   cursor: pointer;
 }
 .deleteButton:hover { text-decoration: underline; }
+
+/* The relationship under the person's name, as a small pill */
+.relationship {
+  display: inline-block;
+  margin: 4px 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--penn-blue-bg);
+  color: var(--penn-blue);
+  font-size: 0.75rem;
+  font-weight: 600;
+}

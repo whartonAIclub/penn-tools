@@ -17,6 +17,7 @@ import {
   followUpsFor,
   markFollowUpDone,
   parseStoredContacts,
+  relationshipLabel,
   reopenStep,
 } from "@penntools/tool-penn-pals";
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
@@ -160,6 +161,7 @@ function PersonCard({
             {(contact.role || contact.company) && (
               <p className={styles.meta}>{[contact.role, contact.company].filter(Boolean).join(" · ")}</p>
             )}
+            <p className={styles.relationship}>{relationshipLabel(contact)}</p>
             <p className={styles.meta}>
               {chatLabel(daysFrom(today, contact.meetingDate))} · {contact.meetingDate}
             </p>

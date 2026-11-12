@@ -4,10 +4,12 @@ import {
   completeFollowUp,
   Contact,
   contactToDraft,
+  customRelationships,
   dueStatus,
   emptyDraft,
   nextDue,
   parseStoredContacts,
+  relationshipLabel,
   sortByFollowUp,
   splitByDue,
   toggleStep,
@@ -306,5 +308,37 @@ describe("editing a contact", () => {
   it("rejects an edit that clears the name", () => {
     const original = contact();
     expect(updateContact(original, { ...contactToDraft(original), name: " " }, TODAY)).toMatchObject({ ok: false });
+  });
+});
+
+describe("relationships", () => {
+  it("keeps the user's own label only when the relationship is other", () => {
+    const other = buildContact({ ...emptyDraft(TODAY), name: "Maria", relationship: "other", relationshipOther: " Climbing buddy " }, TODAY, "a");
+    expect(other).toMatchObject({ ok: true, contact: { relationship: "other", relationshipOther: "Climbing buddy" } });
+    const alum = buildContact({ ...emptyDraft(TODAY), name: "Maria", relationship: "alumni", relationshipOther: "ignored" }, TODAY, "b");
+    expect(alum).toMatchObject({ ok: true, contact: { relationship: "alumni", relationshipOther: null } });
+  });
+
+  it("reads as the user's label for other, the standard label otherwise", () => {
+    expect(relationshipLabel({ relationship: "other", relationshipOther: "Climbing buddy" })).toBe("Climbing buddy");
+    expect(relationshipLabel({ relationship: "other", relationshipOther: null })).toBe("Other");
+    expect(relationshipLabel({ relationship: "1Y", relationshipOther: null })).toBe("Wharton 1Y");
+  });
+
+  it("lists the user's own labels once each, A to Z", () => {
+    const list = [
+      contact({ relationship: "other", relationshipOther: "Mentor" }),
+      contact({ relationship: "other", relationshipOther: "mentor" }),
+      contact({ relationship: "other", relationshipOther: "Climbing buddy" }),
+      contact({ relationship: "alumni", relationshipOther: null }),
+    ];
+    expect(customRelationships(list)).toEqual(["Climbing buddy", "Mentor"]);
+  });
+
+  it("still loads contacts saved before relationshipOther existed, and old recruiter contacts", () => {
+    const { relationshipOther: _unused, ...old } = contact({ relationship: "recruiter" });
+    const [loaded] = parseStoredContacts(JSON.stringify([old]));
+    expect(loaded).toEqual(old);
+    expect(relationshipLabel(loaded!)).toBe("Recruiter");
   });
 });

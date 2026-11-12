@@ -9,8 +9,43 @@
 import { z } from "@penntools/core/ai";
 import { addDays, DEFAULT_FOLLOW_UP_DAYS, isDate, MAX_NOTES_LENGTH } from "./debrief.js";
 
-export const RELATIONSHIPS = ["2Y", "alumni", "recruiter", "faculty", "industry", "other"] as const;
+/**
+ * Every stored relationship. "recruiter" is kept so older contacts still load,
+ * but the form no longer offers it: a recruiter is someone outside Penn, so it
+ * overlapped with "industry".
+ */
+export const RELATIONSHIPS = ["1Y", "2Y", "alumni", "faculty", "industry", "recruiter", "other"] as const;
 export type Relationship = (typeof RELATIONSHIPS)[number];
+
+/** What the form offers: one answer per person, with "other" for anything else, written in. */
+export const FORM_RELATIONSHIPS = ["1Y", "2Y", "alumni", "faculty", "industry", "other"] as const satisfies readonly Relationship[];
+
+export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
+  "1Y": "Wharton 1Y",
+  "2Y": "Wharton 2Y",
+  alumni: "Penn or Wharton alum",
+  faculty: "Penn faculty or staff",
+  industry: "Outside Penn (industry, recruiters)",
+  recruiter: "Recruiter",
+  other: "Other",
+};
+
+/** How a contact's relationship reads: the user's own words for "other", when given. */
+export function relationshipLabel(contact: Pick<Contact, "relationship" | "relationshipOther">): string {
+  return contact.relationship === "other" && contact.relationshipOther
+    ? contact.relationshipOther
+    : RELATIONSHIP_LABELS[contact.relationship];
+}
+
+/** The user's own relationship labels across their contacts, without duplicates (ignoring case), A to Z. */
+export function customRelationships(contacts: Contact[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const c of contacts) {
+    const label = c.relationship === "other" ? c.relationshipOther?.trim() : null;
+    if (label && !byKey.has(label.toLowerCase())) byKey.set(label.toLowerCase(), label);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+}
 
 export const VIBES = ["great", "good", "neutral", "lukewarm"] as const;
 export type Vibe = (typeof VIBES)[number];
@@ -40,6 +75,8 @@ export const Contact = z.object({
   id: z.string(),
   name: z.string(),
   relationship: z.enum(RELATIONSHIPS),
+  /** The user's own label when the relationship is "other"; null or missing otherwise (optional so older contacts load). */
+  relationshipOther: z.string().nullable().optional(),
   classYear: z.string().nullable(),
   company: z.string().nullable(),
   role: z.string().nullable(),
@@ -69,6 +106,8 @@ export type Contact = z.infer<typeof Contact>;
 export interface ContactDraft {
   name: string;
   relationship: Relationship;
+  /** The user's own label, used when the relationship is "other". */
+  relationshipOther: string;
   classYear: string;
   company: string;
   role: string;
@@ -93,6 +132,7 @@ export function emptyDraft(today: string): ContactDraft {
   return {
     name: "",
     relationship: "industry",
+    relationshipOther: "",
     classYear: "",
     company: "",
     role: "",
@@ -129,6 +169,7 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
   if (!name) errors.push("Enter the contact's full name.");
   else if (name.length > MAX_FIELD_LENGTH) errors.push(`Keep the name to at most ${MAX_FIELD_LENGTH} characters.`);
 
+  const relationshipOther = draft.relationship === "other" ? text(draft.relationshipOther, "the relationship") : null;
   const classYear = text(draft.classYear, "the class year");
   const company = text(draft.company, "the company");
   const role = text(draft.role, "the role");
@@ -163,6 +204,7 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
       id,
       name,
       relationship: draft.relationship,
+      relationshipOther,
       classYear,
       company,
       role,
@@ -197,6 +239,7 @@ export function contactToDraft(contact: Contact): ContactDraft {
   return {
     name: contact.name,
     relationship: contact.relationship,
+    relationshipOther: contact.relationshipOther ?? "",
     classYear: contact.classYear ?? "",
     company: contact.company ?? "",
     role: contact.role ?? "",

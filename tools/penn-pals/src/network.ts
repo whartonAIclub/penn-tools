@@ -65,6 +65,11 @@ export function bestAdvice(contact: Contact): string | null {
   return contact.takeaways[0] ?? null;
 }
 
+/** When a step is due if the user gave no date: the workshop timing, counted from the chat. */
+export function workshopDue(kind: FollowUpKind, meetingDate: string): string {
+  return kind === "thankYou" ? addDays(meetingDate, THANK_YOU_DAYS) : addMonths(meetingDate, FOLLOW_UP_MONTHS);
+}
+
 function kindOf(step: NextStep): FollowUpKind | null {
   if (step.action === THANK_YOU_ACTION) return "thankYou";
   if (step.action === FOLLOW_UP_ACTION) return "followUp";
@@ -87,9 +92,7 @@ export function followUpsFor(contact: Contact): FollowUp[] {
     if (!kind || step.done || step.owner !== "me") return [];
     // Kept short for the to-do list; the contact's card shows the advice to mention.
     const action = kind === "thankYou" ? `Thank ${firstName}` : `Follow up with ${firstName}`;
-    const due =
-      step.dueDate ??
-      (kind === "thankYou" ? addDays(contact.meetingDate, THANK_YOU_DAYS) : addMonths(contact.meetingDate, FOLLOW_UP_MONTHS));
+    const due = step.dueDate ?? workshopDue(kind, contact.meetingDate);
     return [{ id: `${contact.id}:${stepIndex}`, contactId: contact.id, stepIndex, kind, action, due }];
   });
 }

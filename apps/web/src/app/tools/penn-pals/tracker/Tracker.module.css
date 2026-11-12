@@ -76,6 +76,13 @@
 }
 .steps legend { padding: 0 6px; color: var(--section-label); font-weight: 500; }
 
+/* The follow-ups are the point of the form, so their box stands out */
+.steps {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue-bg, transparent);
+}
+.steps legend { color: var(--penn-blue); font-weight: 700; }
+
 .step {
   display: flex;
   flex-wrap: wrap;
@@ -134,4 +141,39 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 20px;
+}
+
+/* Example text reads as a hint, not as a filled-in value */
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--section-label);
+  opacity: 0.55;
+  font-style: italic;
+}
+
+/* The two follow-ups, one per row: checkbox, then its due date */
+.stepRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-height: 36px;
+}
+.stepRow .check {
+  min-width: 190px;
+  font-weight: 500;
+}
+.stepDue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.stepDue input {
+  padding: 5px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
 }

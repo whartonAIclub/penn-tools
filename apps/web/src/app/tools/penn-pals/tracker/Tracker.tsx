@@ -12,14 +12,18 @@ import {
   buildContact,
   CONTACTS_STORAGE_KEY,
   contactToDraft,
+  customRelationships,
   emptyDraft,
+  FORM_RELATIONSHIPS,
   parseStoredContacts,
-  RELATIONSHIPS,
+  RELATIONSHIP_LABELS,
   STEP_ACTIONS,
   updateContact,
   VIBES,
+  workshopDue,
   type Contact,
   type ContactDraft,
+  type FollowUpKind,
 } from "@penntools/tool-penn-pals";
 import styles from "./Tracker.module.css";
 
@@ -29,16 +33,6 @@ const LANDING = "/tools/penn-pals";
 function todayLocal(): string {
   return new Date().toLocaleDateString("en-CA");
 }
-
-// How the stored values read on screen.
-const RELATIONSHIP_LABELS: Record<ContactDraft["relationship"], string> = {
-  "2Y": "Wharton 2Y",
-  alumni: "Alumni",
-  recruiter: "Recruiter",
-  faculty: "Faculty",
-  industry: "Industry professional",
-  other: "Other",
-};
 
 const VIBE_LABELS: Record<ContactDraft["vibe"], string> = {
   great: "Excellent",
@@ -101,16 +95,49 @@ export function Tracker() {
         this browser; clearing its data removes them.
       </p>
 
-      <Form today={today} onSave={save} original={editing} />
+      <Form today={today} onSave={save} original={editing} customLabels={customRelationships(contacts)} />
     </div>
   );
 }
 
 // ── Form ──────────────────────────────────────────────────────────────────────
 
-function Form({ today, onSave, original }: { today: string; onSave: (contact: Contact) => void; original?: Contact | undefined }) {
-  const [draft, setDraft] = useState<ContactDraft>(() => (original ? contactToDraft(original) : emptyDraft(today)));
+// The two follow-ups the workshop recommends, shown up front as checkboxes.
+const STEPS: { kind: FollowUpKind; action: string; label: string; timing: string }[] = [
+  { kind: "thankYou", action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after the chat" },
+  { kind: "followUp", action: STEP_ACTIONS[1], label: "Follow up", timing: "a month after the chat" },
+];
+
+/** A new contact starts with both follow-ups on, dated by the workshop timing. */
+function newDraft(today: string): ContactDraft {
+  return { ...emptyDraft(today), nextSteps: STEPS.map((s) => ({ action: s.action, owner: "me", dueDate: "" })) };
+}
+
+/** "Thu, Nov 12" for a YYYY-MM-DD date. */
+function shortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+// A custom relationship is picked from the menu as "custom:<label>".
+const CUSTOM = "custom:";
+
+function Form({
+  today,
+  onSave,
+  original,
+  customLabels,
+}: {
+  today: string;
+  onSave: (contact: Contact) => void;
+  original?: Contact | undefined;
+  /** Relationships the user wrote in before, offered again. */
+  customLabels: string[];
+}) {
+  const [draft, setDraft] = useState<ContactDraft>(() => (original ? contactToDraft(original) : newDraft(today)));
   const [errors, setErrors] = useState<string[]>([]);
+  // True after "Other (write your own)" is picked, so the text box stays open while typing.
+  const [writingOwn, setWritingOwn] = useState(false);
 
   const set = <K extends keyof ContactDraft>(key: K, value: ContactDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const text = (key: "name" | "classYear" | "company" | "role" | "area" | "location" | "email" | "phone" | "linkedin") => ({
@@ -124,11 +151,42 @@ function Form({ today, onSave, original }: { today: string; onSave: (contact: Co
     if (!result.ok) return setErrors(result.errors);
     onSave(result.contact);
     setErrors([]);
-    setDraft(emptyDraft(today));
+    setDraft(newDraft(today));
   }
 
-  function setStep(i: number, changes: Partial<ContactDraft["nextSteps"][number]>) {
-    set("nextSteps", draft.nextSteps.map((s, j) => (j === i ? { ...s, ...changes } : s)));
+  // Relationship menu: the standard answers, then the user's own labels.
+  const other = draft.relationshipOther.trim();
+  const savedLabel = draft.relationship === "other" && customLabels.find((l) => l.toLowerCase() === other.toLowerCase());
+  const showOwnBox = draft.relationship === "other" && (writingOwn || !savedLabel);
+  const relationshipValue = savedLabel && !writingOwn ? CUSTOM + savedLabel : draft.relationship;
+  const relationshipOptions: ContactDraft["relationship"][] =
+    (FORM_RELATIONSHIPS as readonly string[]).includes(draft.relationship)
+      ? [...FORM_RELATIONSHIPS]
+      : [...FORM_RELATIONSHIPS.slice(0, -1), draft.relationship, "other"]; // an older contact's "recruiter"
+
+  function pickRelationship(value: string) {
+    setWritingOwn(value === "other");
+    if (value.startsWith(CUSTOM)) {
+      setDraft((d) => ({ ...d, relationship: "other", relationshipOther: value.slice(CUSTOM.length) }));
+    } else {
+      setDraft((d) => ({ ...d, relationship: value as ContactDraft["relationship"], relationshipOther: "" }));
+    }
+  }
+
+  // Each follow-up is on when the draft has an open step for it.
+  const stepFor = (action: string) => draft.nextSteps.find((s) => s.action === action);
+  function toggleStep(action: string, on: boolean) {
+    set(
+      "nextSteps",
+      on ? [...draft.nextSteps, { action, owner: "me", dueDate: "" }] : draft.nextSteps.filter((s) => s.action !== action),
+    );
+  }
+  function setDue(action: string, dueDate: string) {
+    let done = false; // only the first open step for that action
+    set(
+      "nextSteps",
+      draft.nextSteps.map((s) => (!done && s.action === action ? ((done = true), { ...s, dueDate }) : s)),
+    );
   }
 
   return (
@@ -138,26 +196,47 @@ function Form({ today, onSave, original }: { today: string; onSave: (contact: Co
       <div className={styles.grid}>
         <label className={styles.field}>
           Full name *
-          <input {...text("name")} placeholder="Maria Chen" />
+          <input {...text("name")} placeholder="e.g. Maria Chen" />
         </label>
         <label className={styles.field}>
           Company
-          <input {...text("company")} placeholder="Stripe" />
+          <input {...text("company")} placeholder="e.g. Stripe" />
         </label>
         <label className={styles.field}>
           Title
-          <input {...text("role")} placeholder="Product Manager" />
+          <input {...text("role")} placeholder="e.g. Product Manager" />
         </label>
         <label className={styles.field}>
           Relationship
-          <select value={draft.relationship} onChange={(e) => set("relationship", e.target.value as ContactDraft["relationship"])}>
-            {RELATIONSHIPS.map((r) => (
+          <select value={relationshipValue} onChange={(e) => pickRelationship(e.target.value)}>
+            {relationshipOptions.map((r) => (
               <option key={r} value={r}>
-                {RELATIONSHIP_LABELS[r]}
+                {r === "other" ? "Other (write your own)" : RELATIONSHIP_LABELS[r]}
               </option>
             ))}
+            {customLabels.length > 0 && (
+              <optgroup label="Your own">
+                {customLabels.map((label) => (
+                  <option key={label} value={CUSTOM + label}>
+                    {label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </label>
+        {showOwnBox && (
+          <label className={styles.field}>
+            Your relationship
+            <input
+              value={draft.relationshipOther}
+              onChange={(e) => set("relationshipOther", e.target.value)}
+              placeholder="e.g. Mentor, Club board, Former manager"
+              autoFocus
+            />
+            <span className={styles.hint}>Saved to the menu for next time.</span>
+          </label>
+        )}
         <label className={styles.field}>
           Conversation quality
           <select value={draft.vibe} onChange={(e) => set("vibe", e.target.value as ContactDraft["vibe"])}>
@@ -173,6 +252,38 @@ function Form({ today, onSave, original }: { today: string; onSave: (contact: Co
           <input type="date" value={draft.meetingDate} onChange={(e) => set("meetingDate", e.target.value)} />
         </label>
       </div>
+
+      <fieldset className={styles.steps}>
+        <legend>Your follow-ups</legend>
+        {STEPS.map(({ kind, action, label, timing }) => {
+          const step = stepFor(action);
+          const auto = isIsoDate(draft.meetingDate) ? shortDate(workshopDue(kind, draft.meetingDate)) : null;
+          return (
+            <div key={action} className={styles.stepRow}>
+              <label className={styles.check}>
+                <input type="checkbox" checked={Boolean(step)} onChange={(e) => toggleStep(action, e.target.checked)} />
+                {label}
+              </label>
+              {step && (
+                <span className={styles.stepDue}>
+                  <input
+                    aria-label={`${label}: due date`}
+                    title="Due date"
+                    type="date"
+                    value={step.dueDate}
+                    onChange={(e) => setDue(action, e.target.value)}
+                  />
+                  {!step.dueDate && auto && (
+                    <span className={styles.hint}>
+                      Blank = {auto}, {timing}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </fieldset>
 
       <div className={styles.checks}>
         <label className={styles.check}>
@@ -190,44 +301,16 @@ function Form({ today, onSave, original }: { today: string; onSave: (contact: Co
         <textarea rows={3} value={draft.takeaways} placeholder="One per line" onChange={(e) => set("takeaways", e.target.value)} />
       </label>
 
-      <fieldset className={styles.steps}>
-        <legend>Next steps</legend>
-        <span className={styles.hint}>
-          Leave the due date blank to use the workshop timing: a thank-you the day after the chat, a follow-up a
-          month later.
-        </span>
-        {draft.nextSteps.map((step, i) => (
-          <div key={i} className={styles.step}>
-            <select aria-label="Next step" value={step.action} onChange={(e) => setStep(i, { action: e.target.value })}>
-              {STEP_ACTIONS.map((action) => (
-                <option key={action}>{action}</option>
-              ))}
-            </select>
-            <input aria-label="Due date" title="Due date" type="date" value={step.dueDate} onChange={(e) => setStep(i, { dueDate: e.target.value })} />
-            <button type="button" className={styles.link} onClick={() => set("nextSteps", draft.nextSteps.filter((_, j) => j !== i))}>
-              Remove
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className={styles.link}
-          onClick={() => set("nextSteps", [...draft.nextSteps, { action: STEP_ACTIONS[0], owner: "me", dueDate: "" }])}
-        >
-          + Add next step
-        </button>
-      </fieldset>
-
       <details className={styles.more}>
         <summary>Additional details</summary>
         <div className={styles.grid}>
           <label className={styles.field}>
             Class year
-            <input {...text("classYear")} placeholder="2022" />
+            <input {...text("classYear")} placeholder="e.g. 2022" />
           </label>
           <label className={styles.field}>
             Function or industry
-            <input {...text("area")} placeholder="Product" />
+            <input {...text("area")} placeholder="e.g. Product" />
           </label>
           <label className={styles.field}>
             Location
@@ -271,4 +354,8 @@ function Form({ today, onSave, original }: { today: string; onSave: (contact: Co
       </div>
     </form>
   );
+}
+
+function isIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
