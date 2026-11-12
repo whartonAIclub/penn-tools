@@ -8,6 +8,8 @@ import {
   cleanEvent,
   eventItems,
   extractEvents,
+  firstLink,
+  isOnlyLink,
   safeLink,
   toInvite,
 } from "../events.js";
@@ -33,7 +35,7 @@ describe("extractEvents", () => {
       events: [event({ link: "javascript:alert(1)", notes: "  ", end: "late" })],
       warnings: ["No year given; read as 2026."],
     });
-    const result = await extractEvents(ai, "openai", { kind: "text", text: "Diwali Sat 7pm!" }, "Thursday, 2026-11-12");
+    const result = await extractEvents(ai, "openai", { text: "Diwali Sat 7pm!", file: null }, "Thursday, 2026-11-12");
 
     expect(requests[0]).toMatchObject({ provider: "openai", tier: "fast" });
     expect(requests[0]!.messages[0]!.content).toEqual([
@@ -46,10 +48,41 @@ describe("extractEvents", () => {
 
   it("sends a screenshot as an image and a flyer as a PDF", async () => {
     const { ai, requests } = fakeAI({ events: [], warnings: [] });
-    await extractEvents(ai, "openai", { kind: "image", mediaType: "image/png", data: PNG }, "today");
-    await extractEvents(ai, "openai", { kind: "pdf", filename: "flyer.pdf", data: PDF }, "today");
+    await extractEvents(ai, "openai", { text: null, file: { kind: "image", mediaType: "image/png", data: PNG } }, "today");
+    await extractEvents(ai, "openai", { text: null, file: { kind: "pdf", filename: "flyer.pdf", data: PDF } }, "today");
     expect(requests[0]!.messages[0]!.content).toContainEqual({ type: "image", mediaType: "image/png", data: PNG });
+    expect(requests[0]!.messages[0]!.content).toHaveLength(2); // the image and today's date
     expect(requests[1]!.messages[0]!.content).toContainEqual({ type: "pdf", filename: "flyer.pdf", data: PDF });
+  });
+
+  it("sends a pasted link with a screenshot, and gives the link to events without one", async () => {
+    const { ai, requests } = fakeAI({ events: [event({ link: null }), event({ link: "https://club.org/a" })], warnings: [] });
+    const result = await extractEvents(
+      ai,
+      "openai",
+      { text: "https://lu.ma/diwali.", file: { kind: "image", mediaType: "image/png", data: PNG } },
+      "today",
+    );
+    expect(requests[0]!.messages[0]!.content).toEqual([
+      { type: "image", mediaType: "image/png", data: PNG },
+      { type: "text", text: expect.stringContaining("https://lu.ma/diwali") },
+      { type: "text", text: expect.stringContaining("Today is today") },
+    ]);
+    expect(result.events.map((e) => e.link)).toEqual(["https://lu.ma/diwali", "https://club.org/a"]);
+  });
+});
+
+describe("firstLink and isOnlyLink", () => {
+  it("finds a pasted link, without trailing punctuation", () => {
+    expect(firstLink("RSVP here: https://partiful.com/e/abc!")).toBe("https://partiful.com/e/abc");
+    expect(firstLink("no link")).toBeNull();
+    expect(firstLink(null)).toBeNull();
+  });
+
+  it("tells a bare link from an invite with a link in it", () => {
+    expect(isOnlyLink("  https://lu.ma/diwali  ")).toBe(true);
+    expect(isOnlyLink("Diwali Sat https://lu.ma/diwali")).toBe(false);
+    expect(isOnlyLink("")).toBe(false);
   });
 });
 
@@ -76,18 +109,27 @@ describe("cleanEvent, checkEvent and safeLink", () => {
 });
 
 describe("checkInvite and toInvite", () => {
-  it("accepts pasted text, a screenshot or a PDF flyer", () => {
+  it("accepts pasted text, a screenshot or a PDF flyer, or text with a file", () => {
     expect(checkInvite({ text: "Diwali Sat 7pm" })).toBeNull();
     expect(checkInvite({ filename: "invite.png", data: PNG })).toBeNull();
     expect(checkInvite({ filename: "flyer.pdf", data: PDF })).toBeNull();
-    expect(toInvite({ text: "Hi" })).toEqual({ kind: "text", text: "Hi" });
-    expect(toInvite({ filename: "invite.png", data: PNG })).toEqual({ kind: "image", mediaType: "image/png", data: PNG });
-    expect(toInvite({ filename: "flyer.pdf", data: PDF })).toEqual({ kind: "pdf", filename: "flyer.pdf", data: PDF });
+    expect(checkInvite({ text: "https://lu.ma/x", filename: "invite.png", data: PNG })).toBeNull();
+    expect(toInvite({ text: "Hi" })).toEqual({ text: "Hi", file: null });
+    expect(toInvite({ text: " ", filename: "invite.png", data: PNG })).toEqual({
+      text: null,
+      file: { kind: "image", mediaType: "image/png", data: PNG },
+    });
+    expect(toInvite({ text: "https://lu.ma/x", filename: "flyer.pdf", data: PDF })).toEqual({
+      text: "https://lu.ma/x",
+      file: { kind: "pdf", filename: "flyer.pdf", data: PDF },
+    });
   });
 
   it("refuses empty or overlong text and other files", () => {
     expect(checkInvite(null)).toMatch(/JSON/);
     expect(checkInvite({ text: "  " })).toMatch(/Paste/);
+    expect(checkInvite({})).toMatch(/Paste/);
+    expect(checkInvite({ text: 5 })).toMatch(/text/);
     expect(checkInvite({ text: "x".repeat(20_001) })).toMatch(/at most/);
     expect(checkInvite({ filename: "invite.heic", data: btoa("\0\0\0\x18ftypheic") })).toMatch(/screenshot/);
   });

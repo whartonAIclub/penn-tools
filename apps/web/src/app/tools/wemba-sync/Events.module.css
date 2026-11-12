@@ -1,7 +1,25 @@
 .events {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 240px;
+}
+
+/* Shown while a file is dragged over the tab. */
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--penn-blue);
+  border-radius: 12px;
+  background: rgba(245, 247, 255, 0.92);
+  color: var(--penn-blue);
+  font-weight: 700;
+  pointer-events: none;
 }
 
 .addBar {
@@ -41,6 +59,36 @@
 .paste:focus,
 .fields input:focus,
 .fields textarea:focus { outline: 2px solid var(--penn-blue); outline-offset: -1px; }
+
+.attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.attached {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 6px 4px 12px;
+  border-radius: 999px;
+  background: var(--nav-active);
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.unattach {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--section-label);
+}
+.unattach:hover { background: var(--bg); color: var(--text); }
 
 .addOptions {
   display: flex;

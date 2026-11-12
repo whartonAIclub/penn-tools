@@ -1,8 +1,8 @@
 // POST /tools/wemba-sync/events — reads the events in an invite
 //
-// Body: { provider, text } for a pasted invite (from WhatsApp, an email, any
-// invite site), or { provider, filename, data } for a screenshot or flyer, an
-// image or PDF as base64 (no data: prefix). A route rather than a server
+// Body: { provider, text?, filename?, data? }: a pasted invite (from WhatsApp,
+// an email, any invite site, or just its link) and/or a screenshot or flyer,
+// an image or PDF as base64 (no data: prefix), read together. A route rather than a server
 // action, since a screenshot can be larger than server actions accept. Nothing
 // is saved here: the page shows the events for the student to check, then
 // saves them with saveEvents (actions.ts). A body over MAX_REQUEST_BYTES gets

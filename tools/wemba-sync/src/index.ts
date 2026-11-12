@@ -42,8 +42,10 @@ export {
   checkInvite,
   toInvite,
   safeLink,
+  firstLink,
+  isOnlyLink,
   eventItems,
 } from "./events.js";
-export type { ExtractedEvents, Invite } from "./events.js";
+export type { ExtractedEvents, Invite, InviteFile } from "./events.js";
 export { MAX_EVENTS, RSVPS, EventError, listEvents, addEvents, setRsvp, deleteEvent } from "./eventStore.js";
 export type { RSVP, SavedEvent } from "./eventStore.js";

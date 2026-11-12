@@ -2,18 +2,20 @@
 
 // The Events tab: every event, whenever it is — the ones the student added
 // (club events, celebrations, socials) and the events on their class weekend
-// schedules. "Add event" takes a pasted invite or a screenshot or flyer,
-// which events/route.ts reads with extractEvents
+// schedules. "Add event" takes a pasted invite or link and/or a screenshot
+// or flyer, which events/route.ts reads with extractEvents
 // (tools/wemba-sync/src/events.ts), or a blank form; the student checks the
 // details, then saveEvents (actions.ts) saves them. The student's own events
 // have an RSVP, an .ics download and Remove; schedule events, the download.
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import type { AIProvider } from "@penntools/core/ai";
 import { AI_IMAGE_TYPES, MAX_IMAGE_BYTES, fileType } from "@penntools/core/ai/attachments";
 import {
   MAX_INVITE_LENGTH,
   eventItems,
+  firstLink,
+  isOnlyLink,
   toICS,
   type Event,
   type ExtractedEvents,
@@ -82,6 +84,12 @@ export function Events({
   const [adding, setAdding] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const [error, setError] = useState<UploadError | null>(null);
+  // A screenshot or flyer dropped anywhere on the tab: it opens Add event and is read at once.
+  const [dropped, setDropped] = useState<{ file: File; id: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0); // dragenter/dragleave fire for every child, so count them
+  const canAdd = events !== null;
+  const isFileDrag = (e: DragEvent) => e.dataTransfer.types.includes("Files");
 
   const today = todayInPhiladelphia();
   const entries: Entry[] = [...(events ?? []).map((own) => ({ own })), ...scheduled.map((item) => ({ scheduled: item }))].sort(
@@ -120,13 +128,44 @@ export function Events({
   }
 
   return (
-    <div className={styles.events}>
+    <div
+      className={styles.events}
+      onDragEnter={(e) => {
+        if (!canAdd || !isFileDrag(e)) return;
+        dragDepth.current += 1;
+        setDragging(true);
+      }}
+      onDragOver={(e) => {
+        if (canAdd && isFileDrag(e)) e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!canAdd || !isFileDrag(e)) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) {
+          setDropped({ file, id: Date.now() });
+          setAdding(true);
+        }
+      }}
+    >
+      {dragging && (
+        <div className={styles.dropOverlay} aria-hidden>
+          Drop the screenshot or flyer to add the event
+        </div>
+      )}
       {events === null ? (
         <p className={shared.error}>Event storage isn&apos;t set up yet, so events can&apos;t be added. Try again later.</p>
       ) : adding ? (
         <AddEvent
           provider={provider}
           maxPdfBytes={maxPdfBytes}
+          dropped={dropped}
           onSaved={(saved) => {
             onEvents((list) =>
               [...list, ...saved].sort((a, b) =>
@@ -134,8 +173,12 @@ export function Events({
               ),
             );
             setAdding(false);
+            setDropped(null);
           }}
-          onCancel={() => setAdding(false)}
+          onCancel={() => {
+            setAdding(false);
+            setDropped(null);
+          }}
         />
       ) : (
         <div className={styles.addBar}>
@@ -143,7 +186,7 @@ export function Events({
             + Add event
           </button>
           <p className={shared.dropText}>
-            Club events, celebrations, socials. Paste the invite from WhatsApp or email, or upload a screenshot.
+            Club events, celebrations, socials. Paste the invite from WhatsApp or email, or drop a screenshot anywhere here.
           </p>
         </div>
       )}
@@ -186,58 +229,92 @@ interface Draft {
 function AddEvent({
   provider,
   maxPdfBytes,
+  dropped,
   onSaved,
   onCancel,
 }: {
   provider: AIProvider;
   maxPdfBytes: number;
+  /** A file dropped on the tab: attached and read at once, with anything already pasted. */
+  dropped: { file: File; id: number } | null;
   onSaved: (saved: SavedEvent[]) => void;
   onCancel: () => void;
 }) {
   const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<UploadError | null>(null);
-  const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const nextKey = useRef(0);
+
+  // Read each dropped file as it arrives.
+  useEffect(() => {
+    if (dropped && !reading) void attachAndRead(dropped.file);
+  }, [dropped?.id]); // only a new drop should trigger a read
 
   function review(events: Event[], found: string[]) {
     setDrafts(events.map((event) => ({ key: nextKey.current++, event })));
     setWarnings(found);
   }
 
-  async function read(body: Record<string, string>) {
+  /** Checks a screenshot or flyer and attaches it; the file, or null if it can't be read. */
+  async function attach(chosen: File): Promise<File | null> {
     setError(null);
+    const type = fileType(new Uint8Array(await chosen.slice(0, 12).arrayBuffer()));
+    const image = type !== null && (AI_IMAGE_TYPES as readonly string[]).includes(type);
+    if (!image && type !== "application/pdf") {
+      setError({ message: `${chosen.name} isn't a JPEG, PNG, GIF, WebP or PDF. Take a screenshot of it instead.` });
+      return null;
+    }
+    const limit = image ? MAX_IMAGE_BYTES : maxPdfBytes;
+    if (chosen.size > limit) {
+      setError({ message: `${chosen.name} is over ${limit / 1024 / 1024} MB.` });
+      return null;
+    }
+    setFile(chosen);
+    return chosen;
+  }
+
+  /** Attaches a dropped or pasted screenshot and reads it straight away, with anything already pasted. */
+  async function attachAndRead(chosen: File) {
+    const attached = await attach(chosen);
+    if (attached) await readInvite(attached);
+  }
+
+  /**
+   * Reads the pasted text and attached file together. A bare link can't be
+   * read, so it opens the form with it.
+   */
+  async function readInvite(withFile: File | null = file) {
+    setError(null);
+    if (!withFile && isOnlyLink(text)) {
+      review(
+        [{ ...BLANK, link: firstLink(text) }],
+        ["WEMBA Sync can\u2019t open links, so fill in the details below, or cancel and add a screenshot of the invite."],
+      );
+      return;
+    }
     setReading(true);
     try {
-      const result = await postJSON<ExtractedEvents>("/tools/wemba-sync/events", { provider, ...body });
+      const body: Record<string, string> = { provider };
+      if (text.trim()) body["text"] = text;
+      if (withFile) Object.assign(body, { filename: withFile.name, data: await toBase64(withFile) });
+      const result = await postJSON<ExtractedEvents>("/tools/wemba-sync/events", body);
       if (!result.ok) setError(result.error);
-      else if (result.body.events.length === 0) {
-        setError({ message: result.body.warnings[0] ?? "No event was found in that. Try adding it yourself." });
-      } else review(result.body.events, result.body.warnings);
+      else if (result.body.events.length > 0) review(result.body.events, result.body.warnings);
+      else {
+        // Nothing found: open the form, keeping any pasted link.
+        const why = result.body.warnings[0] ?? "No event was found in that.";
+        review([{ ...BLANK, link: firstLink(text) }], [`${why} Fill in the details below.`]);
+      }
     } catch {
       setError({ message: "Something went wrong. Try again." });
     } finally {
       setReading(false);
     }
-  }
-
-  async function readFile(file: File) {
-    const type = fileType(new Uint8Array(await file.slice(0, 12).arrayBuffer()));
-    const image = type !== null && (AI_IMAGE_TYPES as readonly string[]).includes(type);
-    if (!image && type !== "application/pdf") {
-      setError({ message: `${file.name} isn't a JPEG, PNG, GIF, WebP or PDF. Take a screenshot of it instead.` });
-      return;
-    }
-    const limit = image ? MAX_IMAGE_BYTES : maxPdfBytes;
-    if (file.size > limit) {
-      setError({ message: `${file.name} is over ${limit / 1024 / 1024} MB.` });
-      return;
-    }
-    await read({ filename: file.name, data: await toBase64(file) });
   }
 
   async function save(e: FormEvent) {
@@ -297,35 +374,56 @@ function AddEvent({
   }
 
   return (
-    <div
-      className={`${shared.panel} ${styles.addPanel} ${dragging ? shared.dropActive : ""}`}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragging(false);
-        const file = e.dataTransfer.files[0];
-        if (file && !reading) void readFile(file);
-      }}
-    >
+    <div className={`${shared.panel} ${styles.addPanel}`}>
       <h3 className={shared.panelTitle}>Add an event</h3>
 
       <label className={styles.fieldLabel} htmlFor="wemba-invite">
-        Paste the invite
+        Paste the invite or its link
       </label>
       <textarea
         id="wemba-invite"
         className={styles.paste}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Paste the invite from WhatsApp, an email or any event page…"
-        rows={5}
+        onPaste={(e) => {
+          // A screenshot copied to the clipboard (e.g. Cmd+Ctrl+Shift+4 on a Mac) is read like a dropped one.
+          const pasted = [...e.clipboardData.files].find((f) => f.type.startsWith("image/"));
+          if (pasted && !reading) {
+            e.preventDefault();
+            void attachAndRead(pasted);
+          }
+        }}
+        placeholder="Paste the invite from WhatsApp or an email, the invite's link, or a screenshot…"
+        rows={4}
         maxLength={MAX_INVITE_LENGTH}
         disabled={reading}
       />
+
+      <div className={styles.attach}>
+        {file ? (
+          <span className={styles.attached}>
+            {file.name}
+            <button
+              type="button"
+              className={styles.unattach}
+              onClick={() => setFile(null)}
+              disabled={reading}
+              aria-label={`Remove ${file.name}`}
+            >
+              ×
+            </button>
+          </span>
+        ) : (
+          <button type="button" className={styles.secondary} onClick={() => input.current?.click()} disabled={reading}>
+            + Add a screenshot or flyer
+          </button>
+        )}
+        <span className={shared.meta}>
+          {file
+            ? "It\u2019s read with what you pasted."
+            : "Or drop a screenshot anywhere on this tab. Links can\u2019t be opened, so add a screenshot with a link."}
+        </span>
+      </div>
 
       <input
         ref={input}
@@ -333,9 +431,9 @@ function AddEvent({
         accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.pdf"
         hidden
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = ""; // so choosing the same file again still reads it
-          if (file) void readFile(file);
+          const chosen = e.target.files?.[0];
+          e.target.value = ""; // so choosing the same file again still attaches it
+          if (chosen) void attach(chosen);
         }}
       />
 
@@ -345,12 +443,8 @@ function AddEvent({
         </p>
       ) : (
         <div className={styles.addOptions}>
-          <button className={shared.button} onClick={() => void read({ text })} disabled={!text.trim()}>
+          <button className={shared.button} onClick={() => void readInvite()} disabled={!text.trim() && !file}>
             Read invite
-          </button>
-          <span className={shared.meta}>or</span>
-          <button className={styles.secondary} onClick={() => input.current?.click()}>
-            Upload a screenshot or flyer
           </button>
           <span className={shared.meta}>or</span>
           <button className={shared.textButton} onClick={() => review([{ ...BLANK }], [])}>
