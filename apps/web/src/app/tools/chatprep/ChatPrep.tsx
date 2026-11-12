@@ -7,10 +7,23 @@
 import { useEffect, useRef, useState } from "react";
 import type { ClipboardEvent, DragEvent } from "react";
 import Link from "next/link";
+import { Lato, Newsreader } from "next/font/google";
 import type { AIProvider } from "@penntools/core/ai";
 import type { Brief, FileLimits, UploadedFile } from "@penntools/tool-chatprep";
 import { ACCEPT, readFile, uniqueName } from "./readFile";
 import styles from "./ChatPrep.module.css";
+
+// A serif for headlines and the brief's text, and Lato for labels, the form
+// and buttons. Newsreader stands in for Canela, which is a paid font.
+// Next.js has no fallback metrics for Newsreader, so it can't size a fallback font to match.
+const serif = Newsreader({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+  variable: "--font-cp-serif",
+  adjustFontFallback: false,
+});
+const sans = Lato({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-cp-sans" });
 
 type Upload = "resume" | "profile" | "news";
 
@@ -70,6 +83,12 @@ export function ChatPrep({
   const [news, setNews] = useState("");
   const [status, setStatus] = useState<Status>({ state: "idle" });
   const [copied, setCopied] = useState(false);
+  const briefRef = useRef<HTMLDivElement>(null);
+
+  // The brief appears below a long form, so bring it into view when it's ready.
+  useEffect(() => {
+    if (status.state === "done") briefRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [status]);
 
   // Read the saved profile after the first render, since the server has no localStorage.
   useEffect(() => {
@@ -126,7 +145,14 @@ export function ChatPrep({
     }
   }
 
-  const ready = (resume.trim() || resumeFile) && targetRoles.trim() && (profile.trim() || profileFiles.length) && company.trim() && !reading;
+  // What's still needed before a brief can be made, named on the page so a greyed-out button explains itself.
+  const missing = [
+    !(resume.trim() || resumeFile) && "your resume",
+    !targetRoles.trim() && "your target roles",
+    !company.trim() && "the company",
+    !(profile.trim() || profileFiles.length) && "their profile",
+  ].filter((item): item is string => Boolean(item));
+  const ready = missing.length === 0 && !reading;
 
   async function generate() {
     saveProfile();
@@ -157,15 +183,46 @@ export function ChatPrep({
   }
 
   return (
-    <div className={styles.page}>
-      <h1 className={styles.title}>ChatPrep</h1>
-      <p className={styles.intro}>
-        A one-page brief for your next coffee chat: the company, where your paths overlap, a short intro and questions
-        they can&apos;t answer with a search.
-      </p>
+    <div className={`${styles.page} ${serif.variable} ${sans.variable}`}>
+      <header className={styles.hero}>
+        <p className={styles.eyebrow}>ChatPrep · Coffee chat prep</p>
+        <h1 className={styles.heroTitle}>Walk in knowing what to ask.</h1>
+        <p className={styles.heroText}>
+          A one-page brief for your next coffee chat: the company, where your paths overlap, a short intro and questions
+          they can&apos;t answer with a search.
+        </p>
+        <ol className={styles.steps}>
+          <li>
+            <span className={styles.stepNumber}>01</span>
+            <span className={styles.stepTitle}>
+              You
+            </span>
+            <span className={styles.stepText}>Your resume and goals, once</span>
+          </li>
+          <li>
+            <span className={styles.stepNumber}>02</span>
+            <span className={styles.stepTitle}>
+              Them
+            </span>
+            <span className={styles.stepText}>Their LinkedIn and company</span>
+          </li>
+          <li>
+            <span className={styles.stepNumber}>03</span>
+            <span className={styles.stepTitle}>
+              Your brief
+            </span>
+            <span className={styles.stepText}>Read it, copy it, walk in</span>
+          </li>
+        </ol>
+      </header>
 
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>You</h2>
+        <div className={styles.cardHeader}>
+          <span className={styles.stepNumber}>01</span>
+          <h2 className={styles.cardTitle}>
+            You
+          </h2>
+        </div>
         <p className={styles.hint}>Saved in this browser, so you only enter it once.</p>
         <div className={styles.field}>
           Your resume
@@ -211,7 +268,12 @@ export function ChatPrep({
       </section>
 
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>This chat</h2>
+        <div className={styles.cardHeader}>
+          <span className={styles.stepNumber}>02</span>
+          <h2 className={styles.cardTitle}>
+            This chat
+          </h2>
+        </div>
         <label className={styles.field}>
           Company
           <input className={styles.input} value={company} maxLength={limits.company} onChange={(e) => setCompany(e.target.value)} />
@@ -276,6 +338,7 @@ export function ChatPrep({
         </div>
 
         <div className={styles.row}>
+          {missing.length > 0 && <p className={`${styles.hint} ${styles.missing}`}>Still needed: {listOf(missing)}</p>}
           {providers.length > 1 && (
             <select aria-label="Provider" className={styles.select} value={provider} onChange={(e) => setProvider(e.target.value as AIProvider)}>
               {providers.map((p) => (
@@ -286,9 +349,19 @@ export function ChatPrep({
             </select>
           )}
           <button className={styles.button} onClick={() => void generate()} disabled={status.state === "loading" || !ready}>
-            {status.state === "loading" ? "Writing your brief…" : "Make my brief"}
+            {status.state === "loading" ? (
+              <>
+                <span className={styles.pulse} aria-hidden="true" />
+                Writing your brief…
+              </>
+            ) : (
+              <>
+                Make my brief <span aria-hidden="true">→</span>
+              </>
+            )}
           </button>
         </div>
+        {status.state === "loading" && <p className={`${styles.hint} ${styles.waitHint}`}>This usually takes 20–40 seconds.</p>}
       </section>
 
       {status.state === "error" && (
@@ -306,17 +379,24 @@ export function ChatPrep({
       )}
 
       {status.state === "done" && (
-        <BriefView
+        <div ref={briefRef} className={styles.briefAnchor}>
+          <BriefView
           brief={status.brief}
           company={status.company}
           closingLine={closingLine}
           tips={tips}
           copied={copied}
           onCopy={() => copy(status.text)}
-        />
+          />
+        </div>
       )}
     </div>
   );
+}
+
+/** "a", "a and b", "a, b and c". */
+function listOf(items: string[]): string {
+  return items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}` : items.join("");
 }
 
 /** A drop zone with a file picker, and the files already added. */
@@ -360,7 +440,7 @@ function FileDrop({
         onDrop={drop}
       >
         <span>{reading ? "Reading…" : label}</span>
-        <button type="button" className={styles.copy} onClick={() => input.current?.click()} disabled={reading}>
+        <button type="button" className={styles.secondary} onClick={() => input.current?.click()} disabled={reading}>
           Choose {multiple ? "files" : "a file"}
         </button>
         <input
@@ -411,60 +491,96 @@ function BriefView({
   return (
     <article className={styles.brief}>
       <div className={styles.briefHeader}>
-        <h2 className={styles.cardTitle}>Your brief: {company}</h2>
-        <button className={styles.copy} onClick={onCopy}>
+        <div>
+          <div className={styles.cardHeader}>
+            <span className={styles.stepNumber}>03</span>
+            <span className={styles.cardTitle}>
+              Your brief
+            </span>
+          </div>
+          <h2 className={styles.briefTitle}>{company}</h2>
+        </div>
+        <button className={styles.secondary} onClick={onCopy}>
           {copied ? "Copied" : "Copy as text"}
         </button>
       </div>
 
-      <h3 className={styles.heading}>The company</h3>
-      <p>{brief.company.summary}</p>
-      {brief.company.recentChanges.length > 0 ? (
+      <section className={styles.briefSection}>
+        <h3 className={styles.heading}>
+          The company
+        </h3>
+        <p>{brief.company.summary}</p>
+        {brief.company.recentChanges.length > 0 ? (
+          <>
+            <h4 className={styles.subheading}>
+              Recent changes
+            </h4>
+            <ul className={styles.list}>
+              {brief.company.recentChanges.map((change, i) => (
+                <li key={i}>{change}</li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className={styles.hint}>General background only. Add news for recent changes.</p>
+        )}
+      </section>
+
+      <section className={styles.briefSection}>
+        <h3 className={styles.heading}>
+          Where your paths overlap
+        </h3>
         <ul className={styles.list}>
-          {brief.company.recentChanges.map((change, i) => (
-            <li key={i}>{change}</li>
+          {brief.overlaps.map((o, i) => (
+            <li key={i}>
+              {o.point}
+              <div className={styles.say}>Say: &ldquo;{o.howToUse}&rdquo;</div>
+            </li>
           ))}
         </ul>
-      ) : (
-        <p className={styles.hint}>General background only. Add news for recent changes.</p>
-      )}
+      </section>
 
-      <h3 className={styles.heading}>Where your paths overlap</h3>
-      <ul className={styles.list}>
-        {brief.overlaps.map((o, i) => (
-          <li key={i}>
-            {o.point}
-            <div className={styles.say}>Say: &ldquo;{o.howToUse}&rdquo;</div>
-          </li>
-        ))}
-      </ul>
+      <section className={styles.briefSection}>
+        <h3 className={styles.heading}>
+          Your intro
+        </h3>
+        <blockquote className={styles.quote}>{brief.intro}</blockquote>
+      </section>
 
-      <h3 className={styles.heading}>Your intro</h3>
-      <p>{brief.intro}</p>
+      <section className={styles.briefSection}>
+        <h3 className={styles.heading}>
+          Questions
+        </h3>
+        <ol className={styles.questions}>
+          {brief.questions.map((q, i) => (
+            <li key={i}>
+              <span className={styles.questionNumber}>{String(i + 1).padStart(2, "0")}</span>
+              <div>
+                <p className={styles.question}>{q.question}</p>
+                <p className={styles.followUp}>Follow-up: {q.followUp}</p>
+                <p className={styles.why}>
+                  {q.coreQuestionId ? `From core question ${q.coreQuestionId}. ` : "New question. "}
+                  {q.whyThisPerson}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className={styles.close}>
+          <span className={styles.subheading}>Close</span> {closingLine}
+        </p>
+      </section>
 
-      <h3 className={styles.heading}>Questions</h3>
-      <ol className={styles.list}>
-        {brief.questions.map((q, i) => (
-          <li key={i}>
-            {q.question}
-            <div className={styles.hint}>Follow-up: {q.followUp}</div>
-            <div className={styles.why}>
-              {q.coreQuestionId ? `From core question ${q.coreQuestionId}. ` : "New question. "}
-              {q.whyThisPerson}
-            </div>
-          </li>
-        ))}
-      </ol>
-      <p>
-        <strong>Close:</strong> {closingLine}
-      </p>
-
-      <h3 className={styles.heading}>During and after the chat</h3>
-      <ul className={styles.list}>
-        {tips.map((tip) => (
-          <li key={tip}>{tip}</li>
-        ))}
-      </ul>
+      <section className={styles.briefSection}>
+        <h3 className={styles.heading}>
+          During and after the chat
+        </h3>
+        <ul className={styles.list}>
+          {tips.map((tip) => (
+            <li key={tip}>{tip}</li>
+          ))}
+        </ul>
+      </section>
     </article>
   );
 }
