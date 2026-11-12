@@ -35,7 +35,7 @@ const BUCKETS: { label: string; statuses: FollowUpStatus[]; empty: string; class
 // The two buckets the debrief sorts next steps into, each with its own color
 const KINDS: Record<FollowUpKind, { label: string; card: string; tag: string }> = {
   thankYou: { label: "Thank-you email", card: styles.kindThankYou!, tag: styles.tagThankYou! },
-  followUp: { label: "Follow-up meeting", card: styles.kindFollowUp!, tag: styles.tagFollowUp! },
+  followUp: { label: "Check-in", card: styles.kindFollowUp!, tag: styles.tagFollowUp! },
 };
 
 function dueLabel(days: number): string {
@@ -387,7 +387,7 @@ export function Landing({ today: todayIso }: { today: string }) {
         </div>
         <div className={`${styles.stat} ${styles.statFollowUp}`}>
           <span className={styles.statNumber}>{totals.followUp}</span>
-          <span className={styles.statLabel}>{totals.followUp === 1 ? "Follow-up" : "Follow-ups"} to send</span>
+          <span className={styles.statLabel}>{totals.followUp === 1 ? "Check-in" : "Check-ins"} to send</span>
         </div>
       </section>
 

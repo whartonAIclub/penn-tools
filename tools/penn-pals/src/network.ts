@@ -100,7 +100,7 @@ export function followUpsFor(contact: Contact): FollowUp[] {
     const kind = kindOf(step);
     if (!kind || step.done || step.owner !== "me") return [];
     // Kept short for the to-do list; the contact's card shows the advice to mention.
-    const action = kind === "thankYou" ? `Thank ${firstName}` : `Follow up with ${firstName}`;
+    const action = kind === "thankYou" ? `Thank ${firstName}` : `Check in with ${firstName}`;
     const due = step.dueDate ?? workshopDue(kind, contact.meetingDate, contact.followUpEvery);
     return [{ id: `${contact.id}:${stepIndex}`, contactId: contact.id, stepIndex, kind, action, due }];
   });

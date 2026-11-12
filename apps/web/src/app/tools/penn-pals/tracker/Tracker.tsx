@@ -163,7 +163,7 @@ function useConfirmLeave(unsaved: boolean) {
 // The two follow-ups the workshop recommends, shown up front as checkboxes.
 const STEPS: { kind: FollowUpKind; action: string; label: string; timing: string }[] = [
   { kind: "thankYou", action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after your chat" },
-  { kind: "followUp", action: STEP_ACTIONS[1], label: "Follow up", timing: "" }, // timing from the chosen interval
+  { kind: "followUp", action: STEP_ACTIONS[1], label: "Check in", timing: "" }, // timing from the chosen interval
 ];
 
 /** A new contact starts with both follow-ups on, dated by the workshop timing. */
@@ -364,7 +364,7 @@ function Form({
                 </span>
               )}
               {kind === "followUp" && step && (
-                <div className={styles.intervals} role="radiogroup" aria-label="How often to follow up">
+                <div className={styles.intervals} role="radiogroup" aria-label="How often to check in">
                   {FOLLOW_UP_INTERVALS.map((every) => (
                     <label key={every} className={styles.interval}>
                       <input
