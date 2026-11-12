@@ -58,6 +58,7 @@ export {
   followUpsFor,
   markFollowUpDone,
   reopenStep,
+  rescheduleStep,
   THANK_YOU_DAYS,
   workshopDue,
   type FollowUp,

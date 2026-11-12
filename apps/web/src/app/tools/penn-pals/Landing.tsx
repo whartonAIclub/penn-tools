@@ -8,7 +8,7 @@
 // followUpsFor(), so marking one done saves it and schedules the next.
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CONTACTS_STORAGE_KEY,
   countByKind,
@@ -19,6 +19,7 @@ import {
   parseStoredContacts,
   relationshipLabel,
   reopenStep,
+  rescheduleStep,
   SENIORITY_LABELS,
 } from "@penntools/tool-penn-pals";
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
@@ -59,20 +60,67 @@ function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
+/** YYYY-MM-DD for a local date. */
+function isoDate(date: Date): string {
+  return date.toLocaleDateString("en-CA");
+}
+
+/**
+ * The due-date tag; clicking it opens a calendar to pick a new date. The date
+ * input sits invisibly under the tag so the browser's picker opens beside it.
+ */
+function DueDate({ due, today, onChange }: { due: string; today: Date; onChange: (date: string) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const days = daysFrom(today, due);
+  const open = () => {
+    const el = input.current;
+    if (!el) return;
+    try {
+      el.showPicker(); // Chrome, Edge, Firefox, Safari 16+
+    } catch {
+      el.focus();
+    }
+  };
+  return (
+    <span className={styles.dueWrap}>
+      <button
+        type="button"
+        className={`${styles.due} ${styles.dueButton} ${days < 0 ? styles.dueOverdue : days === 0 ? styles.dueToday : ""}`}
+        title="Change the date"
+        onClick={open}
+      >
+        {dueLabel(days)} <span className={styles.dueIcon} aria-hidden>▾</span>
+      </button>
+      <input
+        ref={input}
+        type="date"
+        className={styles.dueInput}
+        aria-label="New due date"
+        tabIndex={-1}
+        value={due}
+        min={isoDate(today)}
+        max={isoDate(new Date(today.getFullYear() + 2, today.getMonth(), today.getDate()))}
+        onChange={(e) => e.target.value && e.target.value !== due && onChange(e.target.value)}
+      />
+    </span>
+  );
+}
+
 function FollowUpRow({
   followUp,
   contact,
   today,
   onDone,
+  onReschedule,
   onOpen,
 }: {
   followUp: FollowUp;
   contact: Contact | undefined;
   today: Date;
   onDone: (f: FollowUp) => void;
+  onReschedule: (f: FollowUp, date: string) => void;
   onOpen?: (contactId: string) => void;
 }) {
-  const days = daysFrom(today, followUp.due);
   return (
     <li className={`${styles.followUp} ${KINDS[followUp.kind].card}`}>
       <input
@@ -92,9 +140,7 @@ function FollowUpRow({
         )}
         {contact?.company && <p className={styles.meta}>{contact.company}</p>}
       </div>
-      <span className={`${styles.due} ${days < 0 ? styles.dueOverdue : days === 0 ? styles.dueToday : ""}`}>
-        {dueLabel(days)}
-      </span>
+      <DueDate due={followUp.due} today={today} onChange={(date) => onReschedule(followUp, date)} />
     </li>
   );
 }
@@ -104,6 +150,7 @@ function PersonCard({
   followUps,
   today,
   onDone,
+  onReschedule,
   onReopen,
   onDelete,
   onClose,
@@ -112,6 +159,7 @@ function PersonCard({
   followUps: FollowUp[];
   today: Date;
   onDone: (f: FollowUp) => void;
+  onReschedule: (f: FollowUp, date: string) => void;
   /** Puts the finished step at this index back on the to-do list. */
   onReopen: (stepIndex: number) => void;
   onDelete: () => void;
@@ -195,7 +243,7 @@ function PersonCard({
           ) : (
             <ul className={styles.list}>
               {followUps.map((f) => (
-                <FollowUpRow key={f.id} followUp={f} contact={undefined} today={today} onDone={onDone} />
+                <FollowUpRow key={f.id} followUp={f} contact={undefined} today={today} onDone={onDone} onReschedule={onReschedule} />
               ))}
             </ul>
           )}
@@ -302,6 +350,9 @@ export function Landing({ today: todayIso }: { today: string }) {
   const markDone = (followUp: FollowUp) =>
     save(allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c)));
 
+  const reschedule = (followUp: FollowUp, date: string) =>
+    save(allContacts.map((c) => (c.id === followUp.contactId ? rescheduleStep(c, followUp.stepIndex, date) : c)));
+
   const reopen = (contactId: string, stepIndex: number) =>
     save(allContacts.map((c) => (c.id === contactId ? reopenStep(c, stepIndex) : c)));
 
@@ -318,6 +369,7 @@ export function Landing({ today: todayIso }: { today: string }) {
       contact={contactsById.get(f.contactId)}
       today={today}
       onDone={markDone}
+      onReschedule={reschedule}
       onOpen={setOpened}
     />
   );
@@ -422,6 +474,7 @@ export function Landing({ today: todayIso }: { today: string }) {
           followUps={followUps.filter((f) => f.contactId === openedContact.id)}
           today={today}
           onDone={markDone}
+          onReschedule={reschedule}
           onReopen={(stepIndex) => reopen(openedContact.id, stepIndex)}
           onDelete={() => remove(openedContact.id)}
           onClose={() => setOpened(null)}

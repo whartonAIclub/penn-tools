@@ -533,3 +533,32 @@
   font-size: 0.75rem;
   font-weight: 600;
 }
+
+/* The due-date tag is a button: clicking it opens a calendar */
+.dueWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.dueButton {
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+.dueButton:hover,
+.dueButton:focus-visible {
+  border-color: currentColor;
+}
+.dueIcon {
+  font-size: 0.7em;
+  opacity: 0.7;
+}
+/* Invisible, under the tag, so the browser's calendar opens next to it */
+.dueInput {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestAdvice, countByKind, followUpStatus, followUpsFor, markFollowUpDone, reopenStep } from "../network.js";
+import { bestAdvice, countByKind, followUpStatus, followUpsFor, markFollowUpDone, reopenStep, rescheduleStep } from "../network.js";
 import type { Contact } from "../contacts.js";
 
 const contact: Contact = {
@@ -113,5 +113,19 @@ describe("follow-up interval", () => {
     const c = { ...followUpOnly, followUpEvery: "week" as const };
     const done = markFollowUpDone(c, followUpsFor(c)[0]!, "2026-03-05");
     expect(reopenStep(done, 0).nextSteps).toHaveLength(1);
+  });
+});
+
+describe("rescheduleStep", () => {
+  it("moves an open follow-up to the new date", () => {
+    const moved = rescheduleStep(contact, 1, "2026-03-10");
+    expect(followUpsFor(moved).find((f) => f.kind === "followUp")!.due).toBe("2026-03-10");
+    expect(contact.nextSteps[1]!.dueDate).toBeNull(); // the original is unchanged
+  });
+
+  it("leaves finished steps and bad dates alone", () => {
+    const done = { ...contact, nextSteps: [{ ...contact.nextSteps[0]!, done: true }] };
+    expect(rescheduleStep(done, 0, "2026-03-10")).toBe(done);
+    expect(rescheduleStep(contact, 1, "not a date")).toBe(contact);
   });
 });

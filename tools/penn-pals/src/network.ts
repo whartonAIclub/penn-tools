@@ -131,6 +131,15 @@ export function reopenStep(contact: Contact, stepIndex: number): Contact {
   return { ...contact, nextSteps };
 }
 
+/** The contact with the open step at `stepIndex` due on `date` (YYYY-MM-DD) instead; finished steps are left alone. */
+export function rescheduleStep(contact: Contact, stepIndex: number, date: string): Contact {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || contact.nextSteps[stepIndex]?.done !== false) return contact;
+  return {
+    ...contact,
+    nextSteps: contact.nextSteps.map((step, i) => (i === stepIndex ? { ...step, dueDate: date } : step)),
+  };
+}
+
 /** The contact with `followUp` done on `today`; a done follow-up schedules the next one an interval later (a month unless the user chose otherwise). */
 export function markFollowUpDone(contact: Contact, followUp: FollowUp, today: string): Contact {
   const nextSteps = contact.nextSteps.map((step, i) => (i === followUp.stepIndex ? { ...step, done: true, doneOn: today } : step));
