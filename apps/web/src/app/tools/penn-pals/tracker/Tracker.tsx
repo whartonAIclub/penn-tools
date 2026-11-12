@@ -105,6 +105,41 @@ export function Tracker() {
   );
 }
 
+// ── Leaving with unsaved changes ──────────────────────────────────────────────
+
+const LEAVE_MESSAGE = "You haven't saved this chat. Leave and lose what you've typed?";
+
+/**
+ * While `unsaved`, asks before the user leaves: on links anywhere on the page
+ * (the Penn Pals header, the site sidebar, Cancel), and on closing or
+ * reloading the tab (the browser shows its own wording there).
+ */
+function useConfirmLeave(unsaved: boolean) {
+  useEffect(() => {
+    if (!unsaved) return;
+    const onClick = (e: MouseEvent) => {
+      const link = (e.target as Element | null)?.closest?.("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank") return;
+      if (link.href === window.location.href) return;
+      if (!window.confirm(LEAVE_MESSAGE)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    const onUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // older browsers need this to show the prompt
+    };
+    // Capture phase, so this runs before Next.js's links navigate.
+    document.addEventListener("click", onClick, true);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("beforeunload", onUnload);
+    };
+  }, [unsaved]);
+}
+
 // ── Form ──────────────────────────────────────────────────────────────────────
 
 // The two follow-ups the workshop recommends, shown up front as checkboxes.
@@ -133,7 +168,10 @@ function Form({
   /** Relationships the user wrote in before, offered again. */
   customLabels: string[];
 }) {
-  const [draft, setDraft] = useState<ContactDraft>(() => (original ? contactToDraft(original) : newDraft(today)));
+  const [initial] = useState<ContactDraft>(() => (original ? contactToDraft(original) : newDraft(today)));
+  const [draft, setDraft] = useState<ContactDraft>(initial);
+  const [saved, setSaved] = useState(false);
+  useConfirmLeave(!saved && JSON.stringify(draft) !== JSON.stringify(initial));
   const [errors, setErrors] = useState<string[]>([]);
   // True after "Other (write your own)" is picked, so the text box stays open while typing.
   const [writingOwn, setWritingOwn] = useState(false);
@@ -148,6 +186,7 @@ function Form({
     e.preventDefault();
     const result = original ? updateContact(original, draft, today) : buildContact(draft, today, newId());
     if (!result.ok) return setErrors(result.errors);
+    setSaved(true);
     onSave(result.contact);
     setErrors([]);
     setDraft(newDraft(today));
