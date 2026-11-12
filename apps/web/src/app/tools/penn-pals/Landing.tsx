@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  chatsWith,
   CONTACTS_STORAGE_KEY,
   countByKind,
   daysFrom,
@@ -55,6 +56,13 @@ function chatLabel(days: number): string {
 function initials(name: string): string {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
 }
+
+const VIBE_WORDS: Record<Contact["vibe"], string> = {
+  great: "Went great",
+  good: "Went well",
+  neutral: "Neutral",
+  lukewarm: "Lukewarm",
+};
 
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
@@ -180,6 +188,8 @@ function PersonCard({
     contact.phone && { label: contact.phone, href: `tel:${contact.phone}` },
   ].filter((link): link is { label: string; href: string } => Boolean(link));
 
+  const chats = chatsWith(contact);
+
   // Finished steps stay on the person: most recent first, those without a recorded date last.
   const completed = contact.nextSteps
     .map((step, index) => ({ step, index }))
@@ -217,6 +227,10 @@ function PersonCard({
             </p>
           </div>
         </div>
+
+        <Link href={`/tools/penn-pals/tracker?another=${encodeURIComponent(contact.id)}`} className={styles.anotherChat}>
+          + Log another chat
+        </Link>
 
         {contact.takeaways.length > 0 && (
           <div className={styles.takeawaysBox}>
@@ -269,6 +283,31 @@ function PersonCard({
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {chats.length > 1 && (
+          <div className={styles.group}>
+            <h3 className={styles.groupLabel}>
+              Your chats <span className={styles.count}>{chats.length}</span>
+            </h3>
+            <ol className={styles.chats}>
+              {chats.map((chat, i) => (
+                <li key={`${chat.meetingDate}-${i}`} className={styles.chat}>
+                  <p className={styles.chatDate}>
+                    {chat.meetingDate}
+                    {i === 0 && <span className={styles.chatLatest}> · latest</span>} · {VIBE_WORDS[chat.vibe]}
+                  </p>
+                  {i > 0 && chat.takeaways.length > 0 && ( // the latest chat's are under Key takeaways
+                    <ul className={styles.takeaways}>
+                      {chat.takeaways.map((t) => (
+                        <li key={t}>{t}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ol>
           </div>
         )}
 

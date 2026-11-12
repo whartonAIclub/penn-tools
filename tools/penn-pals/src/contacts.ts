@@ -99,6 +99,17 @@ const NextStep = z.object({
 });
 export type NextStep = z.infer<typeof NextStep>;
 
+/** An earlier chat with the same person. The contact's own fields hold the latest one. */
+const PastChat = z.object({
+  meetingDate: z.string(),
+  vibe: z.enum(VIBES),
+  takeaways: z.array(z.string()),
+  notes: z.string(),
+  offeredReferral: z.boolean().default(false),
+  offeredIntro: z.boolean().default(false),
+});
+export type PastChat = z.infer<typeof PastChat>;
+
 export const Contact = z.object({
   id: z.string(),
   name: z.string(),
@@ -128,6 +139,8 @@ export const Contact = z.object({
   checkInDate: z.string(),
   /** How often to follow up; missing means monthly (optional so older contacts load). */
   followUpEvery: z.enum(FOLLOW_UP_INTERVALS).optional(),
+  /** Earlier chats, newest first; missing when there's been only one (optional so older contacts load). */
+  pastChats: z.array(PastChat).optional(),
   createdAt: z.string(),
 });
 export type Contact = z.infer<typeof Contact>;
@@ -322,6 +335,69 @@ export function updateContact(original: Contact, draft: ContactDraft, today: str
       createdAt: original.createdAt,
       checkInDate: original.checkInDate,
       nextSteps: [...original.nextSteps.filter((step) => step.done), ...result.contact.nextSteps],
+      ...(original.pastChats ? { pastChats: original.pastChats } : {}),
+    },
+  };
+}
+
+// ── Another chat with the same person ─────────────────────────────────────────
+
+/** Every chat with the person, newest first: the latest (the contact's own fields), then the earlier ones. */
+export function chatsWith(contact: Contact): PastChat[] {
+  const latest: PastChat = {
+    meetingDate: contact.meetingDate,
+    vibe: contact.vibe,
+    takeaways: contact.takeaways,
+    notes: contact.notes,
+    offeredReferral: contact.offeredReferral,
+    offeredIntro: contact.offeredIntro,
+  };
+  return [latest, ...(contact.pastChats ?? [])];
+}
+
+/**
+ * The form for a new chat with someone already logged: their details filled
+ * in, the chat's own fields (date, how it went, takeaways, notes, offers)
+ * fresh, and both follow-ups on.
+ */
+export function anotherChatDraft(contact: Contact, today: string): ContactDraft {
+  const fresh = emptyDraft(today);
+  return {
+    ...contactToDraft(contact),
+    meetingDate: fresh.meetingDate,
+    vibe: fresh.vibe,
+    takeaways: "",
+    notes: "",
+    offeredReferral: false,
+    offeredIntro: false,
+    nextSteps: [STEP_ACTIONS[0], STEP_ACTIONS[1]].map((action) => ({ action, owner: "me" as const, dueDate: "" })),
+  };
+}
+
+/**
+ * `contact` after another chat, logged with `draft`: the chat becomes the
+ * latest, the previous one moves to `pastChats`, and the chat counts as a
+ * check-in, so open check-ins are marked done on its date. Other open steps stay,
+ * and the form's new steps are added. The new chat can't be before the latest.
+ */
+export function logAnotherChat(contact: Contact, draft: ContactDraft, today: string): BuildResult {
+  const result = buildContact(draft, today, contact.id);
+  if (!result.ok) return result;
+  const chat = result.contact;
+  if (chat.meetingDate < contact.meetingDate) {
+    return { ok: false, errors: [`This chat is dated before your last one with ${contact.name} (${contact.meetingDate}). Log your most recent chat.`] };
+  }
+  const [previous] = chatsWith(contact);
+  const steps = contact.nextSteps.map((step) =>
+    !step.done && step.action === STEP_ACTIONS[1] ? { ...step, done: true, doneOn: chat.meetingDate } : step,
+  );
+  return {
+    ok: true,
+    contact: {
+      ...chat,
+      createdAt: contact.createdAt,
+      nextSteps: [...steps, ...chat.nextSteps],
+      pastChats: [previous!, ...(contact.pastChats ?? [])],
     },
   };
 }

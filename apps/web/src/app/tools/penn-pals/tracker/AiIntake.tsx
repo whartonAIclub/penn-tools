@@ -34,10 +34,13 @@ const PLACEHOLDER =
 
 export function AiIntake({
   ai,
+  base,
   onFilled,
   onTyping,
 }: {
   ai: AiAccess;
+  /** For another chat with someone saved: the form with their details. */
+  base?: ContactDraft | undefined;
   /** Called with the form's fields once the AI is done. */
   onFilled: (draft: ContactDraft) => void;
   /** Whether there's text the user would lose by leaving. */
@@ -81,7 +84,7 @@ export function AiIntake({
   async function read() {
     setStatus({ state: "reading" });
     try {
-      const result = await readChat(provider!, story);
+      const result = await readChat(provider!, story, [], base);
       if (!result.ok) return fail(result);
       if (result.questions.length === 0) return finish(result.draft, result.tokens);
       setStatus({
@@ -105,6 +108,7 @@ export function AiIntake({
         provider!,
         story,
         s.questions.map((question, i) => ({ question, answer: s.answers[i] ?? "" })),
+        base,
       );
       if (!result.ok) return fail(result);
       finish(result.draft, s.tokens + result.tokens);

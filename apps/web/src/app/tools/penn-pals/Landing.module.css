@@ -565,3 +565,46 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* "Log another chat" on the person card */
+.anotherChat {
+  align-self: flex-start;
+  display: inline-block;
+  margin: 12px 0 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.anotherChat:hover {
+  opacity: 0.9;
+}
+
+/* Every chat with the person, newest first */
+.chats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chat {
+  padding: 8px 12px;
+  border-left: 3px solid var(--border);
+}
+.chat:first-child {
+  border-left-color: var(--penn-blue);
+}
+.chatDate {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.chatLatest {
+  color: var(--penn-blue);
+}

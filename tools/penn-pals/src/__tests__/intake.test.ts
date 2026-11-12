@@ -121,3 +121,18 @@ describe("intakeToDraft", () => {
     expect(intakeToDraft({ ...blank, relationship: "alumni", relationshipOther: "Mentor" }, TODAY).relationshipOther).toBe("");
   });
 });
+
+describe("another chat with someone saved", () => {
+  it("tells the AI who it is, so it doesn't ask", async () => {
+    const { ai, requests } = fakeAI(blank);
+    await readIntake(ai, "anthropic", "Caught up again", TODAY, [], "Maria Chen, PM at Stripe");
+    expect(requests[0]!.system).toContain("Maria Chen, PM at Stripe");
+    expect(requests[0]!.system).toContain("Don't ask who it was");
+  });
+
+  it("keeps their saved details where the AI said nothing", () => {
+    const base = { ...intakeToDraft(blank, TODAY), name: "Maria Chen", company: "Stripe", relationship: "alumni" as const, followUpEvery: "week" as const };
+    const draft = intakeToDraft({ ...blank, takeaways: ["Apply in January"], role: "Senior PM" }, TODAY, base);
+    expect(draft).toMatchObject({ name: "Maria Chen", company: "Stripe", role: "Senior PM", relationship: "alumni", followUpEvery: "week", takeaways: "Apply in January" });
+  });
+});

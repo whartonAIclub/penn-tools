@@ -11,7 +11,9 @@ import { useEffect, useState } from "react";
 import {
   buildContact,
   CONTACTS_STORAGE_KEY,
+  anotherChatDraft,
   contactToDraft,
+  logAnotherChat,
   customRelationships,
   emptyDraft,
   FOLLOW_UP_INTERVAL_OPTIONS,
@@ -59,12 +61,15 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   // null until the browser's saved contacts are read, so the page doesn't flash empty.
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [today, setToday] = useState<string | null>(null);
-  // The id from ?edit=<id>, read after load like the contacts.
+  // ?edit=<id> edits a contact; ?another=<id> logs another chat with them. Read after load like the contacts.
   const [editId, setEditId] = useState<string | null>(null);
+  const [anotherId, setAnotherId] = useState<string | null>(null);
 
   useEffect(() => {
     setToday(todayLocal());
-    setEditId(new URLSearchParams(window.location.search).get("edit"));
+    const params = new URLSearchParams(window.location.search);
+    setEditId(params.get("edit"));
+    setAnotherId(params.get("another"));
     try {
       setContacts(parseStoredContacts(localStorage.getItem(CONTACTS_STORAGE_KEY)));
     } catch {
@@ -73,13 +78,14 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   }, []);
 
   const editing = editId ? contacts?.find((c) => c.id === editId) : undefined;
+  const again = !editing && anotherId ? contacts?.find((c) => c.id === anotherId) : undefined;
   // The AI's fields; a new key remounts the form with them.
   const [prefill, setPrefill] = useState<{ draft: ContactDraft; key: number } | null>(null);
   const [storyTyped, setStoryTyped] = useState(false);
 
   function save(contact: Contact) {
     // An edit replaces the contact where it was; a new one goes first.
-    const next = editing
+    const next = editing || again
       ? (contacts ?? []).map((c) => (c.id === contact.id ? contact : c))
       : [contact, ...(contacts ?? [])];
     try {
@@ -92,7 +98,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
 
   if (!contacts || !today) return <p className={styles.note}>Loading…</p>;
 
-  if (editId && !editing) {
+  if ((editId && !editing) || (anotherId && !editId && !again)) {
     return (
       <p className={styles.note}>
         That contact isn&apos;t saved in this browser. <a href={LANDING}>Back to the dashboard</a>
@@ -107,7 +113,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
       </p>
 
       {!editing && (
-        <AiIntake ai={ai} onFilled={(draft) => setPrefill((p) => ({ draft, key: (p?.key ?? 0) + 1 }))} onTyping={setStoryTyped} />
+        <AiIntake ai={ai} base={again && today ? anotherChatDraft(again, today) : undefined} onFilled={(draft) => setPrefill((p) => ({ draft, key: (p?.key ?? 0) + 1 }))} onTyping={setStoryTyped} />
       )}
 
       <Form
@@ -115,6 +121,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
         today={today}
         onSave={save}
         original={editing}
+        again={again}
         prefill={prefill?.draft}
         storyTyped={storyTyped}
         customLabels={customRelationships(contacts)}
@@ -185,6 +192,7 @@ function Form({
   today,
   onSave,
   original,
+  again,
   prefill,
   storyTyped = false,
   customLabels,
@@ -192,6 +200,8 @@ function Form({
   today: string;
   onSave: (contact: Contact) => void;
   original?: Contact | undefined;
+  /** Logging another chat with this saved contact. */
+  again?: Contact | undefined;
   /** Fields the AI filled in, to check before saving. */
   prefill?: ContactDraft | undefined;
   /** The AI box has text the user would lose by leaving. */
@@ -199,7 +209,7 @@ function Form({
   /** Relationships the user wrote in before, offered again. */
   customLabels: string[];
 }) {
-  const [initial] = useState<ContactDraft>(() => prefill ?? (original ? contactToDraft(original) : newDraft(today)));
+  const [initial] = useState<ContactDraft>(() => prefill ?? (original ? contactToDraft(original) : again ? anotherChatDraft(again, today) : newDraft(today)));
   const [draft, setDraft] = useState<ContactDraft>(initial);
   const [saved, setSaved] = useState(false);
   // AI-filled fields count as unsaved even before any edit.
@@ -216,7 +226,11 @@ function Form({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const result = original ? updateContact(original, draft, today) : buildContact(draft, today, newId());
+    const result = original
+      ? updateContact(original, draft, today)
+      : again
+        ? logAnotherChat(again, draft, today)
+        : buildContact(draft, today, newId());
     if (!result.ok) return setErrors(result.errors);
     setSaved(true);
     onSave(result.contact);
@@ -261,7 +275,13 @@ function Form({
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <h2 className={styles.formTitle}>{original ? `Edit ${original.name}` : prefill ? "Check and save" : "Or fill it in yourself"}</h2>
+      <h2 className={styles.formTitle}>{original
+          ? `Edit ${original.name}`
+          : prefill
+            ? "Check and save"
+            : again
+              ? `New chat with ${again.name}`
+              : "Or fill it in yourself"}</h2>
       {prefill && <p className={styles.aiBanner}>💬 Written up by AI from your chat. Fix anything it got wrong, then save.</p>}
 
       <div className={styles.grid}>
@@ -454,9 +474,9 @@ function Form({
       )}
       <div className={styles.actions}>
         <button type="submit" className={styles.button}>
-          {original ? "Save changes" : "Save contact"}
+          {original ? "Save changes" : again ? "Save chat" : "Save contact"}
         </button>
-        {original && (
+        {(original || again) && (
           <a href={LANDING} className={styles.link}>
             Cancel
           </a>

@@ -19,8 +19,17 @@ function todayInPhilly(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 }
 
-/** Reads the story (and, the second time, the answers) into the form's fields. */
-export async function readChat(provider: AIProvider, story: string, answers: IntakeAnswer[] = []): Promise<IntakeResult> {
+/**
+ * Reads the story (and, the second time, the answers) into the form's fields.
+ * For another chat with someone saved, `base` is the form with their details:
+ * the AI is told who it is and fills in only what's new.
+ */
+export async function readChat(
+  provider: AIProvider,
+  story: string,
+  answers: IntakeAnswer[] = [],
+  base?: ContactDraft,
+): Promise<IntakeResult> {
   const ai = await getAI();
   if (!ai) return { ok: false, error: { message: "Sign in with the button at the top right to use the AI." } };
 
@@ -32,8 +41,9 @@ export async function readChat(provider: AIProvider, story: string, answers: Int
 
   const today = todayInPhilly();
   try {
-    const { reply, tokens } = await readIntake(ai, provider, story, today, cleanAnswers);
-    return { ok: true, draft: intakeToDraft(reply, today), questions: reply.questions, tokens };
+    const known = base?.name ? [base.name, [base.role, base.company].filter(Boolean).join(" at ")].filter(Boolean).join(", ") : undefined;
+    const { reply, tokens } = await readIntake(ai, provider, story, today, cleanAnswers, known);
+    return { ok: true, draft: intakeToDraft(reply, today, base), questions: reply.questions, tokens };
   } catch (error) {
     if (isAIError(error)) return { ok: false, error: error.toJSON() };
     throw error;

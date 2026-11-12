@@ -74,9 +74,12 @@ export interface IntakeAnswer {
   answer: string;
 }
 
-function systemPrompt(today: string, final: boolean): string {
+function systemPrompt(today: string, final: boolean, knownPerson?: string): string {
   return [
     "You help an MBA student log a networking chat by filling in a form from their own words.",
+    knownPerson
+      ? `This is another chat with someone already logged: ${knownPerson}. Don't ask who it was; leave their details null unless the student says they changed.`
+      : "",
     `Today is ${today}. Turn relative dates like "yesterday" or "last Tuesday" into YYYY-MM-DD; the chat can't be after today.`,
     "Use only what the student says. If something isn't stated, use null; never guess names, employers or dates.",
     final
@@ -87,7 +90,9 @@ function systemPrompt(today: string, final: boolean): string {
           "4. whether they offered a referral or an introduction; 5. whether the student is applying or interviewing at their company.",
           "Ask only about what's missing. Never ask for email, phone or LinkedIn.",
         ].join(" "),
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**
@@ -100,6 +105,8 @@ export async function readIntake(
   story: string,
   today: string,
   answers: IntakeAnswer[] = [],
+  /** "Maria Chen, PM at Stripe" when logging another chat with someone already saved. */
+  knownPerson?: string,
 ): Promise<{ reply: IntakeReply; tokens: number }> {
   const final = answers.length > 0;
   const answered = answers.filter((a) => a.answer.trim());
@@ -111,7 +118,7 @@ export async function readIntake(
     tier: "fast",
     reasoning: "low",
     schema: IntakeReply,
-    system: systemPrompt(today, final),
+    system: systemPrompt(today, final, knownPerson),
     messages: [{ role: "user", content }],
   });
   const reply = { ...object, questions: final ? [] : object.questions.slice(0, MAX_QUESTIONS) };
@@ -119,31 +126,40 @@ export async function readIntake(
 }
 
 /**
- * The form's fields from the AI's reply. Blanks stay blank for the user to fill;
- * a missing or impossible date becomes today. Both follow-ups start on, as on a
- * new form.
+ * The form's fields from the AI's reply, on top of `base`: a new contact's
+ * blank form, or, for another chat with someone saved, the form with their
+ * details. What the AI left out keeps the base's value; a missing or
+ * impossible date becomes today.
  */
-export function intakeToDraft(reply: IntakeReply, today: string): ContactDraft {
-  const date = reply.meetingDate && isDate(reply.meetingDate) && reply.meetingDate <= today ? reply.meetingDate : today;
-  const other = reply.relationship === "other";
-  return {
+export function intakeToDraft(reply: IntakeReply, today: string, base?: ContactDraft): ContactDraft {
+  const start: ContactDraft = base ?? {
     ...emptyDraft(today),
-    name: reply.name ?? "",
-    company: reply.company ?? "",
-    role: reply.role ?? "",
-    relationship: reply.relationship ?? emptyDraft(today).relationship,
-    relationshipOther: other ? (reply.relationshipOther ?? "") : "",
-    seniority: reply.seniority ?? "",
+    nextSteps: [STEP_ACTIONS[0], STEP_ACTIONS[1]].map((action) => ({ action, owner: "me" as const, dueDate: "" })),
+    followUpEvery: DEFAULT_FOLLOW_UP_INTERVAL,
+  };
+  const date = reply.meetingDate && isDate(reply.meetingDate) && reply.meetingDate <= today ? reply.meetingDate : today;
+  const text = (value: string | null, fallback: string) => value?.trim() || fallback;
+  return {
+    ...start,
+    name: text(reply.name, start.name),
+    company: text(reply.company, start.company),
+    role: text(reply.role, start.role),
+    relationship: reply.relationship ?? start.relationship,
+    relationshipOther: reply.relationship
+      ? reply.relationship === "other"
+        ? (reply.relationshipOther ?? "")
+        : ""
+      : start.relationshipOther,
+    seniority: reply.seniority ?? start.seniority,
     meetingDate: date,
-    vibe: reply.vibe ?? "good",
+    vibe: reply.vibe ?? start.vibe,
     offeredReferral: reply.offeredReferral,
     offeredIntro: reply.offeredIntro,
-    takeaways: reply.takeaways.map((t) => t.trim()).filter(Boolean).join("\n"),
-    nextSteps: [STEP_ACTIONS[0], STEP_ACTIONS[1]].map((action) => ({ action, owner: "me" as const, dueDate: "" })),
-    followUpEvery: reply.followUpEvery ?? DEFAULT_FOLLOW_UP_INTERVAL,
-    area: reply.area ?? "",
-    location: reply.location ?? "",
-    email: reply.email ?? "",
-    linkedin: reply.linkedin ?? "",
+    takeaways: reply.takeaways.map((t) => t.trim()).filter(Boolean).join("\n") || start.takeaways,
+    followUpEvery: reply.followUpEvery ?? start.followUpEvery,
+    area: text(reply.area, start.area),
+    location: text(reply.location, start.location),
+    email: text(reply.email, start.email),
+    linkedin: text(reply.linkedin, start.linkedin),
   };
 }

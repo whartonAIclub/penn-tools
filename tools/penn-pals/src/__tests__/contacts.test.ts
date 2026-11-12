@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  anotherChatDraft,
   buildContact,
+  chatsWith,
+  logAnotherChat,
   completeFollowUp,
   Contact,
   contactToDraft,
@@ -381,5 +384,53 @@ describe("follow-up interval on the form", () => {
     const built = buildContact({ ...emptyDraft(TODAY), name: "Maria", followUpEvery: "week" }, TODAY, "a");
     expect(built).toMatchObject({ ok: true, contact: { followUpEvery: "week" } });
     if (built.ok) expect(contactToDraft(built.contact).followUpEvery).toBe("week");
+  });
+});
+
+describe("another chat with the same person", () => {
+  const first = (() => {
+    const r = buildContact(
+      { ...emptyDraft(TODAY), name: "Maria Chen", company: "Stripe", meetingDate: "2026-11-01", takeaways: "Lead with one metric", offeredIntro: true,
+        nextSteps: [{ action: "Send a thank-you email", owner: "me", dueDate: "" }, { action: "Follow up", owner: "me", dueDate: "" }] },
+      TODAY,
+      "m1",
+    );
+    if (!r.ok) throw new Error("fixture");
+    return r.contact;
+  })();
+
+  it("starts a fresh chat with the person's details kept", () => {
+    const draft = anotherChatDraft(first, TODAY);
+    expect(draft).toMatchObject({ name: "Maria Chen", company: "Stripe", meetingDate: TODAY, takeaways: "", offeredIntro: false });
+    expect(draft.nextSteps.map((s) => s.action)).toEqual(["Send a thank-you email", "Follow up"]);
+  });
+
+  it("makes the new chat the latest and keeps the old one in history", () => {
+    const result = logAnotherChat(first, { ...anotherChatDraft(first, TODAY), takeaways: "Apply in January" }, TODAY);
+    if (!result.ok) throw new Error(result.errors.join());
+    const c = result.contact;
+    expect(c).toMatchObject({ id: "m1", meetingDate: TODAY, takeaways: ["Apply in January"], createdAt: first.createdAt });
+    expect(chatsWith(c).map((chat) => chat.meetingDate)).toEqual([TODAY, "2026-11-01"]);
+    expect(c.pastChats![0]).toMatchObject({ takeaways: ["Lead with one metric"], offeredIntro: true });
+  });
+
+  it("counts the chat as a check-in: open check-ins are done on its date, the thank-you stays open", () => {
+    const result = logAnotherChat(first, anotherChatDraft(first, TODAY), TODAY);
+    if (!result.ok) throw new Error();
+    const old = result.contact.nextSteps.slice(0, 2);
+    expect(old[0]).toMatchObject({ action: "Send a thank-you email", done: false });
+    expect(old[1]).toMatchObject({ action: "Follow up", done: true, doneOn: TODAY });
+    expect(result.contact.nextSteps.slice(2).every((s) => !s.done)).toBe(true);
+  });
+
+  it("refuses a chat dated before the latest one", () => {
+    expect(logAnotherChat(first, { ...anotherChatDraft(first, TODAY), meetingDate: "2026-10-01" }, TODAY)).toMatchObject({ ok: false });
+  });
+
+  it("keeps the history when the contact is edited", () => {
+    const result = logAnotherChat(first, anotherChatDraft(first, TODAY), TODAY);
+    if (!result.ok) throw new Error();
+    const edited = updateContact(result.contact, { ...contactToDraft(result.contact), company: "Ramp" }, TODAY);
+    expect(edited).toMatchObject({ ok: true, contact: { company: "Ramp", pastChats: [{ meetingDate: "2026-11-01" }] } });
   });
 });
