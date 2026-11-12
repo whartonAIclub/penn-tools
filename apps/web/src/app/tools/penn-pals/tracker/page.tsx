@@ -1,4 +1,4 @@
-// Penn Pals tracker: a form to log a coffee chat, and a list of who to follow
+// Penn Pals tracker: a form to log a chat, and a list of who to follow
 // up with. No AI and no sign-in: contacts are saved in this browser only.
 
 import type { Metadata } from "next";

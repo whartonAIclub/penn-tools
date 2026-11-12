@@ -54,7 +54,7 @@ export function PennPals({
     <div className={styles.page}>
       <h1 className={styles.title}>Penn Pals: Network Tracker</h1>
       <p className={styles.intro}>
-        Debrief a coffee chat in plain language: type it or paste your meeting notes. You get a contact card and a
+        Debrief a chat in plain language: type it or paste your meeting notes. You get a contact card and a
         follow-up date.
       </p>
 

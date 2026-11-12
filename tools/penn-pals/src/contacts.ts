@@ -220,9 +220,9 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
   const meetingDate = draft.meetingDate.trim() || today;
   const earliest = addDays(today, -365 * MAX_YEARS_BACK);
   const latest = addDays(today, 365 * MAX_YEARS_AHEAD);
-  if (!isDate(meetingDate)) errors.push("Enter a valid date of conversation.");
-  else if (meetingDate > today) errors.push("The date of conversation can't be in the future.");
-  else if (meetingDate < earliest) errors.push(`The date of conversation can't be more than ${MAX_YEARS_BACK} years ago. Check the year.`);
+  if (!isDate(meetingDate)) errors.push("Enter a valid date for the chat.");
+  else if (meetingDate > today) errors.push("The date of the chat can't be in the future.");
+  else if (meetingDate < earliest) errors.push(`The date of the chat can't be more than ${MAX_YEARS_BACK} years ago. Check the year.`);
 
   if (draft.notes.length > MAX_NOTES_LENGTH) errors.push(`Keep the notes to at most ${MAX_NOTES_LENGTH} characters.`);
 
@@ -234,7 +234,7 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
     }
     const dueDate = s.dueDate.trim();
     if (dueDate && !isDate(dueDate)) errors.push(`"${s.action.trim()}" has an invalid due date.`);
-    else if (dueDate && dueDate < meetingDate) errors.push(`"${s.action.trim()}" is due before the conversation. Check the date.`);
+    else if (dueDate && dueDate < meetingDate) errors.push(`"${s.action.trim()}" is due before the chat. Check the date.`);
     else if (dueDate && dueDate > latest) errors.push(`"${s.action.trim()}" is due more than ${MAX_YEARS_AHEAD} years from now. Check the year.`);
     return { action: s.action.trim(), owner: s.owner, dueDate: dueDate || null, done: false, doneOn: null };
   });

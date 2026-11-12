@@ -99,8 +99,8 @@ export function Tracker() {
   return (
     <div className={styles.page}>
       <p className={styles.intro}>
-        Log each networking conversation; your follow-ups appear on the Dashboard. Contacts are stored only in
-        this browser; clearing its data removes them.
+        Log each chat, and your follow-ups appear in My network. Contacts are stored only in this browser;
+        clearing its data removes them.
       </p>
 
       <Form today={today} onSave={save} original={editing} customLabels={customRelationships(contacts)} />
@@ -239,7 +239,7 @@ function Form({
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <h2 className={styles.formTitle}>{original ? `Edit ${original.name}` : "Log a conversation"}</h2>
+      <h2 className={styles.formTitle}>{original ? `Edit ${original.name}` : "Log a chat"}</h2>
 
       <div className={styles.grid}>
         <label className={styles.field}>
@@ -286,7 +286,7 @@ function Form({
           </label>
         )}
         <label className={styles.field}>
-          Conversation quality
+          How it went
           <select value={draft.vibe} onChange={(e) => set("vibe", e.target.value as ContactDraft["vibe"])}>
             {VIBES.map((v) => (
               <option key={v} value={v}>
@@ -296,7 +296,7 @@ function Form({
           </select>
         </label>
         <label className={styles.field}>
-          Date of conversation
+          Date of chat
           <input
             type="date"
             value={draft.meetingDate}
@@ -417,7 +417,7 @@ function Form({
           </label>
         </div>
         <label className={styles.field}>
-          Conversation notes
+          Notes
           <textarea rows={6} value={draft.notes} onChange={(e) => set("notes", e.target.value)} />
         </label>
       </section>

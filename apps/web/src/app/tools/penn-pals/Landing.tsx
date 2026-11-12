@@ -1,6 +1,6 @@
 "use client";
 
-// A summary of coffee chats, thank-yous and follow-ups on top, then two lanes:
+// A summary of people, thank-yous and follow-ups on top, then two lanes:
 // follow-ups in three buckets, due today, overdue and coming up (left), and
 // everyone the student has talked to (right). Clicking a person opens their card.
 // Everything shown comes from the contacts the intake form saved in this
@@ -327,7 +327,7 @@ export function Landing({ today: todayIso }: { today: string }) {
       <section className={styles.summary} aria-label="Summary">
         <div className={styles.stat}>
           <span className={styles.statNumber}>{allContacts.length}</span>
-          <span className={styles.statLabel}>{allContacts.length === 1 ? "Coffee chat" : "Coffee chats"} logged</span>
+          <span className={styles.statLabel}>{allContacts.length === 1 ? "Person" : "People"} in your network</span>
         </div>
         <div className={`${styles.stat} ${styles.statThankYou}`}>
           <span className={styles.statNumber}>{totals.thankYou}</span>
@@ -381,7 +381,7 @@ export function Landing({ today: todayIso }: { today: string }) {
           />
           {allContacts.length === 0 ? (
             <p className={styles.empty}>
-              No coffee chats yet. <Link href="/tools/penn-pals/tracker">Log your first one</Link>.
+              Your network starts here. <Link href="/tools/penn-pals/tracker">Log your first chat</Link>.
             </p>
           ) : people.length === 0 ? (
             <p className={styles.empty}>No one matches &ldquo;{query}&rdquo;.</p>

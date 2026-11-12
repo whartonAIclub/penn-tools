@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import styles from "./PennPalsHeader.module.css";
 
 const NAV = [
-  { href: "/tools/penn-pals", label: "Dashboard" },
+  { href: "/tools/penn-pals", label: "My network" },
   { href: "/tools/penn-pals/tracker", label: "Log a chat" },
 ];
 
