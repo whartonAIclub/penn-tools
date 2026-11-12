@@ -10,7 +10,13 @@ import type { NextRequest } from "next/server";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.js";
 import { isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
-import { MAX_PDF_PAGES, MAX_REQUEST_BYTES, checkUpload, extractWeekend } from "@penntools/tool-wemba-sync";
+import {
+  MAX_PDF_PAGES,
+  MAX_REQUEST_BYTES,
+  applyCorrections,
+  checkUpload,
+  extractWeekend,
+} from "@penntools/tool-wemba-sync";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
 
@@ -81,7 +87,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   try {
     // The AI API checks provider itself.
-    const schedule = await extractWeekend(ai, provider, { filename, data }, today());
+    // Then fill in what the PDF leaves out (corrections.ts).
+    const schedule = applyCorrections(await extractWeekend(ai, provider, { filename, data }, today()));
     return Response.json({ schedule });
   } catch (error) {
     if (isAIError(error)) return failure(error.message, 502, error.kind);
