@@ -42,7 +42,8 @@ Each part appears only after the one before it.
 Button: "Got it, add a course".
 
 **B. Add a course.** Courses are added one at a time; students can add as many as they like.
-- **"What we check" button:** a small light blue pill button with an ⓘ icon, right next to the heading. It opens and closes a panel: outside Wharton; numbered 5000 or above; in class or online at a set time. Note: online classes with recorded lectures and no set meeting time (asynchronous) don't count; if an undergrad course is also offered at the 5000 level we point you to that version; the MBA Program Office has the final word. Last line: "Even if a course counts, you still need the department's permission to enroll."
+- **Term picker** at the top of the section (Spring / Summer / Fall of the coming year). Used in all emails. The details panel doesn't show the term, so we ask once here.
+- **ⓘ button** next to the heading opens a "What we check" panel: outside Wharton; numbered 5000 or above; in class or online at a set time. Note: online classes with recorded lectures and no set meeting time (asynchronous) don't count; if an undergrad course is also offered at the 5000 level we point you to that version; the MBA Program Office has the final word.
 - **Two tabs:**
   - **Paste details** (default): text box "Paste the course details panel. Messy is fine." and an "Add course" button. Shows "Reading the course details…" with a spinner, adds the course to the list below and clears the box.
   - **Upload screenshot** (P1): a drop area "Drop a screenshot of the details panel, or click to choose". Only build this if the platform's AI can read images.
@@ -75,7 +76,6 @@ Start with simple text matching. Upgrade to the platform's AI building block if 
 
 **C. Your courses.** Appears after the first course is added.
 - Big "X of Y" (Penn Red) "courses count toward your MBA".
-- Under it, a gold note: "Counting toward your MBA doesn't mean you're enrolled. Every non-Wharton course still needs permission from its department. That's Step 2."
 - One row per course: checkbox, course code with section and format (e.g. "CLST 5324-401 · IN CLASS"), title, one-line reason, result pill and an × to remove it.
 - Courses that count are checked by default. Courses that don't count can't be checked.
 - **If the format is missing:** the row asks "How does it meet?" with three buttons: In class / Online, live / Online, recorded. Picking one updates the result right away.
@@ -84,7 +84,7 @@ Start with simple text matching. Upgrade to the platform's AI building block if 
 
 ### Step 2: Request permission
 
-- **Name, year and term card** (gold, with dot pattern): "This goes into your emails. We use your name, year and term so departments know who's asking and when. It's saved only in this browser." Name input, a rounded Year dropdown (placeholder "Pick your year"; First-year / Second-year) and a rounded Term dropdown (placeholder "Pick a term"; the next three Spring / Summer / Fall terms that haven't started). Year and term start empty so students choose on purpose. The details panel doesn't show the term, so we ask once here; it's used in all emails.
+- **Name and year card** (gold, with dot pattern): "This goes into your emails. We use your name and year so departments know who's asking. It's saved only in this browser." Name input and a First-year / Second-year toggle.
 - **One card per picked course** that opens and closes (only one open at a time; the first opens automatically). Closed: number circle, code with section, title, status pill, chevron. Open:
   - **"Who to email"**, filled in automatically and always editable, with a label showing where it came from:
     - FOUND IN COURSE DETAILS: an email was in the pasted text
@@ -92,11 +92,8 @@ Start with simple text matching. Upgrade to the platform's AI building block if 
     - NOT FOUND: left empty, with "Add the instructor's or department's email from the Penn Directory or the department website."
     - EDITED BY YOU: as soon as the student types
     - If an instructor name was found, show "Instructor: [name]" under the box.
-    - **Find an email** (when the email wasn't in the course details): a light blue button. With an instructor: "Find [instructor]'s email", searching `"[instructor]" email upenn`. Without: "Find the department email", searching `[department full name] department email upenn`, using the department's full name (e.g. "Classical Studies") when the tool knows it, otherwise the code. Under it: "Copy the email from the results and paste it above." The tool never fills in an email from the search.
-    - The button opens a **"Find an email" side panel** that slides in from the right inside the tool (full screen on a phone), in Google's usual look (white, Arial, Google's own search box and results; not restyled to Penn Modern): title, close button (Escape also closes it), Google Programmable Search's search box pre-filled with the search above, and its results. Programmable Search is limited to upenn.edu; search engine ID `b5cecbaca2c394506`.
-    - **If Programmable Search can't load** (for example, blocked by the site's security settings), the button opens the same search on google.com in a pop-up window about half the screen wide, to the right of the current window; if pop-ups are blocked, in a new tab.
-  - Email preview (subject and body, filled with name, year, course and section, title, term). Until they're filled in, the preview shows [Your name], [first/second] and [Term].
-  - "Open in email" button (mailto link). Clicking it moves the status from Not sent to Waiting. It's a disabled button until name, year and term are all filled in, with "Add your name, year and term above to unlock." beside it. "Find an email" and the status toggle work either way.
+  - Email preview (subject and body, filled with name, year, course and section, title, term)
+  - "Open in email" button (mailto link). Clicking it moves the status from Not sent to Waiting.
   - Status toggle: Not sent / Waiting / Approved / Declined
 - Buttons: "Back" and "Continue to registration" (disabled until at least one course is Approved, with the hint "Mark at least one course Approved to continue").
 
@@ -104,7 +101,7 @@ Start with simple text matching. Upgrade to the platform's AI building block if 
 
 - List of approved courses as green pills (code with section and title).
 - One combined email to mbaprogram@wharton.upenn.edu listing every approved course with its section number, for the chosen term.
-- "Open in email" (mailto) and "I sent it". "Open in email" is locked the same way as in Step 2, with "Add your name, year and term in Step 2 to unlock." (Step 2 is a link back.)
+- "Open in email" (mailto) and "I sent it".
 - After "I sent it": a "You're all set" card on the dot pattern.
 
 ## Eligibility rules
@@ -169,8 +166,8 @@ Checked in this order. Eligibility is fixed logic, never an AI judgment.
 ## Must have (P0)
 
 - Overview screen and three-step flow with a locking stepper
-- Step 1: how-to tiles, paste-details tab, eligibility rules 1–6 (including Wharton and cross-listing), format question, switch to graduate version, remove course
-- Step 2: name, year and term, one email per course with Open in email, contact box with source label (NOT FOUND fallback), status per course
+- Step 1: how-to tiles, term picker, paste-details tab, eligibility rules 1–6 (including Wharton and cross-listing), format question, switch to graduate version, remove course
+- Step 2: name and year, one email per course with Open in email, contact box with source label (NOT FOUND fallback), status per course
 - Step 3: one combined registration email with Open in email, done state
 - Everything saved in the browser (local storage), so a refresh doesn't lose progress
 - Penn Modern styling
@@ -192,7 +189,15 @@ Running list of changes found while testing. Build these when the current step i
 - [ ] **Step 2, who gives permission:** read from the pasted panel whether permission comes from the instructor or the department, and show "Path@Penn says permission comes from the [instructor/department]." as a gold pill under the "Who to email" note. Show nothing if the panel doesn't say. Needs a real panel copied down through Registration Restrictions, to match Path@Penn's exact wording.
 - [x] **Step 2, find an email:** when the email wasn't found in the course details, show a light blue "Find [INSTRUCTOR]'s email" button (or "Find the department contact" when no instructor was found) beside that pill. It opens a Google search in a new tab: `"[INSTRUCTOR]" [DEPT] site:upenn.edu`, or `[DEPT] department graduate coordinator site:upenn.edu`. The student reads the results and types the email themselves; the tool never fills it in from the search.
 - [ ] **Step 2, better contact finding (to scope):** the "Find their email" Google search works but isn't good enough yet. Ideas to explore, in rough order of value: (1) a checked department contact list so most courses show AUTO-FILLED; (2) the "who gives permission" line, so students know whether to look for the instructor or the department; (3) a sharper search, e.g. the department's own website or the Penn Directory instead of Google; (4) after approval, ask "Who did you email?" and save it for the next student (needs shared storage). Decide which to build after user testing shows where students get stuck.
-- [ ] **Step 2, embedded contact search:** search for the contact inside the tool using Google Programmable Search, limited to upenn.edu. Needs a free search engine ID.
+- [ ] **Step 3, "Email me my plan":** on the Step 3 screen and the "You're all set" card, a button that opens an email to the student (no To filled in, so it goes to whoever they choose) with a plain summary: term, then one line per course with course-section, title, result, permission status and contact email. A backup record that works on any device until sign-in exists. Optional: a "Copy summary" button with the same text.
+- [ ] **Step 2, edit the permission email:** let students change the text of each email to the department before opening it (for example, add why they want the course or a line about their background). The preview becomes editable and "Open in email" uses the edited text. Keep a "Reset to the standard email" option. Edits are saved in the browser with everything else.
+- [ ] **Polish, padding:** revisit the padding on some components so spacing feels consistent across the overview and all three steps (cards, gold callouts, course rows, permission cards, the email preview). List the specific components after a visual pass.
+
+## Next version
+
+- **Sign-in and saved progress across devices.** Use Penn Tools' built-in sign-in and save each student's course list to the server so it follows them from laptop to phone and survives clearing the browser. Needs the Platform team to switch on storage for this tool. When this ships, update the page's "saved only in this browser" wording.
+- Department contact list and better contact finding (see Backlog).
+- Live course search instead of copy-paste (Penn Labs course API).
 
 ## Out of scope
 
