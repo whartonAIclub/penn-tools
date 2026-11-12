@@ -8,7 +8,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import { fileType } from "@penntools/core/ai/attachments";
-import { groupByDate, itemsForSection, type ScheduleItem, type WeekendSchedule } from "@penntools/tool-wemba-sync";
+import {
+  groupByDate,
+  icsFilename,
+  itemsForSection,
+  toICS,
+  type ScheduleItem,
+  type WeekendSchedule,
+} from "@penntools/tool-wemba-sync";
 import styles from "./WembaSync.module.css";
 
 interface ExtractError {
@@ -209,7 +216,18 @@ function Weekend({
   section: string | null;
   onSection: (section: string | null) => void;
 }) {
-  const days = groupByDate(itemsForSection(schedule.items, section));
+  const items = itemsForSection(schedule.items, section);
+  const days = groupByDate(items);
+
+  // The shown items as an .ics file, which the user's calendar app opens.
+  function download() {
+    const url = URL.createObjectURL(new Blob([toICS(schedule, items)], { type: "text/calendar" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = icsFilename(items, section);
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
 
   return (
     <section className={styles.weekend}>
@@ -220,19 +238,27 @@ function Weekend({
             {schedule.program && `${schedule.program} · `}Not saved yet: upload it again after reloading the page.
           </p>
         </div>
-        {schedule.sections.length > 1 && (
-          <div className={styles.sections} role="group" aria-label="Your section">
-            {schedule.sections.map((s) => (
-              <button key={s} className={s === section ? styles.sectionOn : styles.sectionOff} onClick={() => onSection(s)}>
-                {s}
+        <div className={styles.actions}>
+          {schedule.sections.length > 1 && (
+            <div className={styles.sections} role="group" aria-label="Your section">
+              {schedule.sections.map((s) => (
+                <button key={s} className={s === section ? styles.sectionOn : styles.sectionOff} onClick={() => onSection(s)}>
+                  {s}
+                </button>
+              ))}
+              <button className={section === null ? styles.sectionOn : styles.sectionOff} onClick={() => onSection(null)}>
+                All
               </button>
-            ))}
-            <button className={section === null ? styles.sectionOn : styles.sectionOff} onClick={() => onSection(null)}>
-              All
-            </button>
-          </div>
-        )}
+            </div>
+          )}
+          <button className={styles.button} onClick={download} disabled={items.length === 0}>
+            Add to my calendar
+          </button>
+        </div>
       </div>
+      {schedule.sections.length > 1 && section === null && items.length > 0 && (
+        <p className={styles.meta}>Pick your section first, or your calendar gets every section&apos;s classes.</p>
+      )}
 
       {schedule.warnings.length > 0 && (
         <div className={styles.warnings}>

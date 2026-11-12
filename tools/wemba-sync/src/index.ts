@@ -12,3 +12,4 @@ export {
   checkUpload,
 } from "./schedule.js";
 export type { ItemKind, ScheduleItem } from "./schedule.js";
+export { toICS, icsFilename } from "./calendar.js";
