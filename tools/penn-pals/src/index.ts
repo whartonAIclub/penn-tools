@@ -75,6 +75,14 @@ export {
   type FollowUpStatus,
 } from "./network.js";
 export {
+  canViewMetrics,
+  checkChatEvent,
+  getMetrics,
+  recordChat,
+  type ChatEvent,
+  type PennPalsMetrics,
+} from "./metrics.js";
+export {
   checkStory,
   intakeToDraft,
   IntakeReply,

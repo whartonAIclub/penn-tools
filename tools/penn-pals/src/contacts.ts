@@ -266,10 +266,12 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
   const email = text(draft.email, "the email");
   if (email && !/^\S+@\S+\.\S+$/.test(email)) errors.push("Enter a valid email address.");
 
-  const meetingDate = draft.meetingDate.trim() || today;
+  // The date of the chat is required. Forms start with today filled in (emptyDraft), but a blank date is never quietly replaced.
+  const meetingDate = draft.meetingDate.trim();
   const earliest = addDays(today, -365 * MAX_YEARS_BACK);
   const latest = addDays(today, 365 * MAX_YEARS_AHEAD);
-  if (!isDate(meetingDate)) errors.push("Enter a valid date for the chat.");
+  if (!meetingDate) errors.push("Enter the date of the chat.");
+  else if (!isDate(meetingDate)) errors.push("Enter a valid date for the chat.");
   else if (meetingDate > today) errors.push("The date of the chat can't be in the future.");
   else if (meetingDate < earliest) errors.push(`The date of the chat can't be more than ${MAX_YEARS_BACK} years ago. Check the year.`);
 

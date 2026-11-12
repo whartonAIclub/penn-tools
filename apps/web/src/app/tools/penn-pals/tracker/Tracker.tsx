@@ -38,6 +38,7 @@ import {
 } from "@penntools/tool-penn-pals";
 import { AiIntake, type AiAccess } from "./AiIntake";
 import { Collapsible } from "./Collapsible";
+import { recordChat } from "../metricsActions";
 import styles from "./Tracker.module.css";
 
 const LANDING = "/tools/penn-pals";
@@ -85,7 +86,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   const [prefill, setPrefill] = useState<{ draft: ContactDraft; key: number } | null>(null);
   const [storyTyped, setStoryTyped] = useState(false);
 
-  function save(contact: Contact) {
+  async function save(contact: Contact) {
     // An edit replaces the contact where it was; a new one goes first.
     const next = editing || again
       ? (contacts ?? []).map((c) => (c.id === contact.id ? contact : c))
@@ -95,6 +96,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
     } catch {
       // Storage full or blocked: nothing is kept, as the intro says.
     }
+    if (!editing) await reportChat(contact);
     router.push(LANDING);
   }
 
@@ -130,6 +132,21 @@ export function Tracker({ ai }: { ai: AiAccess }) {
       />
     </div>
   );
+}
+
+/**
+ * Tells the server a chat was saved, for the team's usage numbers: only for
+ * signed-in users, and only two opaque keys, never what was written. It waits
+ * a moment so the request isn't lost when the page changes, but never longer
+ * than that and never fails the save.
+ */
+async function reportChat(contact: Contact) {
+  const chatKey = `${contact.id}:${chatsWith(contact).length}`;
+  try {
+    await Promise.race([recordChat(contact.id, chatKey), new Promise<void>((resolve) => setTimeout(resolve, 1500))]);
+  } catch {
+    // Metrics must never get in the way of saving.
+  }
 }
 
 // ── Leaving with unsaved changes ──────────────────────────────────────────────
@@ -356,9 +373,10 @@ function Form({
           </select>
         </label>
         <label className={styles.field}>
-          Date of chat
+          Date of chat *
           <input
             type="date"
+            required
             value={draft.meetingDate}
             min={addDays(today, -365 * MAX_YEARS_BACK)}
             max={today}

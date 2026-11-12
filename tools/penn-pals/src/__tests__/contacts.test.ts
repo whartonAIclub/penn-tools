@@ -370,6 +370,40 @@ describe("date checks", () => {
   });
 });
 
+describe("the date of the chat is required, and suggested as today", () => {
+  const draft = { ...emptyDraft(TODAY), name: "Maria" };
+
+  it.each([
+    ["empty", ""],
+    ["only spaces", "   "],
+  ])("rejects a date that is %s, instead of quietly using today", (_label, meetingDate) => {
+    const result = buildContact({ ...draft, meetingDate }, TODAY, "a");
+    expect(result).toMatchObject({ ok: false });
+    if (!result.ok) expect(result.errors).toContain("Enter the date of the chat.");
+  });
+
+  it("still accepts a real date, and trims it", () => {
+    expect(buildContact({ ...draft, meetingDate: " 2026-11-01 " }, TODAY, "a")).toMatchObject({ ok: true, contact: { meetingDate: "2026-11-01" } });
+  });
+
+  it("a new form starts with the day it is being filled in", () => {
+    expect(emptyDraft("2027-03-09").meetingDate).toBe("2027-03-09");
+    expect(emptyDraft(TODAY).meetingDate).toBe(TODAY);
+  });
+
+  it("another chat with someone saved also starts on today, not on their last chat", () => {
+    const first = buildContact({ ...draft, meetingDate: "2026-10-01" }, TODAY, "a");
+    if (!first.ok) throw new Error("fixture");
+    expect(anotherChatDraft(first.contact, TODAY).meetingDate).toBe(TODAY);
+  });
+
+  it("an edit keeps the contact's own date and does not reset it to today", () => {
+    const first = buildContact({ ...draft, meetingDate: "2026-10-01" }, TODAY, "a");
+    if (!first.ok) throw new Error("fixture");
+    expect(contactToDraft(first.contact).meetingDate).toBe("2026-10-01");
+  });
+});
+
 describe("seniority", () => {
   it("is stored when given and null when left blank", () => {
     expect(buildContact({ ...emptyDraft(TODAY), name: "Maria", seniority: "senior" }, TODAY, "a")).toMatchObject({
