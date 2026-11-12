@@ -61,11 +61,11 @@ export function SearchPanel({ query, href, onClose }: Props) {
           <h3 id="nwcm-search-title" className={styles.searchPanelTitle}>
             Find an email
           </h3>
-          <button ref={closeButton} type="button" className={styles.removeButton} aria-label="Close" onClick={onClose}>
-            <CloseIcon />
+          <button ref={closeButton} type="button" className={styles.searchPanelClose} aria-label="Close" onClick={onClose}>
+            <CloseIcon size={20} />
           </button>
         </div>
-        <p className={styles.reason}>Copy the email from the results and paste it into &ldquo;Who to email&rdquo;.</p>
+        <p className={styles.searchPanelNote}>Copy the email from the results and paste it into &ldquo;Who to email&rdquo;.</p>
         {failed ? (
           <div className={styles.note} role="alert">
             <p className={styles.panelText}>The search couldn&apos;t load here.</p>

@@ -1028,8 +1028,13 @@
   z-index: 41;
   width: min(460px, 100%);
   overflow-y: auto;
-  background: var(--paper);
-  box-shadow: -8px 0 32px #011f5b26;
+  /* Google's plain look: white, Arial, dark grey text, a light divider instead of a heavy shadow. */
+  background: #fff;
+  color: #202124;
+  font-family: Arial, sans-serif;
+  line-height: normal;
+  border-left: 1px solid #dadce0;
+  box-shadow: -4px 0 16px rgba(60, 64, 67, 0.15);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -1043,11 +1048,23 @@
 @media (prefers-reduced-motion: reduce) { .searchPanel { animation: none; } }
 
 .searchPanelHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.searchPanelTitle { margin: 0; font-family: var(--nwcm-serif), Georgia, serif; font-size: 26px; font-weight: 400; }
+.searchPanelTitle { margin: 0; font-size: 22px; font-weight: 400; color: #202124; }
+.searchPanelNote { margin: 0; font-size: 14px; color: #4d5156; }
+.searchPanelClose {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #5f6368;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.searchPanelClose:hover { background: #f1f3f4; }
 .panelText { margin: 0 0 10px; }
 .searchResults { min-height: 120px; }
 /* Google's search box and results: drop their own frame so they sit on the panel. */
-.searchResults :global(.gsc-control-cse) { padding: 0; border: 0; background: transparent; font-family: inherit; }
+/* Only remove the outer frame; everything inside keeps Google's own look. */
+.searchResults :global(.gsc-control-cse) { padding: 0; border: 0; }
 /* The engine's "Overlay" layout floats results over the page; keep them in the panel instead. */
 /* Google's stylesheet marks its own rules important, so these must be too. */
 .searchResults :global(.gsc-results-wrapper-overlay) {
@@ -1058,13 +1075,10 @@
   margin: 0 !important;
   padding: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
   transform: none !important;
 }
 .searchResults :global(.gsc-modal-background-image),
 .searchResults :global(.gsc-results-close-btn) { display: none !important; }
-.searchResults :global(.gsc-control-wrapper-cse),
-.searchResults :global(.gsc-wrapper) { font-family: inherit; }
 
 @media (max-width: 600px) {
   .searchPanel { width: 100%; padding: 20px 16px; }
