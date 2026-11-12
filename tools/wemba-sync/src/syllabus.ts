@@ -10,6 +10,7 @@
 
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
+import type { ScheduleItem } from "./schedule.js";
 
 /** The most pages a syllabus PDF may have, bounding what one upload costs the user. */
 export const MAX_SYLLABUS_PAGES = 40;
@@ -152,4 +153,30 @@ export function upcomingDeadlines(syllabi: Syllabus[], today: string): Deadline[
 /** The course's sessions on `date` (YYYY-MM-DD), e.g. to show a class weekend's readings. */
 export function sessionsOn(syllabus: Syllabus, date: string): Session[] {
   return syllabus.sessions.filter((session) => session.date === date);
+}
+
+/**
+ * Dated assignments across courses due from `start` to `end` (YYYY-MM-DD,
+ * inclusive), e.g. over a class weekend, in order.
+ */
+export function deadlinesBetween(syllabi: Syllabus[], start: string, end: string): Deadline[] {
+  return upcomingDeadlines(syllabi, start).filter((deadline) => deadline.due! <= end);
+}
+
+/** Letters and digits only, lowercased: "FNCE 6130-001" as "fnce6130001". */
+const squash = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+/**
+ * The syllabus sessions for a class on a weekend's schedule: the course's
+ * sessions on the class's date. The course is matched by code ("FNCE 6130"
+ * matches "FNCE-6130-001") or, failing that, by name.
+ */
+export function sessionsForClass(item: ScheduleItem, syllabi: Syllabus[]): Session[] {
+  if (item.kind !== "class") return [];
+  const names = [item.course, item.title].filter((name): name is string => !!name).map(squash).filter(Boolean);
+  const syllabus = syllabi.find((s) => {
+    const keys = [s.courseCode, s.title].filter((key): key is string => !!key).map(squash).filter(Boolean);
+    return names.some((name) => keys.some((key) => name.startsWith(key) || key.startsWith(name)));
+  });
+  return syllabus ? sessionsOn(syllabus, item.date) : [];
 }

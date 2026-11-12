@@ -4,28 +4,51 @@
 // which extract/route.ts reads with extractWeekend
 // (tools/wemba-sync/src/schedule.ts) and saves, then show the weekend as a
 // calendar for the student's section; it opens on the next class weekend,
-// with a menu for the others. Courses: the student's saved syllabi
-// (Courses.tsx). AMA, on both tabs, answers questions about all of it.
+// with a menu for the others, and shows the student's own events on its
+// days, the readings for its classes and what's due. Courses: the student's
+// saved syllabi (Courses.tsx). Events: every event, added or on a weekend's
+// schedule (Events.tsx). AMA, on every tab, answers questions about all
+// of it.
 
 import { useEffect, useRef, useState } from "react";
 import type { AIProvider } from "@penntools/core/ai";
 import {
   currentWeekend,
+  deadlinesBetween,
+  eventItems,
   groupByDate,
   icsFilename,
   itemsForSection,
+  sessionsForClass,
+  sortItems,
   toICS,
+  type RSVP,
+  type SavedEvent,
   type SavedSyllabus,
   type SavedWeekend,
   type ScheduleItem,
+  type Session,
+  type Syllabus,
   type WeekendSchedule,
 } from "@penntools/tool-wemba-sync";
 import { removeWeekend } from "./actions";
 import { AMA } from "./AMA";
 import { Courses } from "./Courses";
-import { formatDate, formatRange, formatTimes, postFile, todayInPhiladelphia, type UploadError } from "./client";
+import { Events } from "./Events";
+import {
+  downloadICS,
+  formatDate,
+  formatRange,
+  formatTimes,
+  postFile,
+  todayInPhiladelphia,
+  type UploadError,
+} from "./client";
 import { ErrorNote } from "./ErrorNote";
 import styles from "./WembaSync.module.css";
+
+type Tab = "weekend" | "courses" | "events";
+const TABS: Record<Tab, string> = { weekend: "Class weekend", courses: "Courses", events: "Events" };
 
 type Status = { state: "idle" } | { state: "reading"; filename: string } | { state: "error"; error: UploadError };
 
@@ -43,7 +66,8 @@ export function WembaSync({
   labels,
   maxBytes,
   weekends: initialWeekends,
-  syllabi,
+  syllabi: initialSyllabi,
+  events: initialEvents,
 }: {
   /** Providers the user has saved keys for; never empty. */
   providers: AIProvider[];
@@ -53,9 +77,13 @@ export function WembaSync({
   weekends: SavedWeekend[] | null;
   /** The student's saved syllabi, or null if storage isn't set up. */
   syllabi: SavedSyllabus[] | null;
+  /** The student's saved events, earliest first, or null if storage isn't set up. */
+  events: SavedEvent[] | null;
 }) {
   const [provider, setProvider] = useState(providers[0]!);
-  const [tab, setTab] = useState<"weekend" | "courses">("weekend");
+  const [tab, setTab] = useState<Tab>("weekend");
+  const [events, setEvents] = useState(initialEvents ?? []);
+  const [syllabi, setSyllabi] = useState(initialSyllabi ?? []);
   const [status, setStatus] = useState<Status>({ state: "idle" });
   const [section, setSection] = useState<string | null>(null);
   const [weekends, setWeekends] = useState(initialWeekends ?? []);
@@ -68,6 +96,12 @@ export function WembaSync({
   const today = todayInPhiladelphia();
   const current = weekends.find((w) => w.end >= today);
   const shown = unsaved ?? saved?.schedule ?? null;
+  // Every event on the student's weekend schedules, for their section, for the Events tab.
+  const scheduledEvents = [...weekends.map((w) => w.schedule), ...(unsaved ? [unsaved] : [])].flatMap((schedule) =>
+    itemsForSection(schedule.items, section !== null && schedule.sections.includes(section) ? section : null).filter(
+      (item) => item.kind === "event",
+    ),
+  );
   // A section remembered from another schedule may not exist in this one.
   const shownSection = shown && section !== null && !shown.sections.includes(section) ? null : section;
 
@@ -75,10 +109,11 @@ export function WembaSync({
   useEffect(() => {
     try {
       setSection(localStorage.getItem(SECTION_KEY));
-      if (localStorage.getItem(TAB_KEY) === "courses") setTab("courses");
+      const saved = localStorage.getItem(TAB_KEY);
+      if (saved && saved in TABS) setTab(saved as Tab);
     } catch {}
   }, []);
-  function chooseTab(value: "weekend" | "courses") {
+  function chooseTab(value: Tab) {
     setTab(value);
     try {
       localStorage.setItem(TAB_KEY, value);
@@ -137,23 +172,18 @@ export function WembaSync({
     <div className={`${styles.page} ${styles.withAMA}`}>
       <header>
         <h1 className={styles.title}>WEMBA Sync</h1>
-        <p className={styles.intro}>
-          {tab === "weekend"
-            ? "Upload each class weekend\u2019s schedule PDF from the program\u2019s email to see your weekend: classes, meals and events, for your section. Weekends are saved to your account."
-            : "Upload each course\u2019s syllabus once a semester. It\u2019s sorted into the same sections for every course and saved to your account."}
-        </p>
+        <p className={styles.intro}>{INTROS[tab]}</p>
       </header>
 
       <div className={styles.tabs} role="tablist" aria-label="WEMBA Sync">
-        <button role="tab" aria-selected={tab === "weekend"} className={styles.tab} onClick={() => chooseTab("weekend")}>
-          Class weekend
-        </button>
-        <button role="tab" aria-selected={tab === "courses"} className={styles.tab} onClick={() => chooseTab("courses")}>
-          Courses
-        </button>
+        {(Object.keys(TABS) as Tab[]).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={styles.tab} onClick={() => chooseTab(t)}>
+            {TABS[t]}
+          </button>
+        ))}
       </div>
 
-      {providers.length > 1 && (tab === "courses" || shown === null) && (
+      {providers.length > 1 && (tab !== "weekend" || shown === null) && (
         <label className={styles.provider}>
           Read with
           <select value={provider} onChange={(e) => setProvider(e.target.value as AIProvider)}>
@@ -211,18 +241,44 @@ export function WembaSync({
             storage={initialWeekends !== null}
             section={shownSection}
             onSection={chooseSection}
+            events={events}
+            syllabi={syllabi.map((s) => s.syllabus)}
           />
         )}
       </div>
 
       <div role="tabpanel" hidden={tab !== "courses"} className={styles.tabPanel}>
-        <Courses provider={provider} maxBytes={maxBytes} initial={syllabi} />
+        <Courses
+          provider={provider}
+          maxBytes={maxBytes}
+          syllabi={initialSyllabi === null ? null : syllabi}
+          onSyllabi={setSyllabi}
+        />
+      </div>
+
+      <div role="tabpanel" hidden={tab !== "events"} className={styles.tabPanel}>
+        <Events
+          provider={provider}
+          maxPdfBytes={maxBytes}
+          events={initialEvents === null ? null : events}
+          onEvents={setEvents}
+          scheduled={scheduledEvents}
+        />
       </div>
 
       <AMA provider={provider} schedule={shown} section={shownSection} />
     </div>
   );
 }
+
+const INTROS: Record<Tab, string> = {
+  weekend:
+    "Upload each class weekend\u2019s schedule PDF from the program\u2019s email to see your weekend: classes, meals and events, for your section. Weekends are saved to your account.",
+  courses:
+    "Upload each course\u2019s syllabus once a semester. It\u2019s sorted into the same sections for every course and saved to your account.",
+  events:
+    "Every event, whenever it is: club events, celebrations and socials you add from an invite, plus the events on your class weekend schedules.",
+};
 
 /** The weekend's dates, e.g. "Nov 13 – Nov 14", for the weekend menu. */
 function weekendLabel(weekend: SavedWeekend): string {
@@ -291,6 +347,8 @@ function Weekend({
   storage,
   section,
   onSection,
+  events,
+  syllabi,
 }: {
   schedule: WeekendSchedule;
   /** The saved copy, or null if it wasn't saved. */
@@ -299,19 +357,26 @@ function Weekend({
   storage: boolean;
   section: string | null;
   onSection: (section: string | null) => void;
+  /** The student's own events: those on the weekend's days show with its schedule. */
+  events: SavedEvent[];
+  /** The student's syllabi: each class shows its session's readings, and what's due over the weekend is listed. */
+  syllabi: Syllabus[];
 }) {
   const items = itemsForSection(schedule.items, section);
-  const days = groupByDate(items);
+  const weekendDays = [...new Set(schedule.items.map((item) => item.date))].sort();
+  // The student's events on the weekend's days, each with their answer.
+  const own = new Map<ScheduleItem, RSVP | null>(
+    events.flatMap((e) =>
+      eventItems(e.event)
+        .filter((i) => weekendDays.includes(i.date))
+        .map((i) => [i, e.rsvp] as const),
+    ),
+  );
+  const days = groupByDate(sortItems([...items, ...own.keys()]));
+  const due = weekendDays.length > 0 ? deadlinesBetween(syllabi, weekendDays[0]!, weekendDays.at(-1)!) : [];
 
   // The shown items as an .ics file, which the user's calendar app opens.
-  function download() {
-    const url = URL.createObjectURL(new Blob([toICS(schedule, items)], { type: "text/calendar" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = icsFilename(items, section);
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
+  const download = () => downloadICS(toICS(schedule, items), icsFilename(items, section));
 
   return (
     <section className={styles.weekend}>
@@ -361,13 +426,39 @@ function Weekend({
         </div>
       )}
 
+      {due.length > 0 && (
+        <div className={styles.panel}>
+          <h3 className={styles.panelTitle}>Due this weekend</h3>
+          <ul className={styles.upcoming}>
+            {due.map((d, i) => (
+              <li key={i}>
+                <span className={styles.upcomingDate}>
+                  {formatDate(d.due!, { weekday: "short", month: "short", day: "numeric" })}
+                  {d.dueTime && `, ${formatTimes(d.dueTime, null)}`}
+                </span>
+                <span>
+                  <strong>{d.course}</strong> {d.title}
+                  {d.weight && <span className={styles.details}> · {d.weight}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className={styles.days}>
         {days.map((day) => (
           <div key={day.date} className={styles.day}>
             <h3 className={styles.dayTitle}>{formatDate(day.date, { weekday: "long", month: "short", day: "numeric" })}</h3>
             <ol className={styles.items}>
               {day.items.map((item, i) => (
-                <Item key={i} item={item} showSection={section === null && schedule.sections.length > 1} />
+                <Item
+                  key={i}
+                  item={item}
+                  showSection={section === null && schedule.sections.length > 1}
+                  own={own.has(item) ? (own.get(item) ?? "unanswered") : null}
+                  prep={sessionsForClass(item, syllabi)}
+                />
               ))}
             </ol>
           </div>
@@ -409,18 +500,43 @@ function Weekend({
   );
 }
 
-function Item({ item, showSection }: { item: ScheduleItem; showSection: boolean }) {
+const OWN_TAGS: Record<RSVP | "unanswered", string> = {
+  going: "Your event · Going",
+  maybe: "Your event · Maybe",
+  not_going: "Your event · Not going",
+  unanswered: "Your event",
+};
+
+function Item({
+  item,
+  showSection,
+  own,
+  prep,
+}: {
+  item: ScheduleItem;
+  showSection: boolean;
+  /** For one of the student's own events, their answer; null for the schedule's items. */
+  own: RSVP | "unanswered" | null;
+  /** For a class, its syllabus session(s) that day. */
+  prep: Session[];
+}) {
   const who = [item.instructor, item.location].filter(Boolean).join(" · ");
+  const readings = prep.flatMap((session) => session.readings);
+  const prepare = prep.flatMap((session) => session.prepare);
   return (
-    <li className={`${styles.item} ${styles[item.kind]}`}>
+    <li className={`${styles.item} ${styles[item.kind]} ${own === "not_going" ? styles.notGoing : ""}`}>
       <span className={styles.time}>{formatTimes(item.start, item.end)}</span>
       <div className={styles.itemBody}>
         <span className={styles.itemTitle}>{item.title}</span>
         {who && <span className={styles.details}>{who}</span>}
+        {prep.length > 0 && <span className={styles.details}>{prep.map((session) => session.topic).join(" · ")}</span>}
+        {readings.length > 0 && <span className={styles.notes}>Read: {readings.join("; ")}</span>}
+        {prepare.length > 0 && <span className={styles.notes}>Prepare: {prepare.join("; ")}</span>}
         {item.notes && <span className={styles.notes}>{item.notes}</span>}
         <span className={styles.tags}>
           {showSection && item.section && <span className={styles.tag}>{item.section}</span>}
           {item.signupOnly && <span className={styles.tag}>If you signed up</span>}
+          {own && <span className={styles.tag}>{OWN_TAGS[own]}</span>}
         </span>
       </div>
     </li>

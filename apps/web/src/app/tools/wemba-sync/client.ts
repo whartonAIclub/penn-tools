@@ -1,5 +1,5 @@
-// What the page's tabs share in the browser: sending a PDF or Word document
-// to one of the tool's routes, and formatting dates and times.
+// What the page's tabs share in the browser: sending files and invites to the
+// tool's routes, downloading calendar files, and formatting dates and times.
 
 import type { AIProvider } from "@penntools/core/ai";
 import { fileType } from "@penntools/core/ai/attachments";
@@ -14,13 +14,18 @@ export interface UploadError {
 export const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 
 /** The file's bytes as base64, without the data: prefix. */
-function toBase64(file: File): Promise<string> {
+export function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).slice(String(reader.result).indexOf(",") + 1));
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+/** A failed request's result. */
+function fail(message: string, kind?: string) {
+  return { ok: false as const, error: kind === undefined ? { message } : { message, kind } };
 }
 
 /** True if the file is a Word document (.docx): a zip archive with that name. */
@@ -43,10 +48,6 @@ export async function postFile<T>(
   what: string,
   { docx = false } = {},
 ): Promise<{ ok: true; body: T } | { ok: false; error: UploadError }> {
-  const fail = (message: string, kind?: string) => ({
-    ok: false as const,
-    error: kind === undefined ? { message } : { message, kind },
-  });
   if (file.size > maxBytes) return fail(`${file.name} is over ${maxBytes / 1024 / 1024} MB.`);
   const pdf = fileType(new Uint8Array(await file.slice(0, 12).arrayBuffer())) === "application/pdf";
   if (!pdf && !(docx && (await isDocx(file)))) {
@@ -56,15 +57,30 @@ export async function postFile<T>(
     return fail(`${file.name} isn't a ${docx ? "PDF or Word document" : "PDF"}. Upload ${what}.`);
   }
 
+  return postJSON<T>(url, { provider, filename: file.name, data: await toBase64(file) });
+}
+
+/** Posts `body` as JSON to the route at `url`; the route's reply, or why it failed. */
+export async function postJSON<T>(url: string, body: unknown): Promise<{ ok: true; body: T } | { ok: false; error: UploadError }> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider, filename: file.name, data: await toBase64(file) }),
+    body: JSON.stringify(body),
   });
   if (res.status === 401) return fail("Sign in with the button at the top right.");
-  const body = (await res.json().catch(() => null)) as (T & { error?: UploadError }) | null;
-  if (res.ok && body && !body.error) return { ok: true, body };
-  return fail(body?.error?.message ?? `Request failed (HTTP ${res.status}).`, body?.error?.kind);
+  const reply = (await res.json().catch(() => null)) as (T & { error?: UploadError }) | null;
+  if (res.ok && reply && !reply.error) return { ok: true, body: reply };
+  return fail(reply?.error?.message ?? `Request failed (HTTP ${res.status}).`, reply?.error?.kind);
+}
+
+/** Downloads an .ics file, which the user's calendar app opens. */
+export function downloadICS(ics: string, filename: string) {
+  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /** Today in Philadelphia, YYYY-MM-DD. */

@@ -11,7 +11,8 @@ import { MAX_SYLLABI } from "../syllabus.js";
 import { TooManySyllabiError, deleteSyllabus, listSyllabi, saveSyllabus } from "../syllabi.js";
 import { MAX_WEEKENDS, currentWeekend, deleteWeekend, listWeekends, saveWeekend, weekendRange } from "../weekends.js";
 import type { ScheduleItem, WeekendSchedule } from "../schedule.js";
-import { syllabus } from "./fixtures.js";
+import { EventError, addEvents, deleteEvent, listEvents, setRsvp } from "../eventStore.js";
+import { event, syllabus } from "./fixtures.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -108,6 +109,34 @@ describe.skipIf(!databaseUrl)("storage (Postgres)", () => {
     const kept = await listWeekends(sql, "grace");
     expect(kept).toHaveLength(MAX_WEEKENDS);
     expect(kept[0]!.filename).toBe("1.pdf"); // the earliest was dropped
+  });
+
+  it("adds events in date order, cleaned, and records answers, per user", async () => {
+    const [diwali, mixer] = await addEvents(sql, "ada", [
+      event(),
+      event({ title: "Club mixer", date: "2026-11-05", link: "javascript:alert(1)" }),
+    ]);
+    await addEvents(sql, "alan", [event({ title: "Alan's party" })]);
+
+    expect((await listEvents(sql, "ada")).map((e) => [e.event.title, e.rsvp])).toEqual([
+      ["Club mixer", null],
+      ["Diwali celebration", null],
+    ]);
+    expect(mixer!.event.link).toBeNull();
+
+    expect(await setRsvp(sql, "ada", diwali!.id, "going")).toBe(true);
+    expect(await setRsvp(sql, "alan", diwali!.id, "maybe")).toBe(false);
+    expect(await setRsvp(sql, "ada", diwali!.id, "yes" as never)).toBe(false);
+    expect((await listEvents(sql, "ada")).find((e) => e.id === diwali!.id)!.rsvp).toBe("going");
+
+    expect(await deleteEvent(sql, "alan", mixer!.id)).toBe(false);
+    expect(await deleteEvent(sql, "ada", mixer!.id)).toBe(true);
+    expect((await listEvents(sql, "ada")).map((e) => e.event.title)).toEqual(["Diwali celebration"]);
+  });
+
+  it("saves none of a batch with an invalid event", async () => {
+    await expect(addEvents(sql, "grace", [event(), event({ date: "someday" })])).rejects.toBeInstanceOf(EventError);
+    expect(await listEvents(sql, "grace")).toEqual([]);
   });
 });
 

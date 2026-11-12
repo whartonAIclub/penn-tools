@@ -2,7 +2,15 @@
 
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest } from "@penntools/core/ai";
-import { courseKey, extractSyllabus, sessionsOn, upcomingDeadlines } from "../syllabus.js";
+import {
+  courseKey,
+  deadlinesBetween,
+  extractSyllabus,
+  sessionsForClass,
+  sessionsOn,
+  upcomingDeadlines,
+} from "../syllabus.js";
+import type { ScheduleItem } from "../schedule.js";
 import { syllabus } from "./fixtures.js";
 
 /** A PDF's first 15 bytes as base64. */
@@ -55,5 +63,40 @@ describe("sessionsOn", () => {
   it("finds the course's sessions on a date", () => {
     expect(sessionsOn(syllabus(), "2026-11-14").map((s) => s.topic)).toEqual(["Capital budgeting"]);
     expect(sessionsOn(syllabus(), "2026-11-20")).toEqual([]);
+  });
+});
+
+describe("deadlinesBetween", () => {
+  it("lists what's due over a weekend", () => {
+    expect(deadlinesBetween([syllabus()], "2026-11-13", "2026-11-14").map((d) => d.title)).toEqual(["Problem set 1"]);
+    expect(deadlinesBetween([syllabus()], "2026-11-20", "2026-11-21")).toEqual([]);
+  });
+});
+
+describe("sessionsForClass", () => {
+  const item = (overrides: Partial<ScheduleItem>): ScheduleItem => ({
+    date: "2026-11-14",
+    start: "09:00",
+    end: "12:00",
+    kind: "class",
+    title: "Corporate Finance",
+    course: "FNCE-6130-001",
+    instructor: null,
+    location: null,
+    section: null,
+    signupOnly: false,
+    notes: null,
+    ...overrides,
+  });
+
+  it("finds the course's session on the class's date, by code or name", () => {
+    expect(sessionsForClass(item({}), [syllabus()]).map((s) => s.topic)).toEqual(["Capital budgeting"]);
+    expect(sessionsForClass(item({ course: null }), [syllabus()]).map((s) => s.topic)).toEqual(["Capital budgeting"]);
+  });
+
+  it("finds nothing for another course, another day or a meal", () => {
+    expect(sessionsForClass(item({ course: "STAT 6130", title: "Statistics" }), [syllabus()])).toEqual([]);
+    expect(sessionsForClass(item({ date: "2026-11-20" }), [syllabus()])).toEqual([]);
+    expect(sessionsForClass(item({ kind: "meal" }), [syllabus()])).toEqual([]);
   });
 });
