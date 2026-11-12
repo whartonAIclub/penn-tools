@@ -109,19 +109,13 @@ export function Tracker() {
 
 // The two follow-ups the workshop recommends, shown up front as checkboxes.
 const STEPS: { kind: FollowUpKind; action: string; label: string; timing: string }[] = [
-  { kind: "thankYou", action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after the chat" },
-  { kind: "followUp", action: STEP_ACTIONS[1], label: "Follow up", timing: "a month after the chat" },
+  { kind: "thankYou", action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after your chat" },
+  { kind: "followUp", action: STEP_ACTIONS[1], label: "Follow up", timing: "one month after your chat" },
 ];
 
 /** A new contact starts with both follow-ups on, dated by the workshop timing. */
 function newDraft(today: string): ContactDraft {
   return { ...emptyDraft(today), nextSteps: STEPS.map((s) => ({ action: s.action, owner: "me", dueDate: "" })) };
-}
-
-/** "Thu, Nov 12" for a YYYY-MM-DD date. */
-function shortDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y!, m! - 1, d!).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 // A custom relationship is picked from the menu as "custom:<label>".
@@ -268,7 +262,8 @@ function Form({
         <legend>Your follow-ups</legend>
         {STEPS.map(({ kind, action, label, timing }) => {
           const step = stepFor(action);
-          const auto = isIsoDate(draft.meetingDate) ? shortDate(workshopDue(kind, draft.meetingDate)) : null;
+          // A blank date means the suggested one, shown in the box; it moves if the chat's date changes.
+          const suggested = isIsoDate(draft.meetingDate) ? workshopDue(kind, draft.meetingDate) : "";
           return (
             <div key={action} className={styles.stepRow}>
               <label className={styles.check}>
@@ -281,15 +276,17 @@ function Form({
                     aria-label={`${label}: due date`}
                     title="Due date"
                     type="date"
-                    value={step.dueDate}
+                    value={step.dueDate || suggested}
                     min={isIsoDate(draft.meetingDate) ? draft.meetingDate : undefined}
                     max={addDays(today, 365 * MAX_YEARS_AHEAD)}
                     onChange={(e) => setDue(action, e.target.value)}
                   />
-                  {!step.dueDate && auto && (
-                    <span className={styles.hint}>
-                      Blank = {auto}, {timing}
-                    </span>
+                  {!step.dueDate ? (
+                    <span className={styles.hint}>Suggested: {timing}</span>
+                  ) : (
+                    <button type="button" className={styles.link} onClick={() => setDue(action, "")}>
+                      Use suggested date
+                    </button>
                   )}
                 </span>
               )}
@@ -314,8 +311,10 @@ function Form({
         <textarea rows={3} value={draft.takeaways} placeholder="One per line" onChange={(e) => set("takeaways", e.target.value)} />
       </label>
 
-      <details className={styles.more}>
-        <summary>Additional details</summary>
+      <section className={styles.more} aria-labelledby="more-title">
+        <h3 id="more-title" className={styles.sectionTitle}>
+          More about them <span className={styles.optional}>(optional)</span>
+        </h3>
         <div className={styles.grid}>
           <label className={styles.field}>
             Seniority
@@ -353,7 +352,7 @@ function Form({
           Conversation notes
           <textarea rows={6} value={draft.notes} onChange={(e) => set("notes", e.target.value)} />
         </label>
-      </details>
+      </section>
 
       {errors.length > 0 && (
         <ul className={styles.errors}>

@@ -90,11 +90,24 @@
 }
 .step input:first-child { flex: 1; min-width: 180px; }
 
-.more summary {
-  cursor: pointer;
-  margin-bottom: 10px;
-  color: var(--penn-blue);
-  font-weight: 500;
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--section-label);
 }
 
 .errors {
