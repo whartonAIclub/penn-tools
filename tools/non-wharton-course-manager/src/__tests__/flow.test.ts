@@ -1,16 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { EMPTY_PROGRESS, stepStatuses } from "../flow.js";
+import { EMPTY_PROGRESS, stepStatuses, upcomingTerms } from "../flow.js";
 import type { Course } from "../flow.js";
 
 function course(overrides: Partial<Course>): Course {
   return {
     id: "c",
-    code: "DSGN 5100-001",
+    dept: "DSGN",
+    number: "5100",
+    section: "001",
     title: "Product Design Studio",
-    format: "In person",
-    semester: "Spring 2027",
-    contact: "",
-    eligibility: "counts",
+    format: "In class",
+    instructor: "",
+    email: "",
+    crossListing: null,
     picked: true,
     permission: "not-sent",
     ...overrides,
@@ -26,7 +28,7 @@ describe("stepStatuses", () => {
   });
 
   it("keeps Step 2 locked until Step 1 is finished with a course picked", () => {
-    const courses = [course({ id: "a" }), course({ id: "b", eligibility: "doesnt-count", picked: false })];
+    const courses = [course({ id: "a" }), course({ id: "b", number: "1800", picked: false })];
     expect(stepStatuses({ ...EMPTY_PROGRESS, courses })[1]!.unlocked).toBe(false);
 
     const [s1, s2] = stepStatuses({ ...EMPTY_PROGRESS, courses, step1Done: true });
@@ -35,7 +37,7 @@ describe("stepStatuses", () => {
   });
 
   it("ignores picked courses that don't count", () => {
-    const courses = [course({ eligibility: "doesnt-count", picked: true })];
+    const courses = [course({ format: null, picked: true })];
     expect(stepStatuses({ ...EMPTY_PROGRESS, courses, step1Done: true })[1]!.unlocked).toBe(false);
   });
 
@@ -48,7 +50,15 @@ describe("stepStatuses", () => {
 
   it("marks Step 3 done after the registration email is sent", () => {
     const courses = [course({ permission: "approved" })];
-    const s3 = stepStatuses({ courses, step1Done: true, registrationSent: true })[2];
+    const s3 = stepStatuses({ ...EMPTY_PROGRESS, courses, step1Done: true, registrationSent: true })[2];
     expect(s3).toMatchObject({ done: true, label: "SENT" });
+  });
+});
+
+describe("upcomingTerms", () => {
+  it("lists the next three terms that haven't started", () => {
+    expect(upcomingTerms(new Date(2026, 10, 12))).toEqual(["Spring 2027", "Summer 2027", "Fall 2027"]);
+    expect(upcomingTerms(new Date(2027, 1, 1))).toEqual(["Summer 2027", "Fall 2027", "Spring 2028"]);
+    expect(upcomingTerms(new Date(2027, 5, 15))).toEqual(["Fall 2027", "Spring 2028", "Summer 2028"]);
   });
 });

@@ -8,7 +8,9 @@ These add to the repository's root `CLAUDE.md`, which still applies (the user is
 - **Build one step of the build plan at a time.** After each step, say how to test it and wait for the user before starting the next one.
 - Only change files in `tools/non-wharton-course-manager/` and `apps/web/src/app/tools/non-wharton-course-manager/`.
 - Save data in the browser (local storage), not the platform's database. Wrap every local storage read and write so the page still works when storage is unavailable.
-- Eligibility is fixed logic from the spec's rules table, never an AI call.
+- Use the reading and eligibility logic in the prototype's script as a guide (rebuilt, not copied).
+- Eligibility is fixed logic from the spec's rules table, never an AI call. Never let AI guess a course format or an email address.
+- Don't change `prototype-reference.html` or `SPEC.md` unless the user asks.
 - Emails open through `mailto:` links. Never send email from the app.
 - Ask before adding new libraries or making big structural changes. If Penn Tools has shared styles or components every tool should use, say so before overriding them.
 - After each change, run `pnpm typecheck`, `pnpm check:tools` and `pnpm test`.

@@ -417,7 +417,312 @@
   color: var(--blue-light);
 }
 
+/* ---- Step content cards ---- */
+
+.root a { color: var(--link); }
+.root a:hover { color: var(--blue); }
+
+.mutedText { color: var(--muted); }
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The gold A / B / C marker before each part's title. */
+.letter {
+  composes: label;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--gold);
+  color: var(--blue);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.titleRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.actionRow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.endRow { display: flex; justify-content: flex-end; padding-top: 6px; }
+
+/* A: the three how-to tiles. */
+.tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  background: var(--soft);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.tile strong { color: var(--blue); font-weight: 500; }
+
+.tileNumber {
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--red);
+}
+
+/* B: paste box and the "What we check" panel. */
+.infoButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background: var(--blue-light);
+  color: var(--blue);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.callout {
+  position: relative;
+  overflow: hidden;
+  background: var(--gold-light);
+  border-radius: 20px;
+  padding: 20px 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Gold dots down the callout's right edge. */
+.callout::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 120px;
+  background-image: radial-gradient(rgba(215, 188, 106, 0.6) 1.1px, transparent 1.4px);
+  background-size: 12px 12px;
+  pointer-events: none;
+}
+.callout > * { position: relative; z-index: 1; }
+
+.ruleChips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ruleChip { background: var(--card); border-radius: 9999px; padding: 6px 14px; }
+
+.textarea {
+  resize: vertical;
+  border: 0;
+  border-radius: 18px;
+  padding: 18px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--blue);
+  background: var(--soft);
+}
+.textarea::placeholder { color: #8a92a3; }
+.textarea:focus { outline: 2px solid var(--link); outline-offset: 1px; }
+
+.checking {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid var(--panel);
+  border-top-color: var(--red);
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* C: results. */
+.resultsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.score { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+
+.scoreNumber {
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--red);
+}
+
+.resultList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+/* One course. Its colors follow the eligibility result. */
+.resultRow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 18px;
+  padding: 16px 20px;
+  background: var(--soft);
+}
+.resultRow[data-result="doesnt-count"] { background: #faf8f4; }
+.resultRow[data-result="take-graduate"],
+.resultRow[data-result="needs-format"] { background: var(--gold-light); }
+.resultRow[data-result="wharton"] { background: #f2f6fa; }
+
+.resultMain { display: flex; gap: 16px; align-items: center; }
+
+.checkbox {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin: 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+.checkbox:disabled { cursor: not-allowed; }
+
+.resultText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.resultRow[data-result="doesnt-count"] .resultText,
+.resultRow[data-result="wharton"] .resultText { opacity: 0.75; }
+
+.code { composes: label; color: var(--muted); }
+.courseTitle { font-size: 16px; font-weight: 500; }
+.reason { font-size: 13px; color: var(--muted); }
+
+.resultPill {
+  composes: label;
+  flex: none;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  background: #e2efe4;
+  color: #267434;
+}
+.resultRow[data-result="doesnt-count"] .resultPill { background: #f5e1e1; color: var(--red); }
+.resultRow[data-result="take-graduate"] .resultPill,
+.resultRow[data-result="needs-format"] .resultPill { background: var(--gold); color: var(--blue); }
+.resultRow[data-result="wharton"] .resultPill { background: var(--blue-light); color: var(--blue); }
+
+.removeButton {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 9999px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.removeButton:hover { background: rgba(1, 31, 91, 0.06); color: var(--blue); }
+
+/* The format question or the switch button, lined up under the course text. */
+.resultExtra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding-left: 38px;
+  font-size: 13px;
+}
+
+.formatButton {
+  border-radius: 9999px;
+  background: var(--card);
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px;
+  min-height: 36px;
+}
+.formatButton:hover { background: var(--blue-light); }
+
+.switchButton {
+  border-radius: 9999px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 16px;
+  min-height: 38px;
+}
+
+/* B: the heading row with the term picker on the right. */
+.spreadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.termPicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.select {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--blue);
+  border: 0;
+  border-radius: 9999px;
+  background: var(--soft);
+  padding: 0 16px;
+  min-height: 40px;
+  cursor: pointer;
+}
+.select:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+
+.field { display: flex; flex-direction: column; gap: 10px; }
+
+.note {
+  font-size: 14px;
+  color: var(--blue);
+  background: var(--gold-light);
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+
+.warning {
+  font-size: 14px;
+  color: var(--red);
+  background: #f5e1e1;
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+
 @media (max-width: 600px) {
+  .resultRow { padding: 14px 16px; }
+  .resultMain { flex-wrap: wrap; }
+  .resultText { flex-basis: calc(100% - 80px); }
+  .resultPill { margin-left: 38px; }
+
   .overview { padding: 48px 16px 72px; gap: 40px; }
   .overviewPanel { padding: 20px; border-radius: 24px; }
   .flow { padding: 24px 16px 72px; gap: 24px; }

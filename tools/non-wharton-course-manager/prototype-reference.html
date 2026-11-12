@@ -14,7 +14,7 @@
 body{margin:0;background:#FBFAF6}
 a{color:#0E5696}a:hover{color:#011F5B}
 input,select,textarea,button{font-family:inherit}
-input:focus,textarea:focus{outline:2px solid #0E5696;outline-offset:1px}
+input:focus,textarea:focus,select:focus{outline:2px solid #0E5696;outline-offset:1px}
 @keyframes nwcm-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes nwcm-fill{from{width:0}to{width:100%}}
 @keyframes nwcm-spin{to{transform:rotate(360deg)}}
@@ -52,7 +52,7 @@ Saved only in this browser
 <li class="nwcm-rise" style="animation-delay: .2s; background: #FFFFFF; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
 <span style="width: 40px; height: 40px; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-family: Newsreader, Georgia, serif; font-size: 20px; display: flex; align-items: center; justify-content: center">1</span>
 <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 22px; line-height: 1.3; font-weight: 400">Find courses and check eligibility</h2>
-<p style="margin: 0; font-size: 14px; line-height: 1.55; color: #4A5468">Search Path@Penn, paste your picks here and see which ones count toward your MBA.</p>
+<p style="margin: 0; font-size: 14px; line-height: 1.55; color: #4A5468">Look up courses on Path@Penn, add them here and see which ones count toward your MBA.</p>
 <span style="margin-top: auto; height: 4px; border-radius: 9999px; background: #EEEDEA; overflow: hidden; display: block"><span class="nwcm-fill" style="animation-delay: .5s; display: block; height: 4px; border-radius: 9999px; background: #011F5B"></span></span>
 </li>
 <li class="nwcm-rise" style="animation-delay: .4s; background: #FFFFFF; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
@@ -111,7 +111,7 @@ Saved only in this browser
 <svg aria-hidden="true" width="200" height="200" viewBox="0 0 200 200" style="position: absolute; right: -40px; top: -40px"><circle cx="100" cy="100" r="98" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="100" cy="100" r="64" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="64" cy="140" r="14" fill="#F6E7B4"></circle></svg>
 <span style="position: relative; align-self: flex-start; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; background: #F6E7B4; color: #011F5B; border-radius: 9999px; padding: 5px 14px">STEP 1 OF 3</span>
 <h2 style="position: relative; margin: 0; font-family: Newsreader, Georgia, serif; font-size: 38px; line-height: 1.15; font-weight: 400; letter-spacing: -0.01em; max-width: 560px">Find courses and check eligibility</h2>
-<p style="position: relative; margin: 0; color: #D4E4F2; max-width: 560px">Browse Path@Penn, bring your picks here and we'll tell you which ones count toward your MBA.</p>
+<p style="position: relative; margin: 0; color: #D4E4F2; max-width: 560px">Look up a course on Path@Penn, bring its details here and we'll tell you if it counts toward your MBA.</p>
 </section>
 
 <section class="nwcm-rise" style="animation-delay: .1s; background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
@@ -123,70 +123,129 @@ Saved only in this browser
 </li>
 <li style="background: #F4F3EE; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; color: #4A5468">
 <span style="font-family: Newsreader, Georgia, serif; font-size: 26px; line-height: 1; color: #990000">02</span>
-<span>Pick the term, add search criteria and click <strong style="color: #011F5B; font-weight: 500">Search</strong>. Advanced Search narrows by school.</span>
+<span>Pick the term, search, then <strong style="color: #011F5B; font-weight: 500">click a course</strong> to open its details panel on the right.</span>
 </li>
 <li style="background: #F4F3EE; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; color: #4A5468">
 <span style="font-family: Newsreader, Georgia, serif; font-size: 26px; line-height: 1; color: #990000">03</span>
-<span>Click a course in the results panel for details, then copy the ones you like.</span>
+<span>Copy that panel from the <strong style="color: #011F5B; font-weight: 500">course code down to Seats Avail</strong>, or take a screenshot of it.</span>
 </li>
 </ol>
 <sc-if value="{{showFoundBtn}}" hint-placeholder-val="{{ true }}">
-<div><button type="button" onClick="{{foundCourses}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer">I've copied my courses</button></div>
+<div><button type="button" onClick="{{foundCourses}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer">Got it, add a course</button></div>
 </sc-if>
 </section>
 
 <sc-if value="{{showPaste}}" hint-placeholder-val="{{ false }}">
-<section class="nwcm-rise" style="background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
-<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
-<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; display: flex; align-items: center; gap: 14px"><span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: 'DM Mono', Menlo, monospace; font-size: 13px; display: inline-flex; align-items: center; justify-content: center">B</span><label for="paste">Paste your courses</label></h3>
+<section class="nwcm-rise" style="background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+<div style="display: flex; align-items: center; gap: 10px">
+<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; display: flex; align-items: center; gap: 14px"><span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: 'DM Mono', Menlo, monospace; font-size: 13px; display: inline-flex; align-items: center; justify-content: center">B</span>Add a course</h3>
 <button type="button" onClick="{{toggleInfo}}" aria-expanded="{{infoOpen}}" aria-label="What does the eligibility check look for?" style="width: 34px; height: 34px; border-radius: 9999px; border: 0; background: #D4E4F2; color: #011F5B; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0">
 <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
 </button>
 </div>
+<label style="display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: #4A5468">Term
+<select value="{{term}}" onChange="{{onTerm}}" style="font-size: 14px; color: #011F5B; border: 0; border-radius: 9999px; background: #F4F3EE; padding: 0 16px; min-height: 40px; cursor: pointer">
+<option value="Spring 2027">Spring 2027</option>
+<option value="Summer 2027">Summer 2027</option>
+<option value="Fall 2027">Fall 2027</option>
+</select>
+</label>
+</div>
+
 <sc-if value="{{infoOpen}}" hint-placeholder-val="{{ false }}">
 <div class="nwcm-rise" style="position: relative; overflow: hidden; background: #FBF3D9; border-radius: 20px; padding: 20px 22px; font-size: 14px; line-height: 1.55; display: flex; flex-direction: column; gap: 8px">
 <span aria-hidden="true" style="position: absolute; right: 0; top: 0; bottom: 0; width: 120px; background-image: radial-gradient(rgba(215,188,106,.6) 1.1px, transparent 1.4px); background-size: 12px 12px"></span>
 <span style="position: relative; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #990000">WHAT WE CHECK</span>
 <span style="position: relative">To count toward your MBA a course must be:</span>
 <span style="position: relative; display: flex; flex-wrap: wrap; gap: 8px">
+<span style="background: #FFFFFF; border-radius: 9999px; padding: 6px 14px">Outside Wharton</span>
 <span style="background: #FFFFFF; border-radius: 9999px; padding: 6px 14px">Numbered 5000 or above</span>
-<span style="background: #FFFFFF; border-radius: 9999px; padding: 6px 14px">In person or online at a set time</span>
+<span style="background: #FFFFFF; border-radius: 9999px; padding: 6px 14px">In class or online at a set time</span>
 </span>
-<span style="position: relative; color: #4A5468">Asynchronous online courses don't count. The MBA Program Office has the final word.</span>
+<span style="position: relative; color: #4A5468">Online classes with recorded lectures and no set meeting time (asynchronous) don't count. If an undergrad course is also offered at the 5000 level, we'll point you to that version. The MBA Program Office has the final word.</span>
 </div>
 </sc-if>
-<span style="font-size: 14px; color: #4A5468">Paste as many as you want. Leave a blank line between courses.</span>
-<textarea id="paste" rows="8" value="{{pasted}}" onChange="{{onPaste}}" style="resize: vertical; border: 0; border-radius: 18px; padding: 18px; font-size: 14px; line-height: 1.6; color: #011F5B; background: #F4F3EE"></textarea>
+
+<div role="tablist" aria-label="How to add" style="align-self: flex-start; display: flex; gap: 4px; padding: 4px; background: #F4F3EE; border-radius: 9999px">
+<button type="button" role="tab" aria-selected="{{modePaste}}" onClick="{{usePaste}}" style="border: 0; border-radius: 9999px; min-height: 40px; padding: 0 18px; font-size: 14px; font-weight: 500; cursor: pointer; background: {{pasteTabBg}}; color: {{pasteTabFg}}">Paste details</button>
+<button type="button" role="tab" aria-selected="{{modeShot}}" onClick="{{useShot}}" style="border: 0; border-radius: 9999px; min-height: 40px; padding: 0 18px; font-size: 14px; font-weight: 500; cursor: pointer; background: {{shotTabBg}}; color: {{shotTabFg}}">Upload screenshot</button>
+</div>
+
+<sc-if value="{{modePaste}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<label for="paste" style="font-size: 14px; color: #4A5468">Paste the course details panel. Messy is fine.</label>
+<textarea id="paste" rows="7" value="{{pasted}}" onChange="{{onPaste}}" placeholder="CLST 5324  Ceramics and Society&#10;Section 401, CRN …&#10;Instruction Method: …" style="resize: vertical; border: 0; border-radius: 18px; padding: 18px; font-size: 14px; line-height: 1.6; color: #011F5B; background: #F4F3EE"></textarea>
 <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
-<button type="button" onClick="{{check}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer">Check eligibility</button>
+<button type="button" onClick="{{addFromPaste}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer">Add course</button>
 <sc-if value="{{checking}}" hint-placeholder-val="{{ false }}">
 <span style="display: inline-flex; align-items: center; gap: 10px; color: #4A5468; font-size: 14px">
 <span class="nwcm-spin" style="width: 18px; height: 18px; border-radius: 9999px; border: 2px solid #EEEDEA; border-top-color: #990000; display: inline-block"></span>
-Checking your courses…
+{{checkingLabel}}
 </span>
 </sc-if>
 </div>
+</div>
+</sc-if>
+
+<sc-if value="{{modeShot}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<button type="button" onClick="{{addFromShot}}" style="position: relative; overflow: hidden; border: 2px dashed #B9C9DE; border-radius: 20px; background: #F7F9FC; min-height: 150px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #011F5B; font-size: 15px">
+<span aria-hidden="true" style="position: absolute; inset: 0; background-image: radial-gradient(rgba(14,86,150,.18) 1.1px, transparent 1.4px); background-size: 14px 14px"></span>
+<span style="position: relative; width: 48px; height: 48px; border-radius: 9999px; background: #D4E4F2; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#011F5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"></rect><circle cx="9" cy="11" r="2"></circle><path d="m21 17-5-5-8 8"></path></svg>
+</span>
+<span style="position: relative; font-weight: 500">Drop a screenshot of the details panel, or click to choose</span>
+<span style="position: relative; font-size: 13px; color: #4A5468">Prototype: adds a test course</span>
+</button>
+<sc-if value="{{checking}}" hint-placeholder-val="{{ false }}">
+<span style="display: inline-flex; align-items: center; gap: 10px; color: #4A5468; font-size: 14px">
+<span class="nwcm-spin" style="width: 18px; height: 18px; border-radius: 9999px; border: 2px solid #EEEDEA; border-top-color: #990000; display: inline-block"></span>
+{{checkingLabel}}
+</span>
+</sc-if>
+</div>
+</sc-if>
 </section>
 </sc-if>
 
 <sc-if value="{{showResults}}" hint-placeholder-val="{{ false }}">
 <section class="nwcm-rise" style="background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
 <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px">
-<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; display: flex; align-items: center; gap: 14px"><span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: 'DM Mono', Menlo, monospace; font-size: 13px; display: inline-flex; align-items: center; justify-content: center">C</span>Your results</h3>
+<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; display: flex; align-items: center; gap: 14px"><span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: 'DM Mono', Menlo, monospace; font-size: 13px; display: inline-flex; align-items: center; justify-content: center">C</span>Your courses</h3>
 <span style="display: flex; align-items: baseline; gap: 8px"><span style="font-family: Newsreader, Georgia, serif; font-size: 44px; line-height: 1; color: #990000">{{countYes}} of {{countAll}}</span><span style="font-size: 14px; color: #4A5468">{{eligTail}}</span></span>
 </div>
-<span style="font-size: 14px; color: #4A5468">Pick the ones you want to request permission for.</span>
+<span style="font-size: 14px; color: #4A5468">Check the ones you want to request permission for. Add more courses above anytime.</span>
 <div style="display: flex; flex-direction: column; gap: 10px">
-<sc-for list="{{rows}}" as="c" hint-placeholder-count="4">
-<label class="nwcm-rise" style="animation-delay: {{c.delay}}; display: flex; gap: 16px; align-items: center; border-radius: 18px; padding: 16px 20px; cursor: pointer; background: {{c.rowBg}}; opacity: {{c.dim}}">
-<input type="checkbox" checked="{{c.picked}}" disabled="{{c.disabled}}" onChange="{{c.toggle}}" style="width: 22px; height: 22px; flex: none; accent-color: #011F5B">
-<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
-<span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">{{c.code}}</span>
+<sc-for list="{{rows}}" as="c" hint-placeholder-count="3">
+<div class="nwcm-rise" style="display: flex; flex-direction: column; gap: 12px; border-radius: 18px; padding: 16px 20px; background: {{c.rowBg}}">
+<div style="display: flex; gap: 16px; align-items: center">
+<input type="checkbox" aria-label="{{c.pickLabel}}" checked="{{c.picked}}" disabled="{{c.disabled}}" onChange="{{c.toggle}}" style="width: 22px; height: 22px; flex: none; accent-color: #011F5B">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; opacity: {{c.dim}}">
+<span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">{{c.codeLine}}</span>
 <span style="font-size: 16px; font-weight: 500">{{c.title}}</span>
 <span style="font-size: 13px; color: #4A5468">{{c.reason}}</span>
 </span>
 <span style="flex: none; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; border-radius: 9999px; padding: 5px 12px; background: {{c.badgeBg}}; color: {{c.badgeFg}}">{{c.eligLabel}}</span>
-</label>
+<button type="button" onClick="{{c.remove}}" aria-label="{{c.removeLabel}}" style="width: 32px; height: 32px; flex: none; border: 0; border-radius: 9999px; background: transparent; color: #4A5468; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+</button>
+</div>
+<sc-if value="{{c.needsFormat}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-left: 38px">
+<span style="font-size: 13px; color: #011F5B">How does it meet?</span>
+<sc-for list="{{c.fmtOpts}}" as="f" hint-placeholder-count="3">
+<button type="button" onClick="{{f.pick}}" style="border: 0; border-radius: 9999px; background: #FFFFFF; color: #011F5B; font-size: 13px; font-weight: 500; padding: 0 14px; min-height: 36px; cursor: pointer">{{f.label}}</button>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{c.canSwitch}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-left: 38px">
+<button type="button" onClick="{{c.switchIt}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 13px; font-weight: 500; padding: 0 16px; min-height: 38px; cursor: pointer">{{c.switchLabel}}</button>
+<span style="font-size: 13px; color: #4A5468">Same class, same time and instructor.</span>
+</div>
+</sc-if>
+</div>
 </sc-for>
 </div>
 <div style="display: flex; justify-content: flex-end; padding-top: 6px">
@@ -244,8 +303,9 @@ Checking your courses…
 <sc-if value="{{c.open}}" hint-placeholder-val="{{ false }}">
 <div class="nwcm-rise" style="padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px">
 <div style="display: flex; flex-direction: column; gap: 6px">
-<label for="{{c.inputId}}" style="font-size: 14px; color: #4A5468">Who to email (from the course details on Path@Penn)</label>
-<input id="{{c.inputId}}" type="text" placeholder="department or instructor email" value="{{c.contact}}" onChange="{{c.onContact}}" style="font-size: 14px; padding: 0 18px; border: 0; border-radius: 9999px; min-height: 46px; box-sizing: border-box; background: #F4F3EE; color: #011F5B">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px"><label for="{{c.inputId}}" style="font-size: 14px; font-weight: 500; color: #011F5B">Who to email</label><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.05em; border-radius: 9999px; padding: 3px 10px; background: {{c.srcBg}}; color: {{c.srcFg}}">{{c.srcLabel}}</span></div>
+<input id="{{c.inputId}}" type="email" placeholder="name@upenn.edu" value="{{c.contact}}" onChange="{{c.onContact}}" style="font-size: 14px; padding: 0 18px; border: 0; border-radius: 9999px; min-height: 46px; box-sizing: border-box; background: #F4F3EE; color: #011F5B">
+<span style="font-size: 13px; line-height: 1.5; color: #4A5468">{{c.srcNote}}</span>
 </div>
 <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.65; background: #F4F3EE; border-radius: 20px; padding: 20px"><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">SUBJECT</span>  {{c.subject}}
 
@@ -339,46 +399,88 @@ this.state = {
 view: 'intro',
 step: 1,
 s1stage: 'find',
+addMode: 'paste',
 checking: false,
+checkingLabel: '',
 infoOpen: false,
 s1done: false,
+term: 'Spring 2027',
 name: '',
 year: 'first',
 openId: null,
 regSent: false,
-pasted: 'DSGN 5100-001  Product Design Studio\nSpring 2027 · In person · Weitzman School of Design\n\nLAW 6120-001  Technology Law and Policy\nSpring 2027 · In person · Penn Carey Law\n\nENGR 5900-401  Intro to Machine Learning\nSpring 2027 · Online asynchronous · Penn Engineering\n\nPSYC 4300-001  Behavioral Science Lab\nSpring 2027 · In person · Arts and Sciences',
+nextId: 1,
+shots: 0,
+pasted: 'CLST 3324  Ceramics and Society\nSection 401, CRN 39068\nSection Status: Active\nSchedule Type: Seminar\nInstruction Method: In Class\nCampus: Philadelphia\nCredit: 1\nScheduled With CLST 5324, section 401\nMaximum Enrollment: 10 / Seats Avail: 10',
 courses: []
 };
 }
-elig(code, format) {
-const m = String(code || '').match(/(\d{4})/);
-const lvl = m ? Number(m[1]) : null;
-const look = { yes: { bg: '#E2EFE4', fg: '#267434', row: '#F4F3EE' }, no: { bg: '#F5E1E1', fg: '#990000', row: '#FAF8F4' }, check: { bg: '#F6E7B4', fg: '#011F5B', row: '#FBF3D9' } };
+isWharton(dept) {
+return ['ACCT', 'BEPP', 'FNCE', 'HCMG', 'LGST', 'MGMT', 'MKTG', 'OIDD', 'REAL', 'STAT', 'WH', 'MGEC', 'BDS', 'WHCP'].indexOf(String(dept || '').toUpperCase()) >= 0;
+}
+fmt(raw) {
+const t = String(raw || '').toLowerCase();
+if (!t) return '';
+if (t.indexOf('asynch') >= 0 || t.indexOf('recorded') >= 0) return 'Online, recorded';
+if (t.indexOf('online') >= 0 || t.indexOf('synch') >= 0 || t.indexOf('remote') >= 0) return 'Online, live';
+if (t.indexOf('class') >= 0 || t.indexOf('person') >= 0 || t.indexOf('hybrid') >= 0) return 'In class';
+return '';
+}
+elig(c) {
+const lvl = Number(c.num) || 0;
+const look = {
+yes: { bg: '#E2EFE4', fg: '#267434', row: '#F4F3EE' },
+no: { bg: '#F5E1E1', fg: '#990000', row: '#FAF8F4' },
+cross: { bg: '#F6E7B4', fg: '#011F5B', row: '#FBF3D9' },
+needs: { bg: '#F6E7B4', fg: '#011F5B', row: '#FBF3D9' },
+wharton: { bg: '#D4E4F2', fg: '#011F5B', row: '#F2F6FA' }
+};
 let r;
-if (!lvl || !format) r = { key: 'check', label: 'CHECK THIS', reason: 'Confirm the course number and format on Path@Penn.' };
+if (this.isWharton(c.dept)) r = { key: 'wharton', label: 'WHARTON COURSE', reason: 'This is a Wharton course. Sign up through regular MBA course selection instead.' };
+else if (lvl < 5000 && c.crossNum >= 5000 && !this.isWharton(c.crossDept)) r = { key: 'cross', label: 'TAKE AS ' + c.crossDept + ' ' + c.crossNum, reason: 'This undergrad course is also offered as ' + c.crossDept + ' ' + c.crossNum + ', which counts.' };
 else if (lvl < 5000) r = { key: 'no', label: "DOESN'T COUNT", reason: 'Only graduate-level courses (5000 and above) count.' };
-else if (format === 'Online asynchronous') r = { key: 'no', label: "DOESN'T COUNT", reason: "Asynchronous online courses don't count." };
-else r = { key: 'yes', label: '✓ COUNTS', reason: format === 'Online synchronous' ? 'Graduate level, online at a set time.' : 'Graduate level, in person.' };
+else if (c.format === 'Online, recorded') r = { key: 'no', label: "DOESN'T COUNT", reason: "Online courses with no set meeting time (asynchronous) don't count." };
+else if (!c.format) r = { key: 'needs', label: 'ADD FORMAT', reason: "We couldn't find how this class meets." };
+else r = { key: 'yes', label: '✓ COUNTS', reason: c.format === 'Online, live' ? 'Graduate level, online at a set time.' : 'Graduate level, meets in class.' };
 return Object.assign(r, look[r.key]);
 }
-parse(text) {
-const blocks = String(text || '').split(/\n\s*\n/);
-const out = [];
-blocks.forEach((b, i) => {
-const m = b.match(/([A-Z]{2,5})\s*(\d{4})(?:\s*-\s*(\d{3}))?/);
-if (!m) return;
-const code = m[1] + ' ' + m[2] + (m[3] ? '-' + m[3] : '');
-const first = b.split('\n')[0];
-const at = first.indexOf(m[0]);
-const title = (at >= 0 ? first.slice(at + m[0].length) : '').replace(/^[\s·:–-]+/, '').trim() || 'Untitled course';
-const low = b.toLowerCase();
-const format = low.indexOf('asynchronous') >= 0 ? 'Online asynchronous' : low.indexOf('synchronous') >= 0 ? 'Online synchronous' : (low.indexOf('in person') >= 0 || low.indexOf('in-person') >= 0) ? 'In person' : '';
-const sem = (b.match(/(Spring|Fall|Summer)\s+\d{4}/) || [''])[0];
-const contact = (b.match(/[\w.+-]+@[\w.-]+\.\w+/) || [''])[0];
-const e = this.elig(code, format);
-out.push({ id: 'k' + i, code, title, format, sem, contact, picked: e.key === 'yes', perm: 'not' });
-});
-return out;
+parseOne(text) {
+const t = String(text || '');
+const m = t.match(/\b([A-Z]{2,5})\s*(\d{4})\b/);
+if (!m) return null;
+const lines = t.split('\n').map(x => x.trim()).filter(Boolean);
+const li = lines.findIndex(x => x.indexOf(m[0]) >= 0);
+let title = li >= 0 ? lines[li].slice(lines[li].indexOf(m[0]) + m[0].length).replace(/^[\s·:–-]+/, '').trim() : '';
+if (!title && li >= 0 && lines[li + 1] && !/^section/i.test(lines[li + 1])) title = lines[li + 1];
+const sec = (t.match(/Section\s+(\d{3})/i) || [])[1] || '';
+const im = (t.match(/Instruction Method:\s*([^\n]+)/i) || [])[1] || '';
+const sw = t.match(/Scheduled With\s+([A-Z]{2,5})\s*(\d{4}),?\s*section\s*(\d{3})/i);
+const contact = (t.match(/[\w.+-]+@[\w.-]+\.\w+/) || [''])[0];
+return {
+dept: m[1], num: Number(m[2]), section: sec, title: title || 'Untitled course',
+format: this.fmt(im), contact, instructor: ((t.match(/Instructors?:\s*([^\n]+)/i) || [])[1] || '').trim(),
+crossDept: sw ? sw[1].toUpperCase() : '', crossNum: sw ? Number(sw[2]) : 0, crossSection: sw ? sw[3] : ''
+};
+}
+contactFor(c) {
+if (c.contact) return { email: c.contact, src: 'details', deptName: '' };
+const dir = { CLST: 'Classical Studies', HSSC: 'History and Sociology of Science', PHIL: 'Philosophy', TEST: 'Test' };
+const name = dir[c.dept];
+if (name) return { email: c.dept.toLowerCase() + '-coordinator@example.com', src: 'dept', deptName: name };
+return { email: '', src: 'none', deptName: '' };
+}
+addCourse(c) {
+const id = 'k' + this.state.nextId;
+const full = Object.assign({ id, perm: 'not' }, c);
+full.picked = this.elig(full).key === 'yes';
+const ct = this.contactFor(full);
+full.contact = ct.email; full.contactSrc = ct.src; full.deptName = ct.deptName;
+this.setState({ courses: this.state.courses.concat([full]), nextId: this.state.nextId + 1, s1stage: 'results', checking: false });
+}
+runCheck(label, fn) {
+this.setState({ checking: true, checkingLabel: label });
+if (this.timer) clearTimeout(this.timer);
+this.timer = setTimeout(fn, 900);
 }
 patch(id, p) {
 this.setState({ courses: this.state.courses.map(c => c.id === id ? Object.assign({}, c, p) : c) });
@@ -389,17 +491,28 @@ const s = this.state;
 const enc = encodeURIComponent;
 const who = s.name.trim() || '[Your name]';
 const yr = s.year === 'first' ? 'first' : 'second';
-const withElig = s.courses.map(c => Object.assign({}, c, { e: this.elig(c.code, c.format) }));
+const label = c => c.dept + ' ' + c.num + (c.section ? '-' + c.section : '');
+const withElig = s.courses.map(c => Object.assign({}, c, { e: this.elig(c) }));
 const picked = withElig.filter(c => c.picked && c.e.key === 'yes');
 const approved = picked.filter(c => c.perm === 'approved');
 const countYes = withElig.filter(c => c.e.key === 'yes').length;
 
-const rows = withElig.map((c, i) => ({
-code: c.code, title: c.title, reason: c.e.reason, eligLabel: c.e.label, badgeBg: c.e.bg, badgeFg: c.e.fg, rowBg: c.e.row,
-picked: c.picked && c.e.key === 'yes', disabled: c.e.key !== 'yes', dim: c.e.key === 'yes' ? 1 : 0.8,
-delay: (i * 0.12) + 's',
-toggle: () => this.patch(c.id, { picked: !c.picked })
-}));
+const rows = withElig.map(c => {
+const k = c.e.key;
+return {
+codeLine: label(c) + (c.format ? ' · ' + c.format.toUpperCase() : ''),
+title: c.title, reason: c.e.reason, eligLabel: c.e.label, badgeBg: c.e.bg, badgeFg: c.e.fg, rowBg: c.e.row,
+picked: c.picked && k === 'yes', disabled: k !== 'yes', dim: k === 'yes' || k === 'needs' || k === 'cross' ? 1 : 0.75,
+pickLabel: 'Request permission for ' + label(c), removeLabel: 'Remove ' + label(c),
+toggle: () => this.patch(c.id, { picked: !c.picked }),
+remove: () => this.setState({ courses: this.state.courses.filter(x => x.id !== c.id) }),
+needsFormat: k === 'needs',
+fmtOpts: ['In class', 'Online, live', 'Online, recorded'].map(f => ({ label: f, pick: () => this.patch(c.id, { format: f, picked: f !== 'Online, recorded' }) })),
+canSwitch: k === 'cross',
+switchLabel: 'Switch to ' + c.crossDept + ' ' + c.crossNum + (c.crossSection ? '-' + c.crossSection : ''),
+switchIt: () => this.patch(c.id, { dept: c.crossDept, num: c.crossNum, section: c.crossSection || c.section, crossDept: c.dept, crossNum: c.num, crossSection: c.section, picked: true })
+};
+});
 
 const statusLook = {
 not: { label: 'NOT SENT', bg: '#EEEDEA', fg: '#4A5468' },
@@ -409,18 +522,23 @@ declined: { label: 'DECLINED', bg: '#F5E1E1', fg: '#990000' }
 };
 const optLabel = { not: 'Not sent', waiting: 'Waiting', approved: 'Approved', declined: 'Declined' };
 const permCards = picked.map((c, i) => {
-const subject = 'Permission to enroll in ' + c.code;
-const body = 'Hi,\n\nMy name is ' + who + " and I'm a " + yr + '-year MBA student at Wharton. I came across ' + c.code + ' ' + c.title + " and I'm interested in taking it" + (c.sem ? ' for ' + c.sem : '') + ". I wanted to check if I'm eligible to enroll and if there's anything I need to do to get permission. If there's someone else I should contact please let me know.\n\nThank you,\n" + who;
+const code = label(c);
+const subject = 'Permission to enroll in ' + code;
+const body = 'Hi,\n\nMy name is ' + who + " and I'm a " + yr + '-year MBA student at Wharton. I came across ' + code + ' ' + c.title + " and I'm interested in taking it for " + s.term + ". I wanted to check if I'm eligible to enroll and if there's anything I need to do to get permission. If there's someone else I should contact please let me know.\n\nThank you,\n" + who;
 const open = s.openId === c.id;
 const look = statusLook[c.perm];
 return {
-n: String(i + 1), code: c.code, title: c.title, contact: c.contact, inputId: 'contact-' + c.id,
+n: String(i + 1), code, title: c.title, contact: c.contact, inputId: 'contact-' + c.id,
+srcLabel: ({ details: 'FOUND IN COURSE DETAILS', dept: 'AUTO-FILLED · SAMPLE', none: 'NOT FOUND', you: 'EDITED BY YOU' })[c.contactSrc || 'none'],
+srcBg: ({ details: '#E2EFE4', dept: '#F6E7B4', none: '#F5E1E1', you: '#D4E4F2' })[c.contactSrc || 'none'],
+srcFg: ({ details: '#267434', dept: '#011F5B', none: '#990000', you: '#011F5B' })[c.contactSrc || 'none'],
+srcNote: ({ details: 'Taken from the course details you added.', dept: (c.deptName || c.dept) + " department contact from our directory. Check it's right before you send.", none: "We couldn't find a contact. Add the instructor's or department's email from the Penn Directory or the department website.", you: 'Using the email you entered.' })[c.contactSrc || 'none'] + (c.instructor ? ' Instructor: ' + c.instructor + '.' : ''),
 subject, body, open, rot: open ? '180deg' : '0deg',
 shadow: open ? '0 1px 2px #011F5B0F, 0 12px 32px #011F5B1F' : '0 1px 2px #011F5B0F, 0 4px 12px #011F5B0D',
 statusLabel: look.label, chipBg: look.bg, chipFg: look.fg,
 href: 'mailto:' + c.contact + '?subject=' + enc(subject) + '&body=' + enc(body),
 markWaiting: () => { if (c.perm === 'not') this.patch(c.id, { perm: 'waiting' }); },
-onContact: ev => this.patch(c.id, { contact: ev.target.value }),
+onContact: ev => this.patch(c.id, { contact: ev.target.value, contactSrc: 'you' }),
 toggle: () => this.setState({ openId: open ? null : c.id }),
 opts: ['not', 'waiting', 'approved', 'declined'].map(k => {
 const on = c.perm === k;
@@ -429,9 +547,9 @@ return { label: optLabel[k], on, bg: on ? statusLook[k].bg : 'transparent', fg: 
 };
 });
 
-const regSubject = 'Non-Wharton course registration – ' + (approved.map(c => c.code).join(', ') || '[course and section]');
-const list = approved.map(c => '- ' + c.code + ', ' + c.title + (c.sem ? ' (' + c.sem + ')' : '')).join('\n');
-const regBody = 'Hi,\n\nMy name is ' + who + " and I'm a " + yr + "-year MBA student. I'd like to take the following non-Wharton " + (approved.length > 1 ? 'courses' : 'course') + " and I've received permission from the department" + (approved.length > 1 ? 's' : '') + ':\n\n' + list + "\n\nPlease let me know if there's anything else I need to do to register.\n\nThank you,\n" + who;
+const regSubject = 'Non-Wharton course registration – ' + (approved.map(label).join(', ') || '[course and section]');
+const list = approved.map(c => '- ' + label(c) + ', ' + c.title).join('\n');
+const regBody = 'Hi,\n\nMy name is ' + who + " and I'm a " + yr + "-year MBA student. I'd like to take the following non-Wharton " + (approved.length > 1 ? 'courses' : 'course') + ' for ' + s.term + " and I've received permission from the department" + (approved.length > 1 ? 's' : '') + ':\n\n' + list + "\n\nPlease let me know if there's anything else I need to do to register.\n\nThank you,\n" + who;
 
 const unlocked = { 1: true, 2: s.s1done && picked.length > 0, 3: s.s1done && approved.length > 0 };
 const done = { 1: s.s1done && picked.length > 0, 2: approved.length > 0 && picked.every(c => c.perm === 'approved' || c.perm === 'declined'), 3: s.regSent };
@@ -459,6 +577,7 @@ go: () => { if (!locked) this.setState({ step: n }); }
 });
 
 const stage = s.s1stage;
+const modePaste = s.addMode === 'paste';
 return {
 isIntro: s.view === 'intro', isFlow: s.view === 'flow',
 start: () => this.setState({ view: 'flow', step: 1 }),
@@ -469,14 +588,26 @@ showFoundBtn: stage === 'find',
 foundCourses: () => this.setState({ s1stage: 'paste' }),
 showPaste: stage !== 'find',
 infoOpen: s.infoOpen, toggleInfo: () => this.setState({ infoOpen: !this.state.infoOpen }),
+term: s.term, onTerm: ev => this.setState({ term: ev.target.value }),
+modePaste, modeShot: !modePaste,
+usePaste: () => this.setState({ addMode: 'paste' }), useShot: () => this.setState({ addMode: 'shot' }),
+pasteTabBg: modePaste ? '#011F5B' : 'transparent', pasteTabFg: modePaste ? '#FFFFFF' : '#4A5468',
+shotTabBg: !modePaste ? '#011F5B' : 'transparent', shotTabFg: !modePaste ? '#FFFFFF' : '#4A5468',
 pasted: s.pasted, onPaste: ev => this.setState({ pasted: ev.target.value }),
-checking: s.checking,
-check: () => {
-this.setState({ checking: true, s1stage: 'paste' });
-if (this.timer) clearTimeout(this.timer);
-this.timer = setTimeout(() => this.setState({ checking: false, s1stage: 'results', courses: this.parse(this.state.pasted) }), 900);
+checking: s.checking, checkingLabel: s.checkingLabel,
+addFromPaste: () => {
+const c = this.parseOne(this.state.pasted);
+if (!c) { this.setState({ checking: false }); return; }
+this.runCheck('Reading the course details…', () => { this.addCourse(c); this.setState({ pasted: '' }); });
 },
-showResults: stage === 'results' && !s.checking,
+addFromShot: () => {
+const n = this.state.shots;
+const sample = n % 2 === 0
+? { dept: 'TEST', num: 5100, section: '001', title: 'Sample Seminar (from screenshot)', format: '', contact: '', crossDept: '', crossNum: 0, crossSection: '' }
+: { dept: 'TEST', num: 6200, section: '002', title: 'Sample Studio (from screenshot)', format: 'Online, live', contact: '', crossDept: '', crossNum: 0, crossSection: '' };
+this.runCheck('Reading your screenshot…', () => { this.addCourse(sample); this.setState({ shots: n + 1 }); });
+},
+showResults: s.courses.length > 0,
 countYes, countAll: s.courses.length,
 eligTail: (s.courses.length === 1 ? 'course counts' : 'courses count') + ' toward your MBA',
 rows,
@@ -495,7 +626,7 @@ toStep3: () => { if (unlocked[3]) this.setState({ step: 3 }); },
 showReg: approved.length > 0 && !s.regSent,
 isDone: s.regSent,
 approvedCount: String(approved.length),
-approved: approved.map(c => ({ code: c.code, title: c.title })),
+approved: approved.map(c => ({ code: label(c), title: c.title })),
 regSubject, regBody,
 regHref: 'mailto:mbaprogram@wharton.upenn.edu?subject=' + enc(regSubject) + '&body=' + enc(regBody),
 markSent: () => this.setState({ regSent: true })
