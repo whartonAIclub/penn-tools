@@ -4,11 +4,18 @@
 // stepper on the left and the current step on the right.
 
 import { useState } from "react";
-import { EMPTY_PROGRESS, STEP_TITLES, stepStatuses, upcomingTerms } from "@penntools/tool-non-wharton-course-manager";
+import {
+  EMPTY_PROGRESS,
+  STEP_TITLES,
+  pickedCourses,
+  stepStatuses,
+  upcomingTerms,
+} from "@penntools/tool-non-wharton-course-manager";
 import type { Course, Progress, StepNumber } from "@penntools/tool-non-wharton-course-manager";
 import { mono, sans, serif } from "./fonts";
 import { Overview } from "./Overview";
 import { Step1 } from "./Step1";
+import { Step2 } from "./Step2";
 import { Stepper } from "./Stepper";
 import { LockIcon } from "./icons";
 import styles from "./CourseManager.module.css";
@@ -31,6 +38,10 @@ export function CourseManager() {
 
   function setCourses(update: (courses: Course[]) => Course[]) {
     setProgress((p) => ({ ...p, courses: update(p.courses) }));
+  }
+
+  function updateCourse(course: Course) {
+    setCourses((cs) => cs.map((c) => (c.id === course.id ? course : c)));
   }
 
   function finishStep1() {
@@ -80,12 +91,23 @@ export function CourseManager() {
                 terms={terms}
                 onTermChange={(term) => setProgress((p) => ({ ...p, term }))}
                 onAdd={(course) => setCourses((cs) => [...cs, course])}
-                onUpdate={(course) => setCourses((cs) => cs.map((c) => (c.id === course.id ? course : c)))}
+                onUpdate={updateCourse}
                 onRemove={(id) => setCourses((cs) => cs.filter((c) => c.id !== id))}
                 onContinue={finishStep1}
               />
+            ) : step === 2 ? (
+              <Step2
+                courses={pickedCourses(progress.courses)}
+                sender={{ name: progress.name, year: progress.year, term: progress.term }}
+                onNameChange={(name) => setProgress((p) => ({ ...p, name }))}
+                onYearChange={(year) => setProgress((p) => ({ ...p, year }))}
+                onUpdate={updateCourse}
+                canContinue={statuses[2]?.unlocked ?? false}
+                onBack={() => setStep(1)}
+                onContinue={() => setStep(3)}
+              />
             ) : (
-              // Steps 2 and 3 arrive in their own build steps.
+              // Step 3 arrives in its own build step.
               <section className={styles.card}>
                 <p className={styles.muted}>This step is coming soon.</p>
               </section>

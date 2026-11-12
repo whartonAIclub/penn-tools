@@ -717,7 +717,226 @@
   padding: 12px 16px;
 }
 
+/* ---- Step 2: Request permission ---- */
+
+.fieldLabel { font-size: 14px; font-weight: 500; color: var(--blue); }
+
+.pillInput {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 9999px;
+  min-height: 48px;
+  background: var(--card);
+  color: var(--blue);
+  width: 100%;
+}
+.pillInput:focus { outline: 2px solid var(--link); outline-offset: 1px; }
+.pillInput::placeholder { color: #8a92a3; }
+.softInput { background: var(--soft); font-size: 14px; min-height: 46px; }
+
+.secondaryButton {
+  border-radius: 9999px;
+  background: var(--blue-light);
+  color: var(--blue);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 22px;
+  min-height: 48px;
+}
+
+.navRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* The gold name-and-year card, with gold dots down its right side. */
+.senderCard {
+  composes: callout;
+  border-radius: 24px;
+  padding: 28px;
+  gap: 16px;
+}
+
+.senderIntro { display: flex; align-items: flex-start; gap: 12px; color: var(--blue); }
+.senderIntro strong { font-weight: 500; }
+
+.senderIcon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--card);
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.senderFields { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.nameField { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Two- or four-way pill toggles (year, permission status). */
+.toggle {
+  flex: 1 1 240px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--card);
+  border-radius: 9999px;
+}
+
+.toggleOption {
+  flex: 1;
+  border-radius: 9999px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.toggleOption[aria-pressed="true"] { background: var(--blue); color: #fff; }
+
+.permissionList { display: flex; flex-direction: column; gap: 12px; }
+
+/* One course's card, colored by where its request stands. */
+.permissionCard {
+  --status-bg: var(--panel);
+  --status-fg: var(--muted);
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: 0 1px 2px #011f5b0f, 0 4px 12px #011f5b0d;
+  overflow: hidden;
+}
+.permissionCard[data-open="true"] { box-shadow: 0 1px 2px #011f5b0f, 0 12px 32px #011f5b1f; }
+.permissionCard[data-status="waiting"] { --status-bg: var(--gold); --status-fg: var(--blue); }
+.permissionCard[data-status="approved"] { --status-bg: #e2efe4; --status-fg: #267434; }
+.permissionCard[data-status="declined"] { --status-bg: #f5e1e1; --status-fg: var(--red); }
+
+.cardHead {
+  width: 100%;
+  text-align: left;
+  padding: 20px 24px;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--blue);
+}
+
+.cardNumber {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--status-bg);
+  color: var(--status-fg);
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.statusPill {
+  composes: label;
+  flex: none;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  background: var(--status-bg);
+  color: var(--status-fg);
+}
+
+.chevron {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+.permissionCard[data-open="true"] .chevron { transform: rotate(180deg); }
+
+.cardBody { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.contactField { display: flex; flex-direction: column; gap: 6px; }
+
+.sourcePill {
+  composes: label;
+  font-size: 11px;
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+.sourcePill[data-source="details"] { background: #e2efe4; color: #267434; }
+.sourcePill[data-source="directory"] { background: var(--gold); color: var(--blue); }
+.sourcePill[data-source="none"] { background: #f5e1e1; color: var(--red); }
+.sourcePill[data-source="you"] { background: var(--blue-light); color: var(--blue); }
+
+.emailPreview {
+  background: var(--soft);
+  border-radius: 20px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.65;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 14px;
+  align-items: baseline;
+}
+.emailSubject { font-weight: 500; }
+.emailBody { grid-column: 1 / -1; white-space: pre-wrap; }
+
+.mailButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  border-radius: 9999px;
+  background: var(--blue);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 22px;
+  min-height: 46px;
+}
+.root .mailButton,
+.root .mailButton:hover { color: #fff; }
+.mailButton:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+.statusToggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--soft);
+  border-radius: 9999px;
+}
+
+.statusOption {
+  border-radius: 9999px;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.statusOption[aria-pressed="true"][data-status="not-sent"] { background: var(--panel); color: var(--muted); }
+.statusOption[aria-pressed="true"][data-status="waiting"] { background: var(--gold); color: var(--blue); }
+.statusOption[aria-pressed="true"][data-status="approved"] { background: #e2efe4; color: #267434; }
+.statusOption[aria-pressed="true"][data-status="declined"] { background: #f5e1e1; color: var(--red); }
+
 @media (max-width: 600px) {
+  .cardHead { padding: 16px; gap: 12px; flex-wrap: wrap; }
+  .cardHead .resultText { flex-basis: calc(100% - 112px); }
+  .cardHead .statusPill { margin-left: 56px; }
+  .cardBody { padding: 0 16px 20px; }
+  .senderCard { padding: 22px; }
   .resultRow { padding: 14px 16px; }
   .resultMain { flex-wrap: wrap; }
   .resultText { flex-basis: calc(100% - 80px); }

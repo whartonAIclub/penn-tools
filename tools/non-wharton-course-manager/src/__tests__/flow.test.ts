@@ -12,6 +12,8 @@ function course(overrides: Partial<Course>): Course {
     format: "In class",
     instructor: "",
     email: "",
+    contact: "",
+    contactSource: "none",
     crossListing: null,
     picked: true,
     permission: "not-sent",

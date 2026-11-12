@@ -127,7 +127,7 @@ Saved only in this browser
 </li>
 <li style="background: #F4F3EE; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; color: #4A5468">
 <span style="font-family: Newsreader, Georgia, serif; font-size: 26px; line-height: 1; color: #990000">03</span>
-<span>Copy that panel from the <strong style="color: #011F5B; font-weight: 500">course code down to Seats Avail</strong>, or take a screenshot of it.</span>
+<span>Copy that panel from the <strong style="color: #011F5B; font-weight: 500">course code down through Registration Restrictions</strong>, or take a screenshot of it.</span>
 </li>
 </ol>
 <sc-if value="{{showFoundBtn}}" hint-placeholder-val="{{ true }}">
@@ -306,6 +306,10 @@ Saved only in this browser
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px"><label for="{{c.inputId}}" style="font-size: 14px; font-weight: 500; color: #011F5B">Who to email</label><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.05em; border-radius: 9999px; padding: 3px 10px; background: {{c.srcBg}}; color: {{c.srcFg}}">{{c.srcLabel}}</span></div>
 <input id="{{c.inputId}}" type="email" placeholder="name@upenn.edu" value="{{c.contact}}" onChange="{{c.onContact}}" style="font-size: 14px; padding: 0 18px; border: 0; border-radius: 9999px; min-height: 46px; box-sizing: border-box; background: #F4F3EE; color: #011F5B">
 <span style="font-size: 13px; line-height: 1.5; color: #4A5468">{{c.srcNote}}</span>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<sc-if value="{{c.hasWho}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; background: #FBF3D9; color: #011F5B; border-radius: 9999px; padding: 8px 14px">{{c.whoLine}}</span></sc-if>
+<sc-if value="{{c.showFind}}" hint-placeholder-val="{{ true }}"><a href="{{c.findHref}}" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; border-radius: 9999px; background: #D4E4F2; color: #011F5B; font-size: 14px; font-weight: 500; padding: 0 18px; min-height: 40px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>{{c.findLabel}}</a></sc-if>
+</div>
 </div>
 <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.65; background: #F4F3EE; border-radius: 20px; padding: 20px"><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">SUBJECT</span>  {{c.subject}}
 
@@ -458,7 +462,7 @@ const sw = t.match(/Scheduled With\s+([A-Z]{2,5})\s*(\d{4}),?\s*section\s*(\d{3}
 const contact = (t.match(/[\w.+-]+@[\w.-]+\.\w+/) || [''])[0];
 return {
 dept: m[1], num: Number(m[2]), section: sec, title: title || 'Untitled course',
-format: this.fmt(im), contact, instructor: ((t.match(/Instructors?:\s*([^\n]+)/i) || [])[1] || '').trim(),
+format: this.fmt(im), contact, instructor: ((t.match(/Instructors?:\s*([^\n]+)/i) || [])[1] || '').trim(), permFrom: ((t.match(/permission[^\n]*?(instructor|department)/i) || [])[1] || '').toLowerCase(),
 crossDept: sw ? sw[1].toUpperCase() : '', crossNum: sw ? Number(sw[2]) : 0, crossSection: sw ? sw[3] : ''
 };
 }
@@ -529,6 +533,10 @@ const open = s.openId === c.id;
 const look = statusLook[c.perm];
 return {
 n: String(i + 1), code, title: c.title, contact: c.contact, inputId: 'contact-' + c.id,
+hasWho: !!c.permFrom, whoLine: c.permFrom ? 'Path@Penn says permission comes from the ' + c.permFrom + '.' : '',
+showFind: c.contactSrc !== 'details',
+findLabel: c.instructor ? 'Find ' + c.instructor + "'s email" : 'Find the department contact',
+findHref: 'https://www.google.com/search?q=' + enc(c.instructor ? '"' + c.instructor + '" ' + (c.deptName || c.dept) + ' site:upenn.edu' : (c.deptName || c.dept) + ' department graduate coordinator site:upenn.edu'),
 srcLabel: ({ details: 'FOUND IN COURSE DETAILS', dept: 'AUTO-FILLED · SAMPLE', none: 'NOT FOUND', you: 'EDITED BY YOU' })[c.contactSrc || 'none'],
 srcBg: ({ details: '#E2EFE4', dept: '#F6E7B4', none: '#F5E1E1', you: '#D4E4F2' })[c.contactSrc || 'none'],
 srcFg: ({ details: '#267434', dept: '#011F5B', none: '#990000', you: '#011F5B' })[c.contactSrc || 'none'],
@@ -603,7 +611,7 @@ this.runCheck('Reading the course details…', () => { this.addCourse(c); this.s
 addFromShot: () => {
 const n = this.state.shots;
 const sample = n % 2 === 0
-? { dept: 'TEST', num: 5100, section: '001', title: 'Sample Seminar (from screenshot)', format: '', contact: '', crossDept: '', crossNum: 0, crossSection: '' }
+? { dept: 'TEST', num: 5100, section: '001', title: 'Sample Seminar (from screenshot)', format: '', contact: '', crossDept: '', crossNum: 0, crossSection: '', instructor: 'A. Sample', permFrom: 'instructor' }
 : { dept: 'TEST', num: 6200, section: '002', title: 'Sample Studio (from screenshot)', format: 'Online, live', contact: '', crossDept: '', crossNum: 0, crossSection: '' };
 this.runCheck('Reading your screenshot…', () => { this.addCourse(sample); this.setState({ shots: n + 1 }); });
 },

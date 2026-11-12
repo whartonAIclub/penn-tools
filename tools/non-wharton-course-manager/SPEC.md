@@ -180,6 +180,12 @@ Checked in this order. Eligibility is fixed logic, never an AI judgment.
 - Copy email button for people without a desktop email app
 - Overview animations
 
+## Backlog
+
+Running list of changes found while testing. Build these when the current step is done.
+
+- [ ] **Step 1, duplicate courses:** if a student adds a course that's already in the list (same course number and section, or the same course after switching to its graduate version), don't add it again. Show a short message under the paste box: "[COURSE-SECTION] is already in your list." Clear the paste box either way.
+
 ## Out of scope
 
 - Searching courses inside the tool, sign-in, sending email from the app, reading replies, looking up instructor emails, deadlines and reminders
@@ -211,6 +217,7 @@ Paste each one separately and click Add course.
 | `PHIL 1800 Philosophy of Science` | DOESN'T COUNT (below 5000) |
 | `TEST 5999 Async Example` plus a line `Instruction Method: Online Asynchronous` | DOESN'T COUNT (asynchronous) |
 | Text with no course code | Nothing is added, and a short message asks for the course code |
+| The same course added twice (e.g. CLST 5324-401, then again) | Not added a second time; a message says "CLST 5324-401 is already in your list." |
 | The real CHIN 0233 panel below (title under the section line) | CHIN 0233-680 · IN CLASS, title "Beginning Taiwanese II", TAKE AS CHIN 5233; after switching: CHIN 5233-680, ✓ COUNTS |
 | `CHIN 0233 Beginning Taiwanese II` | CHIN 0233 (keeps all 4 digits), title "Beginning Taiwanese II", DOESN'T COUNT (below 5000) |
 | `CLST 3324 Ceramics and Society` (no "Scheduled With" line) | Title "Ceramics and Society", DOESN'T COUNT (below 5000) |

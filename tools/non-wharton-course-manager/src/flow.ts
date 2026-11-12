@@ -10,6 +10,12 @@ export type Format = "In class" | "Online, live" | "Online, recorded";
 
 export const FORMATS: readonly Format[] = ["In class", "Online, live", "Online, recorded"];
 
+/**
+ * Where the "Who to email" address came from: the pasted course details, the
+ * department contact list (not built yet, P1), nowhere, or the student typed it.
+ */
+export type ContactSource = "details" | "directory" | "none" | "you";
+
 /** Where a permission request to the department stands. */
 export type PermissionStatus = "not-sent" | "waiting" | "approved" | "declined";
 
@@ -37,6 +43,9 @@ export interface Course {
   instructor: string;
   /** An email address found in the pasted text, or "". */
   email: string;
+  /** Who to email for permission. Starts as `email`; the student can edit it. */
+  contact: string;
+  contactSource: ContactSource;
   crossListing: CrossListing | null;
   /** Chosen to request permission for. Only courses that count can be picked. */
   picked: boolean;
@@ -48,11 +57,16 @@ export interface Progress {
   courses: Course[];
   /** e.g. "Spring 2027", used in all emails. */
   term: string;
+  /** The student's name and year, used in all emails. */
+  name: string;
+  year: Year;
   /** Pressed "Continue to permission" in Step 1. */
   step1Done: boolean;
   /** Pressed "I sent it" in Step 3. */
   registrationSent: boolean;
 }
+
+export type Year = "first" | "second";
 
 export interface StepStatus {
   step: StepNumber;
@@ -69,7 +83,14 @@ export const STEP_TITLES: Record<StepNumber, string> = {
   3: "Register with the MBA Program",
 };
 
-export const EMPTY_PROGRESS: Progress = { courses: [], term: "", step1Done: false, registrationSent: false };
+export const EMPTY_PROGRESS: Progress = {
+  courses: [],
+  term: "",
+  name: "",
+  year: "first",
+  step1Done: false,
+  registrationSent: false,
+};
 
 /** "CLST 5324-401", or "CLST 5324" without a section. */
 export function courseCode(course: { dept: string; number: string; section: string }): string {
