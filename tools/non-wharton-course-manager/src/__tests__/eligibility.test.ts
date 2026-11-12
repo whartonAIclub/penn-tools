@@ -56,7 +56,7 @@ describe("SPEC.md test cases for Step 1", () => {
     const recorded = withFormat(course, "Online, recorded");
     expect(checkEligibility(recorded)).toMatchObject({
       label: "DOESN'T COUNT",
-      reason: "Online courses with no set meeting time (asynchronous) don't count.",
+      reason: "Asynchronous online courses don't count toward your 19 credits. You can still take it with your 20th or 21st credit.",
     });
     expect(recorded.picked).toBe(false);
   });
@@ -68,7 +68,7 @@ describe("SPEC.md test cases for Step 1", () => {
   it("PHIL 1800: DOESN'T COUNT, below 5000", () => {
     expect(checkEligibility(add("PHIL 1800 Philosophy of Science"))).toMatchObject({
       label: "DOESN'T COUNT",
-      reason: "Only graduate-level courses (5000 and above) count.",
+      reason: "Only courses numbered 5000+ count toward your 19 credits. You can still take it with your 20th or 21st credit.",
     });
   });
 

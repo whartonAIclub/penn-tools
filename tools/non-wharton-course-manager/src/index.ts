@@ -37,3 +37,4 @@ export { DEPARTMENT_NAMES, departmentName } from "./departments.js";
 export { SAVE_KEY, readSaved, saveText } from "./saved.js";
 export type { SavedState } from "./saved.js";
 export type { Email, Sender } from "./emails.js";
+export { KEY_DATES, advanceRegistrationLine } from "./keyDates.js";

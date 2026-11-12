@@ -148,8 +148,9 @@ export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props)
               </span>
               <span className={styles.mutedText}>
                 Online classes with recorded lectures and no set meeting time (asynchronous) don&apos;t count. If an
-                undergrad course is also offered at the 5000 level, we&apos;ll point you to that version. The MBA
-                Program Office has the final word.
+                undergrad course is also offered at the 5000 level, we&apos;ll point you to that version. Courses that
+                don&apos;t count can still be taken with your 20th or 21st credit. Pass/fail is limited to 1 credit per
+                semester, including non-Wharton courses. The MBA Program Office has the final word.
               </span>
               <span>
                 <strong>Even if a course counts, you still need the department&apos;s permission to enroll.</strong>

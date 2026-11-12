@@ -4,9 +4,9 @@
 
 import type { Course } from "./flow.js";
 
-/** Wharton departments. To verify against the MBA course list before launch (SPEC.md). */
+/** Wharton departments (SPEC.md). MGEC and WHCP are still to be checked in Path@Penn before launch. DYNM is not Wharton. */
 export const WHARTON_DEPARTMENTS: readonly string[] = [
-  "ACCT", "BEPP", "FNCE", "HCMG", "LGST", "MGMT", "MKTG", "OIDD", "REAL", "STAT", "WH", "MGEC", "BDS", "WHCP",
+  "ACCT", "BEPP", "FNCE", "HCMG", "LGST", "MGMT", "MKTG", "OIDD", "REAL", "STAT", "WH", "WHG", "MGEC", "WHCP",
 ];
 
 export type EligibilityResult =
@@ -62,14 +62,14 @@ export function checkEligibility(course: Checked): Eligibility {
     return {
       result: "doesnt-count",
       label: "DOESN'T COUNT",
-      reason: "Only graduate-level courses (5000 and above) count.",
+      reason: "Only courses numbered 5000+ count toward your 19 credits. You can still take it with your 20th or 21st credit.",
     };
   }
   if (format === "Online, recorded") {
     return {
       result: "doesnt-count",
       label: "DOESN'T COUNT",
-      reason: "Online courses with no set meeting time (asynchronous) don't count.",
+      reason: "Asynchronous online courses don't count toward your 19 credits. You can still take it with your 20th or 21st credit.",
     };
   }
   if (!format) {

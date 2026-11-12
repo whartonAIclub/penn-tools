@@ -3,8 +3,9 @@
 // Step 3: one email to the MBA Program Office listing every approved course,
 // then "You're all set" once the student says they sent it.
 
-import { courseCode, mailtoLink, registrationEmail, senderReady } from "@penntools/tool-non-wharton-course-manager";
+import { KEY_DATES, courseCode, mailtoLink, registrationEmail, senderReady } from "@penntools/tool-non-wharton-course-manager";
 import type { Course, Sender } from "@penntools/tool-non-wharton-course-manager";
+import { PATH_AT_PENN } from "./ReminderBanner";
 import { OpenInEmail } from "./Step2";
 import { delay } from "./motion";
 import styles from "./CourseManager.module.css";
@@ -31,10 +32,23 @@ export function Step3({ courses, sender, sent, onSent, onBack }: Props) {
         </svg>
         <section className={styles.doneCard} role="status">
           <span className={styles.sentPill}>✓ SENT</span>
-          <h3 className={styles.doneTitle}>You&apos;re all set</h3>
+          <h3 className={styles.doneTitle}>One last step</h3>
           <p className={styles.mutedText}>
             The MBA Program Office has your request. Watch your inbox in case they need anything else.
           </p>
+          <div className={styles.notEnrolled}>
+            <span className={`${styles.label} ${styles.red}`}>YOU&apos;RE NOT ENROLLED YET</span>
+            <span>
+              {"Request "}
+              <strong>{courses.map(courseCode).join(", ")}</strong>
+              {" in Path@Penn → Search & Register for Classes before "}
+              <strong>{KEY_DATES.lastDayToAdd}</strong>
+              {". You’re enrolled once it shows on your schedule."}
+            </span>
+            <a href={PATH_AT_PENN} target="_blank" rel="noreferrer" className={styles.pathButton}>
+              Open Path@Penn
+            </a>
+          </div>
         </section>
       </div>
     );

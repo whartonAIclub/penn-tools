@@ -1095,7 +1095,103 @@
 .searchResults :global(.gsc-modal-background-image),
 .searchResults :global(.gsc-results-close-btn) { display: none !important; }
 
+/* ---- Registration reminder banner (every screen) ---- */
+
+.banner {
+  position: relative;
+  overflow: hidden;
+  background: var(--gold-light);
+  border-bottom: 1px solid #ebddaf;
+}
+/* Gold dots along the right edge. */
+.banner::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 200px;
+  background-image: radial-gradient(rgba(215, 188, 106, 0.6) 1.1px, transparent 1.4px);
+  background-size: 12px 12px;
+  pointer-events: none;
+}
+.bannerInner {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.headsUp {
+  composes: label;
+  flex: none;
+  font-size: 11px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 9999px;
+  padding: 4px 10px;
+}
+.bannerText { flex: 1 1 420px; min-width: 0; }
+.bannerText strong { font-weight: 500; }
+.bannerButton,
+.pathButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  border-radius: 9999px;
+  background: var(--blue);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 16px;
+  min-height: 36px;
+}
+.root .bannerButton,
+.root .bannerButton:hover,
+.root .pathButton,
+.root .pathButton:hover { color: #fff; }
+.bannerButton:focus-visible,
+.pathButton:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.bannerClose {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bannerClose:hover { background: rgba(1, 31, 91, 0.06); }
+
+/* Step 3's "You're not enrolled yet" box on the final card. */
+.notEnrolled {
+  margin-top: 8px;
+  background: var(--gold-light);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.notEnrolled strong { font-weight: 500; }
+.notEnrolled .label { font-size: 11px; }
+.pathButton { align-self: flex-start; font-size: 14px; padding: 0 18px; min-height: 40px; }
+
 @media (max-width: 600px) {
+  .bannerInner { padding: 12px 16px; }
+  .bannerClose { order: 1; margin-left: auto; }
+  .bannerText { order: 2; flex-basis: 100%; }
+  .bannerButton { order: 3; }
   .searchPanel { width: 100%; padding: 20px 16px; }
   .donePanel { padding: 24px 16px; }
   .doneArt { display: none; }
