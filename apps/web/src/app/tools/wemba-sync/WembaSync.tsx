@@ -48,7 +48,7 @@ import { ErrorNote } from "./ErrorNote";
 import styles from "./WembaSync.module.css";
 
 type Tab = "weekend" | "courses" | "events";
-const TABS: Record<Tab, string> = { weekend: "Class weekend", courses: "Courses", events: "Events" };
+const TABS: Record<Tab, string> = { weekend: "Class Weekend", courses: "Courses", events: "Events" };
 
 type Status = { state: "idle" } | { state: "reading"; filename: string } | { state: "error"; error: UploadError };
 
