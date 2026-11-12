@@ -126,9 +126,9 @@ async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   }
 }
 
-/** The signed-in user's AI and their first provider with a saved key, if any. */
+/** The signed-in user's AI and their first provider they can use (free credit or a saved key), if any. */
 async function userAI(): Promise<{ ai: AI; provider: AIProvider } | null> {
-  const ai = await getAI();
+  const ai = await getAI("pennpaws");
   const provider = ai ? (await ai.providers())[0] : undefined;
   return ai && provider ? { ai, provider } : null;
 }

@@ -51,7 +51,7 @@ export function Conversation({
     const result = await fn();
     setBusy(null);
     if (!result.ok) {
-      setError(result.kind === "missing_key" || result.kind === "invalid_key" || result.kind === "no_credit" ? `${result.error} Settings is in the menu at the top.` : result.error);
+      setError(result.kind === "missing_key" || result.kind === "invalid_key" || result.kind === "no_credit" || result.kind === "credit_used" ? `${result.error} Settings is in the menu at the top.` : result.error);
       return null;
     }
     return result;

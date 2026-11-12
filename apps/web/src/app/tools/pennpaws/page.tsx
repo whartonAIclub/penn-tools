@@ -73,7 +73,7 @@ export default async function PennPawsPage() {
     isSitter ? listOpenRequests(sql, user.id) : [],
     listMyRequests(sql, user.id),
     listNotifications(sql, user.id),
-    getAI().then((ai) => ai?.providers() ?? []),
+    getAI("pennpaws").then((ai) => ai?.providers() ?? []),
     isSitter ? listSitterJobs(sql, user.id) : [],
     isSitter ? listMyReviews(sql, user.id) : [],
     isPaused(sql, user.id),
