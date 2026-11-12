@@ -13,3 +13,6 @@ export {
 } from "./schedule.js";
 export type { ItemKind, ScheduleItem } from "./schedule.js";
 export { toICS, icsFilename } from "./calendar.js";
+export { applyCorrections } from "./corrections.js";
+export { MAX_AMA_MESSAGES, MAX_AMA_REQUEST_BYTES, MAX_QUESTION_LENGTH, amaSystem, askAMA, checkAsk } from "./ama.js";
+export type { AMARequest } from "./ama.js";

@@ -159,9 +159,14 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
-.sectionOn { background: var(--penn-blue); color: #fff; }
-.sectionOff { color: var(--section-label); }
-.sectionOff:hover { color: var(--text); }
+/* Each section's tab has its own color: its text when off, its fill when on. */
+.sectionOn { background: var(--section-color, var(--penn-blue)); color: #fff; }
+.sectionOff { color: var(--section-color, var(--section-label)); }
+.sectionOff:hover { background: var(--bg); }
+.sectionColor0 { --section-color: var(--penn-blue); }
+.sectionColor1 { --section-color: #990000; } /* Penn red */
+.sectionColor2 { --section-color: #6d28d9; }
+.sectionColor3 { --section-color: #0e7490; }
 
 .warnings {
   padding: 10px 14px;
@@ -317,3 +322,174 @@
   align-items: center;
   gap: 10px;
 }
+
+/* ── AMA: a chat in the bottom-right corner ──────────────────────────────────
+   Fixed inside .app-viewport (see globals.css), so it sits in the page's
+   corner beside the sidebar and stays put while the page scrolls; under the
+   narrow-screen sidebar drawer (z-index 40–50). */
+.amaLauncher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 20px 0 16px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(1, 31, 91, 0.3);
+}
+.amaLauncher:hover { background: #163983; }
+.amaLauncher:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.amaUnread {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #990000;
+}
+.amaPanel {
+  position: fixed;
+  right: 24px;
+  bottom: 88px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(380px, calc(100% - 32px));
+  max-height: min(560px, calc(100% - 112px));
+  padding: 0 16px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.amaPanel[hidden] { display: none; }
+.amaHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -16px;
+  padding: 14px 12px 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar-bg);
+}
+.amaHeader .meta { margin-top: 2px; }
+.amaTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.amaMinimize {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: var(--section-label);
+}
+.amaMinimize:hover { background: var(--nav-hover); color: var(--text); }
+.amaBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.amaFooter { font-size: 0.72rem; }
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.suggestion {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.8rem;
+  text-align: left;
+}
+.suggestion:hover:not(:disabled) { border-color: var(--penn-blue); color: var(--penn-blue); }
+.suggestion:disabled { opacity: 0.5; cursor: not-allowed; }
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 2px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.question,
+.answer {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.question {
+  align-self: flex-end;
+  background: var(--penn-blue);
+  color: #fff;
+}
+.answer {
+  align-self: flex-start;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.answer .error { display: block; margin: -8px -12px; }
+.thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--section-label);
+}
+.askForm {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.askInput {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  max-height: 120px;
+  padding: 7px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 17px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  resize: none;
+  field-sizing: content;
+}
+.askInput:focus { outline: 2px solid var(--penn-blue); outline-offset: -1px; }
+
+/* Phones: the corner gets a 16px gutter, and the panel takes the width. */
+@media (max-width: 520px) {
+  .amaLauncher { right: 16px; bottom: 16px; }
+  .amaPanel { right: 16px; bottom: 80px; width: calc(100% - 32px); }
+}
+
+/* Room at the end of the schedule, so the AMA button never covers its last lines. */
+.weekend { padding-bottom: 72px; }
