@@ -73,9 +73,9 @@ export const DEFAULT_FOLLOW_UP_INTERVAL: FollowUpInterval = "month";
 
 /** Each interval's name and when to pick it, as the form shows them. */
 export const FOLLOW_UP_INTERVAL_OPTIONS: Record<FollowUpInterval, { label: string; when: string }> = {
-  week: { label: "Every week", when: "Something is moving: an interview, an open role or a deadline." },
-  twoWeeks: { label: "Every 2 weeks", when: "They offered a referral or an intro: keep them posted." },
-  month: { label: "Every month", when: "The usual: stay in touch without pestering." },
+  week: { label: "Every week", when: "You're applying or interviewing at their company, or a deadline is coming up." },
+  twoWeeks: { label: "Every 2 weeks", when: "They offered to refer or introduce you, so update them on how it's going." },
+  month: { label: "Every month", when: "Most people. Keeps you in touch without being pushy." },
 };
 
 /** The next steps the form offers. */
