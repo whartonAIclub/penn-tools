@@ -16,6 +16,7 @@ import {
   type ScheduleItem,
   type WeekendSchedule,
 } from "@penntools/tool-wemba-sync";
+import { AMA } from "./AMA";
 import styles from "./WembaSync.module.css";
 
 interface ExtractError {
@@ -147,6 +148,7 @@ export function WembaSync({
           // A section remembered from another schedule may not exist in this one.
           section={section !== null && status.schedule.sections.includes(section) ? section : null}
           onSection={chooseSection}
+          provider={provider}
         />
       )}
     </div>
@@ -211,10 +213,13 @@ function Weekend({
   schedule,
   section,
   onSection,
+  provider,
 }: {
   schedule: WeekendSchedule;
   section: string | null;
   onSection: (section: string | null) => void;
+  /** The provider AMA answers with: the one that read the schedule. */
+  provider: AIProvider;
 }) {
   const items = itemsForSection(schedule.items, section);
   const days = groupByDate(items);
@@ -241,14 +246,15 @@ function Weekend({
         <div className={styles.actions}>
           {schedule.sections.length > 1 && (
             <div className={styles.sections} role="group" aria-label="Your section">
-              {schedule.sections.map((s) => (
-                <button key={s} className={s === section ? styles.sectionOn : styles.sectionOff} onClick={() => onSection(s)}>
+              {schedule.sections.map((s, i) => (
+                <button
+                  key={s}
+                  className={`${s === section ? styles.sectionOn : styles.sectionOff} ${styles[`sectionColor${i % 4}`]}`}
+                  onClick={() => onSection(s)}
+                >
                   {s}
                 </button>
               ))}
-              <button className={section === null ? styles.sectionOn : styles.sectionOff} onClick={() => onSection(null)}>
-                All
-              </button>
             </div>
           )}
           <button className={styles.button} onClick={download} disabled={items.length === 0}>
@@ -315,6 +321,8 @@ function Weekend({
           </ul>
         </div>
       )}
+
+      <AMA provider={provider} schedule={schedule} section={section} />
     </section>
   );
 }
