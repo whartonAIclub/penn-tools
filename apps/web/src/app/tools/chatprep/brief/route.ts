@@ -73,7 +73,7 @@ async function readBody(req: NextRequest): Promise<string | null> {
 
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
-  const ai = user ? await getAI() : null;
+  const ai = user ? await getAI("chatprep") : null;
   if (!ai) return error("Sign in with the button at the top right to use ChatPrep.", 401);
 
   const text = await readBody(req);

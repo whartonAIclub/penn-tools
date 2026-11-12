@@ -39,7 +39,7 @@ type Status =
   | { state: "done"; brief: Brief; text: string; company: string }
   | { state: "error"; error: BriefError };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 // The profile is saved only in this browser, so it's there for the next chat.
 const PROFILE_KEY = "chatprep:profile";

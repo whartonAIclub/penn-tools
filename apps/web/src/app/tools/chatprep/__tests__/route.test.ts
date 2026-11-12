@@ -11,9 +11,15 @@ import { MAX_PDF_PAGES, MAX_REQUEST_BYTES, type Brief } from "@penntools/tool-ch
 const state = vi.hoisted(() => ({
   user: { id: "user-1", name: "Test" } as { id: string; name: string } | null,
   ai: null as unknown,
+  toolIds: [] as string[],
 }));
 vi.mock("@/lib/auth", () => ({ getCurrentUser: async () => state.user }));
-vi.mock("@/lib/ai", () => ({ getAI: async () => (state.user ? state.ai : null) }));
+vi.mock("@/lib/ai", () => ({
+  getAI: async (toolId: string) => {
+    state.toolIds.push(toolId);
+    return state.user ? state.ai : null;
+  },
+}));
 
 const { POST } = await import("../brief/route");
 
@@ -59,6 +65,7 @@ function request(body: unknown, headers: Record<string, string> = {}): NextReque
 }
 
 beforeEach(() => {
+  state.toolIds = [];
   state.user = { id: "user-1", name: "Test" };
   state.ai = fakeAI().ai;
 });
@@ -73,6 +80,17 @@ describe("POST /tools/chatprep/brief", () => {
     expect(body.brief).toEqual(brief);
     expect(body.text).toContain("COFFEE CHAT BRIEF: Acme Health");
     expect(requests[0]!.provider).toBe("anthropic");
+  });
+
+  it("asks for the AI API as ChatPrep, so usage is recorded against it", async () => {
+    await POST(request({ provider: "anthropic", student, chat }));
+    expect(state.toolIds).toEqual(["chatprep"]);
+  });
+
+  it("points to Settings when the free credit is used up, like a missing key", async () => {
+    state.ai = fakeAI(new AIError("credit_used", "anthropic")).ai;
+    const response = await POST(request({ provider: "anthropic", student, chat }));
+    expect(((await response.json()) as { error: { kind: string } }).error.kind).toBe("credit_used");
   });
 
   it("asks signed-out visitors to sign in", async () => {

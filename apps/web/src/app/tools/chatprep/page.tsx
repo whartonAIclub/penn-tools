@@ -28,7 +28,7 @@ export default async function ChatprepPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="ChatPrep" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("chatprep"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="ChatPrep" />;
 
   return (
