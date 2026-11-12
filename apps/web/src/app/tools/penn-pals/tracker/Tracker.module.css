@@ -277,3 +277,21 @@
   font-size: 0.85rem;
   font-weight: 500;
 }
+
+/* The AI's three steps, the current one highlighted */
+.aiSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+.aiSteps li::marker {
+  font-weight: 700;
+}
+.aiStepNow {
+  color: var(--penn-blue);
+  font-weight: 700;
+}

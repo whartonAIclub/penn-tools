@@ -103,8 +103,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   return (
     <div className={styles.page}>
       <p className={styles.intro}>
-        Log each chat, and your follow-ups appear in My network. Contacts are stored only in this browser;
-        clearing its data removes them.
+        Log a chat and we&apos;ll remind you when to follow up. <span className={styles.hint}>Saved on this device only.</span>
       </p>
 
       {!editing && (
@@ -263,7 +262,7 @@ function Form({
   return (
     <form className={styles.form} onSubmit={submit}>
       <h2 className={styles.formTitle}>{original ? `Edit ${original.name}` : prefill ? "Check and save" : "Or fill it in yourself"}</h2>
-      {prefill && <p className={styles.aiBanner}>✨ Filled in by AI from your story. Fix anything it got wrong, then save.</p>}
+      {prefill && <p className={styles.aiBanner}>💬 Written up by AI from your chat. Fix anything it got wrong, then save.</p>}
 
       <div className={styles.grid}>
         <label className={styles.field}>

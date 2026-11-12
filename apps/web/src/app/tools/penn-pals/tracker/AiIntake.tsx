@@ -51,17 +51,18 @@ export function AiIntake({
     return (
       <section className={styles.ai} aria-labelledby="ai-title">
         <h2 id="ai-title" className={styles.aiTitle}>
-          ✨ Tell us about your chat
+          💬 Talk it through with AI
         </h2>
         <p className={styles.aiNote}>
+          Tell AI how your chat went in your own words, answer a quick question or two, and it writes everything up
+          for you.{" "}
           {!ai.signedIn ? (
-            <>Sign in with the button at the top right to have AI fill in the form for you.</>
+            <>Sign in (top right) to try it.</>
           ) : (
             <>
-              To have AI fill in the form for you, add an AI key in <Link href="/settings">Settings</Link>.
+              Add an AI key in <Link href="/settings">Settings</Link> to try it.
             </>
-          )}{" "}
-          Or fill it in yourself below.
+          )}
         </p>
       </section>
     );
@@ -123,12 +124,21 @@ export function AiIntake({
   return (
     <section className={styles.ai} aria-labelledby="ai-title">
       <h2 id="ai-title" className={styles.aiTitle}>
-        ✨ Tell us about your chat
+        💬 Talk it through with AI
       </h2>
+      <ol className={styles.aiSteps} aria-label="How it works">
+        <li className={status.state === "idle" || status.state === "reading" || status.state === "error" ? styles.aiStepNow : ""}>
+          Tell it how the chat went
+        </li>
+        <li className={status.state === "asking" || status.state === "finishing" ? styles.aiStepNow : ""}>
+          Answer a quick question or two
+        </li>
+        <li className={status.state === "done" ? styles.aiStepNow : ""}>Check it and save</li>
+      </ol>
 
       {status.state === "done" ? (
         <p className={styles.aiDone}>
-          ✓ Filled in below from your story. Check everything before saving.{" "}
+          ✓ All written up below. Give it a quick look, then save.{" "}
           <button type="button" className={styles.link} onClick={startOver}>
             Start over
           </button>
@@ -136,7 +146,7 @@ export function AiIntake({
         </p>
       ) : status.state === "asking" ? (
         <div className={styles.aiQuestions}>
-          <p className={styles.aiNote}>A few quick questions. Skip any you don&apos;t know.</p>
+          <p className={styles.aiNote}>AI has a few quick questions. Skip any you don&apos;t know.</p>
           {status.questions.map((question, i) => (
             <label key={question} className={styles.field}>
               {question}
@@ -151,7 +161,7 @@ export function AiIntake({
           ))}
           <div className={styles.actions}>
             <button type="button" className={styles.button} onClick={() => void answer(status)}>
-              Fill in the form
+              Write it up
             </button>
             <button type="button" className={styles.link} onClick={() => finish(status.draft, status.tokens)}>
               Skip questions
@@ -161,7 +171,8 @@ export function AiIntake({
       ) : (
         <>
           <p className={styles.aiNote}>
-            Who you talked to, what they said, what they offered. Type it or dictate it (press Fn twice on a Mac).
+            Just like you&apos;d tell a friend: who it was, what they said, what they offered. Type or dictate (press Fn
+            twice on a Mac).
           </p>
           <textarea
             aria-label="What happened in your chat"
@@ -178,7 +189,7 @@ export function AiIntake({
           />
           <div className={styles.actions}>
             <button type="button" className={styles.button} disabled={busy || !story.trim()} onClick={() => void read()}>
-              {busy ? "Reading your story…" : "Fill in the form"}
+              {busy ? "Reading…" : "Next"}
             </button>
             {ai.providers.length > 1 && (
               <select aria-label="AI provider" value={provider} onChange={(e) => setProvider(e.target.value as AIProvider)}>
@@ -206,7 +217,7 @@ export function AiIntake({
           )}
         </>
       )}
-      {status.state === "finishing" && <p className={styles.aiNote}>Filling in the form…</p>}
+      {status.state === "finishing" && <p className={styles.aiNote}>Writing it up…</p>}
     </section>
   );
 }
