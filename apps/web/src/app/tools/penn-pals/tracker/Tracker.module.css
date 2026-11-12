@@ -190,3 +190,19 @@
   color: var(--text);
   background: var(--bg);
 }
+
+/* How often to follow up: one option per line, each with when to use it */
+.intervals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-basis: 100%;
+  margin: 2px 0 4px 26px;
+}
+.interval {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-weight: 400;
+  cursor: pointer;
+}

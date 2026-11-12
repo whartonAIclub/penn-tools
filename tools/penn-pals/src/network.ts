@@ -3,13 +3,15 @@
 // rules for after an informational meeting:
 //   - a thank-you email within 24 hours that highlights their best advice
 //   - a follow-up a month later that recaps that advice, then every month
+//     (the user can pick every week or every two weeks instead)
 // The intake decides which of the two a contact gets (its next steps); these
 // rules only date them when the intake didn't, and schedule the next follow-up.
 // A contact's best advice is its first key takeaway.
 
 import { addDays } from "./debrief.js";
 import { STEP_ACTIONS } from "./contacts.js";
-import type { Contact, NextStep } from "./contacts.js";
+import { DEFAULT_FOLLOW_UP_INTERVAL } from "./contacts.js";
+import type { Contact, FollowUpInterval, NextStep } from "./contacts.js";
 
 /** Where the browser keeps saved contacts, shared by the tracker and landing pages. */
 export const CONTACTS_STORAGE_KEY = "penn-pals:contacts:v1";
@@ -65,9 +67,16 @@ export function bestAdvice(contact: Contact): string | null {
   return contact.takeaways[0] ?? null;
 }
 
-/** When a step is due if the user gave no date: the workshop timing, counted from the chat. */
-export function workshopDue(kind: FollowUpKind, meetingDate: string): string {
-  return kind === "thankYou" ? addDays(meetingDate, THANK_YOU_DAYS) : addMonths(meetingDate, FOLLOW_UP_MONTHS);
+/** `date` plus one follow-up interval. */
+export function addInterval(date: string, every: FollowUpInterval = DEFAULT_FOLLOW_UP_INTERVAL): string {
+  if (every === "week") return addDays(date, 7);
+  if (every === "twoWeeks") return addDays(date, 14);
+  return addMonths(date, FOLLOW_UP_MONTHS);
+}
+
+/** When a step is due if the user gave no date: the thank-you the next day, a follow-up one interval after the chat. */
+export function workshopDue(kind: FollowUpKind, meetingDate: string, every?: FollowUpInterval): string {
+  return kind === "thankYou" ? addDays(meetingDate, THANK_YOU_DAYS) : addInterval(meetingDate, every);
 }
 
 function kindOf(step: NextStep): FollowUpKind | null {
@@ -92,14 +101,14 @@ export function followUpsFor(contact: Contact): FollowUp[] {
     if (!kind || step.done || step.owner !== "me") return [];
     // Kept short for the to-do list; the contact's card shows the advice to mention.
     const action = kind === "thankYou" ? `Thank ${firstName}` : `Follow up with ${firstName}`;
-    const due = step.dueDate ?? workshopDue(kind, contact.meetingDate);
+    const due = step.dueDate ?? workshopDue(kind, contact.meetingDate, contact.followUpEvery);
     return [{ id: `${contact.id}:${stepIndex}`, contactId: contact.id, stepIndex, kind, action, due }];
   });
 }
 
 /**
  * The contact with the finished step at `stepIndex` open again, so it returns
- * to the to-do list. Finishing a follow-up scheduled the next monthly one; if
+ * to the to-do list. Finishing a follow-up scheduled the next one; if
  * that one is still untouched (open, on the date it was given), it's removed so
  * reopening doesn't leave a duplicate.
  */
@@ -107,7 +116,7 @@ export function reopenStep(contact: Contact, stepIndex: number): Contact {
   const target = contact.nextSteps[stepIndex];
   if (!target?.done) return contact;
   const scheduledDue =
-    target.doneOn && kindOf(target) === "followUp" ? addMonths(target.doneOn, FOLLOW_UP_MONTHS) : null;
+    target.doneOn && kindOf(target) === "followUp" ? addInterval(target.doneOn, contact.followUpEvery) : null;
   let removed = false;
   const nextSteps = contact.nextSteps.flatMap((step, i) => {
     if (i === stepIndex) return [{ ...step, done: false, doneOn: null }];
@@ -122,14 +131,14 @@ export function reopenStep(contact: Contact, stepIndex: number): Contact {
   return { ...contact, nextSteps };
 }
 
-/** The contact with `followUp` done on `today`; a done follow-up schedules the next one a month later. */
+/** The contact with `followUp` done on `today`; a done follow-up schedules the next one an interval later (a month unless the user chose otherwise). */
 export function markFollowUpDone(contact: Contact, followUp: FollowUp, today: string): Contact {
   const nextSteps = contact.nextSteps.map((step, i) => (i === followUp.stepIndex ? { ...step, done: true, doneOn: today } : step));
   if (followUp.kind === "followUp") {
     nextSteps.push({
       action: FOLLOW_UP_ACTION,
       owner: "me",
-      dueDate: addMonths(today, FOLLOW_UP_MONTHS),
+      dueDate: addInterval(today, contact.followUpEvery),
       done: false,
       doneOn: null,
     });

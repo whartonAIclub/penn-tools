@@ -7,7 +7,10 @@ export {
   customRelationships,
   dueStatus,
   DUE_SOON_DAYS,
+  DEFAULT_FOLLOW_UP_INTERVAL,
   emptyDraft,
+  FOLLOW_UP_INTERVAL_OPTIONS,
+  FOLLOW_UP_INTERVALS,
   nextDue,
   FORM_RELATIONSHIPS,
   MAX_YEARS_AHEAD,
@@ -27,6 +30,7 @@ export {
   type BuildResult,
   type ContactDraft,
   type DueStatus,
+  type FollowUpInterval,
   type NextStep,
   type Relationship,
   type Seniority,
@@ -44,6 +48,7 @@ export {
   withFollowUpDate,
 } from "./debrief.js";
 export {
+  addInterval,
   bestAdvice,
   CONTACTS_STORAGE_KEY,
   countByKind,

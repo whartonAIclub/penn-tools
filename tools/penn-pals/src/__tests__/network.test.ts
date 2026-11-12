@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestAdvice, countByKind, followUpStatus, followUpsFor, markFollowUpDone } from "../network.js";
+import { bestAdvice, countByKind, followUpStatus, followUpsFor, markFollowUpDone, reopenStep } from "../network.js";
 import type { Contact } from "../contacts.js";
 
 const contact: Contact = {
@@ -90,5 +90,28 @@ describe("followUpStatus", () => {
     expect(followUpStatus(today, "2026-02-10")).toBe("today");
     expect(followUpStatus(today, "2026-02-17")).toBe("thisWeek");
     expect(followUpStatus(today, "2026-02-18")).toBe("later");
+  });
+});
+
+describe("follow-up interval", () => {
+  const followUpOnly = { ...contact, nextSteps: [{ action: "Follow up", owner: "me" as const, dueDate: null, done: false }] };
+
+  it("dates the first follow-up one interval after the chat", () => {
+    expect(followUpsFor({ ...followUpOnly, followUpEvery: "week" })[0]!.due).toBe("2026-02-07");
+    expect(followUpsFor({ ...followUpOnly, followUpEvery: "twoWeeks" })[0]!.due).toBe("2026-02-14");
+    expect(followUpsFor({ ...followUpOnly, followUpEvery: "month" })[0]!.due).toBe("2026-02-28");
+    expect(followUpsFor(followUpOnly)[0]!.due).toBe("2026-02-28"); // missing means monthly
+  });
+
+  it("schedules the next follow-up one interval after one is done", () => {
+    const c = { ...followUpOnly, followUpEvery: "twoWeeks" as const };
+    const done = markFollowUpDone(c, followUpsFor(c)[0]!, "2026-03-05");
+    expect(followUpsFor(done)[0]!.due).toBe("2026-03-19");
+  });
+
+  it("reopening removes the follow-up that finishing scheduled", () => {
+    const c = { ...followUpOnly, followUpEvery: "week" as const };
+    const done = markFollowUpDone(c, followUpsFor(c)[0]!, "2026-03-05");
+    expect(reopenStep(done, 0).nextSteps).toHaveLength(1);
   });
 });

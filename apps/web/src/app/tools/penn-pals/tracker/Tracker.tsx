@@ -14,6 +14,8 @@ import {
   contactToDraft,
   customRelationships,
   emptyDraft,
+  FOLLOW_UP_INTERVAL_OPTIONS,
+  FOLLOW_UP_INTERVALS,
   FORM_RELATIONSHIPS,
   parseStoredContacts,
   MAX_YEARS_AHEAD,
@@ -28,6 +30,7 @@ import {
   workshopDue,
   type Contact,
   type ContactDraft,
+  type FollowUpInterval,
   type FollowUpKind,
 } from "@penntools/tool-penn-pals";
 import styles from "./Tracker.module.css";
@@ -145,13 +148,20 @@ function useConfirmLeave(unsaved: boolean) {
 // The two follow-ups the workshop recommends, shown up front as checkboxes.
 const STEPS: { kind: FollowUpKind; action: string; label: string; timing: string }[] = [
   { kind: "thankYou", action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after your chat" },
-  { kind: "followUp", action: STEP_ACTIONS[1], label: "Follow up", timing: "one month after your chat" },
+  { kind: "followUp", action: STEP_ACTIONS[1], label: "Follow up", timing: "" }, // timing from the chosen interval
 ];
 
 /** A new contact starts with both follow-ups on, dated by the workshop timing. */
 function newDraft(today: string): ContactDraft {
   return { ...emptyDraft(today), nextSteps: STEPS.map((s) => ({ action: s.action, owner: "me", dueDate: "" })) };
 }
+
+// The first follow-up's hint, per interval.
+const FIRST_FOLLOW_UP: Record<FollowUpInterval, string> = {
+  week: "one week after your chat",
+  twoWeeks: "two weeks after your chat",
+  month: "one month after your chat",
+};
 
 // A custom relationship is picked from the menu as "custom:<label>".
 const CUSTOM = "custom:";
@@ -302,7 +312,8 @@ function Form({
         {STEPS.map(({ kind, action, label, timing }) => {
           const step = stepFor(action);
           // A blank date means the suggested one, shown in the box; it moves if the chat's date changes.
-          const suggested = isIsoDate(draft.meetingDate) ? workshopDue(kind, draft.meetingDate) : "";
+          const suggested = isIsoDate(draft.meetingDate) ? workshopDue(kind, draft.meetingDate, draft.followUpEvery) : "";
+          const hint = kind === "followUp" ? FIRST_FOLLOW_UP[draft.followUpEvery] : timing;
           return (
             <div key={action} className={styles.stepRow}>
               <label className={styles.check}>
@@ -321,13 +332,31 @@ function Form({
                     onChange={(e) => setDue(action, e.target.value)}
                   />
                   {!step.dueDate ? (
-                    <span className={styles.hint}>Suggested: {timing}</span>
+                    <span className={styles.hint}>Suggested: {hint}</span>
                   ) : (
                     <button type="button" className={styles.link} onClick={() => setDue(action, "")}>
                       Use suggested date
                     </button>
                   )}
                 </span>
+              )}
+              {kind === "followUp" && step && (
+                <div className={styles.intervals} role="radiogroup" aria-label="How often to follow up">
+                  {FOLLOW_UP_INTERVALS.map((every) => (
+                    <label key={every} className={styles.interval}>
+                      <input
+                        type="radio"
+                        name="followUpEvery"
+                        checked={draft.followUpEvery === every}
+                        onChange={() => set("followUpEvery", every)}
+                      />
+                      <span>
+                        <strong>{FOLLOW_UP_INTERVAL_OPTIONS[every].label}</strong>
+                        <span className={styles.hint}> · {FOLLOW_UP_INTERVAL_OPTIONS[every].when}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
               )}
             </div>
           );

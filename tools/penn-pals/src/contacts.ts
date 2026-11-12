@@ -66,6 +66,18 @@ export const SENIORITY_LABELS: Record<Seniority, string> = {
 export const MAX_YEARS_BACK = 10;
 export const MAX_YEARS_AHEAD = 2;
 
+/** How often to follow up after the thank-you. Monthly is the workshop's default. */
+export const FOLLOW_UP_INTERVALS = ["week", "twoWeeks", "month"] as const;
+export type FollowUpInterval = (typeof FOLLOW_UP_INTERVALS)[number];
+export const DEFAULT_FOLLOW_UP_INTERVAL: FollowUpInterval = "month";
+
+/** Each interval's name and when to pick it, as the form shows them. */
+export const FOLLOW_UP_INTERVAL_OPTIONS: Record<FollowUpInterval, { label: string; when: string }> = {
+  week: { label: "Every week", when: "Something is moving: an interview, an open role or a deadline." },
+  twoWeeks: { label: "Every 2 weeks", when: "They offered a referral or an intro: keep them posted." },
+  month: { label: "Every month", when: "The usual: stay in touch without pestering." },
+};
+
 /** The next steps the form offers. */
 export const STEP_ACTIONS = ["Send a thank-you email", "Follow up"] as const;
 
@@ -114,6 +126,8 @@ export const Contact = z.object({
   notes: z.string(),
   /** When to check in if no open next step has a due date; set automatically, not on the form. */
   checkInDate: z.string(),
+  /** How often to follow up; missing means monthly (optional so older contacts load). */
+  followUpEvery: z.enum(FOLLOW_UP_INTERVALS).optional(),
   createdAt: z.string(),
 });
 export type Contact = z.infer<typeof Contact>;
@@ -145,6 +159,7 @@ export interface ContactDraft {
   /** One takeaway per line. */
   takeaways: string;
   nextSteps: { action: string; owner: "me" | "them"; dueDate: string }[];
+  followUpEvery: FollowUpInterval;
   notes: string;
 }
 
@@ -168,6 +183,7 @@ export function emptyDraft(today: string): ContactDraft {
     offeredIntro: false,
     takeaways: "",
     nextSteps: [],
+    followUpEvery: DEFAULT_FOLLOW_UP_INTERVAL,
     notes: "",
   };
 }
@@ -250,6 +266,7 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
         .map((line) => line.trim())
         .filter(Boolean),
       nextSteps,
+      followUpEvery: draft.followUpEvery,
       notes: draft.notes,
       checkInDate: addDays(today, DEFAULT_FOLLOW_UP_DAYS),
       createdAt: today,
@@ -285,6 +302,7 @@ export function contactToDraft(contact: Contact): ContactDraft {
     nextSteps: contact.nextSteps
       .filter((step) => !step.done)
       .map((step) => ({ action: step.action, owner: step.owner, dueDate: step.dueDate ?? "" })),
+    followUpEvery: contact.followUpEvery ?? DEFAULT_FOLLOW_UP_INTERVAL,
     notes: contact.notes,
   };
 }

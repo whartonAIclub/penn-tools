@@ -374,3 +374,12 @@ describe("seniority", () => {
     expect(buildContact({ ...emptyDraft(TODAY), name: "Maria" }, TODAY, "a")).toMatchObject({ ok: true, contact: { seniority: null } });
   });
 });
+
+describe("follow-up interval on the form", () => {
+  it("defaults to monthly, is stored, and survives an edit", () => {
+    expect(emptyDraft(TODAY).followUpEvery).toBe("month");
+    const built = buildContact({ ...emptyDraft(TODAY), name: "Maria", followUpEvery: "week" }, TODAY, "a");
+    expect(built).toMatchObject({ ok: true, contact: { followUpEvery: "week" } });
+    if (built.ok) expect(contactToDraft(built.contact).followUpEvery).toBe("week");
+  });
+});
