@@ -16,5 +16,7 @@ export class NonWhartonCourseManagerTool extends Tool {
     category: "Academics",
     // Shown as BETA until the tool is ready; delete this line then.
     beta: true,
+    // The page uses the whole page area (stepper beside the steps), not the 720px column.
+    fullWidth: true,
   };
 }

@@ -1,0 +1,428 @@
+/* Penn Modern: the tool's look (see "Visual style" in SPEC.md). Colors live
+   here as variables so every part of the page uses the same ones. */
+
+.root {
+  --paper: #fbfaf6;
+  --panel: #eeedea;
+  --soft: #f4f3ee;
+  --card: #ffffff;
+  --blue: #011f5b;
+  --muted: #4a5468;
+  --link: #0e5696;
+  --red: #990000;
+  --gold: #f6e7b4;
+  --gold-light: #fbf3d9;
+  --blue-light: #d4e4f2;
+  --locked: #6a7386;
+  --shadow: 0 1px 2px #011f5b0f, 0 8px 24px #011f5b14;
+  /* Dot patterns on a 14px grid. */
+  --dots-blue: radial-gradient(rgba(14, 86, 150, 0.3) 1.1px, transparent 1.4px);
+  --dots-light: radial-gradient(rgba(130, 166, 232, 0.35) 1.1px, transparent 1.4px);
+
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--blue);
+  font-family: var(--nwcm-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ---- Shared pieces ---- */
+
+.label {
+  font-family: var(--nwcm-mono), Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.goldPill {
+  composes: label;
+  align-self: flex-start;
+  background: var(--gold);
+  color: var(--blue);
+  border-radius: 9999px;
+  padding: 5px 14px;
+}
+
+.muted {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.red { color: var(--red); }
+
+.card {
+  background: var(--card);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.primaryButton {
+  border-radius: 9999px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 24px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.primaryButton:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.root button:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+/* ---- Top bar ---- */
+
+.topBar {
+  background-color: var(--blue);
+  background-image: radial-gradient(rgba(130, 166, 232, 0.35) 1px, transparent 1.3px);
+  background-size: 12px 12px;
+  color: #fff;
+}
+
+.topBarInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.slash { color: var(--gold); }
+
+.savedPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 6px 14px;
+}
+
+/* ---- Overview ---- */
+
+.overview {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 72px 24px 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 56px;
+}
+
+.hero {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  padding: 24px 0;
+}
+.hero .goldPill { align-self: center; }
+
+.heroTitle {
+  margin: 0;
+  max-width: 760px;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: clamp(40px, 6.5vw, 64px);
+  line-height: 1.05;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.heroText {
+  max-width: 620px;
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.overviewPanel {
+  width: 100%;
+  background-color: var(--panel);
+  background-image: var(--dots-blue);
+  background-size: 14px 14px;
+  border-radius: 32px;
+  padding: 48px;
+}
+
+.overviewSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.overviewCard {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow);
+}
+
+.numberCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.circleBlue { background: var(--blue); color: #fff; }
+.circleGold { background: var(--gold); color: var(--blue); }
+.circleRed { background: var(--red); color: #fff; }
+
+.overviewCardTitle {
+  margin: 0;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 400;
+}
+
+.overviewCardText {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Progress bars sit at the bottom of each card, so they line up. */
+.barTrack {
+  margin-top: auto;
+  display: block;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.bar { display: block; height: 4px; width: 100%; border-radius: 9999px; }
+.barBlue { background: var(--blue); }
+.barGold { background: #d7bc6a; }
+.barRed { background: var(--red); }
+
+.startArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.startButton {
+  composes: primaryButton;
+  font-size: 16px;
+  padding: 0 34px;
+  min-height: 54px;
+  box-shadow: 0 8px 24px #011f5b33;
+}
+
+/* ---- Flow: stepper beside the current step (stacks on a phone) ---- */
+
+.flow {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.stepper {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 260px;
+  max-width: 320px;
+  min-width: 0;
+  background-color: var(--panel);
+  border-radius: 28px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+/* A band of dots along the bottom of the stepper panel. */
+.stepper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 120px;
+  background-image: var(--dots-blue);
+  background-size: 14px 14px;
+  pointer-events: none;
+}
+
+.overviewLink {
+  position: relative;
+  z-index: 1;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--blue);
+}
+
+.overviewPill {
+  composes: label;
+  align-self: flex-start;
+  color: var(--link);
+  background: var(--card);
+  border-radius: 9999px;
+  padding: 6px 12px;
+}
+
+.stepperTitle {
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.stepList {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stepItem { display: flex; gap: 16px; }
+
+.stepRail {
+  flex: none;
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stepDot {
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  border: 1.5px solid #c9c8c0;
+  background: var(--card);
+  color: var(--muted);
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepItem[data-state="done"] .stepDot { border-color: var(--blue); background: var(--blue); color: #fff; }
+.stepItem[data-state="current"] .stepDot {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 0 0 6px rgba(153, 0, 0, 0.14);
+}
+
+.stepLine {
+  flex: 1;
+  min-height: 44px;
+  margin: 8px 0;
+  border-left: 2px dotted #a9a89f;
+}
+.stepLine[data-done="true"] { border-left-color: var(--blue); }
+
+.stepButton {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 6px 0 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--blue);
+}
+.stepItem:last-child .stepButton { padding-bottom: 0; }
+.stepButton:disabled { cursor: not-allowed; }
+
+.stepName { font-size: 16px; line-height: 1.35; }
+.stepItem[data-state="current"] .stepName { font-weight: 500; }
+.stepItem[data-state="locked"] .stepName { color: var(--locked); }
+
+.stepPill {
+  composes: label;
+  align-self: flex-start;
+  font-size: 11px;
+  border-radius: 9999px;
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.6);
+}
+.stepItem[data-state="current"] .stepPill { background: var(--gold); }
+.stepItem[data-state="done"] .stepPill { background: var(--card); }
+.stepItem[data-state="locked"] .stepPill { color: var(--locked); }
+
+.stepArea {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* The Penn Blue card at the top of each step. */
+.stepHeader {
+  background-color: var(--blue);
+  background-image: var(--dots-light);
+  background-size: 14px 14px;
+  border-radius: 28px;
+  padding: 40px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stepTitle {
+  margin: 0;
+  max-width: 560px;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 38px;
+  line-height: 1.15;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.stepIntro {
+  max-width: 560px;
+  color: var(--blue-light);
+}
+
+@media (max-width: 600px) {
+  .overview { padding: 48px 16px 72px; gap: 40px; }
+  .overviewPanel { padding: 20px; border-radius: 24px; }
+  .flow { padding: 24px 16px 72px; gap: 24px; }
+  .stepper { max-width: none; }
+  .stepHeader { padding: 28px 24px; }
+  .stepTitle { font-size: 30px; }
+  .card { padding: 24px; }
+}

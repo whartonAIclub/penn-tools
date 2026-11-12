@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Non-Wharton Course Manager</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400&amp;family=Inter:wght@400;500&amp;family=DM+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFAF6}
+a{color:#0E5696}a:hover{color:#011F5B}
+input,select,textarea,button{font-family:inherit}
+input:focus,textarea:focus{outline:2px solid #0E5696;outline-offset:1px}
+@keyframes nwcm-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes nwcm-fill{from{width:0}to{width:100%}}
+@keyframes nwcm-spin{to{transform:rotate(360deg)}}
+.nwcm-rise{animation:nwcm-rise .5s ease both}
+.nwcm-fill{animation:nwcm-fill .9s ease-in-out both}
+.nwcm-spin{animation:nwcm-spin .8s linear infinite}
+@media (prefers-reduced-motion: reduce){.nwcm-rise,.nwcm-fill,.nwcm-spin{animation:none}}
+</style>
+</helmet>
+<div style="min-height: 100%; background: #FBFAF6; color: #011F5B; font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6">
+
+<header style="background-color: #011F5B; background-image: radial-gradient(rgba(130,166,232,.35) 1px, transparent 1.3px); background-size: 12px 12px; color: #FFFFFF">
+<div style="max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px">
+<span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em">PENN TOOLS <span style="color: #F6E7B4">/</span> ACADEMICS</span>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px; background: rgba(255,255,255,.12); border-radius: 9999px; padding: 6px 14px">
+<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+Saved only in this browser
+</span>
+</div>
+</header>
+
+<sc-if value="{{isIntro}}" hint-placeholder-val="{{ true }}">
+<main style="max-width: 1120px; margin: 0 auto; padding: 72px 24px 96px; display: flex; flex-direction: column; align-items: center; gap: 56px">
+
+<section class="nwcm-rise" style="position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; padding: 24px 0">
+<svg aria-hidden="true" width="220" height="220" viewBox="0 0 220 220" style="position: absolute; left: -40px; top: -60px; opacity: .55"><circle cx="110" cy="110" r="108" fill="none" stroke="#D4E4F2" stroke-width="1.5"></circle><circle cx="110" cy="110" r="78" fill="none" stroke="#D4E4F2" stroke-width="1.5"></circle><circle cx="110" cy="110" r="48" fill="none" stroke="#F6E7B4" stroke-width="1.5"></circle></svg>
+<svg aria-hidden="true" width="180" height="180" viewBox="0 0 180 180" style="position: absolute; right: -20px; bottom: -50px; opacity: .7"><circle cx="90" cy="90" r="88" fill="#F6E7B4" fill-opacity=".45"></circle><circle cx="130" cy="60" r="18" fill="#990000" fill-opacity=".85"></circle></svg>
+<span style="position: relative; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; background: #F6E7B4; color: #011F5B; border-radius: 9999px; padding: 5px 14px">NEW ON PENN TOOLS · BETA</span>
+<h1 style="position: relative; margin: 0; font-family: Newsreader, Georgia, serif; font-size: clamp(40px, 6.5vw, 64px); line-height: 1.05; font-weight: 400; letter-spacing: -0.02em; color: #011F5B; max-width: 760px"><span style="color: #990000">Non-Wharton</span> Course Manager</h1>
+<p style="position: relative; margin: 0; font-size: 18px; color: #4A5468; max-width: 620px">Interested in taking electives outside of Wharton but not sure how to go about it? This tool walks you through it in three steps.</p>
+</section>
+
+<div class="nwcm-rise" style="animation-delay: .1s; width: 100%; box-sizing: border-box; background-color: #EEEDEA; background-image: radial-gradient(rgba(14,86,150,.30) 1.1px, transparent 1.4px); background-size: 14px 14px; border-radius: 32px; padding: 48px">
+<ol aria-label="How it works" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; align-items: stretch">
+<li class="nwcm-rise" style="animation-delay: .2s; background: #FFFFFF; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<span style="width: 40px; height: 40px; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-family: Newsreader, Georgia, serif; font-size: 20px; display: flex; align-items: center; justify-content: center">1</span>
+<h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 22px; line-height: 1.3; font-weight: 400">Find courses and check eligibility</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.55; color: #4A5468">Search Path@Penn, paste your picks here and see which ones count toward your MBA.</p>
+<span style="margin-top: auto; height: 4px; border-radius: 9999px; background: #EEEDEA; overflow: hidden; display: block"><span class="nwcm-fill" style="animation-delay: .5s; display: block; height: 4px; border-radius: 9999px; background: #011F5B"></span></span>
+</li>
+<li class="nwcm-rise" style="animation-delay: .4s; background: #FFFFFF; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<span style="width: 40px; height: 40px; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: Newsreader, Georgia, serif; font-size: 20px; display: flex; align-items: center; justify-content: center">2</span>
+<h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 22px; line-height: 1.3; font-weight: 400">Request permission</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.55; color: #4A5468">Send a ready-made email to each department and track who says yes.</p>
+<span style="margin-top: auto; height: 4px; border-radius: 9999px; background: #EEEDEA; overflow: hidden; display: block"><span class="nwcm-fill" style="animation-delay: 1.3s; display: block; height: 4px; border-radius: 9999px; background: #D7BC6A"></span></span>
+</li>
+<li class="nwcm-rise" style="animation-delay: .6s; background: #FFFFFF; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<span style="width: 40px; height: 40px; border-radius: 9999px; background: #990000; color: #FFFFFF; font-family: Newsreader, Georgia, serif; font-size: 20px; display: flex; align-items: center; justify-content: center">3</span>
+<h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 22px; line-height: 1.3; font-weight: 400">Register with the MBA Program</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.55; color: #4A5468">Send your approved courses to the MBA Program Office in one email.</p>
+<span style="margin-top: auto; height: 4px; border-radius: 9999px; background: #EEEDEA; overflow: hidden; display: block"><span class="nwcm-fill" style="animation-delay: 2.1s; display: block; height: 4px; border-radius: 9999px; background: #990000"></span></span>
+</li>
+</ol>
+</div>
+
+<div class="nwcm-rise" style="animation-delay: 2.6s; display: flex; flex-direction: column; align-items: center; gap: 12px">
+<button type="button" onClick="{{start}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 16px; font-weight: 500; padding: 0 34px; min-height: 54px; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 8px 24px #011F5B33">Get started
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></button>
+<span style="font-size: 14px; color: #4A5468">Takes about 5 minutes. The MBA Program Office has the final word on what counts.</span>
+</div>
+</main>
+</sc-if>
+
+<sc-if value="{{isFlow}}" hint-placeholder-val="{{ false }}">
+<main style="max-width: 1200px; margin: 0 auto; padding: 40px 24px 96px; display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start">
+
+<nav aria-label="Steps" style="flex: 1 1 260px; max-width: 320px; min-width: 0; box-sizing: border-box; background-color: #EEEDEA; border-radius: 28px; padding: 32px 28px; display: flex; flex-direction: column; gap: 36px; position: relative; overflow: hidden">
+<span aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background-image: radial-gradient(rgba(14,86,150,.30) 1.1px, transparent 1.4px); background-size: 14px 14px"></span>
+<button type="button" onClick="{{toIntro}}" style="position: relative; text-align: left; border: 0; background: transparent; padding: 0; cursor: pointer; display: flex; flex-direction: column; gap: 8px; color: #011F5B">
+<span style="align-self: flex-start; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #0E5696; background: #FFFFFF; border-radius: 9999px; padding: 6px 12px">← OVERVIEW</span>
+<span style="font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; line-height: 1.2">Non-Wharton Course Manager</span>
+</button>
+<ol style="position: relative; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+<li style="display: flex; gap: 16px">
+<span style="display: flex; flex-direction: column; align-items: center; flex: none; width: 40px">
+<span style="width: 40px; height: 40px; border-radius: 9999px; border: 1.5px solid {{s.dotRing}}; background: {{s.dotBg}}; color: {{s.dotFg}}; box-shadow: {{s.halo}}; font-family: Newsreader, Georgia, serif; font-size: 18px; display: flex; align-items: center; justify-content: center; box-sizing: border-box">{{s.mark}}</span>
+<span style="flex: 1; min-height: 44px; margin: 8px 0; border-left: 2px dotted {{s.lineColor}}; opacity: {{s.lineOpacity}}"></span>
+</span>
+<button type="button" onClick="{{s.go}}" disabled="{{s.locked}}" aria-current="{{s.current}}" style="flex: 1; min-width: 0; text-align: left; border: 0; background: transparent; padding: 6px 0 40px; cursor: {{s.cursor}}; display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 16px; font-weight: {{s.weight}}; line-height: 1.35; color: {{s.titleColor}}">{{s.title}}</span>
+<span style="align-self: flex-start; font-family: 'DM Mono', Menlo, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.05em; border-radius: 9999px; padding: 3px 10px; background: {{s.subBg}}; color: {{s.subColor}}">{{s.sub}}</span>
+</button>
+</li>
+</sc-for>
+</ol>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+
+<sc-if value="{{isStep1}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 24px">
+<section class="nwcm-rise" style="position: relative; overflow: hidden; background-color: #011F5B; background-image: radial-gradient(rgba(130,166,232,.35) 1.1px, transparent 1.4px); background-size: 14px 14px; border-radius: 28px; padding: 40px; color: #FFFFFF; display: flex; flex-direction: column; gap: 12px">
+<svg aria-hidden="true" width="200" height="200" viewBox="0 0 200 200" style="position: absolute; right: -40px; top: -40px"><circle cx="100" cy="100" r="98" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="100" cy="100" r="64" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="64" cy="140" r="14" fill="#F6E7B4"></circle></svg>
+<span style="position: relative; align-self: flex-start; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; background: #F6E7B4; color: #011F5B; border-radius: 9999px; padding: 5px 14px">STEP 1 OF 3</span>
+<h2 style="position: relative; margin: 0; font-family: Newsreader, Georgia, serif; font-size: 38px; line-height: 1.15; font-weight: 400; letter-spacing: -0.01em; max-width: 560px">Find courses and check eligibility</h2>
+<p style="position: relative; margin: 0; color: #D4E4F2; max-width: 560px">Browse Path@Penn, bring your picks here and we'll tell you which ones count toward your MBA.</p>
+</section>
+
+<section class="nwcm-rise" style="animation-delay: .1s; background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; display: flex; align-items: center; gap: 14px"><span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: 'DM Mono', Menlo, monospace; font-size: 13px; display: inline-flex; align-items: center; justify-content: center">A</span>Find courses on Path@Penn</h3>
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px">
+<li style="background: #F4F3EE; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; color: #4A5468">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 26px; line-height: 1; color: #990000">01</span>
+<span>Open <a href="https://srfs.upenn.edu/path-at-penn">Path@Penn</a> and click <strong style="color: #011F5B; font-weight: 500">Search &amp; Register for Classes</strong>.</span>
+</li>
+<li style="background: #F4F3EE; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; color: #4A5468">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 26px; line-height: 1; color: #990000">02</span>
+<span>Pick the term, add search criteria and click <strong style="color: #011F5B; font-weight: 500">Search</strong>. Advanced Search narrows by school.</span>
+</li>
+<li style="background: #F4F3EE; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; color: #4A5468">
+<span style="font-family: Newsreader, Georgia, serif; font-size: 26px; line-height: 1; color: #990000">03</span>
+<span>Click a course in the results panel for details, then copy the ones you like.</span>
+</li>
+</ol>
+<sc-if value="{{showFoundBtn}}" hint-placeholder-val="{{ true }}">
+<div><button type="button" onClick="{{foundCourses}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer">I've copied my courses</button></div>
+</sc-if>
+</section>
+
+<sc-if value="{{showPaste}}" hint-placeholder-val="{{ false }}">
+<section class="nwcm-rise" style="background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; display: flex; align-items: center; gap: 14px"><span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: 'DM Mono', Menlo, monospace; font-size: 13px; display: inline-flex; align-items: center; justify-content: center">B</span><label for="paste">Paste your courses</label></h3>
+<button type="button" onClick="{{toggleInfo}}" aria-expanded="{{infoOpen}}" aria-label="What does the eligibility check look for?" style="width: 34px; height: 34px; border-radius: 9999px; border: 0; background: #D4E4F2; color: #011F5B; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
+</button>
+</div>
+<sc-if value="{{infoOpen}}" hint-placeholder-val="{{ false }}">
+<div class="nwcm-rise" style="position: relative; overflow: hidden; background: #FBF3D9; border-radius: 20px; padding: 20px 22px; font-size: 14px; line-height: 1.55; display: flex; flex-direction: column; gap: 8px">
+<span aria-hidden="true" style="position: absolute; right: 0; top: 0; bottom: 0; width: 120px; background-image: radial-gradient(rgba(215,188,106,.6) 1.1px, transparent 1.4px); background-size: 12px 12px"></span>
+<span style="position: relative; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #990000">WHAT WE CHECK</span>
+<span style="position: relative">To count toward your MBA a course must be:</span>
+<span style="position: relative; display: flex; flex-wrap: wrap; gap: 8px">
+<span style="background: #FFFFFF; border-radius: 9999px; padding: 6px 14px">Numbered 5000 or above</span>
+<span style="background: #FFFFFF; border-radius: 9999px; padding: 6px 14px">In person or online at a set time</span>
+</span>
+<span style="position: relative; color: #4A5468">Asynchronous online courses don't count. The MBA Program Office has the final word.</span>
+</div>
+</sc-if>
+<span style="font-size: 14px; color: #4A5468">Paste as many as you want. Leave a blank line between courses.</span>
+<textarea id="paste" rows="8" value="{{pasted}}" onChange="{{onPaste}}" style="resize: vertical; border: 0; border-radius: 18px; padding: 18px; font-size: 14px; line-height: 1.6; color: #011F5B; background: #F4F3EE"></textarea>
+<div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+<button type="button" onClick="{{check}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer">Check eligibility</button>
+<sc-if value="{{checking}}" hint-placeholder-val="{{ false }}">
+<span style="display: inline-flex; align-items: center; gap: 10px; color: #4A5468; font-size: 14px">
+<span class="nwcm-spin" style="width: 18px; height: 18px; border-radius: 9999px; border: 2px solid #EEEDEA; border-top-color: #990000; display: inline-block"></span>
+Checking your courses…
+</span>
+</sc-if>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{showResults}}" hint-placeholder-val="{{ false }}">
+<section class="nwcm-rise" style="background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px">
+<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 400; display: flex; align-items: center; gap: 14px"><span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #F6E7B4; color: #011F5B; font-family: 'DM Mono', Menlo, monospace; font-size: 13px; display: inline-flex; align-items: center; justify-content: center">C</span>Your results</h3>
+<span style="display: flex; align-items: baseline; gap: 8px"><span style="font-family: Newsreader, Georgia, serif; font-size: 44px; line-height: 1; color: #990000">{{countYes}} of {{countAll}}</span><span style="font-size: 14px; color: #4A5468">{{eligTail}}</span></span>
+</div>
+<span style="font-size: 14px; color: #4A5468">Pick the ones you want to request permission for.</span>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{rows}}" as="c" hint-placeholder-count="4">
+<label class="nwcm-rise" style="animation-delay: {{c.delay}}; display: flex; gap: 16px; align-items: center; border-radius: 18px; padding: 16px 20px; cursor: pointer; background: {{c.rowBg}}; opacity: {{c.dim}}">
+<input type="checkbox" checked="{{c.picked}}" disabled="{{c.disabled}}" onChange="{{c.toggle}}" style="width: 22px; height: 22px; flex: none; accent-color: #011F5B">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">{{c.code}}</span>
+<span style="font-size: 16px; font-weight: 500">{{c.title}}</span>
+<span style="font-size: 13px; color: #4A5468">{{c.reason}}</span>
+</span>
+<span style="flex: none; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; border-radius: 9999px; padding: 5px 12px; background: {{c.badgeBg}}; color: {{c.badgeFg}}">{{c.eligLabel}}</span>
+</label>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: flex-end; padding-top: 6px">
+<button type="button" onClick="{{finishStep1}}" disabled="{{noPicked}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer; opacity: {{continueOpacity}}; display: inline-flex; align-items: center; gap: 10px">Continue to permission
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></button>
+</div>
+</section>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{isStep2}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 24px">
+<section class="nwcm-rise" style="position: relative; overflow: hidden; background-color: #011F5B; background-image: radial-gradient(rgba(130,166,232,.35) 1.1px, transparent 1.4px); background-size: 14px 14px; border-radius: 28px; padding: 40px; color: #FFFFFF; display: flex; flex-direction: column; gap: 12px">
+<svg aria-hidden="true" width="200" height="200" viewBox="0 0 200 200" style="position: absolute; right: -40px; top: -40px"><circle cx="100" cy="100" r="98" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="100" cy="100" r="64" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="64" cy="140" r="14" fill="#F6E7B4"></circle></svg>
+<span style="position: relative; align-self: flex-start; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; background: #F6E7B4; color: #011F5B; border-radius: 9999px; padding: 5px 14px">STEP 2 OF 3</span>
+<h2 style="position: relative; margin: 0; font-family: Newsreader, Georgia, serif; font-size: 38px; line-height: 1.15; font-weight: 400; letter-spacing: -0.01em">Request permission</h2>
+<p style="position: relative; margin: 0; color: #D4E4F2; max-width: 560px">Email each department to ask if you can enroll, then update each course when you hear back.</p>
+</section>
+
+<section class="nwcm-rise" style="animation-delay: .1s; position: relative; overflow: hidden; background: #FBF3D9; border-radius: 24px; padding: 28px; display: flex; flex-direction: column; gap: 16px">
+<span aria-hidden="true" style="position: absolute; right: 0; top: 0; width: 160px; height: 100%; background-image: radial-gradient(rgba(215,188,106,.6) 1.1px, transparent 1.4px); background-size: 12px 12px"></span>
+<div style="position: relative; display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.55; color: #011F5B">
+<span style="width: 34px; height: 34px; flex: none; border-radius: 9999px; background: #FFFFFF; color: #990000; display: inline-flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
+</span>
+<span><strong style="font-weight: 500">This goes into your emails.</strong> We use your name and year so departments know who's asking. It's saved only in this browser.</span>
+</div>
+<div style="position: relative; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end">
+<div style="flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px">
+<label for="name" style="font-size: 14px; font-weight: 500">Your name</label>
+<input id="name" type="text" placeholder="First Last" value="{{name}}" onChange="{{onName}}" style="font-size: 15px; padding: 0 18px; border: 0; border-radius: 9999px; min-height: 48px; box-sizing: border-box; background: #FFFFFF; color: #011F5B">
+</div>
+<div role="group" aria-label="Year" style="flex: 1 1 240px; display: flex; gap: 4px; padding: 4px; background: #FFFFFF; border-radius: 9999px">
+<button type="button" onClick="{{pickFirst}}" aria-pressed="{{y1on}}" style="flex: 1; border: 0; border-radius: 9999px; min-height: 40px; font-size: 14px; font-weight: 500; cursor: pointer; background: {{y1bg}}; color: {{y1fg}}">First-year</button>
+<button type="button" onClick="{{pickSecond}}" aria-pressed="{{y2on}}" style="flex: 1; border: 0; border-radius: 9999px; min-height: 40px; font-size: 14px; font-weight: 500; cursor: pointer; background: {{y2bg}}; color: {{y2fg}}">Second-year</button>
+</div>
+</div>
+</section>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<sc-for list="{{permCards}}" as="c" hint-placeholder-count="2">
+<article class="nwcm-rise" style="background: #FFFFFF; border-radius: 24px; box-shadow: {{c.shadow}}; overflow: hidden">
+<button type="button" onClick="{{c.toggle}}" aria-expanded="{{c.open}}" style="width: 100%; text-align: left; border: 0; background: transparent; padding: 20px 24px; cursor: pointer; display: flex; align-items: center; gap: 16px; min-height: 72px; color: #011F5B">
+<span style="width: 44px; height: 44px; flex: none; border-radius: 9999px; background: {{c.chipBg}}; color: {{c.chipFg}}; display: flex; align-items: center; justify-content: center; font-family: Newsreader, Georgia, serif; font-size: 18px">{{c.n}}</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">{{c.code}}</span>
+<span style="font-size: 16px; font-weight: 500">{{c.title}}</span>
+</span>
+<span style="flex: none; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; border-radius: 9999px; padding: 5px 12px; background: {{c.chipBg}}; color: {{c.chipFg}}">{{c.statusLabel}}</span>
+<span style="width: 36px; height: 36px; flex: none; border-radius: 9999px; background: #F4F3EE; display: flex; align-items: center; justify-content: center">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#011F5B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate({{c.rot}})"><path d="m6 9 6 6 6-6"></path></svg>
+</span>
+</button>
+<sc-if value="{{c.open}}" hint-placeholder-val="{{ false }}">
+<div class="nwcm-rise" style="padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="{{c.inputId}}" style="font-size: 14px; color: #4A5468">Who to email (from the course details on Path@Penn)</label>
+<input id="{{c.inputId}}" type="text" placeholder="department or instructor email" value="{{c.contact}}" onChange="{{c.onContact}}" style="font-size: 14px; padding: 0 18px; border: 0; border-radius: 9999px; min-height: 46px; box-sizing: border-box; background: #F4F3EE; color: #011F5B">
+</div>
+<div style="white-space: pre-wrap; font-size: 14px; line-height: 1.65; background: #F4F3EE; border-radius: 20px; padding: 20px"><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">SUBJECT</span>  {{c.subject}}
+
+{{c.body}}</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<a href="{{c.href}}" onClick="{{c.markWaiting}}" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 14px; font-weight: 500; padding: 0 22px; min-height: 46px">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
+Open in email
+</a>
+<div role="group" aria-label="Permission status" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #F4F3EE; border-radius: 9999px">
+<sc-for list="{{c.opts}}" as="o" hint-placeholder-count="4">
+<button type="button" onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="border: 0; border-radius: 9999px; min-height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; cursor: pointer; background: {{o.bg}}; color: {{o.fg}}">{{o.label}}</button>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+</article>
+</sc-for>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px">
+<button type="button" onClick="{{toStep1}}" style="border: 0; border-radius: 9999px; background: #D4E4F2; color: #011F5B; font-size: 15px; font-weight: 500; padding: 0 22px; min-height: 48px; cursor: pointer">Back</button>
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<span style="font-size: 14px; color: #4A5468">{{step3Hint}}</span>
+<button type="button" onClick="{{toStep3}}" disabled="{{step3Locked}}" style="border: 0; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px; cursor: pointer; opacity: {{step3Opacity}}; display: inline-flex; align-items: center; gap: 10px">Continue to registration
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isStep3}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 24px">
+<section class="nwcm-rise" style="position: relative; overflow: hidden; background-color: #011F5B; background-image: radial-gradient(rgba(130,166,232,.35) 1.1px, transparent 1.4px); background-size: 14px 14px; border-radius: 28px; padding: 40px; color: #FFFFFF; display: flex; flex-direction: column; gap: 12px">
+<svg aria-hidden="true" width="200" height="200" viewBox="0 0 200 200" style="position: absolute; right: -40px; top: -40px"><circle cx="100" cy="100" r="98" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="100" cy="100" r="64" fill="none" stroke="#82A6E8" stroke-opacity=".5" stroke-width="1.5"></circle><circle cx="64" cy="140" r="14" fill="#990000"></circle></svg>
+<span style="position: relative; align-self: flex-start; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; background: #F6E7B4; color: #011F5B; border-radius: 9999px; padding: 5px 14px">STEP 3 OF 3</span>
+<h2 style="position: relative; margin: 0; font-family: Newsreader, Georgia, serif; font-size: 38px; line-height: 1.15; font-weight: 400; letter-spacing: -0.01em">Register with the MBA Program</h2>
+<p style="position: relative; margin: 0; color: #D4E4F2; max-width: 560px">Send your approved courses and section numbers to the MBA Program Office. They handle the registration.</p>
+</section>
+
+<sc-if value="{{showReg}}" hint-placeholder-val="{{ true }}">
+<section class="nwcm-rise" style="animation-delay: .1s; background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #990000">{{approvedCount}} APPROVED</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{approved}}" as="a" hint-placeholder-count="1">
+<span style="display: inline-flex; gap: 10px; align-items: center; background: #E2EFE4; color: #011F5B; border-radius: 9999px; padding: 8px 16px; font-size: 14px"><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #267434">{{a.code}}</span>{{a.title}}</span>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px">
+<span style="background: #F4F3EE; border-radius: 9999px; padding: 6px 14px"><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">TO</span>  mbaprogram@wharton.upenn.edu</span>
+</div>
+<div style="white-space: pre-wrap; font-size: 14px; line-height: 1.65; background: #F4F3EE; border-radius: 20px; padding: 20px"><span style="font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; color: #4A5468">SUBJECT</span>  {{regSubject}}
+
+{{regBody}}</div>
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<a href="{{regHref}}" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; border-radius: 9999px; background: #011F5B; color: #FFFFFF; font-size: 15px; font-weight: 500; padding: 0 24px; min-height: 48px">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
+Open in email
+</a>
+<button type="button" onClick="{{markSent}}" style="border: 0; border-radius: 9999px; background: #D4E4F2; color: #011F5B; font-size: 15px; font-weight: 500; padding: 0 22px; min-height: 48px; cursor: pointer">I sent it</button>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{isDone}}" hint-placeholder-val="{{ false }}">
+<div class="nwcm-rise" style="position: relative; overflow: hidden; border-radius: 32px; padding: 48px; background-color: #EEEDEA; background-image: radial-gradient(rgba(14,86,150,.30) 1.1px, transparent 1.4px); background-size: 14px 14px">
+<svg aria-hidden="true" width="160" height="160" viewBox="0 0 160 160" style="position: absolute; right: 24px; top: 24px"><circle cx="80" cy="80" r="78" fill="#F6E7B4" fill-opacity=".7"></circle><circle cx="112" cy="48" r="16" fill="#990000"></circle></svg>
+<div style="position: relative; background: #FFFFFF; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px #011F5B0F, 0 8px 24px #011F5B14; max-width: 480px">
+<span style="align-self: flex-start; font-family: 'DM Mono', Menlo, monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; background: #E2EFE4; color: #267434; border-radius: 9999px; padding: 5px 12px">✓ SENT</span>
+<h3 style="margin: 0; font-family: Newsreader, Georgia, serif; font-size: 32px; font-weight: 400">You're all set</h3>
+<p style="margin: 0; color: #4A5468">The MBA Program Office has your request. Watch your inbox in case they need anything else.</p>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+</div>
+</main>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = {
+view: 'intro',
+step: 1,
+s1stage: 'find',
+checking: false,
+infoOpen: false,
+s1done: false,
+name: '',
+year: 'first',
+openId: null,
+regSent: false,
+pasted: 'DSGN 5100-001  Product Design Studio\nSpring 2027 · In person · Weitzman School of Design\n\nLAW 6120-001  Technology Law and Policy\nSpring 2027 · In person · Penn Carey Law\n\nENGR 5900-401  Intro to Machine Learning\nSpring 2027 · Online asynchronous · Penn Engineering\n\nPSYC 4300-001  Behavioral Science Lab\nSpring 2027 · In person · Arts and Sciences',
+courses: []
+};
+}
+elig(code, format) {
+const m = String(code || '').match(/(\d{4})/);
+const lvl = m ? Number(m[1]) : null;
+const look = { yes: { bg: '#E2EFE4', fg: '#267434', row: '#F4F3EE' }, no: { bg: '#F5E1E1', fg: '#990000', row: '#FAF8F4' }, check: { bg: '#F6E7B4', fg: '#011F5B', row: '#FBF3D9' } };
+let r;
+if (!lvl || !format) r = { key: 'check', label: 'CHECK THIS', reason: 'Confirm the course number and format on Path@Penn.' };
+else if (lvl < 5000) r = { key: 'no', label: "DOESN'T COUNT", reason: 'Only graduate-level courses (5000 and above) count.' };
+else if (format === 'Online asynchronous') r = { key: 'no', label: "DOESN'T COUNT", reason: "Asynchronous online courses don't count." };
+else r = { key: 'yes', label: '✓ COUNTS', reason: format === 'Online synchronous' ? 'Graduate level, online at a set time.' : 'Graduate level, in person.' };
+return Object.assign(r, look[r.key]);
+}
+parse(text) {
+const blocks = String(text || '').split(/\n\s*\n/);
+const out = [];
+blocks.forEach((b, i) => {
+const m = b.match(/([A-Z]{2,5})\s*(\d{4})(?:\s*-\s*(\d{3}))?/);
+if (!m) return;
+const code = m[1] + ' ' + m[2] + (m[3] ? '-' + m[3] : '');
+const first = b.split('\n')[0];
+const at = first.indexOf(m[0]);
+const title = (at >= 0 ? first.slice(at + m[0].length) : '').replace(/^[\s·:–-]+/, '').trim() || 'Untitled course';
+const low = b.toLowerCase();
+const format = low.indexOf('asynchronous') >= 0 ? 'Online asynchronous' : low.indexOf('synchronous') >= 0 ? 'Online synchronous' : (low.indexOf('in person') >= 0 || low.indexOf('in-person') >= 0) ? 'In person' : '';
+const sem = (b.match(/(Spring|Fall|Summer)\s+\d{4}/) || [''])[0];
+const contact = (b.match(/[\w.+-]+@[\w.-]+\.\w+/) || [''])[0];
+const e = this.elig(code, format);
+out.push({ id: 'k' + i, code, title, format, sem, contact, picked: e.key === 'yes', perm: 'not' });
+});
+return out;
+}
+patch(id, p) {
+this.setState({ courses: this.state.courses.map(c => c.id === id ? Object.assign({}, c, p) : c) });
+}
+componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+renderVals() {
+const s = this.state;
+const enc = encodeURIComponent;
+const who = s.name.trim() || '[Your name]';
+const yr = s.year === 'first' ? 'first' : 'second';
+const withElig = s.courses.map(c => Object.assign({}, c, { e: this.elig(c.code, c.format) }));
+const picked = withElig.filter(c => c.picked && c.e.key === 'yes');
+const approved = picked.filter(c => c.perm === 'approved');
+const countYes = withElig.filter(c => c.e.key === 'yes').length;
+
+const rows = withElig.map((c, i) => ({
+code: c.code, title: c.title, reason: c.e.reason, eligLabel: c.e.label, badgeBg: c.e.bg, badgeFg: c.e.fg, rowBg: c.e.row,
+picked: c.picked && c.e.key === 'yes', disabled: c.e.key !== 'yes', dim: c.e.key === 'yes' ? 1 : 0.8,
+delay: (i * 0.12) + 's',
+toggle: () => this.patch(c.id, { picked: !c.picked })
+}));
+
+const statusLook = {
+not: { label: 'NOT SENT', bg: '#EEEDEA', fg: '#4A5468' },
+waiting: { label: 'WAITING', bg: '#F6E7B4', fg: '#011F5B' },
+approved: { label: '✓ APPROVED', bg: '#E2EFE4', fg: '#267434' },
+declined: { label: 'DECLINED', bg: '#F5E1E1', fg: '#990000' }
+};
+const optLabel = { not: 'Not sent', waiting: 'Waiting', approved: 'Approved', declined: 'Declined' };
+const permCards = picked.map((c, i) => {
+const subject = 'Permission to enroll in ' + c.code;
+const body = 'Hi,\n\nMy name is ' + who + " and I'm a " + yr + '-year MBA student at Wharton. I came across ' + c.code + ' ' + c.title + " and I'm interested in taking it" + (c.sem ? ' for ' + c.sem : '') + ". I wanted to check if I'm eligible to enroll and if there's anything I need to do to get permission. If there's someone else I should contact please let me know.\n\nThank you,\n" + who;
+const open = s.openId === c.id;
+const look = statusLook[c.perm];
+return {
+n: String(i + 1), code: c.code, title: c.title, contact: c.contact, inputId: 'contact-' + c.id,
+subject, body, open, rot: open ? '180deg' : '0deg',
+shadow: open ? '0 1px 2px #011F5B0F, 0 12px 32px #011F5B1F' : '0 1px 2px #011F5B0F, 0 4px 12px #011F5B0D',
+statusLabel: look.label, chipBg: look.bg, chipFg: look.fg,
+href: 'mailto:' + c.contact + '?subject=' + enc(subject) + '&body=' + enc(body),
+markWaiting: () => { if (c.perm === 'not') this.patch(c.id, { perm: 'waiting' }); },
+onContact: ev => this.patch(c.id, { contact: ev.target.value }),
+toggle: () => this.setState({ openId: open ? null : c.id }),
+opts: ['not', 'waiting', 'approved', 'declined'].map(k => {
+const on = c.perm === k;
+return { label: optLabel[k], on, bg: on ? statusLook[k].bg : 'transparent', fg: on ? statusLook[k].fg : '#4A5468', pick: () => this.patch(c.id, { perm: k }) };
+})
+};
+});
+
+const regSubject = 'Non-Wharton course registration – ' + (approved.map(c => c.code).join(', ') || '[course and section]');
+const list = approved.map(c => '- ' + c.code + ', ' + c.title + (c.sem ? ' (' + c.sem + ')' : '')).join('\n');
+const regBody = 'Hi,\n\nMy name is ' + who + " and I'm a " + yr + "-year MBA student. I'd like to take the following non-Wharton " + (approved.length > 1 ? 'courses' : 'course') + " and I've received permission from the department" + (approved.length > 1 ? 's' : '') + ':\n\n' + list + "\n\nPlease let me know if there's anything else I need to do to register.\n\nThank you,\n" + who;
+
+const unlocked = { 1: true, 2: s.s1done && picked.length > 0, 3: s.s1done && approved.length > 0 };
+const done = { 1: s.s1done && picked.length > 0, 2: approved.length > 0 && picked.every(c => c.perm === 'approved' || c.perm === 'declined'), 3: s.regSent };
+const subs = {
+1: s.courses.length ? countYes + ' OF ' + s.courses.length + ' COUNT' : 'START HERE',
+2: !unlocked[2] ? 'LOCKED' : approved.length + ' OF ' + picked.length + ' APPROVED',
+3: !unlocked[3] ? 'LOCKED' : (s.regSent ? 'SENT' : approved.length + ' READY')
+};
+const titles = { 1: 'Find courses and check eligibility', 2: 'Request permission', 3: 'Register with the MBA Program' };
+const steps = [1, 2, 3].map(n => {
+const cur = s.step === n, isDone = done[n], locked = !unlocked[n];
+return {
+title: titles[n], sub: subs[n], current: cur ? 'step' : 'false', locked,
+mark: isDone && !cur ? '✓' : String(n),
+dotBg: cur ? '#990000' : (isDone ? '#011F5B' : '#FFFFFF'),
+dotFg: cur || isDone ? '#FFFFFF' : '#4A5468',
+dotRing: cur ? '#990000' : (isDone ? '#011F5B' : '#C9C8C0'),
+halo: cur ? '0 0 0 6px rgba(153,0,0,.14)' : 'none',
+lineColor: isDone ? '#011F5B' : '#A9A89F', lineOpacity: n === 3 ? 0 : 1,
+titleColor: locked ? '#6A7386' : '#011F5B', weight: cur ? 500 : 400,
+subBg: cur ? '#F6E7B4' : (isDone ? '#FFFFFF' : 'rgba(255,255,255,.6)'),
+subColor: locked ? '#6A7386' : '#011F5B', cursor: locked ? 'not-allowed' : 'pointer',
+go: () => { if (!locked) this.setState({ step: n }); }
+};
+});
+
+const stage = s.s1stage;
+return {
+isIntro: s.view === 'intro', isFlow: s.view === 'flow',
+start: () => this.setState({ view: 'flow', step: 1 }),
+toIntro: () => this.setState({ view: 'intro' }),
+steps,
+isStep1: s.step === 1, isStep2: s.step === 2, isStep3: s.step === 3,
+showFoundBtn: stage === 'find',
+foundCourses: () => this.setState({ s1stage: 'paste' }),
+showPaste: stage !== 'find',
+infoOpen: s.infoOpen, toggleInfo: () => this.setState({ infoOpen: !this.state.infoOpen }),
+pasted: s.pasted, onPaste: ev => this.setState({ pasted: ev.target.value }),
+checking: s.checking,
+check: () => {
+this.setState({ checking: true, s1stage: 'paste' });
+if (this.timer) clearTimeout(this.timer);
+this.timer = setTimeout(() => this.setState({ checking: false, s1stage: 'results', courses: this.parse(this.state.pasted) }), 900);
+},
+showResults: stage === 'results' && !s.checking,
+countYes, countAll: s.courses.length,
+eligTail: (s.courses.length === 1 ? 'course counts' : 'courses count') + ' toward your MBA',
+rows,
+noPicked: picked.length === 0, continueOpacity: picked.length === 0 ? 0.45 : 1,
+finishStep1: () => { if (picked.length) this.setState({ s1done: true, step: 2, openId: picked[0].id }); },
+name: s.name, onName: ev => this.setState({ name: ev.target.value }),
+y1on: s.year === 'first', y2on: s.year === 'second',
+y1bg: s.year === 'first' ? '#011F5B' : 'transparent', y1fg: s.year === 'first' ? '#FFFFFF' : '#4A5468',
+y2bg: s.year === 'second' ? '#011F5B' : 'transparent', y2fg: s.year === 'second' ? '#FFFFFF' : '#4A5468',
+pickFirst: () => this.setState({ year: 'first' }), pickSecond: () => this.setState({ year: 'second' }),
+permCards,
+toStep1: () => this.setState({ step: 1 }),
+step3Locked: !unlocked[3], step3Opacity: unlocked[3] ? 1 : 0.45,
+step3Hint: unlocked[3] ? '' : 'Mark at least one course Approved to continue',
+toStep3: () => { if (unlocked[3]) this.setState({ step: 3 }); },
+showReg: approved.length > 0 && !s.regSent,
+isDone: s.regSent,
+approvedCount: String(approved.length),
+approved: approved.map(c => ({ code: c.code, title: c.title })),
+regSubject, regBody,
+regHref: 'mailto:mbaprogram@wharton.upenn.edu?subject=' + enc(regSubject) + '&body=' + enc(regBody),
+markSent: () => this.setState({ regSent: true })
+};
+}
+}
+</script>
+</body>
+</html>

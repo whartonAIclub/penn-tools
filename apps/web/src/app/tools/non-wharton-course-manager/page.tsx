@@ -1,12 +1,13 @@
-// A placeholder page. To build the tool, see section 4 of CLAUDE.md: AskPenn
-// (tools/askpenn) and the Platform Playground (tools/platform-playground) are
-// the reference tools.
+// Non-Wharton Course Manager: helps MBA students take a Penn course outside
+// Wharton in three steps. Works signed out; everything stays in the browser.
+
+import type { Metadata } from "next";
+import { CourseManager } from "./CourseManager";
+
+export const metadata: Metadata = {
+  title: "Non-Wharton Course Manager",
+};
 
 export default function NonWhartonCourseManagerPage() {
-  return (
-    <div>
-      <h1>{"Non-Wharton Course Manager"}</h1>
-      <p>{"Check if a Penn course outside Wharton counts toward your MBA, then request permission and register in a few clicks."}</p>
-    </div>
-  );
+  return <CourseManager />;
 }
