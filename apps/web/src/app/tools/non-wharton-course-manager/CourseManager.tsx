@@ -3,11 +3,15 @@
 // The whole tool: the overview screen, then the three-step flow with the
 // stepper on the left and the current step on the right.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   EMPTY_PROGRESS,
+  SAVE_KEY,
   STEP_TITLES,
+  approvedCourses,
   pickedCourses,
+  readSaved,
+  saveText,
   stepStatuses,
   upcomingTerms,
 } from "@penntools/tool-non-wharton-course-manager";
@@ -16,6 +20,7 @@ import { mono, sans, serif } from "./fonts";
 import { Overview } from "./Overview";
 import { Step1 } from "./Step1";
 import { Step2 } from "./Step2";
+import { Step3 } from "./Step3";
 import { Stepper } from "./Stepper";
 import { LockIcon } from "./icons";
 import styles from "./CourseManager.module.css";
@@ -27,14 +32,61 @@ const STEP_INTROS: Record<StepNumber, string> = {
   3: "Send your approved courses and section numbers to the MBA Program Office. They handle the registration.",
 };
 
+/** Browser storage can be blocked (private windows, strict settings): the tool still works, it just won't remember. */
+function loadSaved(): string | null {
+  try {
+    return window.localStorage.getItem(SAVE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeSaved(text: string | null) {
+  try {
+    if (text === null) window.localStorage.removeItem(SAVE_KEY);
+    else window.localStorage.setItem(SAVE_KEY, text);
+  } catch {
+    // Not saved; nothing else to do.
+  }
+}
+
 export function CourseManager() {
   const [view, setView] = useState<"overview" | "flow">("overview");
   const [step, setStep] = useState<StepNumber>(1);
   const [terms] = useState(() => upcomingTerms(new Date()));
-  // Saved in the browser in build step 4.
   const [progress, setProgress] = useState<Progress>(() => ({ ...EMPTY_PROGRESS, term: terms[0] ?? "" }));
+  /** False until saved progress is read, so the page doesn't flash the overview first. */
+  const [loaded, setLoaded] = useState(false);
 
   const statuses = stepStatuses(progress);
+
+  // Bring back saved progress once the page is in the browser.
+  useEffect(() => {
+    const saved = readSaved(loadSaved());
+    if (saved) {
+      // A term that has already started isn't offered any more; use the next one.
+      const term = terms.includes(saved.progress.term) ? saved.progress.term : (terms[0] ?? "");
+      const restored = { ...saved.progress, term };
+      const unlocked = stepStatuses(restored).filter((s) => s.unlocked).map((s) => s.step);
+      setProgress(restored);
+      setView(saved.view);
+      setStep(unlocked.includes(saved.step) ? saved.step : (unlocked.at(-1) ?? 1));
+    }
+    setLoaded(true);
+  }, [terms]);
+
+  // Save after every change.
+  useEffect(() => {
+    if (loaded) writeSaved(saveText({ progress, view, step }));
+  }, [loaded, progress, view, step]);
+
+  function startOver() {
+    if (!window.confirm("Start over? This clears your courses, statuses and name from this browser.")) return;
+    writeSaved(null);
+    setProgress({ ...EMPTY_PROGRESS, term: terms[0] ?? "" });
+    setStep(1);
+    setView("overview");
+  }
 
   function setCourses(update: (courses: Course[]) => Course[]) {
     setProgress((p) => ({ ...p, courses: update(p.courses) }));
@@ -56,14 +108,19 @@ export function CourseManager() {
           <span className={styles.label}>
             PENN TOOLS <span className={styles.slash}>/</span> ACADEMICS
           </span>
-          <span className={styles.savedPill}>
-            <LockIcon />
-            Saved only in this browser
+          <span className={styles.topBarRight}>
+            <span className={styles.savedPill}>
+              <LockIcon />
+              Saved only in this browser
+            </span>
+            <button type="button" className={styles.startOver} onClick={startOver}>
+              Start over
+            </button>
           </span>
         </div>
       </header>
 
-      {view === "overview" ? (
+      {!loaded ? null : view === "overview" ? (
         <Overview
           onStart={() => {
             setStep(1);
@@ -107,10 +164,13 @@ export function CourseManager() {
                 onContinue={() => setStep(3)}
               />
             ) : (
-              // Step 3 arrives in its own build step.
-              <section className={styles.card}>
-                <p className={styles.muted}>This step is coming soon.</p>
-              </section>
+              <Step3
+                courses={approvedCourses(progress.courses)}
+                sender={{ name: progress.name, year: progress.year, term: progress.term }}
+                sent={progress.registrationSent}
+                onSent={() => setProgress((p) => ({ ...p, registrationSent: true }))}
+                onBack={() => setStep(2)}
+              />
             )}
           </div>
         </main>

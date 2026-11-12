@@ -89,3 +89,26 @@ export function findEmailSearch(course: Course): { label: string; href: string }
     href: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
   };
 }
+
+/** Where registration requests go (SPEC.md, policy). */
+export const REGISTRATION_ADDRESS = "mbaprogram@wharton.upenn.edu";
+
+/** The one registration email to the MBA Program Office, listing every approved course. */
+export function registrationEmail(courses: readonly Course[], sender: Sender): Email {
+  const name = sender.name.trim() || NAME_PLACEHOLDER;
+  const many = courses.length > 1;
+  const codes = courses.map(courseCode);
+  const list = courses.map((c) => `- ${courseCode(c)}, ${c.title}`).join("\n");
+  return {
+    to: REGISTRATION_ADDRESS,
+    subject: `Non-Wharton course registration – ${codes.join(", ")}`,
+    body:
+      `Hi,\n\n` +
+      `My name is ${name} and I'm a ${sender.year}-year MBA student. ` +
+      `I'd like to take the following non-Wharton ${many ? "courses" : "course"} for ${sender.term} ` +
+      `and I've received permission from the ${many ? "departments" : "department"}:\n\n` +
+      `${list}\n\n` +
+      `Please let me know if there's anything else I need to do to register.\n\n` +
+      `Thank you,\n${name}`,
+  };
+}
