@@ -549,8 +549,11 @@
   border-color: currentColor;
 }
 .dueIcon {
-  font-size: 0.7em;
-  opacity: 0.7;
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 0.95em;
+  line-height: 1;
+  vertical-align: -1px;
 }
 /* Invisible, under the tag, so the browser's calendar opens next to it */
 .dueInput {
