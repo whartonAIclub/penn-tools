@@ -74,5 +74,11 @@ export {
 } from "./calendarStorage.js";
 export type { MatchKind, ProposalStatus, StoredProposal, CalendarImportSummary } from "./calendarStorage.js";
 export { groupByMonth, UNDATED_GROUP } from "./calendarView.js";
-export { dueDate, anchorOffset, generateTasks, rescheduleEvent } from "./checklist.js";
+export { dueDate, anchorOffset, generateTasks, rescheduleEvent, categoryOf, suggestedModules } from "./checklist.js";
 export type { Phase, Area, TemplateItem, TaskDraft } from "./checklist.js";
+export { PUB_TEMPLATE_V1, ensureTemplate, getTemplate } from "./pubTemplate.js";
+export type { PubTemplate, TemplateModule, TemplateIssue, LoadedTemplate } from "./pubTemplate.js";
+export { createEventTasks, listTasks, updateTask, createTodo, deleteTask, MAX_TASK_TITLE } from "./tasks.js";
+export type { TaskStatus, TaskRow } from "./tasks.js";
+export { listMembers, addMember, setMemberActive, syncMembers } from "./members.js";
+export type { Member } from "./members.js";

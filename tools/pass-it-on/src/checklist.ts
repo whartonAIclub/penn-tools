@@ -8,7 +8,7 @@ import type { RoleInput } from "./planning.js";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Parses a real calendar date into UTC milliseconds, or throws RangeError.
-function parseDate(date: string): number {
+export function parseDate(date: string): number {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   if (match) {
     const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
@@ -37,7 +37,7 @@ export function anchorOffset(eventDate: string, weekday: number): number {
 }
 
 export type Phase = "pre" | "day_of" | "during" | "post";
-export type Area = "general" | "finance" | "marketing" | "operations" | "entertainment";
+export type Area = "general" | "finance" | "marketing" | "operations" | "entertainment" | "partners";
 
 export interface TemplateItem {
   key: string;
@@ -52,6 +52,8 @@ export interface TemplateItem {
   notes: string | null;
   sort: number;
   isPostmortem: boolean;
+  repeatFor: "partner_club" | null;
+  timeHint: string | null;
 }
 
 export interface TaskDraft {
@@ -64,18 +66,54 @@ export interface TaskDraft {
   owner: string;
   isPostmortem: boolean;
   notes: string | null;
+  timeHint: string | null;
+  partner: string | null;
   source: "template";
   confirmed: false;
 }
 
+/** The planning-vs-run-of-show category of a phase. */
+export function categoryOf(phase: Phase): "planning" | "run_of_show" {
+  return phase === "pre" ? "planning" : "run_of_show";
+}
+
+/** The modules worth suggesting for an event. */
+export function suggestedModules(event: { partnerClubs: string[] }): string[] {
+  return event.partnerClubs.some((club) => slugOf(club) !== "") ? ["club-collab"] : [];
+}
+
+function slugOf(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+// Unique clubs in order, each with a unique key slug. Blank names, names with
+// an empty slug and repeats (ignoring case) are dropped.
+function uniqueClubs(names: string[]): { name: string; slug: string }[] {
+  const seenNames = new Set<string>();
+  const usedSlugs = new Set<string>();
+  const clubs: { name: string; slug: string }[] = [];
+  for (const raw of names) {
+    const name = raw.trim();
+    const base = slugOf(name);
+    if (base === "" || seenNames.has(name.toLowerCase())) continue;
+    seenNames.add(name.toLowerCase());
+    let slug = base;
+    for (let n = 2; usedSlugs.has(slug); n++) slug = `${base}-${n}`;
+    usedSlugs.add(slug);
+    clubs.push({ name, slug });
+  }
+  return clubs;
+}
+
 /**
  * The tasks a template gives an event: base items plus the chosen modules'
- * items, with offsets from the event date and owners from its roles. Pure.
+ * items, with offsets from the event date and owners from its roles. Items that
+ * repeat for partner clubs (and their subtasks) get one task per club. Pure.
  */
 export function generateTasks(
   items: TemplateItem[],
   moduleKeys: string[],
-  event: { eventDate: string | null; roles: RoleInput[] },
+  event: { eventDate: string | null; roles: RoleInput[]; partnerClubs: string[] },
 ): TaskDraft[] {
   const modules = new Set(moduleKeys);
   let included = items.filter((i) => i.moduleKey === null || modules.has(i.moduleKey));
@@ -87,11 +125,27 @@ export function generateTasks(
     included = kept;
   }
 
+  // Items that repeat per club: marked so, or a subtask of one that does.
+  const byKey = new Map(included.map((i) => [i.key, i]));
+  const repeats = (item: TemplateItem): boolean => {
+    for (let at: TemplateItem | undefined = item, hops = 0; at && hops <= included.length; hops++) {
+      if (at.repeatFor !== null) return true;
+      at = at.parentKey === null ? undefined : byKey.get(at.parentKey);
+    }
+    return false;
+  };
+
+  interface Occurrence { item: TemplateItem; club: { name: string; slug: string } | null }
+  const clubs = uniqueClubs(event.partnerClubs);
+  const occurrences: Occurrence[] = included.flatMap((item): Occurrence[] =>
+    repeats(item) ? clubs.map((club) => ({ item, club })) : [{ item, club: null }],
+  );
+
   const leader = leaderOf(event.roles);
   const holders = event.roles.filter((r) => r.person);
   const ownerOf = (item: TemplateItem): string => {
-    const role = item.defaultRole?.toLowerCase();
-    const holder = role ? holders.find((r) => r.role.toLowerCase() === role) : undefined;
+    const role = item.defaultRole?.trim().toLowerCase();
+    const holder = role ? holders.find((r) => r.role.trim().toLowerCase() === role) : undefined;
     return holder?.person ?? leader ?? "Unassigned";
   };
   const offsetOf = (item: TemplateItem): number | null => {
@@ -102,8 +156,8 @@ export function generateTasks(
     return null;
   };
 
-  return included
-    .map((item) => ({ item, offset: offsetOf(item) }))
+  return occurrences
+    .map((o) => ({ ...o, offset: offsetOf(o.item) }))
     .sort((a, b) => {
       if (a.offset !== b.offset) {
         if (a.offset === null) return 1;
@@ -112,16 +166,21 @@ export function generateTasks(
       }
       return a.item.sort - b.item.sort;
     })
-    .map(({ item, offset }) => ({
-      templateItemKey: item.key,
-      parentKey: item.parentKey,
-      title: item.title,
+    .map(({ item, club, offset }) => ({
+      templateItemKey: club ? `${item.key}:${club.slug}` : item.key,
+      parentKey:
+        item.parentKey !== null && club && repeats(byKey.get(item.parentKey) as TemplateItem)
+          ? `${item.parentKey}:${club.slug}`
+          : item.parentKey,
+      title: club ? item.title.replaceAll("{club}", club.name) : item.title,
       phase: item.phase,
       area: item.area,
       offsetDays: offset,
       owner: ownerOf(item),
       isPostmortem: item.isPostmortem,
       notes: item.notes,
+      timeHint: item.timeHint,
+      partner: club?.name ?? null,
       source: "template" as const,
       confirmed: false as const,
     }));

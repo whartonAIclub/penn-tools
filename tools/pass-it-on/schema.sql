@@ -295,3 +295,43 @@ CREATE TABLE IF NOT EXISTS members (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS members_name_lower_idx ON members (lower(name));
+
+-- ---------------------------------------------------------------------------
+-- Template and task amendments (additive). Every statement is re-runnable:
+-- constraints are dropped by name and re-added, columns use IF NOT EXISTS.
+-- ---------------------------------------------------------------------------
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS repeat_for TEXT CHECK (repeat_for IN ('partner_club'));
+ALTER TABLE template_items ADD COLUMN IF NOT EXISTS time_hint TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS time_hint TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS partner TEXT;
+
+ALTER TABLE template_items DROP CONSTRAINT IF EXISTS template_items_area_check;
+ALTER TABLE template_items ADD CONSTRAINT template_items_area_check
+  CHECK (area IN ('general', 'finance', 'marketing', 'operations', 'entertainment', 'partners'));
+-- The UPDATEs below only repair rows written before these constraints existed,
+-- so tightening a column can never fail a deploy.
+UPDATE template_items SET phase = 'pre' WHERE phase IS NULL;
+UPDATE template_items SET area = 'general' WHERE area IS NULL;
+ALTER TABLE template_items ALTER COLUMN phase SET NOT NULL;
+ALTER TABLE template_items ALTER COLUMN area SET NOT NULL;
+
+ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check;
+ALTER TABLE tasks ADD CONSTRAINT tasks_status_check
+  CHECK (status IN ('todo', 'doing', 'blocked', 'done', 'skipped'));
+UPDATE tasks SET phase = NULL WHERE phase IS NOT NULL AND phase NOT IN ('pre', 'day_of', 'during', 'post');
+UPDATE tasks SET area = NULL WHERE area IS NOT NULL
+  AND area NOT IN ('general', 'finance', 'marketing', 'operations', 'entertainment', 'partners');
+ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_phase_check;
+ALTER TABLE tasks ADD CONSTRAINT tasks_phase_check
+  CHECK (phase IN ('pre', 'day_of', 'during', 'post'));
+ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_area_check;
+ALTER TABLE tasks ADD CONSTRAINT tasks_area_check
+  CHECK (area IN ('general', 'finance', 'marketing', 'operations', 'entertainment', 'partners'));
+
+CREATE TABLE IF NOT EXISTS template_issues (
+  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  version_id BIGINT NOT NULL REFERENCES template_versions (id) ON DELETE CASCADE,
+  item_key   TEXT,
+  text       TEXT   NOT NULL,
+  status     TEXT   NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved'))
+);

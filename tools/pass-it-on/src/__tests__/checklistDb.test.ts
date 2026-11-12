@@ -114,6 +114,88 @@ describe.skipIf(!databaseUrl)("checklist schema", () => {
     });
   });
 
+  describe("template and task amendments", () => {
+    const insertItemWith = (key: string, phase: string | null, area: string | null, repeatFor: string | null = null) =>
+      sql`INSERT INTO template_items (version_id, key, title, phase, area, repeat_for)
+          VALUES (${versionId}, ${key}, 'T', ${phase}, ${area}, ${repeatFor})`;
+
+    it("accepts the partners area and the skipped status", async () => {
+      await expect(insertItemWith("partners-item", "pre", "partners")).resolves.toBeDefined();
+      await expect(sql`INSERT INTO tasks (title, area) VALUES ('p', 'partners')`).resolves.toBeDefined();
+      await expect(sql`INSERT INTO tasks (title, status) VALUES ('s', 'skipped')`).resolves.toBeDefined();
+    });
+
+    it("rejects a bad task phase, a bad task area and a template item without a phase", async () => {
+      await expect(sql`INSERT INTO tasks (title, phase) VALUES ('x', 'bogus')`).rejects.toMatchObject({ code: "23514" });
+      await expect(sql`INSERT INTO tasks (title, area) VALUES ('x', 'bogus')`).rejects.toMatchObject({ code: "23514" });
+      await expect(insertItemWith("nophase", null, "general")).rejects.toMatchObject({ code: "23502" });
+      await expect(insertItemWith("noarea", "pre", null)).rejects.toMatchObject({ code: "23502" });
+    });
+
+    it("allows a task with no phase or area", async () => {
+      await expect(sql`INSERT INTO tasks (title) VALUES ('manual')`).resolves.toBeDefined();
+    });
+
+    it("has the new columns", async () => {
+      const cols = async (table: string) =>
+        (await sql<{ column_name: string }[]>`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_schema = ${schema} AND table_name = ${table}`).map((r) => r.column_name);
+      const items = await cols("template_items");
+      expect(items).toContain("repeat_for");
+      expect(items).toContain("time_hint");
+      const tasks = await cols("tasks");
+      expect(tasks).toContain("time_hint");
+      expect(tasks).toContain("partner");
+    });
+
+    it("rejects a repeat_for other than partner_club", async () => {
+      await expect(insertItemWith("rf-bad", "pre", "general", "vendor")).rejects.toMatchObject({ code: "23514" });
+      await expect(insertItemWith("rf-ok", "pre", "general", "partner_club")).resolves.toBeDefined();
+    });
+
+    it("template_issues defaults to open, rejects a bad status, and is removed with its version", async () => {
+      const [v] = await sql<{ id: string }[]>`INSERT INTO template_versions (version) VALUES (900) RETURNING id`;
+      const id = Number(v!.id);
+      const [issue] = await sql<{ status: string }[]>`
+        INSERT INTO template_issues (version_id, text) VALUES (${id}, 'missing') RETURNING status`;
+      expect(issue!.status).toBe("open");
+      await expect(sql`INSERT INTO template_issues (version_id, text, status) VALUES (${id}, 'x', 'bogus')`)
+        .rejects.toMatchObject({ code: "23514" });
+      await sql`DELETE FROM template_versions WHERE id = ${id}`;
+      const rows = await sql`SELECT 1 FROM template_issues WHERE version_id = ${id}`;
+      expect(rows.length).toBe(0);
+    });
+  });
+
+  describe("re-applying schema.sql over rows written before the constraints", () => {
+    it("repairs old rows instead of failing, and the constraints are back in force", async () => {
+      const [v] = await sql<{ id: string }[]>`INSERT INTO template_versions (version) VALUES (950) RETURNING id`;
+      const vid = Number(v!.id);
+      // Recreate the old state.
+      await sql.unsafe(`ALTER TABLE template_items ALTER COLUMN phase DROP NOT NULL`);
+      await sql.unsafe(`ALTER TABLE template_items ALTER COLUMN area DROP NOT NULL`);
+      await sql.unsafe(`ALTER TABLE tasks DROP CONSTRAINT tasks_phase_check`);
+      await sql.unsafe(`ALTER TABLE tasks DROP CONSTRAINT tasks_area_check`);
+      await sql`INSERT INTO template_items (version_id, key, title, phase, area) VALUES (${vid}, 'old', 'T', NULL, NULL)`;
+      const [t] = await sql<{ id: string }[]>`
+        INSERT INTO tasks (title, phase, area) VALUES ('old', 'bogus', 'bogus') RETURNING id`;
+
+      await expect(sql.unsafe(schemaSql)).resolves.toBeDefined();
+
+      const [item] = await sql<{ phase: string; area: string }[]>`
+        SELECT phase, area FROM template_items WHERE version_id = ${vid} AND key = 'old'`;
+      expect(item).toEqual({ phase: "pre", area: "general" });
+      const [task] = await sql<{ phase: string | null; area: string | null }[]>`
+        SELECT phase, area FROM tasks WHERE id = ${t!.id}`;
+      expect(task).toEqual({ phase: null, area: null });
+      await expect(sql`INSERT INTO tasks (title, phase) VALUES ('x', 'bogus')`).rejects.toMatchObject({ code: "23514" });
+      await expect(sql`INSERT INTO tasks (title, area) VALUES ('x', 'bogus')`).rejects.toMatchObject({ code: "23514" });
+      await expect(sql`INSERT INTO template_items (version_id, key, title, phase, area) VALUES (${vid}, 'n', 'T', NULL, 'general')`)
+        .rejects.toMatchObject({ code: "23502" });
+    });
+  });
+
   describe("rescheduleEvent", () => {
     let versionCounter = 100;
     const newVersion = async (items: [string, number | null, number | null][]) => {

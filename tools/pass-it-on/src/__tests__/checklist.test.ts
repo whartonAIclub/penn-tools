@@ -1,7 +1,7 @@
 // Checklist date math: due dates and weekday anchors (pure, UTC).
 
 import { describe, it, expect } from "vitest";
-import { dueDate, anchorOffset, generateTasks } from "../checklist.js";
+import { dueDate, anchorOffset, generateTasks, categoryOf, suggestedModules } from "../checklist.js";
 import type { TemplateItem } from "../checklist.js";
 
 describe("dueDate", () => {
@@ -60,7 +60,7 @@ describe("anchorOffset", () => {
 function item(key: string, over: Partial<TemplateItem> = {}): TemplateItem {
   return {
     key, moduleKey: null, parentKey: null, title: key, phase: "pre", area: "general",
-    offsetDays: null, anchorWeekday: null, defaultRole: null, notes: null, sort: 0, isPostmortem: false,
+    offsetDays: null, anchorWeekday: null, defaultRole: null, notes: null, sort: 0, isPostmortem: false, repeatFor: null, timeHint: null,
     ...over,
   };
 }
@@ -73,7 +73,7 @@ const ITEMS: TemplateItem[] = [
   item("singles-sub", { moduleKey: "singles", parentKey: "singles-setup", offsetDays: -2, sort: 5 }),
   item("postmortem", { phase: "post", offsetDays: 5, sort: 6, isPostmortem: true }),
 ];
-const EVENT = { eventDate: "2026-10-22", roles: [] };
+const EVENT = { eventDate: "2026-10-22", roles: [], partnerClubs: [] };
 const keys = (tasks: { templateItemKey: string }[]) => tasks.map((t) => t.templateItemKey);
 
 describe("generateTasks", () => {
@@ -92,7 +92,7 @@ describe("generateTasks", () => {
   });
 
   it("leaves anchored offsets null for an undated event but keeps fixed offsets", () => {
-    const tasks = generateTasks(ITEMS, [], { eventDate: null, roles: [] });
+    const tasks = generateTasks(ITEMS, [], { eventDate: null, roles: [], partnerClubs: [] });
     expect(tasks.find((t) => t.templateItemKey === "monday-post")?.offsetDays).toBeNull();
     expect(tasks.find((t) => t.templateItemKey === "book-venue")?.offsetDays).toBe(-7);
   });
@@ -119,10 +119,10 @@ describe("generateTasks", () => {
       { role: "treasurer", person: "Tess" },
       { role: "Marketing", person: null },
     ];
-    expect(generateTasks(items, [], { eventDate: null, roles })[0]?.owner).toBe("Tess");
+    expect(generateTasks(items, [], { eventDate: null, roles, partnerClubs: [] })[0]?.owner).toBe("Tess");
     const noHolder = [item("t", { offsetDays: 0, defaultRole: "Marketing" })];
-    expect(generateTasks(noHolder, [], { eventDate: null, roles })[0]?.owner).toBe("Lee");
-    expect(generateTasks(items, [], { eventDate: null, roles: [] })[0]?.owner).toBe("Unassigned");
+    expect(generateTasks(noHolder, [], { eventDate: null, roles, partnerClubs: [] })[0]?.owner).toBe("Lee");
+    expect(generateTasks(items, [], { eventDate: null, roles: [], partnerClubs: [] })[0]?.owner).toBe("Unassigned");
   });
 
   it("sorts by offset then sort order, with undated tasks last", () => {
@@ -149,5 +149,109 @@ describe("generateTasks", () => {
     const tasks = generateTasks(ITEMS, ["nope", "singles", "singles"], EVENT);
     expect(keys(tasks).filter((k) => k === "singles-setup")).toHaveLength(1);
     expect(keys(tasks)).not.toContain("nope");
+  });
+
+  it("repeats an item once per partner club, with {club} replaced everywhere in the title", () => {
+    const items = [item("collab-names", { moduleKey: "club-collab", repeatFor: "partner_club", title: "{club}: confirm with {club}", offsetDays: -5 })];
+    const tasks = generateTasks(items, ["club-collab"], { ...EVENT, partnerClubs: ["Ski Club", "Food Club"] });
+    expect(tasks.map((t) => t.title)).toEqual(["Ski Club: confirm with Ski Club", "Food Club: confirm with Food Club"]);
+    expect(keys(tasks)).toEqual(["collab-names:ski-club", "collab-names:food-club"]);
+    expect(tasks.map((t) => t.partner)).toEqual(["Ski Club", "Food Club"]);
+  });
+
+  it("repeats subtasks with their parent and links each to its own club's parent", () => {
+    const items = [
+      item("p", { moduleKey: "club-collab", repeatFor: "partner_club", title: "{club} parent", offsetDays: -5, sort: 1 }),
+      item("c", { moduleKey: "club-collab", parentKey: "p", title: "{club} child", offsetDays: -5, sort: 2 }),
+    ];
+    const tasks = generateTasks(items, ["club-collab"], { ...EVENT, partnerClubs: ["Ski Club", "Food Club"] });
+    expect(keys(tasks)).toEqual(["p:ski-club", "p:food-club", "c:ski-club", "c:food-club"]);
+    expect(tasks.find((t) => t.templateItemKey === "c:ski-club")?.parentKey).toBe("p:ski-club");
+    expect(tasks.find((t) => t.templateItemKey === "c:food-club")?.parentKey).toBe("p:food-club");
+    expect(tasks.find((t) => t.templateItemKey === "c:food-club")?.partner).toBe("Food Club");
+  });
+
+  it("a repeated child under a plain parent links to the single parent", () => {
+    const items = [
+      item("p", { offsetDays: -5, sort: 1 }),
+      item("c", { parentKey: "p", repeatFor: "partner_club", title: "{club} child", offsetDays: -5, sort: 2 }),
+    ];
+    const tasks = generateTasks(items, [], { ...EVENT, partnerClubs: ["Ski Club", "Food Club"] });
+    expect(keys(tasks)).toEqual(["p", "c:ski-club", "c:food-club"]);
+    expect(tasks.filter((t) => t.templateItemKey.startsWith("c:")).map((t) => t.parentKey)).toEqual(["p", "p"]);
+  });
+
+  it("a non-repeated child of a repeated parent repeats with it", () => {
+    const items = [
+      item("p", { repeatFor: "partner_club", offsetDays: -5, sort: 1 }),
+      item("c", { parentKey: "p", repeatFor: null, offsetDays: -5, sort: 2 }),
+    ];
+    const tasks = generateTasks(items, [], { ...EVENT, partnerClubs: ["Ski Club"] });
+    expect(keys(tasks)).toEqual(["p:ski-club", "c:ski-club"]);
+    expect(tasks[1]?.parentKey).toBe("p:ski-club");
+  });
+
+  it("gives a third colliding club name the -3 suffix", () => {
+    const items = [item("r", { repeatFor: "partner_club", offsetDays: 0 })];
+    const tasks = generateTasks(items, [], { ...EVENT, partnerClubs: ["Ski & Food", "Ski + Food", "Ski / Food"] });
+    expect(keys(tasks)).toEqual(["r:ski-food", "r:ski-food-2", "r:ski-food-3"]);
+  });
+
+  it("repeated anchored items have a null offset per club for an undated event; fixed offsets stay", () => {
+    const items = [
+      item("anch", { repeatFor: "partner_club", anchorWeekday: 1, sort: 1 }),
+      item("fixed", { repeatFor: "partner_club", offsetDays: -2, sort: 2 }),
+    ];
+    const tasks = generateTasks(items, [], { eventDate: null, roles: [], partnerClubs: ["Ski Club", "Food Club"] });
+    const byKey = (k: string) => tasks.find((t) => t.templateItemKey === k)?.offsetDays;
+    expect(byKey("anch:ski-club")).toBeNull();
+    expect(byKey("anch:food-club")).toBeNull();
+    expect(byKey("fixed:ski-club")).toBe(-2);
+    expect(byKey("fixed:food-club")).toBe(-2);
+  });
+
+  it("yields no per-club tasks without partner clubs, and still yields other module tasks", () => {
+    const items = [
+      item("p", { moduleKey: "club-collab", repeatFor: "partner_club", offsetDays: -5 }),
+      item("c", { moduleKey: "club-collab", parentKey: "p", offsetDays: -5 }),
+      item("other", { moduleKey: "club-collab", offsetDays: -4 }),
+    ];
+    expect(keys(generateTasks(items, ["club-collab"], EVENT))).toEqual(["other"]);
+    expect(generateTasks(items, ["club-collab"], EVENT)[0]?.partner).toBeNull();
+  });
+
+  it("ignores blank and repeated club names (ignoring case) and keeps keys unique when names collide after slugging", () => {
+    const items = [item("r", { repeatFor: "partner_club", title: "{club}", offsetDays: 0 })];
+    const clubs = ["Ski Club", "  ", "ski club", " SKI CLUB ", "&&&", "Ski & Food", "Ski + Food"];
+    const tasks = generateTasks(items, [], { ...EVENT, partnerClubs: clubs });
+    expect(keys(tasks)).toEqual(["r:ski-club", "r:ski-food", "r:ski-food-2"]);
+    expect(tasks.map((t) => t.title)).toEqual(["Ski Club", "Ski & Food", "Ski + Food"]);
+  });
+
+  it("copies the time hint through", () => {
+    const items = [item("t", { offsetDays: 0, timeHint: "7pm" }), item("u", { offsetDays: 0 })];
+    const tasks = generateTasks(items, [], EVENT);
+    expect(tasks.find((t) => t.templateItemKey === "t")?.timeHint).toBe("7pm");
+    expect(tasks.find((t) => t.templateItemKey === "u")?.timeHint).toBeNull();
+  });
+
+  it("matches a default role ignoring surrounding spaces and case", () => {
+    const items = [item("t", { offsetDays: 0, defaultRole: " ops lead " })];
+    const roles = [{ role: "Pub Leader", person: "Lee" }, { role: "Ops Lead", person: "Omar" }];
+    expect(generateTasks(items, [], { eventDate: null, roles, partnerClubs: [] })[0]?.owner).toBe("Omar");
+  });
+});
+
+describe("categoryOf", () => {
+  it("maps pre to planning and day_of, during, post to run_of_show", () => {
+    expect(categoryOf("pre")).toBe("planning");
+    for (const phase of ["day_of", "during", "post"] as const) expect(categoryOf(phase)).toBe("run_of_show");
+  });
+});
+
+describe("suggestedModules", () => {
+  it("returns [\"club-collab\"] when there are partner clubs, else []", () => {
+    expect(suggestedModules({ partnerClubs: ["Ski Club"] })).toEqual(["club-collab"]);
+    expect(suggestedModules({ partnerClubs: [] })).toEqual([]);
   });
 });

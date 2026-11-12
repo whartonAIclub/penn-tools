@@ -55,8 +55,8 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | **Week 2: checklist and board** | | |
 | 12 | Schema: template versions, modules, items (with subtasks, phase, area, weekday anchors), tasks (with source and confirmed), members | **Done** |
 | 13 | Date math (`dueDate`, weekday anchors), task and subtask generation with owners by role, rescheduling. 161 tool tests | **Done** |
-| 14 | Pub template version 1, from the playbook and the Big Gay Halloween checklist, with modules (club collab, international, singles/GAPSA) and the PO issue flagged | To do |
-| 15 | Task and to-do storage; filters | To do |
+| 14 | Pub template version 1, from the playbook and the Big Gay Halloween checklist, with modules (club collab, international, singles/GAPSA) and the PO issue flagged. Also a Run of show category and per-club repeating items. 208 tool tests | **Done** |
+| 15 | Task and to-do storage; filters; members list (`listMembers`, `addMember`, `syncMembers`). 208 tool tests | **Done** |
 | 16 | Creating an event generates its checklist; moving the date reschedules | To do |
 | 17 | Board: columns, owner and due-window filters, "waiting on", subtasks, per-area readiness, "no Pub Leader" flag on events | To do |
 | 18 | Template tab: view, known issues, revert | To do |
@@ -91,6 +91,7 @@ Needs real Pub files (kept outside the repo) and, for the AI answers, an OpenAI 
 - **Task owners:** chosen from a roster of Pub board names, defaulting to the Pub Leader. No emails are stored.
 - **WhatsApp reminders** *(changed 2026-11-10, matching the club's real checklist)*: one message on the Monday of event week and one on T-0, both recomputed when the event moves. Replaces the earlier "every Monday and Thursday from T-14".
 - **Owners** *(2026-11-10)*: a task's owner is a plain name. The default is whoever holds the item's default role on the event (e.g. "Ops Lead"), else the Pub Leader, else "Unassigned". The `members` list is filled from names already used, only for dropdowns and filters.
+- **Run of show and partner clubs** *(2026-11-10)*: the template has a "Run of show" category for day-of, during-event and post-event items, and items that repeat for each partner club are generated once per club.
 - **Provenance** *(2026-11-10)*: every task records where it came from (template, manual, meeting notes, inferred) and whether its owner has confirmed. Meeting-notes extraction is a Week 3 option after template-change proposals.
 - **Approval rule on the finance item:** a budget change over $1,500 needs a majority of the Co-Presidents (bylaws 4.2). Shown as a note on the item, not enforced.
 - **"Board-only" access:** not needed while the pilot runs on one laptop. It comes after the pilot, with the Platform team.
