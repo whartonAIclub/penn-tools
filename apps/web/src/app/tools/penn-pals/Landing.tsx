@@ -229,7 +229,7 @@ function PersonCard({
         </div>
 
         <Link href={`/tools/penn-pals/tracker?another=${encodeURIComponent(contact.id)}`} className={styles.anotherChat}>
-          + Log another chat
+          + Log chat #{chats.length + 1}
         </Link>
 
         {contact.takeaways.length > 0 && (
@@ -295,7 +295,7 @@ function PersonCard({
               {chats.map((chat, i) => (
                 <li key={`${chat.meetingDate}-${i}`} className={styles.chat}>
                   <p className={styles.chatDate}>
-                    {chat.meetingDate}
+                    Chat #{chats.length - i} · {chat.meetingDate}
                     {i === 0 && <span className={styles.chatLatest}> · latest</span>} · {VIBE_WORDS[chat.vibe]}
                   </p>
                   {i > 0 && chat.takeaways.length > 0 && ( // the latest chat's are under Key takeaways

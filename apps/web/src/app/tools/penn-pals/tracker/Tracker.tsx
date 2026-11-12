@@ -12,6 +12,7 @@ import {
   buildContact,
   CONTACTS_STORAGE_KEY,
   anotherChatDraft,
+  chatsWith,
   contactToDraft,
   logAnotherChat,
   customRelationships,
@@ -280,7 +281,7 @@ function Form({
           : prefill
             ? "Check and save"
             : again
-              ? `New chat with ${again.name}`
+              ? `Chat #${chatsWith(again).length + 1} with ${again.name}`
               : "Or fill it in yourself"}</h2>
       {prefill && <p className={styles.aiBanner}>💬 Written up by AI from your chat. Fix anything it got wrong, then save.</p>}
 
