@@ -10,12 +10,13 @@ import {
   PERMISSION_STATUSES,
   afterOpeningEmail,
   courseCode,
+  findEmailSearch,
   mailtoLink,
   permissionEmail,
   withContact,
 } from "@penntools/tool-non-wharton-course-manager";
 import type { Course, Sender, Year } from "@penntools/tool-non-wharton-course-manager";
-import { ArrowIcon, ChevronIcon, InfoIcon, MailIcon } from "./icons";
+import { ArrowIcon, ChevronIcon, InfoIcon, MailIcon, SearchIcon } from "./icons";
 import styles from "./CourseManager.module.css";
 
 interface Props {
@@ -120,6 +121,7 @@ function PermissionCard({ number, course, sender, open, onToggle, onChange }: Ca
   const code = courseCode(course);
   const email = permissionEmail(course, sender);
   const source = CONTACT_SOURCES[course.contactSource];
+  const search = findEmailSearch(course);
   const inputId = `nwcm-contact-${course.id}`;
   const panelId = `nwcm-card-${course.id}`;
 
@@ -161,6 +163,14 @@ function PermissionCard({ number, course, sender, open, onToggle, onChange }: Ca
               {source.note}
             </span>
             {course.instructor && <span className={styles.reason}>{`Instructor: ${course.instructor}`}</span>}
+            {search && (
+              <div className={styles.contactHelp}>
+                <a href={search.href} target="_blank" rel="noreferrer" className={styles.findButton}>
+                  <SearchIcon />
+                  {search.label}
+                </a>
+              </div>
+            )}
           </div>
 
           <div className={styles.emailPreview}>

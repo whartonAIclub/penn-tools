@@ -184,7 +184,10 @@ Checked in this order. Eligibility is fixed logic, never an AI judgment.
 
 Running list of changes found while testing. Build these when the current step is done.
 
-- [ ] **Step 1, duplicate courses:** if a student adds a course that's already in the list (same course number and section, or the same course after switching to its graduate version), don't add it again. Show a short message under the paste box: "[COURSE-SECTION] is already in your list." Clear the paste box either way.
+- [x] **Step 1, duplicate courses:** if a student adds a course that's already in the list (same course number and section, or the same course after switching to its graduate version), don't add it again. Show a short message under the paste box: "[COURSE-SECTION] is already in your list." Clear the paste box either way.
+- [x] **Step 1, how-to tile 03:** change to "Copy that panel from the **course code down through Registration Restrictions**." (The prototype adds "or take a screenshot of it"; leave that out until screenshot upload is built.)
+- [ ] **Step 2, who gives permission:** read from the pasted panel whether permission comes from the instructor or the department, and show "Path@Penn says permission comes from the [instructor/department]." as a gold pill under the "Who to email" note. Show nothing if the panel doesn't say. Needs a real panel copied down through Registration Restrictions, to match Path@Penn's exact wording.
+- [x] **Step 2, find an email:** when the email wasn't found in the course details, show a light blue "Find [INSTRUCTOR]'s email" button (or "Find the department contact" when no instructor was found) beside that pill. It opens a Google search in a new tab: `"[INSTRUCTOR]" [DEPT] site:upenn.edu`, or `[DEPT] department graduate coordinator site:upenn.edu`. The student reads the results and types the email themselves; the tool never fills it in from the search.
 
 ## Out of scope
 

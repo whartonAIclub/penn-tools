@@ -878,6 +878,25 @@
 .sourcePill[data-source="none"] { background: #f5e1e1; color: var(--red); }
 .sourcePill[data-source="you"] { background: var(--blue-light); color: var(--blue); }
 
+/* The permission pill (backlog) and the "Find … email" search button. */
+.contactHelp { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 4px; }
+
+.findButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  border-radius: 9999px;
+  background: var(--blue-light);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 18px;
+  min-height: 40px;
+}
+.root .findButton,
+.root .findButton:hover { color: var(--blue); }
+.findButton:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
 .emailPreview {
   background: var(--soft);
   border-radius: 20px;

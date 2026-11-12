@@ -74,3 +74,18 @@ export const PERMISSION_LABELS: Record<PermissionStatus, { pill: string; option:
 };
 
 export const PERMISSION_STATUSES: readonly PermissionStatus[] = ["not-sent", "waiting", "approved", "declined"];
+
+/**
+ * A Google search for the contact, for when the course details had no email.
+ * The student reads the results and types the email; the tool never fills it in.
+ */
+export function findEmailSearch(course: Course): { label: string; href: string } | null {
+  if (course.contactSource === "details") return null;
+  const query = course.instructor
+    ? `"${course.instructor}" ${course.dept} site:upenn.edu`
+    : `${course.dept} department graduate coordinator site:upenn.edu`;
+  return {
+    label: course.instructor ? `Find ${course.instructor}'s email` : "Find the department contact",
+    href: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+  };
+}

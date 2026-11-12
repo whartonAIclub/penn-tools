@@ -15,7 +15,7 @@ export {
 export type { ContactSource, Course, CrossListing, Format, PermissionStatus, Progress, StepNumber, StepStatus, Year } from "./flow.js";
 export { WHARTON_DEPARTMENTS, checkEligibility, isGraduateLevel, isWharton } from "./eligibility.js";
 export type { Eligibility, EligibilityResult } from "./eligibility.js";
-export { newCourse, otherCourseCodes, parseCourse, readFormat } from "./parse.js";
+export { findDuplicate, newCourse, otherCourseCodes, parseCourse, readFormat } from "./parse.js";
 export type { CourseDetails } from "./parse.js";
 export {
   CONTACT_SOURCES,
@@ -23,6 +23,7 @@ export {
   PERMISSION_LABELS,
   PERMISSION_STATUSES,
   afterOpeningEmail,
+  findEmailSearch,
   mailtoLink,
   permissionEmail,
   withContact,

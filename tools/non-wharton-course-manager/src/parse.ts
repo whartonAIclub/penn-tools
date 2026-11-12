@@ -103,3 +103,32 @@ function readCrossListing(text: string): CrossListing | null {
   }
   return listings.find((l) => isGraduateLevel(l.number) && !isWharton(l.dept)) ?? listings[0] ?? null;
 }
+
+type Listing = { dept: string; number: string; section: string };
+
+function sameListing(a: Listing, b: Listing): boolean {
+  return a.dept === b.dept && a.number === b.number && a.section === b.section;
+}
+
+/** A cross-listing without its own section takes the course's section (as switching does). */
+function crossOf(course: CourseDetails): Listing | null {
+  const cross = course.crossListing;
+  return cross ? { ...cross, section: cross.section || course.section } : null;
+}
+
+/**
+ * The course already in the list that this one repeats: the same course number
+ * and section, or the same class under its other listing (e.g. CHIN 0233-680
+ * when CHIN 5233-680 was added by switching).
+ */
+export function findDuplicate(courses: readonly Course[], details: CourseDetails): Course | undefined {
+  const newCross = crossOf(details);
+  return courses.find((c) => {
+    const oldCross = crossOf(c);
+    return (
+      sameListing(c, details) ||
+      (oldCross !== null && sameListing(oldCross, details)) ||
+      (newCross !== null && sameListing(c, newCross))
+    );
+  });
+}

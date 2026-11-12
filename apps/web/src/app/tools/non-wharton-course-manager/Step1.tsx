@@ -8,6 +8,7 @@ import {
   FORMATS,
   checkEligibility,
   courseCode,
+  findDuplicate,
   newCourse,
   otherCourseCodes,
   parseCourse,
@@ -43,7 +44,7 @@ export function Step1({ courses, term, terms, onTermChange, onAdd, onUpdate, onR
   const [pasted, setPasted] = useState("");
   const [reading, setReading] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  /** Shown when more than one course was pasted: only the first is added. */
+  /** Shown when more than one course was pasted (only the first is added), or the course is already listed. */
   const [othersNote, setOthersNote] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -59,6 +60,12 @@ export function Step1({ courses, term, terms, onTermChange, onAdd, onUpdate, onR
     }
     setNotFound(false);
     setOthersNote(null);
+    const duplicate = findDuplicate(courses, details);
+    if (duplicate) {
+      setOthersNote(`${courseCode(duplicate)} is already in your list.`);
+      setPasted("");
+      return;
+    }
     setReading(true);
     const others = otherCourseCodes(pasted);
     timer.current = setTimeout(() => {
@@ -100,7 +107,7 @@ export function Step1({ courses, term, terms, onTermChange, onAdd, onUpdate, onR
           <li className={styles.tile}>
             <span className={styles.tileNumber}>03</span>
             <span>
-              Copy that panel from the <strong>course code down to Seats Avail</strong>.
+              Copy that panel from the <strong>course code down through Registration Restrictions</strong>.
             </span>
           </li>
         </ol>
