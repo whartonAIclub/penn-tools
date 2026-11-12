@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS syllabi (
 );
 
 -- A student's class weekend schedule, as the AI read it from the program's PDF
--- (see tools/wemba-sync/src/schedule.ts), with corrections.ts applied. Dates
+-- (see tools/wemba-sync/src/schedule.ts). Dates
 -- are YYYY-MM-DD, so they sort as text. A weekend is identified by its first
 -- date: a new upload of the same weekend's schedule replaces the old one.
 CREATE TABLE IF NOT EXISTS weekends (
@@ -33,3 +33,18 @@ CREATE TABLE IF NOT EXISTS weekends (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, start_date)
 );
+
+-- An event outside class the student added (see tools/wemba-sync/src/events.ts):
+-- a club event, celebration or social. date is its first day, YYYY-MM-DD, for
+-- ordering; rsvp is the student's answer, or null before they give one.
+CREATE TABLE IF NOT EXISTS events (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT        NOT NULL,
+  date       TEXT        NOT NULL,
+  event      JSONB       NOT NULL,
+  rsvp       TEXT        CHECK (rsvp IN ('going', 'maybe', 'not_going')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS events_user_date_idx ON events (user_id, date);

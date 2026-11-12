@@ -36,21 +36,24 @@ const courseName = (syllabus: Syllabus) => syllabus.courseCode ?? syllabus.title
 export function Courses({
   provider,
   maxBytes,
-  initial,
+  syllabi,
+  onSyllabi,
 }: {
   provider: AIProvider;
   maxBytes: number;
   /** The student's saved syllabi, or null if storage isn't set up. */
-  initial: SavedSyllabus[] | null;
+  syllabi: SavedSyllabus[] | null;
+  onSyllabi: (update: (syllabi: SavedSyllabus[]) => SavedSyllabus[]) => void;
 }) {
-  const [saved, setSaved] = useState(initial ?? []);
-  const [selected, setSelected] = useState<string | null>(initial?.[0]?.id ?? null);
+  const saved = syllabi ?? [];
+  const setSaved = onSyllabi;
+  const [selected, setSelected] = useState<string | null>(syllabi?.[0]?.id ?? null);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [error, setError] = useState<UploadError | null>(null);
   const nextId = useRef(0);
   const busy = uploads.some((u) => u.state === "waiting" || u.state === "reading");
 
-  if (initial === null) {
+  if (syllabi === null) {
     return <p className={shared.error}>Course storage isn&apos;t set up yet, so syllabi can&apos;t be saved. Try again later.</p>;
   }
 
@@ -107,7 +110,7 @@ export function Courses({
       return;
     }
     const rest = saved.filter((s) => s.id !== item.id);
-    setSaved(rest);
+    setSaved(() => rest);
     setSelected(rest[0]?.id ?? null);
   }
 

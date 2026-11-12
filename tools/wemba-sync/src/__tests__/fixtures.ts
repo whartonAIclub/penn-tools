@@ -1,5 +1,6 @@
-// Test data shared by the syllabus tests.
+// Test data shared by the tests.
 
+import type { Event } from "../events.js";
 import type { Syllabus } from "../syllabus.js";
 
 /** A two-session course with four assignments; `overrides` replaces fields. */
@@ -24,6 +25,22 @@ export function syllabus(overrides: Partial<Syllabus> = {}): Syllabus {
     materials: [],
     policies: [],
     warnings: [],
+    ...overrides,
+  };
+}
+
+/** An evening event on Saturday, Nov 14; `overrides` replaces fields. */
+export function event(overrides: Partial<Event> = {}): Event {
+  return {
+    title: "Diwali celebration",
+    date: "2026-11-14",
+    endDate: null,
+    start: "19:00",
+    end: "22:00",
+    location: "Houston Hall",
+    organizer: "South Asian Society",
+    link: "https://example.com/rsvp",
+    notes: null,
     ...overrides,
   };
 }

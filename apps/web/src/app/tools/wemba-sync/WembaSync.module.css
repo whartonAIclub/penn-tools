@@ -217,6 +217,7 @@
 .class { --kind: var(--class); }
 .meal { --kind: var(--meal); }
 .event { --kind: var(--event); }
+.notGoing { opacity: 0.55; }
 
 .time {
   font-size: 0.75rem;
@@ -537,4 +538,4 @@
   color: var(--section-label);
   text-decoration: underline;
 }
-.textButton:hover { color: #b91c1c; }
+.textButton:hover { color: var(--text); }

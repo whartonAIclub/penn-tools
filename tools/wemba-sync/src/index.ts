@@ -14,7 +14,6 @@ export {
 } from "./schedule.js";
 export type { ItemKind, ScheduleItem, UploadKind } from "./schedule.js";
 export { toICS, icsFilename } from "./calendar.js";
-export { applyCorrections } from "./corrections.js";
 export { MAX_AMA_MESSAGES, MAX_AMA_REQUEST_BYTES, MAX_QUESTION_LENGTH, amaSystem, askAMA, checkAsk, knownWeekends } from "./ama.js";
 export type { AMARequest, AMAKnowledge } from "./ama.js";
 export {
@@ -26,9 +25,25 @@ export {
   courseKey,
   upcomingDeadlines,
   sessionsOn,
+  deadlinesBetween,
+  sessionsForClass,
 } from "./syllabus.js";
 export type { Session, Assignment, Deadline, SyllabusDocument } from "./syllabus.js";
 export { listSyllabi, saveSyllabus, deleteSyllabus, TooManySyllabiError } from "./syllabi.js";
 export type { SavedSyllabus } from "./syllabi.js";
 export { MAX_WEEKENDS, weekendRange, currentWeekend, listWeekends, saveWeekend, deleteWeekend } from "./weekends.js";
 export type { SavedWeekend } from "./weekends.js";
+export {
+  Event,
+  MAX_INVITE_LENGTH,
+  extractEvents,
+  cleanEvent,
+  checkEvent,
+  checkInvite,
+  toInvite,
+  safeLink,
+  eventItems,
+} from "./events.js";
+export type { ExtractedEvents, Invite } from "./events.js";
+export { MAX_EVENTS, RSVPS, EventError, listEvents, addEvents, setRsvp, deleteEvent } from "./eventStore.js";
+export type { RSVP, SavedEvent } from "./eventStore.js";

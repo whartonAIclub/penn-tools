@@ -1,14 +1,16 @@
 // WEMBA Sync: upload a class weekend's schedule PDF and see the weekend as a
-// calendar, and keep each course's syllabus for the semester; both are saved
-// to the student's account. Signed-out visitors are asked to sign in, and users without a
+// calendar, keep each course's syllabus for the semester, and add events
+// outside class; all are saved to the student's account. Signed-out visitors are asked to sign in, and users without a
 // saved key are sent to Settings, as in the Platform Playground.
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
 import {
   MAX_PDF_BYTES,
+  listEvents,
   listSyllabi,
   listWeekends,
+  type SavedEvent,
   type SavedSyllabus,
   type SavedWeekend,
 } from "@penntools/tool-wemba-sync";
@@ -40,18 +42,29 @@ export default async function WembaSyncPage() {
   );
 }
 
+interface Saved {
+  weekends: SavedWeekend[] | null;
+  syllabi: SavedSyllabus[] | null;
+  events: SavedEvent[] | null;
+}
+
 /**
- * The student's saved weekends and syllabi, or nulls if storage isn't set up;
- * reading a weekend's schedule works either way.
+ * The student's saved weekends, syllabi and events, or nulls if storage isn't
+ * set up; reading a weekend's schedule works either way.
  */
-async function saved(userId: string): Promise<{ weekends: SavedWeekend[] | null; syllabi: SavedSyllabus[] | null }> {
+async function saved(userId: string): Promise<Saved> {
+  const none = { weekends: null, syllabi: null, events: null };
   const sql = db();
-  if (!sql) return { weekends: null, syllabi: null };
+  if (!sql) return none;
   try {
-    const [weekends, syllabi] = await Promise.all([listWeekends(sql, userId), listSyllabi(sql, userId)]);
-    return { weekends, syllabi };
+    const [weekends, syllabi, events] = await Promise.all([
+      listWeekends(sql, userId),
+      listSyllabi(sql, userId),
+      listEvents(sql, userId),
+    ]);
+    return { weekends, syllabi, events };
   } catch (error) {
     console.error("[wemba-sync] loading saved uploads failed", error);
-    return { weekends: null, syllabi: null };
+    return none;
   }
 }

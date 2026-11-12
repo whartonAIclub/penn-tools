@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // WEMBA Sync: AMA, questions about everything the student has uploaded
 //
-// AMA answers from the student's saved class weekends and syllabi, which the
+// AMA answers from the student's saved class weekends, syllabi and events, which the
 // route (apps/web/.../wemba-sync/ama/route.ts) loads from the tool's database,
 // plus the weekend the page shows, which the browser sends in case it wasn't
 // saved. It sends the AI what was read from the PDFs, not the PDFs, so each
@@ -13,6 +13,8 @@
 import type { AI, AIMessage, AIProvider, AIStreamEvent } from "@penntools/core/ai";
 import { WeekendSchedule } from "./schedule.js";
 import type { Syllabus } from "./syllabus.js";
+import type { Event } from "./events.js";
+import type { RSVP } from "./eventStore.js";
 
 /** The most messages a conversation sends, questions and answers together. */
 export const MAX_AMA_MESSAGES = 20;
@@ -42,6 +44,8 @@ export interface AMAKnowledge {
   /** The student's class weekends, earliest first. */
   weekends: WeekendSchedule[];
   syllabi: Syllabus[];
+  /** Events outside class the student added, earliest first, with their answer. */
+  events: (Event & { rsvp: RSVP | null })[];
   /** The weekend the student is looking at, if any: "this weekend" means it. */
   shown: WeekendSchedule | null;
 }
@@ -91,10 +95,10 @@ export function knownWeekends(saved: WeekendSchedule[], shown: WeekendSchedule |
 }
 
 /** AMA's instructions: how to answer, and everything to answer from. */
-export function amaSystem({ weekends, syllabi, shown }: AMAKnowledge, section: string | null, now: string): string {
+export function amaSystem({ weekends, syllabi, events, shown }: AMAKnowledge, section: string | null, now: string): string {
   return [
     "You are AMA, the question-answering helper in WEMBA Sync, for Wharton MBA Program for Executives students.",
-    "Answer using only what the student has uploaded, below: their class weekend schedules (classes, meals, events, logistics, upcoming dates) and their course syllabi (sessions, readings, assignments, grading, materials, policies, instructors).",
+    "Answer using only what the student has uploaded, below: their class weekend schedules (classes, meals, events, logistics, upcoming dates), their course syllabi (sessions, readings, assignments, grading, materials, policies, instructors) and the events outside class they added (club events, celebrations, socials).",
     "Connect them when it helps: a class on a weekend's schedule is the syllabus session for that course on that date, with its readings and what to prepare.",
     "If the uploads don't say, say so plainly and suggest checking the program's email, the PDF or the syllabus. Never guess times, rooms, dates, readings or names.",
     shown
@@ -112,6 +116,9 @@ export function amaSystem({ weekends, syllabi, shown }: AMAKnowledge, section: s
     "",
     "Course syllabi, as JSON (dates YYYY-MM-DD, times 24-hour):",
     syllabi.length > 0 ? JSON.stringify(syllabi) : "None uploaded yet.",
+    "",
+    "Events outside class, as JSON (rsvp is the student's answer: going, maybe, not_going, or null if not yet given):",
+    events.length > 0 ? JSON.stringify(events) : "None added yet.",
   ].join("\n");
 }
 

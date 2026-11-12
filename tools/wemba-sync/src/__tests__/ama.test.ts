@@ -32,8 +32,20 @@ const schedule: WeekendSchedule = {
 
 const NOW = "Friday, November 13, 2026 at 4:05 PM";
 
-/** What AMA knows: this weekend, shown, and one course's syllabus. */
-const knowledge = { weekends: [schedule], syllabi: [syllabus()], shown: schedule };
+/** What AMA knows: this weekend, shown, one course's syllabus and one event. */
+const diwali = {
+  title: "Diwali celebration",
+  date: "2026-11-14",
+  endDate: null,
+  start: "19:00",
+  end: null,
+  location: "Houston Hall",
+  organizer: "South Asian Society",
+  link: null,
+  notes: null,
+  rsvp: "going" as const,
+};
+const knowledge = { weekends: [schedule], syllabi: [syllabus()], events: [diwali], shown: schedule };
 
 /** An AI whose stream records its request and yields `reply` in two pieces. */
 function fakeAI(reply: string) {
@@ -88,8 +100,9 @@ describe("askAMA", () => {
 });
 
 describe("amaSystem", () => {
-  it("includes every weekend, logistics included, the syllabi and the time", () => {
+  it("includes every weekend, logistics included, the syllabi, events and the time", () => {
     const system = amaSystem(knowledge, null, NOW);
+    expect(system).toContain(JSON.stringify(diwali));
     expect(system).toContain(JSON.stringify(schedule));
     expect(system).toContain("The Inn at Penn");
     expect(system).toContain(JSON.stringify(syllabus()));
@@ -102,8 +115,9 @@ describe("amaSystem", () => {
   });
 
   it("says when nothing of a kind is uploaded", () => {
-    const system = amaSystem({ weekends: [], syllabi: [], shown: null }, null, NOW);
+    const system = amaSystem({ weekends: [], syllabi: [], events: [], shown: null }, null, NOW);
     expect(system.match(/None uploaded yet\./g)).toHaveLength(2);
+    expect(system).toContain("None added yet.");
   });
 
   it("asks for each section's answer when no section is picked", () => {
