@@ -1,12 +1,26 @@
-// A placeholder page. To build the tool, see section 4 of CLAUDE.md: AskPenn
-// (tools/askpenn) and the Platform Playground (tools/platform-playground) are
-// the reference tools.
+// Deadline Calendar: upload a syllabus PDF and see its deadlines. Everything
+// runs on the AI API with the user's own key, so signed-out visitors are asked
+// to sign in and users without a saved key are sent to Settings.
 
-export default function DeadlineCalendarPage() {
-  return (
-    <div>
-      <h1>{"Deadline Calendar"}</h1>
-      <p>{"Upload your syllabi to pull out every deadline, spot overloaded weeks, and download it all as a calendar file."}</p>
-    </div>
-  );
+import type { Metadata } from "next";
+import { PROVIDER_LABELS } from "@penntools/core/ai";
+import { MAX_PDF_BYTES } from "@penntools/tool-deadline-calendar";
+import { getAI } from "@/lib/ai";
+import { getCurrentUser } from "@/lib/auth";
+import { ApiKeyPrompt } from "@/components/layout/ApiKeyPrompt";
+import { SignInPrompt } from "@/components/layout/SignInPrompt";
+import { DeadlineCalendar } from "./DeadlineCalendar";
+
+export const metadata: Metadata = {
+  title: "Deadline Calendar",
+};
+
+export default async function DeadlineCalendarPage() {
+  const user = await getCurrentUser();
+  if (!user) return <SignInPrompt title="Deadline Calendar" />;
+
+  const providers = await (await getAI())!.providers();
+  if (providers.length === 0) return <ApiKeyPrompt title="Deadline Calendar" />;
+
+  return <DeadlineCalendar providers={providers} labels={PROVIDER_LABELS} maxPdfBytes={MAX_PDF_BYTES} />;
 }
