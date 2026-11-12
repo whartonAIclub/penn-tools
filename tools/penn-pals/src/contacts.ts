@@ -187,6 +187,55 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
   };
 }
 
+// ── Editing ───────────────────────────────────────────────────────────────────
+
+/**
+ * The form's fields for an existing contact. Only open next steps go in the
+ * form; finished ones stay in the contact's history and aren't edited.
+ */
+export function contactToDraft(contact: Contact): ContactDraft {
+  return {
+    name: contact.name,
+    relationship: contact.relationship,
+    classYear: contact.classYear ?? "",
+    company: contact.company ?? "",
+    role: contact.role ?? "",
+    area: contact.area ?? "",
+    location: contact.location ?? "",
+    email: contact.email ?? "",
+    phone: contact.phone ?? "",
+    linkedin: contact.linkedin ?? "",
+    meetingDate: contact.meetingDate,
+    vibe: contact.vibe,
+    offeredReferral: contact.offeredReferral,
+    offeredIntro: contact.offeredIntro,
+    takeaways: contact.takeaways.join("\n"),
+    nextSteps: contact.nextSteps
+      .filter((step) => !step.done)
+      .map((step) => ({ action: step.action, owner: step.owner, dueDate: step.dueDate ?? "" })),
+    notes: contact.notes,
+  };
+}
+
+/**
+ * `original` with the edited form applied. The id, creation date and check-in
+ * date are kept, and finished next steps stay as they were, ahead of the open
+ * ones from the form.
+ */
+export function updateContact(original: Contact, draft: ContactDraft, today: string): BuildResult {
+  const result = buildContact(draft, today, original.id);
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    contact: {
+      ...result.contact,
+      createdAt: original.createdAt,
+      checkInDate: original.checkInDate,
+      nextSteps: [...original.nextSteps.filter((step) => step.done), ...result.contact.nextSteps],
+    },
+  };
+}
+
 // ── Follow-up rules ───────────────────────────────────────────────────────────
 
 export type DueStatus = "overdue" | "soon" | "later";

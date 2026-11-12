@@ -1,6 +1,7 @@
 "use client";
 
-// The intake form for a new contact. Saving it returns to the landing page,
+// The intake form for a new contact, or for editing one (?edit=<id>, from the
+// person card). Saving it returns to the landing page,
 // which lists the follow-ups. Contacts are kept in this browser's localStorage,
 // so they stay on one device and are lost if the browser's data is cleared.
 // The form's rules are in tools/penn-pals/src/contacts.ts.
@@ -10,10 +11,12 @@ import { useEffect, useState } from "react";
 import {
   buildContact,
   CONTACTS_STORAGE_KEY,
+  contactToDraft,
   emptyDraft,
   parseStoredContacts,
   RELATIONSHIPS,
   STEP_ACTIONS,
+  updateContact,
   VIBES,
   type Contact,
   type ContactDraft,
@@ -53,9 +56,12 @@ export function Tracker() {
   // null until the browser's saved contacts are read, so the page doesn't flash empty.
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [today, setToday] = useState<string | null>(null);
+  // The id from ?edit=<id>, read after load like the contacts.
+  const [editId, setEditId] = useState<string | null>(null);
 
   useEffect(() => {
     setToday(todayLocal());
+    setEditId(new URLSearchParams(window.location.search).get("edit"));
     try {
       setContacts(parseStoredContacts(localStorage.getItem(CONTACTS_STORAGE_KEY)));
     } catch {
@@ -63,9 +69,15 @@ export function Tracker() {
     }
   }, []);
 
+  const editing = editId ? contacts?.find((c) => c.id === editId) : undefined;
+
   function save(contact: Contact) {
+    // An edit replaces the contact where it was; a new one goes first.
+    const next = editing
+      ? (contacts ?? []).map((c) => (c.id === contact.id ? contact : c))
+      : [contact, ...(contacts ?? [])];
     try {
-      localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify([contact, ...(contacts ?? [])]));
+      localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
     } catch {
       // Storage full or blocked: nothing is kept, as the intro says.
     }
@@ -74,6 +86,14 @@ export function Tracker() {
 
   if (!contacts || !today) return <p className={styles.note}>Loading…</p>;
 
+  if (editId && !editing) {
+    return (
+      <p className={styles.note}>
+        That contact isn&apos;t saved in this browser. <a href={LANDING}>Back to the dashboard</a>
+      </p>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <p className={styles.intro}>
@@ -81,15 +101,15 @@ export function Tracker() {
         this browser; clearing its data removes them.
       </p>
 
-      <Form today={today} onSave={save} />
+      <Form today={today} onSave={save} original={editing} />
     </div>
   );
 }
 
 // ── Form ──────────────────────────────────────────────────────────────────────
 
-function Form({ today, onSave }: { today: string; onSave: (contact: Contact) => void }) {
-  const [draft, setDraft] = useState<ContactDraft>(() => emptyDraft(today));
+function Form({ today, onSave, original }: { today: string; onSave: (contact: Contact) => void; original?: Contact | undefined }) {
+  const [draft, setDraft] = useState<ContactDraft>(() => (original ? contactToDraft(original) : emptyDraft(today)));
   const [errors, setErrors] = useState<string[]>([]);
 
   const set = <K extends keyof ContactDraft>(key: K, value: ContactDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
@@ -100,7 +120,7 @@ function Form({ today, onSave }: { today: string; onSave: (contact: Contact) => 
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const result = buildContact(draft, today, newId());
+    const result = original ? updateContact(original, draft, today) : buildContact(draft, today, newId());
     if (!result.ok) return setErrors(result.errors);
     onSave(result.contact);
     setErrors([]);
@@ -113,7 +133,7 @@ function Form({ today, onSave }: { today: string; onSave: (contact: Contact) => 
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <h2 className={styles.formTitle}>Log a conversation</h2>
+      <h2 className={styles.formTitle}>{original ? `Edit ${original.name}` : "Log a conversation"}</h2>
 
       <div className={styles.grid}>
         <label className={styles.field}>
@@ -239,9 +259,16 @@ function Form({ today, onSave }: { today: string; onSave: (contact: Contact) => 
           ))}
         </ul>
       )}
-      <button type="submit" className={styles.button}>
-        Save contact
-      </button>
+      <div className={styles.actions}>
+        <button type="submit" className={styles.button}>
+          {original ? "Save changes" : "Save contact"}
+        </button>
+        {original && (
+          <a href={LANDING} className={styles.link}>
+            Cancel
+          </a>
+        )}
+      </div>
     </form>
   );
 }

@@ -111,6 +111,12 @@
 }
 .button:hover { background: #163983; }
 
+.actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
 .link {
   align-self: flex-start;
   color: var(--penn-blue);

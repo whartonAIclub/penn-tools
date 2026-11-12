@@ -3,6 +3,7 @@ import {
   buildContact,
   completeFollowUp,
   Contact,
+  contactToDraft,
   dueStatus,
   emptyDraft,
   nextDue,
@@ -10,6 +11,7 @@ import {
   sortByFollowUp,
   splitByDue,
   toggleStep,
+  updateContact,
 } from "../contacts.js";
 import { followUpsFor, markFollowUpDone, reopenStep } from "../network.js";
 
@@ -272,5 +274,37 @@ describe("parseStoredContacts", () => {
   it("skips entries that don't match the shape and keeps the rest", () => {
     const good = contact();
     expect(parseStoredContacts(JSON.stringify([{ name: "no id" }, good, 5]))).toEqual([good]);
+  });
+});
+
+describe("editing a contact", () => {
+  it("round-trips a contact through the form unchanged", () => {
+    const original = contact({ company: "Stripe", takeaways: ["Ask about PM", "Read the memo"] });
+    const result = updateContact(original, contactToDraft(original), "2026-12-01");
+    expect(result).toEqual({ ok: true, contact: original });
+  });
+
+  it("applies edits and keeps the id, creation date and check-in date", () => {
+    const original = contact();
+    const result = updateContact(original, { ...contactToDraft(original), name: "Maria Chen", company: "Ramp" }, "2026-12-01");
+    expect(result).toMatchObject({
+      ok: true,
+      contact: { id: "id-1", name: "Maria Chen", company: "Ramp", createdAt: TODAY, checkInDate: original.checkInDate },
+    });
+  });
+
+  it("leaves finished steps out of the form and keeps them on save", () => {
+    const done = { action: "Send a thank-you email", owner: "me" as const, dueDate: null, done: true, doneOn: "2026-11-09" };
+    const open = { action: "Follow up", owner: "me" as const, dueDate: "2026-12-08", done: false, doneOn: null };
+    const original = contact({ nextSteps: [done, open] });
+    const draft = contactToDraft(original);
+    expect(draft.nextSteps).toEqual([{ action: "Follow up", owner: "me", dueDate: "2026-12-08" }]);
+    const result = updateContact(original, { ...draft, nextSteps: [] }, "2026-12-01");
+    expect(result).toMatchObject({ ok: true, contact: { nextSteps: [done] } });
+  });
+
+  it("rejects an edit that clears the name", () => {
+    const original = contact();
+    expect(updateContact(original, { ...contactToDraft(original), name: " " }, TODAY)).toMatchObject({ ok: false });
   });
 });

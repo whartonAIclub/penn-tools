@@ -103,6 +103,7 @@ function PersonCard({
   today,
   onDone,
   onReopen,
+  onDelete,
   onClose,
 }: {
   contact: Contact;
@@ -111,6 +112,7 @@ function PersonCard({
   onDone: (f: FollowUp) => void;
   /** Puts the finished step at this index back on the to-do list. */
   onReopen: (stepIndex: number) => void;
+  onDelete: () => void;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -227,6 +229,21 @@ function PersonCard({
             ))}
           </div>
         )}
+
+        <div className={styles.cardActions}>
+          <Link href={`/tools/penn-pals/tracker?edit=${encodeURIComponent(contact.id)}`} className={styles.editLink}>
+            Edit details
+          </Link>
+          <button
+            type="button"
+            className={styles.deleteButton}
+            onClick={() => {
+              if (window.confirm(`Delete ${contact.name} and their follow-ups? This can't be undone.`)) onDelete();
+            }}
+          >
+            Delete contact
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -283,6 +300,11 @@ export function Landing({ today: todayIso }: { today: string }) {
 
   const reopen = (contactId: string, stepIndex: number) =>
     save(allContacts.map((c) => (c.id === contactId ? reopenStep(c, stepIndex) : c)));
+
+  const remove = (contactId: string) => {
+    setOpened(null);
+    save(allContacts.filter((c) => c.id !== contactId));
+  };
 
   const openedContact = opened ? contactsById.get(opened) : undefined;
   const row = (f: FollowUp) => (
@@ -397,6 +419,7 @@ export function Landing({ today: todayIso }: { today: string }) {
           today={today}
           onDone={markDone}
           onReopen={(stepIndex) => reopen(openedContact.id, stepIndex)}
+          onDelete={() => remove(openedContact.id)}
           onClose={() => setOpened(null)}
         />
       )}

@@ -494,3 +494,30 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Edit and delete, at the foot of the person card */
+.cardActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.editLink {
+  color: var(--penn-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.deleteButton {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #b42318;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.deleteButton:hover { text-decoration: underline; }
