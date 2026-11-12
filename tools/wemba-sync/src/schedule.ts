@@ -125,19 +125,37 @@ export function groupByDate(items: ScheduleItem[]): { date: string; items: Sched
   return [...days].map(([date, dayItems]) => ({ date, items: dayItems }));
 }
 
+/** The kinds of file an upload can be: schedules are PDFs; syllabi can also be Word documents. */
+export type UploadKind = "pdf" | "docx";
+
+/**
+ * What kind of file the base64 `data` is, by its first bytes: a PDF, or a
+ * .docx (a zip archive named .docx), or null. The route reads a .docx's text
+ * itself; see docx.ts.
+ */
+export function uploadKind(filename: string, data: string): UploadKind | null {
+  if (base64FileType(data) === "application/pdf") return "pdf";
+  // "PK\x03\x04", a zip archive's first bytes, as base64.
+  if (/\.docx$/i.test(filename) && data.startsWith("UEsDB")) return "docx";
+  return null;
+}
+
 /**
  * Why the uploaded file can't be read, or null if it's fine. The route gets it
  * from the browser, so it checks everything; it counts pages itself, since
- * that needs a PDF parser.
+ * that needs a PDF parser. `kinds` are the files it accepts.
  */
-export function checkUpload(body: unknown): string | null {
-  if (typeof body !== "object" || body === null) return "Send the schedule as JSON.";
+export function checkUpload(body: unknown, kinds: readonly UploadKind[] = ["pdf"]): string | null {
+  if (typeof body !== "object" || body === null) return "Send the file as JSON.";
   const { filename, data } = body as Record<string, unknown>;
   if (typeof filename !== "string" || !filename.trim() || filename.length > MAX_FILENAME_LENGTH) {
     return `The file needs a name under ${MAX_FILENAME_LENGTH} characters.`;
   }
   if (typeof data !== "string" || !data) return `${filename} is empty.`;
-  if (!isBase64(data) || base64FileType(data) !== "application/pdf") return `${filename} isn't a PDF.`;
+  const kind = isBase64(data) ? uploadKind(filename, data) : null;
+  if (kind === null || !kinds.includes(kind)) {
+    return kinds.includes("docx") ? `${filename} isn't a PDF or Word (.docx) document.` : `${filename} isn't a PDF.`;
+  }
   if (base64Bytes(data) > MAX_PDF_BYTES) return `${filename} is over ${MAX_PDF_BYTES / 1024 / 1024} MB.`;
   return null;
 }

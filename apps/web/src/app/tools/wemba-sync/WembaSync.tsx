@@ -1,91 +1,89 @@
 "use client";
 
-// The WEMBA Sync page: upload a schedule PDF, which extract/route.ts reads with
-// extractWeekend (tools/wemba-sync/src/schedule.ts), then show the weekend as
-// a calendar for the student's section.
+// The WEMBA Sync page, in two tabs. Class weekend: upload a schedule PDF,
+// which extract/route.ts reads with extractWeekend
+// (tools/wemba-sync/src/schedule.ts) and saves, then show the weekend as a
+// calendar for the student's section; it opens on the next class weekend,
+// with a menu for the others. Courses: the student's saved syllabi
+// (Courses.tsx). AMA, on both tabs, answers questions about all of it.
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
-import { fileType } from "@penntools/core/ai/attachments";
 import {
+  currentWeekend,
   groupByDate,
   icsFilename,
   itemsForSection,
   toICS,
+  type SavedSyllabus,
+  type SavedWeekend,
   type ScheduleItem,
   type WeekendSchedule,
 } from "@penntools/tool-wemba-sync";
+import { removeWeekend } from "./actions";
 import { AMA } from "./AMA";
+import { Courses } from "./Courses";
+import { formatDate, formatRange, formatTimes, postFile, todayInPhiladelphia, type UploadError } from "./client";
+import { ErrorNote } from "./ErrorNote";
 import styles from "./WembaSync.module.css";
 
-interface ExtractError {
-  /** The AIError kind, when the AI API failed. */
-  kind?: string;
-  message: string;
-}
+type Status = { state: "idle" } | { state: "reading"; filename: string } | { state: "error"; error: UploadError };
 
-type Status =
-  | { state: "idle" }
-  | { state: "reading"; filename: string }
-  | { state: "done"; schedule: WeekendSchedule }
-  | { state: "error"; error: ExtractError };
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 const SECTION_KEY = "wemba-sync:section";
+const TAB_KEY = "wemba-sync:tab";
 
-/** The file's bytes as base64, without the data: prefix. */
-function toBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).slice(String(reader.result).indexOf(",") + 1));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
-/** Sends the PDF to the extract route; the weekend, or why it couldn't be read. */
-async function extract(provider: AIProvider, file: File, maxBytes: number): Promise<Status> {
-  const fail = (message: string, kind?: string): Status => ({
-    state: "error",
-    error: kind === undefined ? { message } : { message, kind },
-  });
-  if (file.size > maxBytes) return fail(`${file.name} is over ${maxBytes / 1024 / 1024} MB.`);
-  if (fileType(new Uint8Array(await file.slice(0, 12).arrayBuffer())) !== "application/pdf") {
-    return fail(`${file.name} isn't a PDF. Upload the schedule PDF from the program's email.`);
-  }
-
-  const res = await fetch("/tools/wemba-sync/extract", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider, filename: file.name, data: await toBase64(file) }),
-  });
-  if (res.status === 401) return fail("Sign in with the button at the top right.");
-  const body = (await res.json().catch(() => null)) as { schedule?: WeekendSchedule; error?: ExtractError } | null;
-  if (res.ok && body?.schedule) return { state: "done", schedule: body.schedule };
-  return fail(body?.error?.message ?? `Request failed (HTTP ${res.status}).`, body?.error?.kind);
+/** What the extract route replies: the weekend, and the saved copy, or null if it couldn't be saved. */
+interface Extracted {
+  schedule: WeekendSchedule;
+  saved: SavedWeekend | null;
 }
 
 export function WembaSync({
   providers,
   labels,
   maxBytes,
+  weekends: initialWeekends,
+  syllabi,
 }: {
   /** Providers the user has saved keys for; never empty. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   maxBytes: number;
+  /** The student's saved weekends, earliest first, or null if storage isn't set up. */
+  weekends: SavedWeekend[] | null;
+  /** The student's saved syllabi, or null if storage isn't set up. */
+  syllabi: SavedSyllabus[] | null;
 }) {
   const [provider, setProvider] = useState(providers[0]!);
+  const [tab, setTab] = useState<"weekend" | "courses">("weekend");
   const [status, setStatus] = useState<Status>({ state: "idle" });
   const [section, setSection] = useState<string | null>(null);
+  const [weekends, setWeekends] = useState(initialWeekends ?? []);
+  const [selected, setSelected] = useState(() => currentWeekend(initialWeekends ?? [], todayInPhiladelphia())?.id ?? null);
+  // A weekend read but not saved (storage not set up, or no dates): shown until the next upload.
+  const [unsaved, setUnsaved] = useState<WeekendSchedule | null>(null);
 
-  // The student's section, remembered in this browser only.
+  const saved = unsaved ? null : (weekends.find((w) => w.id === selected) ?? null);
+  // The weekend under way, or else the next one; none once every weekend is past.
+  const today = todayInPhiladelphia();
+  const current = weekends.find((w) => w.end >= today);
+  const shown = unsaved ?? saved?.schedule ?? null;
+  // A section remembered from another schedule may not exist in this one.
+  const shownSection = shown && section !== null && !shown.sections.includes(section) ? null : section;
+
+  // The student's section and last tab, remembered in this browser only.
   useEffect(() => {
     try {
       setSection(localStorage.getItem(SECTION_KEY));
+      if (localStorage.getItem(TAB_KEY) === "courses") setTab("courses");
     } catch {}
   }, []);
+  function chooseTab(value: "weekend" | "courses") {
+    setTab(value);
+    try {
+      localStorage.setItem(TAB_KEY, value);
+    } catch {}
+  }
   function chooseSection(value: string | null) {
     setSection(value);
     try {
@@ -97,25 +95,65 @@ export function WembaSync({
   async function upload(file: File) {
     setStatus({ state: "reading", filename: file.name });
     try {
-      setStatus(await extract(provider, file, maxBytes));
+      const result = await postFile<Extracted>(
+        "/tools/wemba-sync/extract",
+        provider,
+        file,
+        maxBytes,
+        "the schedule PDF from the program's email",
+      );
+      if (!result.ok) {
+        setStatus({ state: "error", error: result.error });
+        return;
+      }
+      const { schedule, saved: added } = result.body;
+      if (added) {
+        // An updated schedule for a saved weekend replaces it.
+        setWeekends((list) => [...list.filter((w) => w.id !== added.id), added].sort((a, b) => a.start.localeCompare(b.start)));
+        setSelected(added.id);
+        setUnsaved(null);
+      } else {
+        setUnsaved(schedule);
+      }
+      setStatus({ state: "idle" });
     } catch {
       setStatus({ state: "error", error: { message: "Something went wrong. Try again." } });
     }
   }
 
+  async function remove(weekend: SavedWeekend) {
+    if (!confirm(`Remove the schedule for ${weekendLabel(weekend)}?`)) return;
+    const result = await removeWeekend(weekend.id);
+    if (result) {
+      setStatus({ state: "error", error: { message: result.error } });
+      return;
+    }
+    const rest = weekends.filter((w) => w.id !== weekend.id);
+    setWeekends(rest);
+    setSelected(currentWeekend(rest, todayInPhiladelphia())?.id ?? null);
+  }
+
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${styles.withAMA}`}>
       <header>
         <h1 className={styles.title}>WEMBA Sync</h1>
         <p className={styles.intro}>
-          Upload the class weekend schedule PDF from the program&apos;s email to see your weekend: classes, meals and
-          events, for your section.
+          {tab === "weekend"
+            ? "Upload each class weekend\u2019s schedule PDF from the program\u2019s email to see your weekend: classes, meals and events, for your section. Weekends are saved to your account."
+            : "Upload each course\u2019s syllabus once a semester. It\u2019s sorted into the same sections for every course and saved to your account."}
         </p>
       </header>
 
-      <Upload status={status} onFile={(file) => void upload(file)} compact={status.state === "done"} />
+      <div className={styles.tabs} role="tablist" aria-label="WEMBA Sync">
+        <button role="tab" aria-selected={tab === "weekend"} className={styles.tab} onClick={() => chooseTab("weekend")}>
+          Class weekend
+        </button>
+        <button role="tab" aria-selected={tab === "courses"} className={styles.tab} onClick={() => chooseTab("courses")}>
+          Courses
+        </button>
+      </div>
 
-      {providers.length > 1 && status.state !== "done" && (
+      {providers.length > 1 && (tab === "courses" || shown === null) && (
         <label className={styles.provider}>
           Read with
           <select value={provider} onChange={(e) => setProvider(e.target.value as AIProvider)}>
@@ -128,31 +166,69 @@ export function WembaSync({
         </label>
       )}
 
-      {status.state === "error" && (
-        <p className={styles.error} role="alert">
-          {status.error.message}
-          {status.error.kind && KEY_PROBLEMS.has(status.error.kind) && (
-            <>
-              {" "}
-              <Link href="/settings" className={styles.link}>
-                Open Settings
-              </Link>
-            </>
-          )}
-        </p>
-      )}
+      <div role="tabpanel" hidden={tab !== "weekend"} className={`${styles.page} ${styles.tabPanel}`}>
+        <Upload status={status} onFile={(file) => void upload(file)} compact={shown !== null} />
 
-      {status.state === "done" && (
-        <Weekend
-          schedule={status.schedule}
-          // A section remembered from another schedule may not exist in this one.
-          section={section !== null && status.schedule.sections.includes(section) ? section : null}
-          onSection={chooseSection}
-          provider={provider}
-        />
-      )}
+        {status.state === "error" && <ErrorNote error={status.error} />}
+
+        {weekends.length > 0 && (
+          <div className={styles.weekendPicker}>
+            <label className={styles.provider}>
+              Weekend
+              <select
+                value={unsaved ? "" : (saved?.id ?? "")}
+                onChange={(e) => {
+                  setSelected(e.target.value);
+                  setUnsaved(null);
+                }}
+              >
+                {unsaved && <option value="">Not saved</option>}
+                {weekends.map((w) =>
+                  w.id === current?.id ? (
+                    <option key={w.id} value={w.id} className={styles.currentOption}>
+                      Current weekend: {weekendLabel(w)}
+                    </option>
+                  ) : (
+                    <option key={w.id} value={w.id}>
+                      {weekendLabel(w)}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+            {saved && (
+              <button className={styles.textButton} onClick={() => void remove(saved)}>
+                Remove
+              </button>
+            )}
+          </div>
+        )}
+
+        {shown && (
+          <Weekend
+            schedule={shown}
+            saved={saved}
+            storage={initialWeekends !== null}
+            section={shownSection}
+            onSection={chooseSection}
+          />
+        )}
+      </div>
+
+      <div role="tabpanel" hidden={tab !== "courses"} className={styles.tabPanel}>
+        <Courses provider={provider} maxBytes={maxBytes} initial={syllabi} />
+      </div>
+
+      <AMA provider={provider} schedule={shown} section={shownSection} />
     </div>
   );
+}
+
+/** The weekend's dates, e.g. "Nov 13 – Nov 14", for the weekend menu. */
+function weekendLabel(weekend: SavedWeekend): string {
+  return weekend.start === weekend.end
+    ? formatDate(weekend.start, { month: "short", day: "numeric" })
+    : formatRange(weekend.start, weekend.end);
 }
 
 // ── Upload ─────────────────────────────────────────────────────────────────────
@@ -211,15 +287,18 @@ function Upload({ status, onFile, compact }: { status: Status; onFile: (file: Fi
 
 function Weekend({
   schedule,
+  saved,
+  storage,
   section,
   onSection,
-  provider,
 }: {
   schedule: WeekendSchedule;
+  /** The saved copy, or null if it wasn't saved. */
+  saved: SavedWeekend | null;
+  /** False if storage isn't set up. */
+  storage: boolean;
   section: string | null;
   onSection: (section: string | null) => void;
-  /** The provider AMA answers with: the one that read the schedule. */
-  provider: AIProvider;
 }) {
   const items = itemsForSection(schedule.items, section);
   const days = groupByDate(items);
@@ -240,7 +319,12 @@ function Weekend({
         <div>
           <h2 className={styles.weekendTitle}>{schedule.title}</h2>
           <p className={styles.meta}>
-            {schedule.program && `${schedule.program} · `}Not saved yet: upload it again after reloading the page.
+            {schedule.program && `${schedule.program} · `}
+            {saved
+              ? `From ${saved.filename}. Upload an updated PDF for this weekend to replace it.`
+              : storage
+                ? "Not saved: the schedule has no dates to file it under."
+                : "Not saved: storage isn\u2019t set up yet, so upload it again after reloading the page."}
           </p>
         </div>
         <div className={styles.actions}>
@@ -321,8 +405,6 @@ function Weekend({
           </ul>
         </div>
       )}
-
-      <AMA provider={provider} schedule={schedule} section={section} />
     </section>
   );
 }
@@ -343,30 +425,4 @@ function Item({ item, showSection }: { item: ScheduleItem; showSection: boolean 
       </div>
     </li>
   );
-}
-
-// ── Formatting ─────────────────────────────────────────────────────────────────
-
-/** A YYYY-MM-DD date, read at noon UTC so no time zone moves it to another day. */
-function formatDate(date: string, options: Intl.DateTimeFormatOptions): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  return Number.isNaN(d.getTime()) ? date : d.toLocaleDateString("en-US", { ...options, timeZone: "UTC" });
-}
-
-function formatRange(date: string | null, endDate: string | null): string {
-  if (!date) return "Date TBD";
-  const options = { month: "short", day: "numeric" } as const;
-  return endDate ? `${formatDate(date, options)} – ${formatDate(endDate, options)}` : formatDate(date, options);
-}
-
-/** "13:30" as "1:30 PM". */
-function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  if (h === undefined || m === undefined || Number.isNaN(h) || Number.isNaN(m)) return time;
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
-}
-
-function formatTimes(start: string | null, end: string | null): string {
-  if (!start) return "Time TBD";
-  return end ? `${formatTime(start)} – ${formatTime(end)}` : formatTime(start);
 }

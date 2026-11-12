@@ -1,17 +1,31 @@
-// POST /tools/wemba-sync/ama — answers a question about the uploaded weekend
+// POST /tools/wemba-sync/ama — answers a question about what the student uploaded
 //
-// Body: { provider, schedule, section, messages }: the schedule the page
-// shows, the student's section (or null) and the conversation, ending with
-// the new question (see checkAsk). Nothing is saved. A body over
+// Body: { provider, schedule, section, messages }: the weekend the page shows
+// (or null), the student's section (or null) and the conversation, ending with
+// the new question (see checkAsk). AMA answers from the student's saved
+// weekends and syllabi, loaded here, plus the shown weekend in case it wasn't
+// saved. The conversation isn't saved. A body over
 // MAX_AMA_REQUEST_BYTES gets a 413, one checkAsk refuses a 400. The response
 // is server-sent events: the answer's { type: "text", delta } events and a
 // final { type: "done", result }, or { type: "error", error } if it fails.
 
 import type { NextRequest } from "next/server";
 import { isAIError } from "@penntools/core/ai";
-import { MAX_AMA_REQUEST_BYTES, WeekendSchedule, askAMA, checkAsk, type AMARequest } from "@penntools/tool-wemba-sync";
+import {
+  MAX_AMA_REQUEST_BYTES,
+  WeekendSchedule,
+  askAMA,
+  checkAsk,
+  knownWeekends,
+  listSyllabi,
+  listWeekends,
+  type AMAKnowledge,
+  type AMARequest,
+  type Syllabus,
+} from "@penntools/tool-wemba-sync";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
+import { db } from "../db";
 
 /** The body as text, or null once it's over MAX_AMA_REQUEST_BYTES. Counted while reading, since Content-Length can be missing or wrong. */
 async function readBody(req: NextRequest): Promise<string | null> {
@@ -38,8 +52,29 @@ function now(): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", dateStyle: "full", timeStyle: "short" }).format(new Date());
 }
 
+/**
+ * What AMA answers from: the student's saved weekends and syllabi, and the
+ * shown weekend. Without storage, just the shown weekend.
+ */
+async function knowledge(userId: string, shown: WeekendSchedule | null): Promise<AMAKnowledge> {
+  const sql = db();
+  let weekends: WeekendSchedule[] = [];
+  let syllabi: Syllabus[] = [];
+  if (sql) {
+    try {
+      const [savedWeekends, savedSyllabi] = await Promise.all([listWeekends(sql, userId), listSyllabi(sql, userId)]);
+      weekends = savedWeekends.map((w) => w.schedule);
+      syllabi = savedSyllabi.map((s) => s.syllabus);
+    } catch (error) {
+      console.error("[wemba-sync] loading AMA's uploads failed", error);
+    }
+  }
+  return { weekends: knownWeekends(weekends, shown), syllabi, shown };
+}
+
 export async function POST(req: NextRequest): Promise<Response> {
-  if (!(await getCurrentUser())) return signInRequired();
+  const user = await getCurrentUser();
+  if (!user) return signInRequired();
   const ai = await getAI();
   if (!ai) return signInRequired();
 
@@ -57,11 +92,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { provider, schedule, section, messages } = body as AMARequest;
   const request: AMARequest = {
     provider,
-    schedule: WeekendSchedule.parse(schedule), // drops fields the schema doesn't have
+    schedule: schedule === null ? null : WeekendSchedule.parse(schedule), // drops fields the schema doesn't have
     section,
     messages: messages.map(({ role, content }) => ({ role, content }) as AMARequest["messages"][number]),
   };
-  const events = askAMA(ai, request, now(), req.signal);
+  const events = askAMA(ai, request, await knowledge(user.id, request.schedule), now(), req.signal);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

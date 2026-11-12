@@ -1,15 +1,23 @@
 // WEMBA Sync: upload a class weekend's schedule PDF and see the weekend as a
-// calendar. Signed-out visitors are asked to sign in, and users without a
+// calendar, and keep each course's syllabus for the semester; both are saved
+// to the student's account. Signed-out visitors are asked to sign in, and users without a
 // saved key are sent to Settings, as in the Platform Playground.
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
-import { MAX_PDF_BYTES } from "@penntools/tool-wemba-sync";
+import {
+  MAX_PDF_BYTES,
+  listSyllabi,
+  listWeekends,
+  type SavedSyllabus,
+  type SavedWeekend,
+} from "@penntools/tool-wemba-sync";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { ApiKeyPrompt } from "@/components/layout/ApiKeyPrompt";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { WembaSync } from "./WembaSync";
+import { db } from "./db";
 
 export const metadata: Metadata = {
   title: "WEMBA Sync",
@@ -22,5 +30,28 @@ export default async function WembaSyncPage() {
   const providers = await (await getAI())!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="WEMBA Sync" />;
 
-  return <WembaSync providers={providers} labels={PROVIDER_LABELS} maxBytes={MAX_PDF_BYTES} />;
+  return (
+    <WembaSync
+      providers={providers}
+      labels={PROVIDER_LABELS}
+      maxBytes={MAX_PDF_BYTES}
+      {...await saved(user.id)}
+    />
+  );
+}
+
+/**
+ * The student's saved weekends and syllabi, or nulls if storage isn't set up;
+ * reading a weekend's schedule works either way.
+ */
+async function saved(userId: string): Promise<{ weekends: SavedWeekend[] | null; syllabi: SavedSyllabus[] | null }> {
+  const sql = db();
+  if (!sql) return { weekends: null, syllabi: null };
+  try {
+    const [weekends, syllabi] = await Promise.all([listWeekends(sql, userId), listSyllabi(sql, userId)]);
+    return { weekends, syllabi };
+  } catch (error) {
+    console.error("[wemba-sync] loading saved uploads failed", error);
+    return { weekends: null, syllabi: null };
+  }
 }

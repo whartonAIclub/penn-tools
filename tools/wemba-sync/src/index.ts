@@ -10,9 +10,25 @@ export {
   itemsForSection,
   groupByDate,
   checkUpload,
+  uploadKind,
 } from "./schedule.js";
-export type { ItemKind, ScheduleItem } from "./schedule.js";
+export type { ItemKind, ScheduleItem, UploadKind } from "./schedule.js";
 export { toICS, icsFilename } from "./calendar.js";
 export { applyCorrections } from "./corrections.js";
-export { MAX_AMA_MESSAGES, MAX_AMA_REQUEST_BYTES, MAX_QUESTION_LENGTH, amaSystem, askAMA, checkAsk } from "./ama.js";
-export type { AMARequest } from "./ama.js";
+export { MAX_AMA_MESSAGES, MAX_AMA_REQUEST_BYTES, MAX_QUESTION_LENGTH, amaSystem, askAMA, checkAsk, knownWeekends } from "./ama.js";
+export type { AMARequest, AMAKnowledge } from "./ama.js";
+export {
+  Syllabus,
+  MAX_SYLLABUS_PAGES,
+  MAX_SYLLABI,
+  MAX_SYLLABUS_TEXT,
+  extractSyllabus,
+  courseKey,
+  upcomingDeadlines,
+  sessionsOn,
+} from "./syllabus.js";
+export type { Session, Assignment, Deadline, SyllabusDocument } from "./syllabus.js";
+export { listSyllabi, saveSyllabus, deleteSyllabus, TooManySyllabiError } from "./syllabi.js";
+export type { SavedSyllabus } from "./syllabi.js";
+export { MAX_WEEKENDS, weekendRange, currentWeekend, listWeekends, saveWeekend, deleteWeekend } from "./weekends.js";
+export type { SavedWeekend } from "./weekends.js";
