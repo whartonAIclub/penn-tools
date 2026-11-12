@@ -15,6 +15,9 @@
 // Course Match names the courses for some requirements ("need FNCE
 // 6110/6210"); for the rest it shows only the requirement's name, and the
 // courses below come from the course list. `fromCourseMatch` says which.
+//
+// Credits are for a standard student. A waiver or an accelerated course
+// (e.g. STAT 6210, 0.5 CU, in place of STAT 6130, 1 CU) can lower them.
 // Recheck this list when Wharton changes the core.
 
 import type { Course } from "./courses.js";
@@ -42,7 +45,7 @@ export const WHARTON_CORE: readonly CoreRequirement[] = [
   { id: "adv-micro", name: "Adv Microeconomics for Managers", kind: "fixed", credits: 0.5, courses: ["BEPP 6120"], fromCourseMatch: false },
   { id: "teamwork", name: "Foundations of Teamwork & Leadership", kind: "fixed", credits: 0.5, courses: ["MGMT 6100"], fromCourseMatch: false },
   { id: "marketing-management", name: "Marketing Management", kind: "fixed", credits: 0.5, courses: ["MKTG 6110"], fromCourseMatch: false },
-  { id: "regression", name: "Regression Analysis for Managers", kind: "fixed", credits: 0.5, courses: ["STAT 6130", "STAT 6210"], fromCourseMatch: false },
+  { id: "regression", name: "Regression Analysis for Managers", kind: "fixed", credits: 1, courses: ["STAT 6130", "STAT 6210"], fromCourseMatch: false },
   { id: "communication", name: "Communication", kind: "fixed", credits: 0.5, courses: ["WHCP 6160", "WHCP 6180"], fromCourseMatch: true },
   { id: "accounting", name: "Accounting", kind: "fixed", credits: 1, courses: ["ACCT 6110", "ACCT 6130"], fromCourseMatch: false },
   { id: "corporate-finance", name: "Corporate Finance", kind: "fixed", credits: 1, courses: ["FNCE 6110", "FNCE 6210"], fromCourseMatch: true },
