@@ -54,7 +54,7 @@ export function CourseManager() {
   const [view, setView] = useState<"overview" | "flow">("overview");
   const [step, setStep] = useState<StepNumber>(1);
   const [terms] = useState(() => upcomingTerms(new Date()));
-  const [progress, setProgress] = useState<Progress>(() => ({ ...EMPTY_PROGRESS, term: terms[0] ?? "" }));
+  const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
   /** False until saved progress is read, so the page doesn't flash the overview first. */
   const [loaded, setLoaded] = useState(false);
 
@@ -64,8 +64,8 @@ export function CourseManager() {
   useEffect(() => {
     const saved = readSaved(loadSaved());
     if (saved) {
-      // A term that has already started isn't offered any more; use the next one.
-      const term = terms.includes(saved.progress.term) ? saved.progress.term : (terms[0] ?? "");
+      // A term that has already started isn't offered any more; the student picks again.
+      const term = terms.includes(saved.progress.term) ? saved.progress.term : "";
       const restored = { ...saved.progress, term };
       const unlocked = stepStatuses(restored).filter((s) => s.unlocked).map((s) => s.step);
       setProgress(restored);
@@ -83,7 +83,7 @@ export function CourseManager() {
   function startOver() {
     if (!window.confirm("Start over? This clears your courses, statuses and name from this browser.")) return;
     writeSaved(null);
-    setProgress({ ...EMPTY_PROGRESS, term: terms[0] ?? "" });
+    setProgress(EMPTY_PROGRESS);
     setStep(1);
     setView("overview");
   }
@@ -144,9 +144,6 @@ export function CourseManager() {
             {step === 1 ? (
               <Step1
                 courses={progress.courses}
-                term={progress.term}
-                terms={terms}
-                onTermChange={(term) => setProgress((p) => ({ ...p, term }))}
                 onAdd={(course) => setCourses((cs) => [...cs, course])}
                 onUpdate={updateCourse}
                 onRemove={(id) => setCourses((cs) => cs.filter((c) => c.id !== id))}
@@ -157,7 +154,9 @@ export function CourseManager() {
                 courses={pickedCourses(progress.courses)}
                 sender={{ name: progress.name, year: progress.year, term: progress.term }}
                 onNameChange={(name) => setProgress((p) => ({ ...p, name }))}
+                terms={terms}
                 onYearChange={(year) => setProgress((p) => ({ ...p, year }))}
+                onTermChange={(term) => setProgress((p) => ({ ...p, term }))}
                 onUpdate={updateCourse}
                 canContinue={statuses[2]?.unlocked ?? false}
                 onBack={() => setStep(1)}

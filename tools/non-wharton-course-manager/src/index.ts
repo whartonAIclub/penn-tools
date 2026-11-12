@@ -20,6 +20,8 @@ export type { CourseDetails } from "./parse.js";
 export {
   CONTACT_SOURCES,
   NAME_PLACEHOLDER,
+  TERM_PLACEHOLDER,
+  YEAR_PLACEHOLDER,
   PERMISSION_LABELS,
   PERMISSION_STATUSES,
   afterOpeningEmail,
@@ -28,8 +30,10 @@ export {
   REGISTRATION_ADDRESS,
   permissionEmail,
   registrationEmail,
+  senderReady,
   withContact,
 } from "./emails.js";
+export { DEPARTMENT_NAMES, departmentName } from "./departments.js";
 export { SAVE_KEY, readSaved, saveText } from "./saved.js";
 export type { SavedState } from "./saved.js";
 export type { Email, Sender } from "./emails.js";

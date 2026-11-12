@@ -486,15 +486,21 @@
 
 /* B: paste box and the "What we check" panel. */
 .infoButton {
-  width: 34px;
-  height: 34px;
   border-radius: 9999px;
   background: var(--blue-light);
   color: var(--blue);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
 }
+.infoButton:hover { background: #c3d8ec; }
+.infoButton[aria-expanded="true"] { background: var(--blue); color: #fff; }
+.callout strong { font-weight: 500; color: var(--blue); }
+.note { margin: 0; }
 
 .callout {
   position: relative;
@@ -678,26 +684,6 @@
   flex-wrap: wrap;
 }
 
-.termPicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: var(--muted);
-}
-
-.select {
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--blue);
-  border: 0;
-  border-radius: 9999px;
-  background: var(--soft);
-  padding: 0 16px;
-  min-height: 40px;
-  cursor: pointer;
-}
-.select:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
 
 .field { display: flex; flex-direction: column; gap: 10px; }
 
@@ -779,26 +765,37 @@
 
 .senderFields { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
 .nameField { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; }
+.pickField { flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px; }
 
-/* Two- or four-way pill toggles (year, permission status). */
-.toggle {
-  flex: 1 1 240px;
-  display: flex;
-  gap: 4px;
-  padding: 4px;
+/* Rounded dropdowns in the gold card (year, term). */
+.pillSelect {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--blue);
+  border: 0;
+  border-radius: 9999px;
   background: var(--card);
-  border-radius: 9999px;
+  padding: 0 18px;
+  min-height: 48px;
+  width: 100%;
+  cursor: pointer;
 }
+.pillSelect:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
 
-.toggleOption {
-  flex: 1;
-  border-radius: 9999px;
-  min-height: 40px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted);
+/* A locked "Open in email" and the note saying what unlocks it. */
+.lockedAction { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lockedNote { font-size: 13px; color: var(--muted); max-width: 240px; }
+.mailButton:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.inlineLink {
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
-.toggleOption[aria-pressed="true"] { background: var(--blue); color: #fff; }
 
 .permissionList { display: flex; flex-direction: column; gap: 12px; }
 

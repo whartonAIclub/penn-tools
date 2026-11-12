@@ -43,13 +43,18 @@ describe("findEmailSearch", () => {
   it("searches for the instructor on upenn.edu", () => {
     const search = findEmailSearch(add("CLST 5324 Ceramics\nInstructor: Ann Smith"));
     expect(search?.label).toBe("Find Ann Smith's email");
-    expect(decodeURIComponent(search!.href)).toBe('https://www.google.com/search?q="Ann Smith" CLST site:upenn.edu');
+    expect(decodeURIComponent(search!.href)).toBe('https://www.google.com/search?q="Ann Smith" contact upenn');
   });
 
   it("searches for the department contact without an instructor", () => {
     const search = findEmailSearch(add("PHIL 5651 Philosophy of AI"));
     expect(search?.label).toBe("Find the department contact");
-    expect(decodeURIComponent(search!.href)).toContain("PHIL department graduate coordinator site:upenn.edu");
+    expect(decodeURIComponent(search!.href)).toContain("q=Philosophy department contact upenn");
+  });
+
+  it("uses the department's full name, or the code when we don't know it", () => {
+    expect(decodeURIComponent(findEmailSearch(add("CLST 5324 Ceramics"))!.href)).toContain("q=Classical Studies department");
+    expect(decodeURIComponent(findEmailSearch(add("ZZZZ 5000 Mystery"))!.href)).toContain("q=ZZZZ department contact upenn");
   });
 
   it("isn't offered when the email came from the course details", () => {

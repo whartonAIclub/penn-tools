@@ -1,6 +1,7 @@
 // The emails the tool writes (templates in SPEC.md) and the mailto links that
 // open them in the student's email app. Nothing is sent from the tool.
 
+import { departmentName } from "./departments.js";
 import { courseCode } from "./flow.js";
 import type { ContactSource, Course, PermissionStatus, Year } from "./flow.js";
 
@@ -14,24 +15,41 @@ export interface Email {
 /** Who's asking, for the emails. */
 export interface Sender {
   name: string;
-  year: Year;
+  /** null until the student picks it. */
+  year: Year | null;
+  /** "" until the student picks it. */
   term: string;
 }
 
-/** Stands in for the name until the student types it. */
+/** Stand-ins shown in the preview until the student fills in their details. */
 export const NAME_PLACEHOLDER = "[Your name]";
+export const YEAR_PLACEHOLDER = "[first/second]";
+export const TERM_PLACEHOLDER = "[Term]";
+
+/** "Open in email" stays locked until name, year and term are all filled in. */
+export function senderReady(sender: Sender): boolean {
+  return sender.name.trim() !== "" && sender.year !== null && sender.term !== "";
+}
+
+function fill(sender: Sender) {
+  return {
+    name: sender.name.trim() || NAME_PLACEHOLDER,
+    year: sender.year ?? YEAR_PLACEHOLDER,
+    term: sender.term || TERM_PLACEHOLDER,
+  };
+}
 
 /** The permission request to the department, for one course. */
 export function permissionEmail(course: Course, sender: Sender): Email {
-  const name = sender.name.trim() || NAME_PLACEHOLDER;
+  const { name, year, term } = fill(sender);
   const code = courseCode(course);
   return {
     to: course.contact.trim(),
     subject: `Permission to enroll in ${code}`,
     body:
       `Hi,\n\n` +
-      `My name is ${name} and I'm a ${sender.year}-year MBA student at Wharton. ` +
-      `I came across ${code} ${course.title} and I'm interested in taking it for ${sender.term}. ` +
+      `My name is ${name} and I'm a ${year}-year MBA student at Wharton. ` +
+      `I came across ${code} ${course.title} and I'm interested in taking it for ${term}. ` +
       `I wanted to check if I'm eligible to enroll and if there's anything I need to do to get permission. ` +
       `If there's someone else I should contact please let me know.\n\n` +
       `Thank you,\n${name}`,
@@ -82,8 +100,8 @@ export const PERMISSION_STATUSES: readonly PermissionStatus[] = ["not-sent", "wa
 export function findEmailSearch(course: Course): { label: string; href: string } | null {
   if (course.contactSource === "details") return null;
   const query = course.instructor
-    ? `"${course.instructor}" ${course.dept} site:upenn.edu`
-    : `${course.dept} department graduate coordinator site:upenn.edu`;
+    ? `"${course.instructor}" contact upenn`
+    : `${departmentName(course.dept) ?? course.dept} department contact upenn`;
   return {
     label: course.instructor ? `Find ${course.instructor}'s email` : "Find the department contact",
     href: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
@@ -95,7 +113,7 @@ export const REGISTRATION_ADDRESS = "mbaprogram@wharton.upenn.edu";
 
 /** The one registration email to the MBA Program Office, listing every approved course. */
 export function registrationEmail(courses: readonly Course[], sender: Sender): Email {
-  const name = sender.name.trim() || NAME_PLACEHOLDER;
+  const { name, year, term } = fill(sender);
   const many = courses.length > 1;
   const codes = courses.map(courseCode);
   const list = courses.map((c) => `- ${courseCode(c)}, ${c.title}`).join("\n");
@@ -104,8 +122,8 @@ export function registrationEmail(courses: readonly Course[], sender: Sender): E
     subject: `Non-Wharton course registration – ${codes.join(", ")}`,
     body:
       `Hi,\n\n` +
-      `My name is ${name} and I'm a ${sender.year}-year MBA student. ` +
-      `I'd like to take the following non-Wharton ${many ? "courses" : "course"} for ${sender.term} ` +
+      `My name is ${name} and I'm a ${year}-year MBA student. ` +
+      `I'd like to take the following non-Wharton ${many ? "courses" : "course"} for ${term} ` +
       `and I've received permission from the ${many ? "departments" : "department"}:\n\n` +
       `${list}\n\n` +
       `Please let me know if there's anything else I need to do to register.\n\n` +

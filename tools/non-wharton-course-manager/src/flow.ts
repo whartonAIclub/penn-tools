@@ -57,9 +57,9 @@ export interface Progress {
   courses: Course[];
   /** e.g. "Spring 2027", used in all emails. */
   term: string;
-  /** The student's name and year, used in all emails. */
+  /** The student's name and year, used in all emails. Year is null until picked. */
   name: string;
-  year: Year;
+  year: Year | null;
   /** Pressed "Continue to permission" in Step 1. */
   step1Done: boolean;
   /** Pressed "I sent it" in Step 3. */
@@ -87,7 +87,7 @@ export const EMPTY_PROGRESS: Progress = {
   courses: [],
   term: "",
   name: "",
-  year: "first",
+  year: null,
   step1Done: false,
   registrationSent: false,
 };

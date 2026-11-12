@@ -28,16 +28,13 @@ Instruction Method: …`;
 
 interface Props {
   courses: Course[];
-  term: string;
-  terms: string[];
-  onTermChange: (term: string) => void;
   onAdd: (course: Course) => void;
   onUpdate: (course: Course) => void;
   onRemove: (id: string) => void;
   onContinue: () => void;
 }
 
-export function Step1({ courses, term, terms, onTermChange, onAdd, onUpdate, onRemove, onContinue }: Props) {
+export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props) {
   // Coming back to this step with courses already added shows everything again.
   const [adding, setAdding] = useState(courses.length > 0);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -122,33 +119,21 @@ export function Step1({ courses, term, terms, onTermChange, onAdd, onUpdate, onR
 
       {adding && (
         <section className={styles.card}>
-          <div className={styles.spreadRow}>
-            <div className={styles.titleRow}>
-              <h3 className={styles.cardTitle}>
-                <span className={styles.letter}>B</span>
-                Add a course
-              </h3>
-              <button
-                type="button"
-                className={styles.infoButton}
-                aria-expanded={infoOpen}
-                aria-controls="nwcm-rules"
-                aria-label="What does the eligibility check look for?"
-                onClick={() => setInfoOpen((open) => !open)}
-              >
-                <InfoIcon />
-              </button>
-            </div>
-            <label className={styles.termPicker}>
-              Term
-              <select className={styles.select} value={term} onChange={(e) => onTermChange(e.target.value)}>
-                {terms.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className={styles.titleRow}>
+            <h3 className={styles.cardTitle}>
+              <span className={styles.letter}>B</span>
+              Add a course
+            </h3>
+            <button
+              type="button"
+              className={styles.infoButton}
+              aria-expanded={infoOpen}
+              aria-controls="nwcm-rules"
+              onClick={() => setInfoOpen((open) => !open)}
+            >
+              <InfoIcon size={14} />
+              What we check
+            </button>
           </div>
 
           {infoOpen && (
@@ -164,6 +149,9 @@ export function Step1({ courses, term, terms, onTermChange, onAdd, onUpdate, onR
                 Online classes with recorded lectures and no set meeting time (asynchronous) don&apos;t count. If an
                 undergrad course is also offered at the 5000 level, we&apos;ll point you to that version. The MBA
                 Program Office has the final word.
+              </span>
+              <span>
+                <strong>Even if a course counts, you still need the department&apos;s permission to enroll.</strong>
               </span>
             </div>
           )}
@@ -230,6 +218,10 @@ export function Step1({ courses, term, terms, onTermChange, onAdd, onUpdate, onR
               </span>
             </span>
           </div>
+          <p className={styles.note}>
+            Counting toward your MBA doesn&apos;t mean you&apos;re enrolled. Every non-Wharton course still needs
+            permission from its department. That&apos;s Step 2.
+          </p>
           <span className={styles.muted}>
             Check the ones you want to request permission for. Add more courses above anytime.
           </span>

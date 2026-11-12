@@ -72,8 +72,8 @@ export function readSaved(text: string | null): SavedState | null {
   if (!isObj(data) || !isObj(data.progress)) return null;
   const p = data.progress;
   if (!Array.isArray(p.courses) || !isStr(p.term) || !isStr(p.name)) return null;
-  const year: Year | undefined = p.year === "first" || p.year === "second" ? p.year : undefined;
-  if (!year || typeof p.step1Done !== "boolean" || typeof p.registrationSent !== "boolean") return null;
+  const year: Year | null | undefined = p.year === "first" || p.year === "second" || p.year === null ? p.year : undefined;
+  if (year === undefined || typeof p.step1Done !== "boolean" || typeof p.registrationSent !== "boolean") return null;
 
   // A single unreadable course is dropped rather than losing everything.
   const courses = p.courses.map(readCourse).filter((c): c is Course => c !== null);

@@ -3,9 +3,9 @@
 // Step 3: one email to the MBA Program Office listing every approved course,
 // then "You're all set" once the student says they sent it.
 
-import { courseCode, mailtoLink, registrationEmail } from "@penntools/tool-non-wharton-course-manager";
+import { courseCode, mailtoLink, registrationEmail, senderReady } from "@penntools/tool-non-wharton-course-manager";
 import type { Course, Sender } from "@penntools/tool-non-wharton-course-manager";
-import { MailIcon } from "./icons";
+import { OpenInEmail } from "./Step2";
 import styles from "./CourseManager.module.css";
 
 interface Props {
@@ -18,6 +18,7 @@ interface Props {
 }
 
 export function Step3({ courses, sender, sent, onSent, onBack }: Props) {
+  const ready = senderReady(sender);
   const email = registrationEmail(courses, sender);
 
   if (sent) {
@@ -62,10 +63,18 @@ export function Step3({ courses, sender, sent, onSent, onBack }: Props) {
         </div>
 
         <div className={styles.actionRow}>
-          <a href={mailtoLink(email)} className={styles.mailButton}>
-            <MailIcon />
-            Open in email
-          </a>
+          <OpenInEmail
+            href={ready ? mailtoLink(email) : null}
+            lockedNote={
+              <>
+                {"Add your name, year and term in "}
+                <button type="button" className={styles.inlineLink} onClick={onBack}>
+                  Step 2
+                </button>
+                {" to unlock."}
+              </>
+            }
+          />
           <button type="button" className={styles.secondaryButton} onClick={onSent}>
             I sent it
           </button>

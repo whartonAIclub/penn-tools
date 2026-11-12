@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registrationEmail, mailtoLink } from "../emails.js";
+import { mailtoLink, permissionEmail, registrationEmail, senderReady } from "../emails.js";
 import { EMPTY_PROGRESS } from "../flow.js";
 import type { Course } from "../flow.js";
 import { newCourse, parseCourse } from "../parse.js";
@@ -60,5 +60,31 @@ describe("saved progress", () => {
     const data = JSON.parse(saveText(state));
     data.progress.courses[1].permission = "maybe";
     expect(readSaved(JSON.stringify(data))?.progress.courses).toEqual([clst]);
+  });
+});
+
+describe("details for the emails", () => {
+  const empty = { name: "", year: null, term: "" };
+
+  it("locks Open in email until name, year and term are all filled in", () => {
+    expect(senderReady(empty)).toBe(false);
+    expect(senderReady({ ...sender, name: "  " })).toBe(false);
+    expect(senderReady({ ...sender, year: null })).toBe(false);
+    expect(senderReady({ ...sender, term: "" })).toBe(false);
+    expect(senderReady(sender)).toBe(true);
+  });
+
+  it("shows placeholders in the preview until then", () => {
+    const body = permissionEmail(clst, empty).body;
+    expect(body).toContain("My name is [Your name] and I'm a [first/second]-year MBA student");
+    expect(body).toContain("taking it for [Term].");
+    expect(registrationEmail([clst], empty).body).toContain("course for [Term] and");
+  });
+
+  it("starts empty and comes back empty after a refresh", () => {
+    expect(EMPTY_PROGRESS.year).toBeNull();
+    expect(EMPTY_PROGRESS.term).toBe("");
+    const state: SavedState = { progress: EMPTY_PROGRESS, view: "overview", step: 1 };
+    expect(readSaved(saveText(state))).toEqual(state);
   });
 });
