@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bestAdvice, countByKind, followUpStatus, followUpsFor, markFollowUpDone, reopenStep, rescheduleStep } from "../network.js";
-import type { Contact } from "../contacts.js";
+import type { Contact, Recurrence } from "../contacts.js";
 
 const contact: Contact = {
   id: "c1",
@@ -25,6 +25,7 @@ const contact: Contact = {
   ],
   notes: "",
   checkInDate: "2026-02-14",
+  recurrence: { every: 1, unit: "month" },
   createdAt: "2026-01-31",
 };
 
@@ -36,11 +37,16 @@ describe("bestAdvice", () => {
 });
 
 describe("followUpsFor", () => {
-  it("dates a thank-you the day after the call and a follow-up a month later, clamped to the month's end", () => {
+  it("dates a thank-you the day after the call and a check-in two months later", () => {
     const [thankYou, followUp] = followUpsFor(contact);
     expect(thankYou).toMatchObject({ kind: "thankYou", due: "2026-02-01" });
     expect(thankYou!.action).toBe("Thank Priya");
-    expect(followUp).toMatchObject({ kind: "followUp", due: "2026-02-28" });
+    expect(followUp).toMatchObject({ kind: "followUp", due: "2026-03-31" });
+  });
+
+  it("clamps the suggested check-in to the month's end", () => {
+    const [, followUp] = followUpsFor({ ...contact, meetingDate: "2026-12-31" });
+    expect(followUp!.due).toBe("2027-02-28");
   });
 
   it("keeps a due date the intake set", () => {
@@ -74,7 +80,7 @@ describe("markFollowUpDone", () => {
     expect(followUpsFor(done).map((f) => f.kind)).toEqual(["followUp"]);
   });
 
-  it("schedules the next follow-up a month after one is done", () => {
+  it("schedules the next check-in a repeat after one is done, when it repeats monthly", () => {
     const followUp = followUpsFor(contact)[1]!;
     const done = markFollowUpDone(contact, followUp, "2026-03-05");
     const next = followUpsFor(done).filter((f) => f.kind === "followUp");
@@ -93,26 +99,73 @@ describe("followUpStatus", () => {
   });
 });
 
-describe("follow-up interval", () => {
-  const followUpOnly = { ...contact, nextSteps: [{ action: "Follow up", owner: "me" as const, dueDate: null, done: false }] };
+describe("a check-in that repeats", () => {
+  const checkIn = { ...contact, nextSteps: [{ action: "Follow up", owner: "me" as const, dueDate: null, done: false }] };
+  const repeating = (recurrence: Recurrence | null) => ({ ...checkIn, recurrence });
+  const nextDueAfter = (recurrence: Recurrence, doneOn: string) => {
+    const c = repeating(recurrence);
+    return followUpsFor(markFollowUpDone(c, followUpsFor(c)[0]!, doneOn))[0]?.due; // the finished one no longer counts
+  };
 
-  it("dates the first follow-up one interval after the chat", () => {
-    expect(followUpsFor({ ...followUpOnly, followUpEvery: "week" })[0]!.due).toBe("2026-02-07");
-    expect(followUpsFor({ ...followUpOnly, followUpEvery: "twoWeeks" })[0]!.due).toBe("2026-02-14");
-    expect(followUpsFor({ ...followUpOnly, followUpEvery: "month" })[0]!.due).toBe("2026-02-28");
-    expect(followUpsFor(followUpOnly)[0]!.due).toBe("2026-02-28"); // missing means monthly
+  it("schedules the next one the chosen number of weeks, months or years after it's done", () => {
+    expect(nextDueAfter({ every: 2, unit: "week" }, "2026-03-05")).toBe("2026-03-19");
+    expect(nextDueAfter({ every: 7, unit: "week" }, "2026-03-05")).toBe("2026-04-23");
+    expect(nextDueAfter({ every: 2, unit: "month" }, "2026-03-05")).toBe("2026-05-05");
+    expect(nextDueAfter({ every: 1, unit: "year" }, "2026-03-05")).toBe("2027-03-05");
+    expect(nextDueAfter({ every: 2, unit: "year" }, "2026-03-05")).toBe("2028-03-05");
   });
 
-  it("schedules the next follow-up one interval after one is done", () => {
-    const c = { ...followUpOnly, followUpEvery: "twoWeeks" as const };
-    const done = markFollowUpDone(c, followUpsFor(c)[0]!, "2026-03-05");
-    expect(followUpsFor(done)[0]!.due).toBe("2026-03-19");
+  it("clamps to the end of a shorter month, and a leap day to Feb 28", () => {
+    expect(nextDueAfter({ every: 1, unit: "month" }, "2026-01-31")).toBe("2026-02-28");
+    expect(nextDueAfter({ every: 12, unit: "month" }, "2028-02-29")).toBe("2029-02-28");
+    expect(nextDueAfter({ every: 1, unit: "year" }, "2028-02-29")).toBe("2029-02-28");
   });
 
-  it("reopening removes the follow-up that finishing scheduled", () => {
-    const c = { ...followUpOnly, followUpEvery: "week" as const };
+  it("counts from the day it was done, not the day it was due", () => {
+    const c = rescheduleStep(repeating({ every: 1, unit: "month" }), 0, "2026-03-01");
+    const done = markFollowUpDone(c, followUpsFor(c)[0]!, "2026-03-20");
+    expect(done.nextSteps[1]!.dueDate).toBe("2026-04-20");
+  });
+
+  it("reopening removes the check-in that finishing scheduled", () => {
+    const c = repeating({ every: 1, unit: "week" });
     const done = markFollowUpDone(c, followUpsFor(c)[0]!, "2026-03-05");
+    expect(done.nextSteps).toHaveLength(2);
     expect(reopenStep(done, 0).nextSteps).toHaveLength(1);
+  });
+});
+
+describe("a check-in that does not repeat", () => {
+  const oneOff = {
+    ...contact,
+    recurrence: null,
+    nextSteps: [{ action: "Follow up", owner: "me" as const, dueDate: null, done: false }],
+  };
+
+  it("still shows up once, on the suggested date", () => {
+    const [followUp, ...rest] = followUpsFor(oneOff);
+    expect(followUp).toMatchObject({ kind: "followUp", due: "2026-03-31" });
+    expect(rest).toEqual([]);
+  });
+
+  it("schedules nothing when it's done", () => {
+    const done = markFollowUpDone(oneOff, followUpsFor(oneOff)[0]!, "2026-03-05");
+    expect(done.nextSteps).toHaveLength(1);
+    expect(done.nextSteps[0]).toMatchObject({ done: true, doneOn: "2026-03-05" });
+    expect(followUpsFor(done)).toEqual([]);
+  });
+
+  it("reopening only reopens it, and removes nothing", () => {
+    const done = markFollowUpDone(oneOff, followUpsFor(oneOff)[0]!, "2026-03-05");
+    const reopened = reopenStep(done, 0);
+    expect(reopened.nextSteps).toHaveLength(1);
+    expect(followUpsFor(reopened)).toHaveLength(1);
+  });
+
+  it("a contact with no repeat setting at all behaves as a one-off", () => {
+    const { recurrence: _recurrence, ...unset } = oneOff;
+    const done = markFollowUpDone(unset, followUpsFor(unset)[0]!, "2026-03-05");
+    expect(done.nextSteps).toHaveLength(1);
   });
 });
 

@@ -17,12 +17,12 @@ import {
   logAnotherChat,
   customRelationships,
   emptyDraft,
-  FOLLOW_UP_INTERVAL_OPTIONS,
-  FOLLOW_UP_INTERVALS,
   FORM_RELATIONSHIPS,
   parseStoredContacts,
+  MAX_RECURRENCE,
   MAX_YEARS_AHEAD,
   MAX_YEARS_BACK,
+  RECURRENCE_UNITS,
   RELATIONSHIP_LABELS,
   SENIORITIES,
   SENIORITY_LABELS,
@@ -33,8 +33,8 @@ import {
   workshopDue,
   type Contact,
   type ContactDraft,
-  type FollowUpInterval,
   type FollowUpKind,
+  type RecurrenceUnit,
 } from "@penntools/tool-penn-pals";
 import { AiIntake, type AiAccess } from "./AiIntake";
 import styles from "./Tracker.module.css";
@@ -171,20 +171,16 @@ function useConfirmLeave(unsaved: boolean) {
 // The two follow-ups the workshop recommends, shown up front as checkboxes.
 const STEPS: { kind: FollowUpKind; action: string; label: string; timing: string }[] = [
   { kind: "thankYou", action: STEP_ACTIONS[0], label: "Send a thank-you email", timing: "the day after your chat" },
-  { kind: "followUp", action: STEP_ACTIONS[1], label: "Check in", timing: "" }, // timing from the chosen interval
+  { kind: "followUp", action: STEP_ACTIONS[1], label: "Check in", timing: "two months after your chat" },
 ];
+
+// The repeat's units, as the drop-down shows them.
+const UNIT_LABELS: Record<RecurrenceUnit, string> = { week: "weeks", month: "months", year: "years" };
 
 /** A new contact starts with both follow-ups on, dated by the workshop timing. */
 function newDraft(today: string): ContactDraft {
   return { ...emptyDraft(today), nextSteps: STEPS.map((s) => ({ action: s.action, owner: "me", dueDate: "" })) };
 }
-
-// The first follow-up's hint, per interval.
-const FIRST_FOLLOW_UP: Record<FollowUpInterval, string> = {
-  week: "one week after your chat",
-  twoWeeks: "two weeks after your chat",
-  month: "one month after your chat",
-};
 
 // A custom relationship is picked from the menu as "custom:<label>".
 const CUSTOM = "custom:";
@@ -356,8 +352,8 @@ function Form({
         {STEPS.map(({ kind, action, label, timing }) => {
           const step = stepFor(action);
           // A blank date means the suggested one, shown in the box; it moves if the chat's date changes.
-          const suggested = isIsoDate(draft.meetingDate) ? workshopDue(kind, draft.meetingDate, draft.followUpEvery) : "";
-          const hint = kind === "followUp" ? FIRST_FOLLOW_UP[draft.followUpEvery] : timing;
+          const suggested = isIsoDate(draft.meetingDate) ? workshopDue(kind, draft.meetingDate) : "";
+          const hint = timing;
           return (
             <div key={action} className={styles.stepRow}>
               <label className={styles.check}>
@@ -385,21 +381,36 @@ function Form({
                 </span>
               )}
               {kind === "followUp" && step && (
-                <div className={styles.intervals} role="radiogroup" aria-label="How often to check in">
-                  {FOLLOW_UP_INTERVALS.map((every) => (
-                    <label key={every} className={styles.interval}>
+                <div className={styles.repeat}>
+                  <label className={styles.check}>
+                    <input type="checkbox" checked={draft.repeat} onChange={(e) => set("repeat", e.target.checked)} />
+                    Make it recurring
+                  </label>
+                  {draft.repeat && (
+                    <span className={styles.repeatBox}>
+                      every
                       <input
-                        type="radio"
-                        name="followUpEvery"
-                        checked={draft.followUpEvery === every}
-                        onChange={() => set("followUpEvery", every)}
+                        type="number"
+                        aria-label="Repeat every (number)"
+                        min={1}
+                        max={MAX_RECURRENCE[draft.repeatUnit]}
+                        step={1}
+                        value={draft.repeatEvery}
+                        onChange={(e) => set("repeatEvery", e.target.value)}
                       />
-                      <span>
-                        <strong>{FOLLOW_UP_INTERVAL_OPTIONS[every].label}</strong>
-                        <span className={styles.hint}> · {FOLLOW_UP_INTERVAL_OPTIONS[every].when}</span>
-                      </span>
-                    </label>
-                  ))}
+                      <select
+                        aria-label="Repeat every (weeks, months or years)"
+                        value={draft.repeatUnit}
+                        onChange={(e) => set("repeatUnit", e.target.value as RecurrenceUnit)}
+                      >
+                        {RECURRENCE_UNITS.map((unit) => (
+                          <option key={unit} value={unit}>
+                            {UNIT_LABELS[unit]}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  )}
                 </div>
               )}
             </div>

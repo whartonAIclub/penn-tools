@@ -8,8 +8,10 @@ import {
   Contact,
   contactToDraft,
   customRelationships,
+  describeRecurrence,
   dueStatus,
   emptyDraft,
+  intervalToRecurrence,
   nextDue,
   parseStoredContacts,
   relationshipLabel,
@@ -191,11 +193,11 @@ describe("completed steps stay on the contact", () => {
   });
 
   it("marking a landing-page follow-up done keeps it as history with today's date", () => {
-    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")] });
+    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")], recurrence: { every: 1, unit: "month" } });
     const [followUp] = followUpsFor(c);
     const result = markFollowUpDone(c, followUp!, TODAY);
     expect(result.nextSteps[0]).toMatchObject({ action: "Follow up", done: true, doneOn: TODAY });
-    expect(result.nextSteps).toHaveLength(2); // the next monthly follow-up was scheduled
+    expect(result.nextSteps).toHaveLength(2); // the next monthly check-in was scheduled
   });
 
   it("reopening a finished thank-you puts it back on the to-do list", () => {
@@ -207,8 +209,8 @@ describe("completed steps stay on the contact", () => {
     expect(followUpsFor(reopened)).toHaveLength(1);
   });
 
-  it("reopening a finished follow-up also removes the monthly follow-up it scheduled", () => {
-    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")] });
+  it("reopening a finished repeating check-in also removes the check-in it scheduled", () => {
+    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")], recurrence: { every: 1, unit: "month" } });
     const done = markFollowUpDone(c, followUpsFor(c)[0]!, TODAY);
     expect(done.nextSteps).toHaveLength(2);
     const reopened = reopenStep(done, 0);
@@ -217,7 +219,7 @@ describe("completed steps stay on the contact", () => {
   });
 
   it("keeps the scheduled follow-up if it was already finished or changed", () => {
-    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")] });
+    const c = contact({ nextSteps: [step("Follow up", "2026-11-08")], recurrence: { every: 1, unit: "month" } });
     const done = markFollowUpDone(c, followUpsFor(c)[0]!, TODAY);
     const changed = { ...done, nextSteps: [done.nextSteps[0]!, { ...done.nextSteps[1]!, dueDate: "2027-01-01" }] };
     expect(reopenStep(changed, 0).nextSteps).toHaveLength(2);
@@ -378,12 +380,101 @@ describe("seniority", () => {
   });
 });
 
-describe("follow-up interval on the form", () => {
-  it("defaults to monthly, is stored, and survives an edit", () => {
-    expect(emptyDraft(TODAY).followUpEvery).toBe("month");
-    const built = buildContact({ ...emptyDraft(TODAY), name: "Maria", followUpEvery: "week" }, TODAY, "a");
-    expect(built).toMatchObject({ ok: true, contact: { followUpEvery: "week" } });
-    if (built.ok) expect(contactToDraft(built.contact).followUpEvery).toBe("week");
+describe("repeating the check-in", () => {
+  const checkIn = [{ action: "Follow up", owner: "me" as const, dueDate: "" }];
+  const draft = { ...emptyDraft(TODAY), name: "Maria", nextSteps: checkIn };
+
+  it("is off by default, so the check-in is a one-off", () => {
+    expect(emptyDraft(TODAY)).toMatchObject({ repeat: false, repeatEvery: "1", repeatUnit: "month" });
+    expect(buildContact(draft, TODAY, "a")).toMatchObject({ ok: true, contact: { recurrence: null } });
+  });
+
+  it.each([
+    [{ repeatEvery: "2", repeatUnit: "month" as const }, { every: 2, unit: "month" }],
+    [{ repeatEvery: "7", repeatUnit: "week" as const }, { every: 7, unit: "week" }],
+    [{ repeatEvery: "1", repeatUnit: "year" as const }, { every: 1, unit: "year" }],
+    [{ repeatEvery: " 3 ", repeatUnit: "month" as const }, { every: 3, unit: "month" }],
+  ])("stores %j as a repeat of %j", (typed, expected) => {
+    expect(buildContact({ ...draft, repeat: true, ...typed }, TODAY, "a")).toMatchObject({ ok: true, contact: { recurrence: expected } });
+  });
+
+  it.each([
+    ["zero", "0", "month"],
+    ["a negative number", "-2", "month"],
+    ["a fraction", "1.5", "week"],
+    ["text", "abc", "month"],
+    ["nothing", "", "week"],
+    ["more than 104 weeks", "105", "week"],
+    ["more than 24 months", "25", "month"],
+    ["more than 2 years", "3", "year"],
+    ["an unknown unit", "2", "decade"],
+  ])("rejects %s", (_label, repeatEvery, repeatUnit) => {
+    const result = buildContact({ ...draft, repeat: true, repeatEvery, repeatUnit: repeatUnit as "week" }, TODAY, "a");
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts the largest number for each unit", () => {
+    for (const [repeatEvery, repeatUnit] of [["104", "week"], ["24", "month"], ["2", "year"]] as const) {
+      expect(buildContact({ ...draft, repeat: true, repeatEvery, repeatUnit }, TODAY, "a")).toMatchObject({ ok: true });
+    }
+  });
+
+  it("ignores a bad number while repeat is off", () => {
+    expect(buildContact({ ...draft, repeat: false, repeatEvery: "abc" }, TODAY, "a")).toMatchObject({ ok: true, contact: { recurrence: null } });
+  });
+
+  it("has nothing to repeat without a check-in", () => {
+    const noCheckIn = { ...draft, nextSteps: [{ action: "Send a thank-you email", owner: "me" as const, dueDate: "" }], repeat: true, repeatEvery: "2" };
+    expect(buildContact(noCheckIn, TODAY, "a")).toMatchObject({ ok: true, contact: { recurrence: null } });
+  });
+
+  it("survives an edit, and turning it off sticks", () => {
+    const built = buildContact({ ...draft, repeat: true, repeatEvery: "2", repeatUnit: "month" }, TODAY, "a");
+    if (!built.ok) throw new Error("fixture");
+    const back = contactToDraft(built.contact);
+    expect(back).toMatchObject({ repeat: true, repeatEvery: "2", repeatUnit: "month" });
+    const off = updateContact(built.contact, { ...back, repeat: false }, TODAY);
+    expect(off).toMatchObject({ ok: true, contact: { recurrence: null } });
+    if (off.ok) expect(contactToDraft(off.contact).repeat).toBe(false);
+  });
+
+  it("describes the setting in words", () => {
+    expect(describeRecurrence({ every: 1, unit: "week" })).toBe("every week");
+    expect(describeRecurrence({ every: 2, unit: "month" })).toBe("every 2 months");
+    expect(describeRecurrence({ every: 7, unit: "week" })).toBe("every 7 weeks");
+    expect(describeRecurrence({ every: 1, unit: "year" })).toBe("every year");
+  });
+
+  it("converts the AI's suggested intervals", () => {
+    expect(intervalToRecurrence("week")).toEqual({ every: 1, unit: "week" });
+    expect(intervalToRecurrence("twoWeeks")).toEqual({ every: 2, unit: "week" });
+    expect(intervalToRecurrence("month")).toEqual({ every: 1, unit: "month" });
+  });
+
+  describe("contacts saved before it existed", () => {
+    const base = contact();
+    const { recurrence: _recurrence, ...saved } = base;
+    const load = (extra: object) => parseStoredContacts(JSON.stringify([{ ...saved, ...extra }]))[0];
+
+    it.each([
+      ["week", { every: 1, unit: "week" }],
+      ["twoWeeks", { every: 2, unit: "week" }],
+      ["month", { every: 1, unit: "month" }],
+    ])("turn the old interval %s into a repeat", (followUpEvery, expected) => {
+      expect(load({ followUpEvery })?.recurrence).toEqual(expected);
+    });
+
+    it("repeat monthly when no interval had been chosen, as they always did", () => {
+      expect(load({})?.recurrence).toEqual({ every: 1, unit: "month" });
+    });
+
+    it("keep a one-off as a one-off", () => {
+      expect(load({ recurrence: null })?.recurrence).toBeNull();
+    });
+
+    it("drop the old field when they are saved again", () => {
+      expect(JSON.stringify(load({ followUpEvery: "week" }))).not.toContain("followUpEvery");
+    });
   });
 });
 

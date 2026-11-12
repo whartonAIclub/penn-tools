@@ -102,7 +102,9 @@ describe("intakeToDraft", () => {
       meetingDate: "2026-11-10",
       offeredIntro: true,
       takeaways: "Lead with one metric",
-      followUpEvery: "twoWeeks",
+      repeat: true,
+      repeatEvery: "2",
+      repeatUnit: "week",
     });
     expect(draft.nextSteps.map((s) => s.action)).toEqual(["Send a thank-you email", "Follow up"]);
     expect(buildContact(draft, TODAY, "id")).toMatchObject({ ok: true });
@@ -113,7 +115,12 @@ describe("intakeToDraft", () => {
       expect(intakeToDraft({ ...blank, meetingDate }, TODAY).meetingDate).toBe(TODAY);
     }
     const draft = intakeToDraft(blank, TODAY);
-    expect(draft).toMatchObject({ name: "", relationship: "industry", vibe: "good", followUpEvery: "month", seniority: "" });
+    expect(draft).toMatchObject({ name: "", relationship: "industry", vibe: "good", repeat: false, seniority: "" });
+  });
+
+  it("turns each suggested interval into a repeat setting", () => {
+    expect(intakeToDraft({ ...blank, followUpEvery: "week" }, TODAY)).toMatchObject({ repeat: true, repeatEvery: "1", repeatUnit: "week" });
+    expect(intakeToDraft({ ...blank, followUpEvery: "month" }, TODAY)).toMatchObject({ repeat: true, repeatEvery: "1", repeatUnit: "month" });
   });
 
   it("keeps the write-in only for other", () => {
@@ -131,8 +138,25 @@ describe("another chat with someone saved", () => {
   });
 
   it("keeps their saved details where the AI said nothing", () => {
-    const base = { ...intakeToDraft(blank, TODAY), name: "Maria Chen", company: "Stripe", relationship: "alumni" as const, followUpEvery: "week" as const };
+    const base = {
+      ...intakeToDraft(blank, TODAY),
+      name: "Maria Chen",
+      company: "Stripe",
+      relationship: "alumni" as const,
+      repeat: true,
+      repeatEvery: "7",
+      repeatUnit: "week" as const,
+    };
     const draft = intakeToDraft({ ...blank, takeaways: ["Apply in January"], role: "Senior PM" }, TODAY, base);
-    expect(draft).toMatchObject({ name: "Maria Chen", company: "Stripe", role: "Senior PM", relationship: "alumni", followUpEvery: "week", takeaways: "Apply in January" });
+    expect(draft).toMatchObject({
+      name: "Maria Chen",
+      company: "Stripe",
+      role: "Senior PM",
+      relationship: "alumni",
+      repeat: true,
+      repeatEvery: "7",
+      repeatUnit: "week",
+      takeaways: "Apply in January",
+    });
   });
 });

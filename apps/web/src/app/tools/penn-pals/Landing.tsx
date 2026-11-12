@@ -20,10 +20,11 @@ import {
   parseStoredContacts,
   relationshipLabel,
   reopenStep,
+  describeRecurrence,
   rescheduleStep,
   SENIORITY_LABELS,
 } from "@penntools/tool-penn-pals";
-import type { Contact, FollowUp, FollowUpKind, FollowUpStatus } from "@penntools/tool-penn-pals";
+import type { Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
 import styles from "./Landing.module.css";
 
 // The three timeline buckets, in the order the lane shows them
@@ -117,6 +118,7 @@ function DueDate({ due, today, onChange }: { due: string; today: Date; onChange:
 function FollowUpRow({
   followUp,
   contact,
+  recurrence,
   today,
   onDone,
   onReschedule,
@@ -124,6 +126,8 @@ function FollowUpRow({
 }: {
   followUp: FollowUp;
   contact: Contact | undefined;
+  /** How the person's check-in repeats, if it does; shown on check-ins. */
+  recurrence?: Recurrence | null | undefined;
   today: Date;
   onDone: (f: FollowUp) => void;
   onReschedule: (f: FollowUp, date: string) => void;
@@ -147,6 +151,7 @@ function FollowUpRow({
           <p className={styles.action}>{followUp.action}</p>
         )}
         {contact?.company && <p className={styles.meta}>{contact.company}</p>}
+        {followUp.kind === "followUp" && recurrence && <p className={styles.meta}>↻ Repeats {describeRecurrence(recurrence)}</p>}
       </div>
       <DueDate due={followUp.due} today={today} onChange={(date) => onReschedule(followUp, date)} />
     </li>
@@ -257,7 +262,7 @@ function PersonCard({
           ) : (
             <ul className={styles.list}>
               {followUps.map((f) => (
-                <FollowUpRow key={f.id} followUp={f} contact={undefined} today={today} onDone={onDone} onReschedule={onReschedule} />
+                <FollowUpRow key={f.id} followUp={f} contact={undefined} recurrence={contact.recurrence} today={today} onDone={onDone} onReschedule={onReschedule} />
               ))}
             </ul>
           )}
@@ -406,6 +411,7 @@ export function Landing({ today: todayIso }: { today: string }) {
       key={f.id}
       followUp={f}
       contact={contactsById.get(f.contactId)}
+      recurrence={contactsById.get(f.contactId)?.recurrence}
       today={today}
       onDone={markDone}
       onReschedule={reschedule}

@@ -191,20 +191,34 @@
   background: var(--bg);
 }
 
-/* How often to follow up: one option per line, each with when to use it */
-.intervals {
+/* The check-in's optional repeat: a checkbox, then "every [number] [weeks, months or years]" */
+.repeat {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
   flex-basis: 100%;
   margin: 2px 0 4px 26px;
 }
-.interval {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
+.repeat .check {
   font-weight: 400;
-  cursor: pointer;
+}
+.repeatBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.repeatBox input,
+.repeatBox select {
+  padding: 5px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+}
+.repeatBox input {
+  width: 72px;
 }
 
 /* ── AI intake ─────────────────────────────────────────────────────────────── */

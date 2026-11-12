@@ -10,10 +10,10 @@
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
 import {
-  DEFAULT_FOLLOW_UP_INTERVAL,
   emptyDraft,
   FOLLOW_UP_INTERVALS,
   FORM_RELATIONSHIPS,
+  intervalToRecurrence,
   SENIORITIES,
   STEP_ACTIONS,
   type ContactDraft,
@@ -135,8 +135,9 @@ export function intakeToDraft(reply: IntakeReply, today: string, base?: ContactD
   const start: ContactDraft = base ?? {
     ...emptyDraft(today),
     nextSteps: [STEP_ACTIONS[0], STEP_ACTIONS[1]].map((action) => ({ action, owner: "me" as const, dueDate: "" })),
-    followUpEvery: DEFAULT_FOLLOW_UP_INTERVAL,
   };
+  // An interval the AI suggested turns the check-in's repeat on; otherwise the base's setting stays.
+  const repeat = reply.followUpEvery ? intervalToRecurrence(reply.followUpEvery) : null;
   const date = reply.meetingDate && isDate(reply.meetingDate) && reply.meetingDate <= today ? reply.meetingDate : today;
   const text = (value: string | null, fallback: string) => value?.trim() || fallback;
   return {
@@ -156,7 +157,7 @@ export function intakeToDraft(reply: IntakeReply, today: string, base?: ContactD
     offeredReferral: reply.offeredReferral,
     offeredIntro: reply.offeredIntro,
     takeaways: reply.takeaways.map((t) => t.trim()).filter(Boolean).join("\n") || start.takeaways,
-    followUpEvery: reply.followUpEvery ?? start.followUpEvery,
+    ...(repeat ? { repeat: true, repeatEvery: String(repeat.every), repeatUnit: repeat.unit } : {}),
     area: text(reply.area, start.area),
     location: text(reply.location, start.location),
     email: text(reply.email, start.email),

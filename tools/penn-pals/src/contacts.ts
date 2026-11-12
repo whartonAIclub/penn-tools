@@ -66,17 +66,19 @@ export const SENIORITY_LABELS: Record<Seniority, string> = {
 export const MAX_YEARS_BACK = 10;
 export const MAX_YEARS_AHEAD = 2;
 
-/** How often to follow up after the thank-you. Monthly is the workshop's default. */
+/** The units a check-in can repeat in: every N weeks, months or years. */
+export const RECURRENCE_UNITS = ["week", "month", "year"] as const;
+export type RecurrenceUnit = (typeof RECURRENCE_UNITS)[number];
+
+/** The most a check-in can repeat by, per unit: about two years, so a repeat can't land past the form's date limit. */
+export const MAX_RECURRENCE: Record<RecurrenceUnit, number> = { week: 104, month: 24, year: MAX_YEARS_AHEAD };
+
+/** Months after the chat that the form suggests for the check-in. */
+export const SUGGESTED_CHECK_IN_MONTHS = 2;
+
+/** The intervals the AI intake can suggest; each becomes a repeat setting (see intervalToRecurrence). */
 export const FOLLOW_UP_INTERVALS = ["week", "twoWeeks", "month"] as const;
 export type FollowUpInterval = (typeof FOLLOW_UP_INTERVALS)[number];
-export const DEFAULT_FOLLOW_UP_INTERVAL: FollowUpInterval = "month";
-
-/** Each interval's name and when to pick it, as the form shows them. */
-export const FOLLOW_UP_INTERVAL_OPTIONS: Record<FollowUpInterval, { label: string; when: string }> = {
-  week: { label: "Every week", when: "You're applying or interviewing at their company, or a deadline is coming up." },
-  twoWeeks: { label: "Every 2 weeks", when: "They offered to refer or introduce you, so update them on how it's going." },
-  month: { label: "Every month", when: "Most people. Keeps you in touch without being pushy." },
-};
 
 /** The next steps the form offers. */
 export const STEP_ACTIONS = ["Send a thank-you email", "Follow up"] as const;
@@ -98,6 +100,34 @@ const NextStep = z.object({
   doneOn: z.string().nullable().optional(),
 });
 export type NextStep = z.infer<typeof NextStep>;
+
+/** How a check-in repeats once it's done: every `every` weeks, months or years. */
+const Recurrence = z.object({
+  every: z.number().int().min(1),
+  unit: z.enum(RECURRENCE_UNITS),
+});
+export type Recurrence = z.infer<typeof Recurrence>;
+
+/** An AI-suggested interval as a repeat setting. */
+export function intervalToRecurrence(interval: FollowUpInterval): Recurrence {
+  if (interval === "week") return { every: 1, unit: "week" };
+  if (interval === "twoWeeks") return { every: 2, unit: "week" };
+  return { every: 1, unit: "month" };
+}
+
+/** "every week", "every 2 months", "every year". */
+export function describeRecurrence({ every, unit }: Recurrence): string {
+  return every === 1 ? `every ${unit}` : `every ${every} ${unit}s`;
+}
+
+/** A problem with a typed repeat setting, or null when it's fine: a whole number from 1 up to the unit's limit. */
+export function checkRecurrence(every: string, unit: string): string | null {
+  if (!(RECURRENCE_UNITS as readonly string[]).includes(unit)) return "Choose weeks, months or years for the repeat.";
+  const max = MAX_RECURRENCE[unit as RecurrenceUnit];
+  const n = /^\d+$/.test(every.trim()) ? Number(every.trim()) : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > max) return `Repeat every a whole number from 1 to ${max} ${unit}s.`;
+  return null;
+}
 
 /** An earlier chat with the same person. The contact's own fields hold the latest one. */
 const PastChat = z.object({
@@ -137,8 +167,8 @@ export const Contact = z.object({
   notes: z.string(),
   /** When to check in if no open next step has a due date; set automatically, not on the form. */
   checkInDate: z.string(),
-  /** How often to follow up; missing means monthly (optional so older contacts load). */
-  followUpEvery: z.enum(FOLLOW_UP_INTERVALS).optional(),
+  /** Repeat the check-in this often once it's done; null for a one-off. Missing in older contacts, which parseStoredContacts converts. */
+  recurrence: Recurrence.nullable().optional(),
   /** Earlier chats, newest first; missing when there's been only one (optional so older contacts load). */
   pastChats: z.array(PastChat).optional(),
   createdAt: z.string(),
@@ -172,7 +202,11 @@ export interface ContactDraft {
   /** One takeaway per line. */
   takeaways: string;
   nextSteps: { action: string; owner: "me" | "them"; dueDate: string }[];
-  followUpEvery: FollowUpInterval;
+  /** The check-in repeats once it's done. */
+  repeat: boolean;
+  /** How many units between repeats, as typed. */
+  repeatEvery: string;
+  repeatUnit: RecurrenceUnit;
   notes: string;
 }
 
@@ -196,7 +230,9 @@ export function emptyDraft(today: string): ContactDraft {
     offeredIntro: false,
     takeaways: "",
     nextSteps: [],
-    followUpEvery: DEFAULT_FOLLOW_UP_INTERVAL,
+    repeat: false,
+    repeatEvery: "1",
+    repeatUnit: "month",
     notes: "",
   };
 }
@@ -252,6 +288,14 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
     return { action: s.action.trim(), owner: s.owner, dueDate: dueDate || null, done: false, doneOn: null };
   });
 
+  // The repeat setting only means something while there is a check-in to repeat.
+  let recurrence: Recurrence | null = null;
+  if (draft.repeat && nextSteps.some((s) => s.action === STEP_ACTIONS[1])) {
+    const problem = checkRecurrence(draft.repeatEvery, draft.repeatUnit);
+    if (problem) errors.push(problem);
+    else recurrence = { every: Number(draft.repeatEvery.trim()), unit: draft.repeatUnit };
+  }
+
   if (errors.length > 0) return { ok: false, errors };
 
   return {
@@ -279,7 +323,7 @@ export function buildContact(draft: ContactDraft, today: string, id: string): Bu
         .map((line) => line.trim())
         .filter(Boolean),
       nextSteps,
-      followUpEvery: draft.followUpEvery,
+      recurrence,
       notes: draft.notes,
       checkInDate: addDays(today, DEFAULT_FOLLOW_UP_DAYS),
       createdAt: today,
@@ -315,7 +359,9 @@ export function contactToDraft(contact: Contact): ContactDraft {
     nextSteps: contact.nextSteps
       .filter((step) => !step.done)
       .map((step) => ({ action: step.action, owner: step.owner, dueDate: step.dueDate ?? "" })),
-    followUpEvery: contact.followUpEvery ?? DEFAULT_FOLLOW_UP_INTERVAL,
+    repeat: Boolean(contact.recurrence),
+    repeatEvery: String(contact.recurrence?.every ?? 1),
+    repeatUnit: contact.recurrence?.unit ?? "month",
     notes: contact.notes,
   };
 }
@@ -475,12 +521,22 @@ export function parseStoredContacts(raw: string | null): Contact[] {
   }
   if (!Array.isArray(data)) return [];
   return data.flatMap((item) => {
-    // Earlier versions stored `followUpDate`; it becomes the check-in date.
-    const migrated =
-      item && typeof item === "object" && !("checkInDate" in item) && "followUpDate" in item
-        ? { ...item, checkInDate: (item as { followUpDate: unknown }).followUpDate }
-        : item;
-    const parsed = Contact.safeParse(migrated);
+    const parsed = Contact.safeParse(migrateStored(item));
     return parsed.success ? [parsed.data] : [];
   });
+}
+
+/** An entry saved by an earlier version, brought up to the current shape. */
+function migrateStored(item: unknown): unknown {
+  if (!item || typeof item !== "object") return item;
+  let out = item as Record<string, unknown>;
+  // Earlier versions stored `followUpDate`; it becomes the check-in date.
+  if (!("checkInDate" in out) && "followUpDate" in out) out = { ...out, checkInDate: out.followUpDate };
+  // Then came a fixed choice of week, twoWeeks or month (monthly when none was chosen); it becomes a repeat setting.
+  if (!("recurrence" in out)) {
+    const chosen = out.followUpEvery;
+    const interval = (FOLLOW_UP_INTERVALS as readonly unknown[]).includes(chosen) ? (chosen as FollowUpInterval) : "month";
+    out = { ...out, recurrence: intervalToRecurrence(interval) };
+  }
+  return out;
 }
