@@ -429,6 +429,7 @@ export function Onboarding({
   email,
   school,
   initial,
+  startRole,
   onDone,
 }: {
   /** What to call them: their saved choice, else their Google name (empty for the local test account). */
@@ -438,13 +439,19 @@ export function Onboarding({
   school: string | null;
   /** Saved answers, when a member is changing them. */
   initial: Profile | null;
+  /**
+   * The side to set up, when someone switches to a side they haven't used yet.
+   * Their name and neighbourhood carry over; the rest is that side's questions.
+   */
+  startRole?: MemberRole;
   /** Set when opened from the main page: called after saving or to cancel. */
   onDone?: () => void;
 }) {
   const router = useRouter();
-  const [f, setF] = useState<Form>(() => ({ ...fromProfile(initial), name }));
-  // My profile opens on the saved answers; first-time setup starts at the role.
-  const [step, setStep] = useState<Step>(initial && onDone ? "review" : "role");
+  const [f, setF] = useState<Form>(() => ({ ...fromProfile(initial), name, ...(startRole ? { role: startRole } : {}) }));
+  // My profile opens on the saved answers; first-time setup, and switching to a
+  // side with no answers yet, start at the role.
+  const [step, setStep] = useState<Step>(initial && onDone && !startRole ? "review" : "role");
   // Set when editing one answer from the review: Continue goes back there.
   const [editingOne, setEditingOne] = useState(false);
   const [ownPlace, setOwnPlace] = useState(() => initial !== null && !isGpsArea(initial.location.area) && !NEIGHBORHOODS.some((n) => n.value === initial.location.area));

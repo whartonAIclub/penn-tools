@@ -15,6 +15,7 @@ import {
   describe,
   fitOf,
   isFinished,
+  oppositeRole,
   requestStart,
   stillToDo,
   type Match,
@@ -26,7 +27,7 @@ import {
   type Review,
   type SitterJob,
 } from "@penntools/tool-pennpaws";
-import { aiMatches, readNotifications, type AIMatch } from "./actions";
+import { aiMatches, readNotifications, switchSide, type AIMatch } from "./actions";
 import { MyPets } from "./MyPets";
 import { Onboarding } from "./Onboarding";
 import { RequestDetail } from "./RequestDetail";
@@ -112,8 +113,13 @@ export function PennPaws({
   const running = posted.filter((r) => !isFinished(r));
   const finished = posted.filter((r) => isFinished(r));
   // Owners start with their own requests (or posting one); sitters and Pet Pals start browsing.
-  const home: View = { tab: member.role === "sitter" ? "find" : posted.length > 0 ? "mine" : "post" };
+  const homeFor = (role: Member["role"]): View => (role === "sitter" ? { tab: "find" } : posted.length > 0 ? { tab: "mine" } : { tab: "post" });
+  const home = homeFor(member.role);
   const [view, setView] = useState<View>(home);
+  const [switching, setSwitching] = useState(false);
+  // Set when someone switches to a side they have no answers for yet: My
+  // profile then opens that side's setup instead of their current answers.
+  const [setupRole, setSetupRole] = useState<Member["role"] | null>(null);
   const [kind, setKind] = useState<"all" | "dog" | "cat">("all");
   const unread = notifications.filter((n) => !n.read).length;
   const [aiRanked, setAIRanked] = useState<Record<string, AIMatch> | null>(null);
@@ -121,6 +127,20 @@ export function PennPaws({
   const [rankError, setRankError] = useState<string | null>(null);
 
   const openRequest = (id: string, back: ListTab) => setView({ tab: "request", id, back });
+  /** Moves to the other side, or opens its setup the first time they go there. */
+  const switchSides = async () => {
+    setSwitching(true);
+    const result = await switchSide();
+    setSwitching(false);
+    if (!result.ok) return;
+    if (result.data === null) {
+      setSetupRole(oppositeRole(member.role));
+      setView({ tab: "profile" });
+      return;
+    }
+    setView(homeFor(result.data));
+    router.refresh();
+  };
   const showAlerts = async () => {
     setView({ tab: "alerts" });
     if (unread > 0) {
@@ -155,6 +175,19 @@ export function PennPaws({
           </span>
         </div>
         <div className={styles.headerActions}>
+          {/* One account, two sides. Switching here is how someone who looks
+              after pets gets back to their own, instead of meeting their own
+              request in the list of jobs. */}
+          <button
+            type="button"
+            className={styles.switchButton}
+            onClick={switchSides}
+            disabled={switching}
+            title={`Switch to ${isSitter ? "your own pets" : "looking after pets"}`}
+          >
+            <SwitchIcon />
+            <span className={styles.switchLabel}>{switching ? "Switching…" : isSitter ? "My pets side" : "Sitting side"}</span>
+          </button>
           {isTeam && (
             <button type="button" className={styles.profileButton} aria-current={view.tab === "team" ? "page" : undefined} onClick={() => setView({ tab: "team" })}>
               Team
@@ -309,14 +342,7 @@ export function PennPaws({
 
         {view.tab === "pets" && <MyPets pets={pets} onChanged={() => router.refresh()} onProfile={() => setView({ tab: "profile" })} />}
 
-        {view.tab === "tasks" && (
-          <MyTasks
-            jobs={jobs}
-            ownRequests={posted.filter((r) => r.status === "open" || r.status === "matched" || r.status === "agreed")}
-            onOpen={(id) => openRequest(id, "tasks")}
-            onFind={() => setView({ tab: "find" })}
-          />
-        )}
+        {view.tab === "tasks" && <MyTasks jobs={jobs} onOpen={(id) => openRequest(id, "tasks")} onFind={() => setView({ tab: "find" })} />}
         {view.tab === "done" && isSitter && <Completed jobs={jobs} reviews={reviews} onOpen={(id) => openRequest(id, "done")} onFind={() => setView({ tab: "find" })} />}
         {view.tab === "earnings" && <Earnings jobs={jobs} onOpen={(id) => openRequest(id, "earnings")} />}
 
@@ -352,7 +378,18 @@ export function PennPaws({
         )}
 
         {view.tab === "profile" && (
-          <Onboarding name={member.name} email={email} school={member.school} initial={member.profile} onDone={() => setView(home)} />
+          <Onboarding
+            name={member.name}
+            email={email}
+            school={member.school}
+            initial={member.profile}
+            {...(setupRole ? { startRole: setupRole } : {})}
+            onDone={() => {
+              const role = setupRole;
+              setSetupRole(null);
+              setView(homeFor(role ?? member.role));
+            }}
+          />
         )}
       </main>
     </div>
@@ -486,6 +523,16 @@ export function CheckIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+
+/** Two arrows swapping places: the one account's two sides. */
+function SwitchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 8h13l-3.5-3.5" />
+      <path d="M20 16H7l3.5 3.5" />
     </svg>
   );
 }

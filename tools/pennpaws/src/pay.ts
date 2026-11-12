@@ -39,6 +39,27 @@ export function parsePay(pay: string): { dollars: number; kind: RateKind } | nul
   return { dollars, kind: word === "walk" ? "walk" : word === "visit" ? "dropIn" : "stay" };
 }
 
+/** What a rate is called per kind of care, for a band anyone may read. */
+const UNIT: Record<RateKind, string> = { walk: "a walk", dropIn: "a visit", stay: "a night", boarding: "a night" };
+
+/** How wide a band is: $5 for a visit or a walk, $10 for a night, which spans more. */
+const bandWidth = (kind: RateKind) => (kind === "stay" || kind === "boarding" ? 10 : 5);
+
+/**
+ * The public band for a pay line: "$30 a visit" reads as "$30–35 a visit" to
+ * anyone browsing. Only the owner and the sitter they pick see the exact rate
+ * (toCard in requests.ts), so a request advertises the going rate and the two
+ * of them settle the number between themselves. Null when the owner wrote
+ * something we can't read as an amount, which the caller shows as "to agree".
+ */
+export function payBand(pay: string): string | null {
+  const parsed = parsePay(pay);
+  if (!parsed) return null;
+  const width = bandWidth(parsed.kind);
+  const low = Math.max(width, Math.floor(parsed.dollars / width) * width);
+  return `$${low}–${low + width} ${UNIT[parsed.kind]}`;
+}
+
 /** The middle value, which a single generous or stingy request can't drag around. */
 export function median(numbers: number[]): number | null {
   if (numbers.length === 0) return null;

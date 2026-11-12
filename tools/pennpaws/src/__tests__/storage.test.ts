@@ -9,7 +9,7 @@ import postgres from "postgres";
 import type { Sql } from "postgres";
 import { agreementTemplate } from "../agreement.js";
 import { clearPayment, leaveReview, listMyReviews, recordPayment } from "../jobs.js";
-import { getMember, saveMember } from "../members.js";
+import { getMember, oppositeRole, saveMember, switchRole } from "../members.js";
 import { suggestPay } from "../pay.js";
 import { addPet, checkPet, getPet, listPets, petsByIds, removePet, savePetFromProfile, updatePet, type SavedPet } from "../pets.js";
 import { fileReport, listOpenReports, listTeamMembers, recordMatchScore, resolveReport, setMemberPaused, setRequestHidden, teamOverview } from "../team.js";
@@ -47,6 +47,9 @@ let sql: Sql;
 
 const lu: Person = { id: "lu", name: "Lu Lu", email: "lu@example.upenn.edu" };
 const priya: Person = { id: "priya", name: "Priya S", email: "priya@example.upenn.edu" };
+/** Nobody else's test has touched these, so both sides of their accounts start empty. */
+const dana: Person = { id: "dana", name: "Dana Reyes", email: "dana@example.upenn.edu" };
+const rae: Person = { id: "rae", name: "Rae Mensah", email: "rae@example.upenn.edu" };
 const sam: Person = { id: "sam", name: "Sam K", email: "sam@example.upenn.edu" };
 
 const draft: RequestDraft = {
@@ -417,11 +420,124 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     expect(await getMember(sql, priya.id)).toBeNull();
     const pals: Profile = { role: "pals", location: { area: "Fishtown", lat: 39.972, lng: -75.135 }, petName: null, bio: null };
     await saveMember(sql, priya, "upenn.edu", pals);
-    expect(await getMember(sql, priya.id)).toEqual({ userId: priya.id, name: priya.name, school: "upenn.edu", role: "pals", profile: pals });
+    expect(await getMember(sql, priya.id)).toEqual({
+      userId: priya.id,
+      name: priya.name,
+      school: "upenn.edu",
+      role: "pals",
+      profile: pals,
+      otherRole: null,
+    });
 
     const changed: Profile = { ...pals, petName: "Biscuit" };
     await saveMember(sql, priya, "upenn.edu", changed);
     expect((await getMember(sql, priya.id))?.profile).toEqual(changed);
+  });
+
+  it("shows browsing sitters a pay band, and the exact rate only once picked", async () => {
+    const requestId = await createRequest(sql, lu, { ...draft, petName: "Nori", pay: "$22 a visit" });
+    const band = "$20–25 a visit";
+
+    // The owner always reads their own number.
+    const asOwner = (await listMyRequests(sql, lu.id)).find((r) => r.id === requestId);
+    expect(asOwner?.draft.pay).toBe("$22 a visit");
+    expect(asOwner?.payExact).toBe(true);
+
+    // Browsing, and still after offering: the band.
+    const browsing = (await listOpenRequests(sql, sam.id)).find((r) => r.id === requestId);
+    expect(browsing?.draft.pay).toBe(band);
+    expect(browsing?.payExact).toBe(false);
+    await offerHelp(sql, sam, requestId, "I can do these.");
+    expect((await getRequestView(sql, sam.id, requestId))?.draft.pay).toBe(band);
+
+    // Picked: the two of them settle the real number.
+    const offer = (await getRequestView(sql, lu.id, requestId))!.offers.find((o) => o.sitterFirstName === "Sam")!;
+    await acceptOffer(sql, lu.id, offer.id, async (d, ownerFirstName) => agreementTemplate(d, ownerFirstName));
+    expect((await getRequestView(sql, sam.id, requestId))?.draft.pay).toBe("$22 a visit");
+    const job = (await listSitterJobs(sql, sam.id)).find((j) => j.request.id === requestId);
+    expect(job?.request.payExact).toBe(true);
+
+    // A sitter who offered but wasn't picked stays on the band.
+    const passedOver = (await listMyRequests(sql, priya.id)).find((r) => r.id === requestId);
+    expect(passedOver?.draft.pay ?? band).toBe(band);
+  });
+
+  it("still works on a database where schema.sql hasn't added other_profile yet", async () => {
+    const pals: Profile = { role: "pals", location: { area: "Fishtown", lat: 39.972, lng: -75.135 }, petName: null, bio: null };
+    await sql`ALTER TABLE members DROP COLUMN other_profile`;
+    try {
+      // Setup, reading a member and asking to switch all carry on without it.
+      await saveMember(sql, rae, "upenn.edu", pals);
+      const member = await getMember(sql, rae.id);
+      expect(member?.role).toBe("pals");
+      expect(member?.otherRole).toBeNull();
+      expect(await switchRole(sql, rae.id)).toBeNull();
+    } finally {
+      await sql`ALTER TABLE members ADD COLUMN other_profile JSONB`;
+    }
+    // And it picks the column back up as soon as it's there, with no restart.
+    await saveMember(sql, rae, "upenn.edu", { ...pals, petName: "Biscuit" });
+    expect((await getMember(sql, rae.id))?.profile).toMatchObject({ petName: "Biscuit" });
+  });
+
+  it("keeps both sides of an account and swaps between them", async () => {
+    const owner: Profile = {
+      role: "owner",
+      location: { area: "Cedar Park", lat: 39.948, lng: -75.223 },
+      pet: {
+        name: "Biscuit",
+        kind: "dog",
+        kindOther: null,
+        size: "small",
+        age: "adult",
+        energy: "medium",
+        withPeople: "warms_up",
+        withAnimals: "unknown",
+        alone: "fine",
+        specialCare: [],
+        specialCareOther: null,
+        bites: false,
+        bitesDetails: null,
+      },
+      sitterGenderPref: "none",
+      sitterLanguages: [],
+    };
+    await saveMember(sql, dana, "upenn.edu", owner);
+    // Saved answers come back with their location rounded, so compare against those.
+    const ownerSaved = (await getMember(sql, dana.id))?.profile;
+    // Nothing on the other side yet, so the page opens that side's setup.
+    expect(await switchRole(sql, dana.id)).toBeNull();
+    expect(oppositeRole("owner")).toBe("sitter");
+
+    // Setting up the other side keeps the one they left.
+    const sitter: Profile = {
+      role: "sitter",
+      location: { area: "Cedar Park", lat: 39.948, lng: -75.223 },
+      services: ["boarding"],
+      petKinds: ["cats"],
+      sizes: ["small"],
+      energy: ["low"],
+      anxiousOk: true,
+      experience: ["owned_cats"],
+      travel: "1",
+      availability: ["weekends"],
+      gender: "man",
+      showGender: true,
+      bio: "Cat person.",
+      languages: ["english"],
+      boarding: { homeType: "apartment", homeTypeOther: null, hasYard: false, otherPets: null, housingAllowsPets: true, roommatesAgree: true },
+    };
+    await saveMember(sql, dana, "upenn.edu", sitter);
+    const asSitter = await getMember(sql, dana.id);
+    expect(asSitter?.role).toBe("sitter");
+    expect(asSitter?.otherRole).toBe("owner");
+
+    // Switching back lands on the owner answers, with the sitter ones kept.
+    const back = await switchRole(sql, dana.id);
+    expect(back?.role).toBe("owner");
+    expect(back?.profile).toEqual(ownerSaved);
+    expect(back?.otherRole).toBe("sitter");
+    expect((await switchRole(sql, dana.id))?.profile).toEqual(asSitter?.profile);
   });
 
   it("lets members report, and the team hide requests and pause members", async () => {

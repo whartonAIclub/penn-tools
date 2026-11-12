@@ -135,6 +135,12 @@ export function RequestDetail({
         <dt>Pay</dt>
         <dd>
           <strong>{request.draft.pay}</strong>
+          {/* Browsing shows the band; the owner and the sitter they pick agree the number itself. */}
+          {!request.payExact && (
+            <span className={`${styles.hint} ${styles.payNote}`}>
+              The range this owner is paying in. You agree the exact rate with {request.ownerFirstName} once they pick you.
+            </span>
+          )}
         </dd>
       </dl>
 

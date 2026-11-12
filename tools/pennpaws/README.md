@@ -45,6 +45,8 @@ AI never posts, picks or books on its own: every step marked "approves" is a per
 | Guided survey to post a request, or one sentence | Reviews and repeat sitters |
 | Browse open requests, ranked by fit with AI reasons | Native iPhone app (the site works in a phone browser) |
 | Offer to help, care agreement, two approvals | Pet photo and sticker studio |
+| One account, two sides, switched from the header | Being on both sides at once |
+| A pay band while browsing, the rate once you're picked | Paying through PennPaws |
 
 ## Documents
 
@@ -69,9 +71,19 @@ pnpm dev
 
 Then open http://localhost:3000, sign in (locally you are a test user), save an OpenAI key in Settings, and pick PennPaws from the sidebar.
 
+### After a schema change
+
+`pnpm db:deploy` only builds schemas for the tools listed in `TOOLS` in `packages/platform/scripts/setup-tools.mjs`, and `pennpaws` isn't there yet (R19, the platform team's). So whenever `schema.sql` changes, each of us applies it by hand, as the `pennpaws` role, so the app's role owns the tables:
+
+```bash
+cd tools/pennpaws && { echo 'SET ROLE pennpaws; SET search_path TO pennpaws;'; cat schema.sql; } | docker exec -i penntools-db psql -U penntools -d penntools -v ON_ERROR_STOP=1
+```
+
+Everything in `schema.sql` is `IF NOT EXISTS`, so running it again is safe. Pull a schema change and you need this before the new feature works. PennPaws won't break while you haven't: the member code falls back to what the database actually has, so the page keeps working without the switch between your two sides, and picks it up the moment you run the command — no restart.
+
 ## Test with fake people
 
-Locally the platform signs everyone in as the same test user, so there's no second person to play the other side. The seed script adds fake Penn students instead: 4 sitters and 6 owners with open requests, some written in Chinese or with preferences tucked into the notes, so AI matching has something real to read.
+Locally the platform signs everyone in as the same test user, so there's no second person to play the other side. The seed script adds fake Penn students instead: 4 sitters and 6 owners with open requests, with preferences tucked into the notes rather than the structured fields, so AI matching has something real to read. The seed data is all in English for the demo; AI matching still reads an owner's own words in any language.
 
 ```bash
 pnpm --filter @penntools/tool-pennpaws seed

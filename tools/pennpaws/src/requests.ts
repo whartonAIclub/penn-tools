@@ -8,7 +8,7 @@ import { assertActive } from "./members.js";
 import { AgreementTerms, type AgreementTerms as Terms } from "./agreement.js";
 import { allowedFrom, bothApproved, canSeeContacts, nextStatus, type OfferStatus, type RequestStatus, type Role } from "./booking.js";
 import type { PaymentMethod, SitterJob } from "./jobs.js";
-import { ratesFromPosted, type PlatformRates } from "./pay.js";
+import { payBand, ratesFromPosted, type PlatformRates } from "./pay.js";
 import { checkAsks, type AskCheck } from "./match.js";
 import { EXPERIENCE, SERVICES, checkProfile, petNotes } from "./profile.js";
 import { petsByIds, privatePetNotes } from "./pets.js";
@@ -31,6 +31,12 @@ export interface RequestCard {
   status: RequestStatus;
   mine: boolean;
   offerCount: number;
+  /**
+   * Whether `draft.pay` is the rate the owner actually posted. False for
+   * anyone browsing, where it is a band like "$30–35 a visit" instead; true
+   * for the owner and the sitter they picked, who settle the real number.
+   */
+  payExact: boolean;
   createdAt: string;
   /** Whether the sitter recorded being paid. The owner sees that it happened, never what the sitter earns. */
   paid: boolean;
@@ -167,9 +173,10 @@ interface RequestRow {
   offer_count: string;
   paid: boolean;
   rated: boolean;
+  picked: boolean;
 }
 
-function selectRequests(sql: Sql) {
+function selectRequests(sql: Sql, viewerId: string) {
   return sql`
     SELECT r.id, r.owner_id, r.owner_name, r.owner_email, r.pet_name, r.pet_kind, r.pet_kind_other,
            r.pet_details, r.photo, r.weekly,
@@ -180,12 +187,21 @@ function selectRequests(sql: Sql) {
            (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count,
            -- For R46: a booking is finished only once it is done, paid and rated.
            EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id) AS paid,
-           EXISTS (SELECT 1 FROM reviews v WHERE v.request_id = r.id) AS rated
+           EXISTS (SELECT 1 FROM reviews v WHERE v.request_id = r.id) AS rated,
+           -- Whether the viewer is the sitter this owner picked, which is what
+           -- lets them read the exact pay instead of the band (toCard).
+           EXISTS (
+             SELECT 1 FROM offers o WHERE o.request_id = r.id AND o.sitter_id = ${viewerId} AND o.status = 'accepted'
+           ) AS picked
     FROM requests r
   `;
 }
 
 function toCard(row: RequestRow, viewerId: string): RequestCard {
+  // What the owner agreed to pay is between them and the sitter they pick.
+  // Everyone else browsing sees the band, so rates stay comparable without
+  // turning the list into an auction.
+  const payExact = row.owner_id === viewerId || row.picked;
   return {
     id: row.id,
     draft: {
@@ -203,7 +219,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       tasksOther: row.tasks_other,
       access: row.access,
       accessOther: row.access_other,
-      pay: row.pay,
+      pay: payExact ? row.pay : (payBand(row.pay) ?? "Pay to agree"),
       area: row.area,
       vet: row.vet,
       // Owners sometimes type a phone number or handle into the notes; others see it blanked until both approve.
@@ -220,6 +236,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
     status: row.status,
     mine: row.owner_id === viewerId,
     offerCount: Number(row.offer_count),
+    payExact,
     paid: row.paid,
     rated: row.rated,
     createdAt: row.created_at.toISOString(),
@@ -229,7 +246,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
 /** Open requests that haven't ended, soonest first. Weekly requests come after dated ones. */
 export async function listOpenRequests(sql: Sql, viewerId: string): Promise<RequestCard[]> {
   const rows = await sql<RequestRow[]>`
-    ${selectRequests(sql)}
+    ${selectRequests(sql, viewerId)}
     WHERE r.status = 'open' AND (r.weekly OR r.ends_on >= CURRENT_DATE)
       AND (r.owner_id = ${viewerId} OR (r.hidden_at IS NULL AND NOT EXISTS (SELECT 1 FROM members m WHERE m.user_id = r.owner_id AND m.paused_at IS NOT NULL)))
     ORDER BY r.weekly, r.starts_on, r.created_at DESC
@@ -257,7 +274,7 @@ export async function postedRates(sql: Sql): Promise<PlatformRates> {
 /** Requests the user posted or offered to help with, newest first. */
 export async function listMyRequests(sql: Sql, userId: string): Promise<RequestCard[]> {
   const rows = await sql<RequestRow[]>`
-    ${selectRequests(sql)}
+    ${selectRequests(sql, userId)}
     WHERE r.owner_id = ${userId}
        OR EXISTS (SELECT 1 FROM offers o WHERE o.request_id = r.id AND o.sitter_id = ${userId} AND o.status <> 'withdrawn')
     ORDER BY r.created_at DESC
@@ -273,7 +290,7 @@ export async function listSitterJobs(sql: Sql, sitterId: string): Promise<Sitter
   >`
     SELECT q.*, o.status AS offer_status, a.sitter_approved_at IS NOT NULL AS sitter_approved,
            p.amount, p.method, to_char(p.paid_on, 'YYYY-MM-DD') AS paid_on
-    FROM (${selectRequests(sql)}) q
+    FROM (${selectRequests(sql, sitterId)}) q
     JOIN offers o ON o.request_id = q.id AND o.sitter_id = ${sitterId} AND o.status <> 'withdrawn'
     LEFT JOIN agreements a ON a.request_id = q.id AND a.offer_id = o.id
     LEFT JOIN payments p ON p.request_id = q.id AND p.sitter_id = o.sitter_id
@@ -292,7 +309,7 @@ export async function listSitterJobs(sql: Sql, sitterId: string): Promise<Sitter
 /** One request as the viewer may see it, or null if it doesn't exist. */
 export async function getRequestView(sql: Sql, viewerId: string, requestId: string): Promise<RequestView | null> {
   if (!UUID_RE.test(requestId)) return null;
-  const [row] = await sql<RequestRow[]>`${selectRequests(sql)} WHERE r.id = ${requestId}`;
+  const [row] = await sql<RequestRow[]>`${selectRequests(sql, viewerId)} WHERE r.id = ${requestId}`;
   if (!row) return null;
 
   const offers = await sql<

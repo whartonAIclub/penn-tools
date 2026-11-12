@@ -5,6 +5,9 @@
 // left, shown anonymously. Earnings: what the sitter has recorded being paid;
 // money moves outside PennPaws. A job opens in RequestDetail, where the
 // agreement and Mark as done live.
+//
+// Nothing here is about the member's own pets: requests they posted belong to
+// the owner side, which the header's switch takes them to.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,7 +22,6 @@ import {
   ratingSummary,
   shortDate,
   type PaymentMethod,
-  type RequestCard as RequestCardData,
   type Review,
   type SitterJob,
 } from "@penntools/tool-pennpaws";
@@ -35,31 +37,14 @@ const monthLabel = (month: string) => new Date(`${month}-01T12:00:00`).toLocaleD
 
 export function MyTasks({
   jobs,
-  ownRequests,
   onOpen,
   onFind,
 }: {
   jobs: SitterJob[];
-  /** Requests this member posted themselves (as an owner) that are still active. */
-  ownRequests: RequestCardData[];
   onOpen: (id: string) => void;
   onFind: () => void;
 }) {
   const groups = groupJobs(jobs);
-  const own =
-    ownRequests.length > 0 ? (
-      <>
-        <h2 className={styles.heading}>Requests you posted</h2>
-        <p className={styles.hint}>From when you used PennPaws as an owner. Open one to see offers and messages, or cancel it.</p>
-        <ul className={styles.list}>
-          {ownRequests.map((request) => (
-            <li key={request.id}>
-              <RequestCard request={request} pill={{ text: "Your request" }} onOpen={() => onOpen(request.id)} />
-            </li>
-          ))}
-        </ul>
-      </>
-    ) : null;
   if (groups.agreements.length + groups.upcoming.length + groups.offered.length === 0) {
     return (
       <section className={styles.section}>
@@ -68,7 +53,6 @@ export function MyTasks({
           body="Offer to help with a request. It shows up here while the owner decides, and stays here once you're booked."
           action={{ label: "Find jobs", onClick: onFind }}
         />
-        {own}
       </section>
     );
   }
@@ -82,7 +66,6 @@ export function MyTasks({
       />
       <JobList title="Upcoming" jobs={groups.upcoming} onOpen={onOpen} pill={() => ({ text: "Booked", good: true })} />
       <JobList title="Waiting on the owner" jobs={groups.offered} onOpen={onOpen} pill={() => ({ text: "Offer sent" })} />
-      {own}
     </section>
   );
 }

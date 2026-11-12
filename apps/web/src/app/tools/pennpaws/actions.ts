@@ -58,6 +58,8 @@ import {
   draftMessage,
   getMember,
   getRequestView,
+  switchRole,
+  type MemberRole,
   getTerms,
   firstBookableDay,
   isoDate,
@@ -150,6 +152,17 @@ export async function saveProfile(input: unknown, name: unknown): Promise<Action
     await saveMember(db(), { ...user, name: chosen }, school, checked.value);
     return null;
   });
+}
+
+/**
+ * Switches the member to their other side: looking after pets, or posting for
+ * their own. Returns the role they landed on, or null when they have no saved
+ * answers over there and the page should open setup for that side instead.
+ */
+export async function switchSide(): Promise<ActionResult<MemberRole | null>> {
+  const user = await signedIn();
+  if (!user) return signedOut;
+  return run(async () => (await switchRole(db(), user.id))?.role ?? null);
 }
 
 // ── My Pets ───────────────────────────────────────────────────────────────────

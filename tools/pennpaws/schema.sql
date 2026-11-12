@@ -259,3 +259,10 @@ ALTER TABLE pets ADD COLUMN IF NOT EXISTS shared_early TEXT[] NOT NULL DEFAULT '
 -- R43: the saved pets a request was posted from, so matching and a sitter's
 -- private notes read each pet, not only the one in the owner's profile.
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS pet_ids UUID[] NOT NULL DEFAULT '{}';
+
+-- The answers for the side of PennPaws this member is not currently on, so
+-- switching between looking after pets and posting for your own is instant and
+-- loses nothing. One member, one account: `profile` is the side they're on now
+-- and `other_profile` is the side they're not, and switching swaps the two
+-- (members.ts). Null until they have used both sides.
+ALTER TABLE members ADD COLUMN IF NOT EXISTS other_profile JSONB;

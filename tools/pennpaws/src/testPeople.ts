@@ -115,7 +115,7 @@ const SITTERS: { id: string; name: string; profile: unknown }[] = [
       availability: ["weekday_daytime", "weekday_evenings", "breaks"],
       gender: "woman",
       showGender: true,
-      bio: "大四学生，家里有两只猫。Vet school applicant; I've given insulin shots to my own diabetic cat for two years.",
+      bio: "Senior, with two cats of my own at home. Vet school applicant; I've given insulin shots to my own diabetic cat for two years.",
       languages: ["mandarin", "english"],
       boarding: null,
     },
@@ -179,7 +179,7 @@ const OWNERS: { id: string; name: string; profile: unknown; request: unknown }[]
     request: request({
       petName: "Tofu",
       petKind: "cat",
-      petDetails: "金渐层, neutered boy, 3 years",
+      petDetails: "Golden shaded British Shorthair, neutered boy, 3 years",
       startsOn: iso(new Date(thanksgiving.getTime() - 3 * 86_400_000)),
       endsOn: iso(new Date(thanksgiving.getTime() + 4 * 86_400_000)),
       frequency: "once_daily",
@@ -187,7 +187,7 @@ const OWNERS: { id: string; name: string; profile: unknown; request: unknown }[]
       access: "in_person",
       pay: "$25 a visit",
       area: "Rittenhouse",
-      notes: "感恩节回家一周，想找有养猫经验、靠谱的同学每天上门喂一次。希望每天发张照片或小视频报平安。女生优先，谢谢！",
+      notes: "Home for Thanksgiving week. Looking for a reliable student with cat experience to drop in once a day and feed him. A photo or short video each day would mean a lot. I'd prefer a woman sitter, thank you!",
       mustHaves: ["cat_experience", "daily_updates"],
       sitterGender: "woman",
     }),
@@ -227,7 +227,7 @@ const OWNERS: { id: string; name: string; profile: unknown; request: unknown }[]
     request: request({
       petName: "Doudou",
       petKind: "cat",
-      petDetails: "14 岁的狸花猫",
+      petDetails: "Dragon Li, 14 years old",
       startsOn: fromToday(18),
       endsOn: fromToday(27),
       frequency: "twice_daily",
@@ -236,7 +236,7 @@ const OWNERS: { id: string; name: string; profile: unknown; request: unknown }[]
       pay: "$30 a visit",
       area: "Spruce Hill, 45th and Baltimore",
       vet: "Penn Vet Ryan Hospital",
-      notes: "豆豆有糖尿病，每天早晚 8 点各打一次胰岛素，需要有打针经验的人。她怕生，第一次见面会躲床底，过一会儿就好。",
+      notes: "Doudou is diabetic and needs an insulin shot at 8am and 8pm every day, so I need someone who has given injections before. She's shy with strangers and will hide under the bed the first time you meet, then she settles.",
       languages: ["mandarin"],
     }),
   },
@@ -330,7 +330,7 @@ const person = (p: { id: string; name: string }): Person => ({ id: p.id, name: p
 const MESSAGES: Record<string, string> = {
   "seed-sitter-maya": "Hi! I'm Maya, a nursing student near 40th St. I've had dogs and cats all my life and I'm around that week. Happy to send photos every day.",
   "seed-sitter-jordan": "Hey, Jordan here. I run most mornings and would love the company. Big dogs welcome.",
-  "seed-sitter-wen": "你好！I'm Wen, I live nearby and have looked after cats for years, including insulin shots. Would love to help.",
+  "seed-sitter-wen": "Hi! I'm Wen, I live nearby and have looked after cats for years, including insulin shots. Would love to help.",
   "seed-sitter-sam": "Hi, I'm Sam. I have a fenced yard and a calm senior beagle, and I'm free most weekends.",
 };
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ENOUGH_POSTED, explainPay, isHoliday, median, parsePay, ratesFromPosted, suggestPay } from "../pay.js";
+import { ENOUGH_POSTED, explainPay, isHoliday, median, parsePay, payBand, ratesFromPosted, suggestPay } from "../pay.js";
 import { gpsArea, GPS_AREA, isGpsArea, nearCampus } from "../profile.js";
 import type { RequestDraft } from "../request.js";
 
@@ -52,6 +52,31 @@ describe("suggested pay", () => {
     expect(isHoliday("2026-12-28", "2027-01-02")).toBe(true);
     expect(isHoliday("2027-01-01", "2027-01-02")).toBe(true);
     expect(isHoliday("2026-11-07", "2026-11-08")).toBe(false);
+  });
+});
+
+describe("the band everyone browsing sees", () => {
+  it("rounds visit money down to the nearest $5", () => {
+    expect(payBand("$15 a visit")).toBe("$15–20 a visit");
+    expect(payBand("$18 a walk")).toBe("$15–20 a walk");
+    expect(payBand("$25 a visit")).toBe("$25–30 a visit");
+  });
+
+  it("widens to $10 for a night, which spans more", () => {
+    expect(payBand("$40 a night")).toBe("$40–50 a night");
+    expect(payBand("$65 a night")).toBe("$60–70 a night");
+  });
+
+  it("never starts a band at $0", () => {
+    expect(payBand("$3 a visit")).toBe("$5–10 a visit");
+  });
+
+  it("keeps what the owner wrote around the amount out of it", () => {
+    expect(payBand("$30 a visit, suggested")).toBe("$30–35 a visit");
+  });
+
+  it("gives nothing for an answer with no amount in it", () => {
+    expect(payBand("Pay negotiable, message me")).toBeNull();
   });
 });
 
