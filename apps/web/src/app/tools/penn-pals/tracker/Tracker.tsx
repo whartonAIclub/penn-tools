@@ -37,6 +37,7 @@ import {
   type RecurrenceUnit,
 } from "@penntools/tool-penn-pals";
 import { AiIntake, type AiAccess } from "./AiIntake";
+import { Collapsible } from "./Collapsible";
 import styles from "./Tracker.module.css";
 
 const LANDING = "/tools/penn-pals";
@@ -214,6 +215,8 @@ function Form({
   const [errors, setErrors] = useState<string[]>([]);
   // True after "Other (write your own)" is picked, so the text box stays open while typing.
   const [writingOwn, setWritingOwn] = useState(false);
+  // Closed at first; open straight away when editing a contact or checking what the AI filled in.
+  const [open, setOpen] = useState(Boolean(original || prefill));
 
   const set = <K extends keyof ContactDraft>(key: K, value: ContactDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const text = (key: "name" | "company" | "role" | "area" | "location" | "email" | "phone" | "linkedin") => ({
@@ -272,13 +275,30 @@ function Form({
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <h2 className={styles.formTitle}>{original
-          ? `Edit ${original.name}`
-          : prefill
-            ? "Check and save"
-            : again
-              ? `Chat #${chatsWith(again).length + 1} with ${again.name}`
-              : "Or fill it in yourself"}</h2>
+      <Collapsible
+        id="chat-form"
+        title={
+          original
+            ? `📝 Edit ${original.name}`
+            : prefill
+              ? "📝 Check and save"
+              : again
+                ? `📝 Chat #${chatsWith(again).length + 1} with ${again.name}`
+                : "📝 Or fill it in yourself"
+        }
+        titleClassName={styles.formTitle}
+        subtitle={
+          original
+            ? "Change anything, then save."
+            : prefill
+              ? "AI filled this in from your chat. Check it, then save."
+              : again
+                ? "Add this chat's details and follow-ups."
+                : "Add the details yourself: name, follow-ups, takeaways."
+        }
+        open={open}
+        onToggle={setOpen}
+      >
       {prefill && <p className={styles.aiBanner}>💬 Written up by AI from your chat. Fix anything it got wrong, then save.</p>}
 
       <div className={styles.grid}>
@@ -494,6 +514,7 @@ function Form({
           </a>
         )}
       </div>
+      </Collapsible>
     </form>
   );
 }

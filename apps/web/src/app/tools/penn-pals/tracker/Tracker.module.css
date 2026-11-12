@@ -13,20 +13,23 @@
 
 /* ── Form ──────────────────────────────────────────────────────────────────── */
 
+/* Styled like the AI card above it (.ai), so the two read as a pair */
 .form {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 20px;
-  border: 1px solid var(--border);
+  padding: 16px;
+  border: 1px solid var(--penn-blue);
   border-radius: 12px;
+  background: var(--penn-blue-bg, transparent);
   font-size: 0.875rem;
 }
 
 .formTitle {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--penn-blue);
 }
 
 .grid {
@@ -219,6 +222,60 @@
 }
 .repeatBox input {
   width: 72px;
+}
+
+/* ── Cards that open and close (the AI chat and the form) ──────────────────── */
+.cardHeading {
+  margin: 0;
+  font: inherit;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cardHead:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.cardHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cardSubtitle {
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--section-label);
+}
+.chevron {
+  flex-shrink: 0;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--penn-blue);
+  transition: transform 0.15s ease;
+}
+.cardHead[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cardBody[hidden] {
+  display: none;
 }
 
 /* ── AI intake ─────────────────────────────────────────────────────────────── */

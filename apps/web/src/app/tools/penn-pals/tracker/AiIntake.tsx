@@ -10,6 +10,7 @@ import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import { MAX_STORY_LENGTH, type ContactDraft } from "@penntools/tool-penn-pals";
 import { readChat, type IntakeResult } from "./actions";
+import { Collapsible } from "./Collapsible";
 import styles from "./Tracker.module.css";
 
 export interface AiAccess {
@@ -28,6 +29,8 @@ type Status =
   | { state: "error"; message: string; keyProblem: boolean };
 
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+
+const AI_SUBTITLE = "Tell AI how your chat went in your own words, answer a quick question or two, and it writes everything up for you.";
 
 const PLACEHOLDER =
   "e.g. Had coffee with Maria Chen yesterday, she's a PM at Stripe and a Wharton alum. Super friendly. Her best advice: lead every story with one metric. She offered to introduce me to her manager.";
@@ -49,24 +52,31 @@ export function AiIntake({
   const [provider, setProvider] = useState<AIProvider | undefined>(ai.providers[0]);
   const [story, setStory] = useState("");
   const [status, setStatus] = useState<Status>({ state: "idle" });
+  // Closed at first, showing only the title and subtitle.
+  const [open, setOpen] = useState(false);
 
   if (!ai.signedIn || !provider) {
+    // Nothing to chat with yet: it opens like the chat would, to say what's needed.
     return (
-      <section className={styles.ai} aria-labelledby="ai-title">
-        <h2 id="ai-title" className={styles.aiTitle}>
-          💬 Talk it through with AI
-        </h2>
-        <p className={styles.aiNote}>
-          Tell AI how your chat went in your own words, answer a quick question or two, and it writes everything up
-          for you.{" "}
-          {!ai.signedIn ? (
-            <>Sign in (top right) to try it.</>
-          ) : (
-            <>
-              Add an AI key in <Link href="/settings">Settings</Link> to try it.
-            </>
-          )}
-        </p>
+      <section className={styles.ai} aria-labelledby="ai-chat-title">
+        <Collapsible
+          id="ai-chat"
+          title="💬 Talk it through with AI"
+          titleClassName={styles.aiTitle}
+          subtitle={AI_SUBTITLE}
+          open={open}
+          onToggle={setOpen}
+        >
+          <p className={styles.aiNote}>
+            {!ai.signedIn ? (
+              <>Sign in (top right) to try it.</>
+            ) : (
+              <>
+                Add an AI key in <Link href="/settings">Settings</Link> to try it.
+              </>
+            )}
+          </p>
+        </Collapsible>
       </section>
     );
   }
@@ -126,10 +136,15 @@ export function AiIntake({
   const busy = status.state === "reading" || status.state === "finishing";
 
   return (
-    <section className={styles.ai} aria-labelledby="ai-title">
-      <h2 id="ai-title" className={styles.aiTitle}>
-        💬 Talk it through with AI
-      </h2>
+    <section className={styles.ai} aria-labelledby="ai-chat-title">
+      <Collapsible
+        id="ai-chat"
+        title="💬 Talk it through with AI"
+        titleClassName={styles.aiTitle}
+        subtitle={AI_SUBTITLE}
+        open={open}
+        onToggle={setOpen}
+      >
       <ol className={styles.aiSteps} aria-label="How it works">
         <li className={status.state === "idle" || status.state === "reading" || status.state === "error" ? styles.aiStepNow : ""}>
           Tell it how the chat went
@@ -222,6 +237,7 @@ export function AiIntake({
         </>
       )}
       {status.state === "finishing" && <p className={styles.aiNote}>Writing it up…</p>}
+      </Collapsible>
     </section>
   );
 }
