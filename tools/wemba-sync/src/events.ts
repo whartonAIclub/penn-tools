@@ -1,15 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // WEMBA Sync: events outside class — club events, celebrations, socials
 //
-// A student pastes an invite (from WhatsApp, an email, any invite site) or
-// uploads a screenshot or flyer, and extractEvents() has the AI read the
-// event(s) from it. The student checks them before they're saved (see
+// A student pastes an invite (from WhatsApp, an email, any invite site, or
+// just its link) and/or adds a screenshot or flyer, and extractEvents() has
+// the AI read the event(s) from them. The tool can't open links, so a link
+// is kept as the event's link and the details come from the text or image. The student checks them before they're saved (see
 // eventStore.ts). The AI is passed in by the tool's route, so tests use a
 // fake (see __tests__/events.test.ts).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { z } from "@penntools/core/ai";
-import type { AI, AIImageType, AIProvider } from "@penntools/core/ai";
+import type { AI, AIContentPart, AIImageType, AIProvider } from "@penntools/core/ai";
 import { AI_IMAGE_TYPES, MAX_IMAGE_BYTES, base64Bytes, base64FileType, isBase64 } from "@penntools/core/ai/attachments";
 import { MAX_PDF_BYTES, type ScheduleItem } from "./schedule.js";
 
@@ -40,11 +41,30 @@ const Extracted = z.object({
 });
 export type ExtractedEvents = z.infer<typeof Extracted>;
 
-/** An invite as the student gives it: pasted text, or a screenshot or flyer (an image or PDF). */
-export type Invite =
-  | { kind: "text"; text: string }
+/** A screenshot or flyer: an image or a PDF. */
+export type InviteFile =
   | { kind: "image"; mediaType: AIImageType; data: string }
   | { kind: "pdf"; filename: string; data: string };
+
+/** An invite as the student gives it: pasted text (perhaps just a link), a screenshot or flyer, or both. */
+export interface Invite {
+  text: string | null;
+  file: InviteFile | null;
+}
+
+const URL_RE = /https?:\/\/[^\s<>"')\]]+/i;
+
+/** The first http(s) link in the text, without trailing punctuation, or null. */
+export function firstLink(text: string | null): string | null {
+  const match = text?.match(URL_RE)?.[0].replace(/[.,;:!?]+$/, "");
+  return match ? safeLink(match) : null;
+}
+
+/** True if the text is nothing but a link: the AI can't read an event from it. */
+export function isOnlyLink(text: string | null): boolean {
+  const trimmed = text?.trim() ?? "";
+  return trimmed !== "" && firstLink(trimmed) !== null && !/\s/.test(trimmed);
+}
 
 const SYSTEM = [
   "You read invitations for Wharton MBA Program for Executives (WEMBA) students and return the events in them as data.",
@@ -52,18 +72,20 @@ const SYSTEM = [
   "Events can be club events, celebrations, socials, talks, trips or anything else the student might attend.",
   "Invites often give dates without a year, or as 'this Friday': resolve them from today's date, and list any guess in warnings.",
   "Times are Philadelphia time unless the invite says otherwise. Keep the location as written.",
-  "Only include a link that appears in the invite; never make one up.",
+  "Only include a link that appears in the invite; never make one up. You can't open links: read the details from the text and images.",
   "If there's no event in it, return no events and say why in warnings.",
 ].join(" ");
 
-/** The events in the invite, read by the AI. `today` is e.g. "Thursday, 2026-11-12", for relative dates. */
+/**
+ * The events in the invite, read by the AI. `today` is e.g. "Thursday,
+ * 2026-11-12", for relative dates. A link in the pasted text becomes the link
+ * of events the AI found none for.
+ */
 export async function extractEvents(ai: AI, provider: AIProvider, invite: Invite, today: string): Promise<ExtractedEvents> {
-  const content =
-    invite.kind === "text"
-      ? [{ type: "text" as const, text: `The invite:\n\n${invite.text}` }]
-      : invite.kind === "image"
-        ? [{ type: "image" as const, mediaType: invite.mediaType, data: invite.data }]
-        : [{ type: "pdf" as const, filename: invite.filename, data: invite.data }];
+  const content: AIContentPart[] = [];
+  if (invite.file?.kind === "image") content.push({ type: "image", mediaType: invite.file.mediaType, data: invite.file.data });
+  if (invite.file?.kind === "pdf") content.push({ type: "pdf", filename: invite.file.filename, data: invite.file.data });
+  if (invite.text?.trim()) content.push({ type: "text", text: `The invite, as the student pasted it:\n\n${invite.text}` });
   const { object } = await ai.generateObject({
     provider,
     tier: "fast", // a short invite: the fast model is enough
@@ -74,7 +96,11 @@ export async function extractEvents(ai: AI, provider: AIProvider, invite: Invite
       { role: "user", content: [...content, { type: "text", text: `Today is ${today}. Read the event(s) in this invite.` }] },
     ],
   });
-  return { events: object.events.map(cleanEvent), warnings: object.warnings };
+  const pasted = firstLink(invite.text);
+  return {
+    events: object.events.map((event) => cleanEvent({ ...event, link: event.link ?? pasted })),
+    warnings: object.warnings,
+  };
 }
 
 /** Only http(s) links, so a saved link can't run script when clicked. */
@@ -118,17 +144,19 @@ export function checkEvent(event: Event): string | null {
 
 /**
  * Why the invite the browser sent can't be read, or null if it's fine:
- * { text } of at most MAX_INVITE_LENGTH characters, or { filename, data },
- * an image (as the AI API takes them) or a PDF, as base64.
+ * { text?, filename?, data? } with text of at most MAX_INVITE_LENGTH
+ * characters and/or a file, an image (as the AI API takes them) or a PDF, as
+ * base64.
  */
 export function checkInvite(body: unknown): string | null {
   if (typeof body !== "object" || body === null) return "Send the invite as JSON.";
   const { text, filename, data } = body as Record<string, unknown>;
-  if (typeof text === "string") {
-    if (!text.trim()) return "Paste the invite first.";
-    if (text.length > MAX_INVITE_LENGTH) return `Invites can be at most ${MAX_INVITE_LENGTH.toLocaleString("en-US")} characters.`;
-    return null;
+  if (text !== undefined && typeof text !== "string") return "Send the invite as text.";
+  if (typeof text === "string" && text.length > MAX_INVITE_LENGTH) {
+    return `Invites can be at most ${MAX_INVITE_LENGTH.toLocaleString("en-US")} characters.`;
   }
+  if (data === undefined) return text?.trim() ? null : "Paste the invite or add a screenshot first.";
+
   if (typeof filename !== "string" || !filename.trim() || filename.length > 200) return "The file needs a name.";
   if (typeof data !== "string" || !data) return `${filename} is empty.`;
   const type = isBase64(data) ? base64FileType(data) : null;
@@ -143,11 +171,14 @@ export function checkInvite(body: unknown): string | null {
 
 /** The invite the browser sent, after checkInvite passed. */
 export function toInvite(body: { text?: string; filename?: string; data?: string }): Invite {
-  if (typeof body.text === "string") return { kind: "text", text: body.text };
-  const type = base64FileType(body.data!);
-  return type === "application/pdf"
-    ? { kind: "pdf", filename: body.filename!, data: body.data! }
-    : { kind: "image", mediaType: type as AIImageType, data: body.data! };
+  const text = body.text?.trim() ? body.text : null;
+  if (body.data === undefined) return { text, file: null };
+  const type = base64FileType(body.data);
+  const file: InviteFile =
+    type === "application/pdf"
+      ? { kind: "pdf", filename: body.filename!, data: body.data }
+      : { kind: "image", mediaType: type as AIImageType, data: body.data };
+  return { text, file };
 }
 
 /**
