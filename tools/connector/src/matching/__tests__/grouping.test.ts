@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formGroups, matchScore } from "../grouping.js";
+import { formGroups, matchScore, MAX_GROUP_SIZE, MIN_GROUP_SIZE } from "../grouping.js";
 import type { GroupingResult, Signup } from "../../types.js";
 
 let nextId = 1;
@@ -18,8 +18,8 @@ function person(cohort: string, friday: string, freeDay: string): Signup {
 /** Checks the rules every result must follow. */
 function expectValid(result: GroupingResult, signups: Signup[]) {
   for (const group of result.groups) {
-    expect(group.members.length).toBeGreaterThanOrEqual(4);
-    expect(group.members.length).toBeLessThanOrEqual(5);
+    expect(group.members.length).toBeGreaterThanOrEqual(MIN_GROUP_SIZE);
+    expect(group.members.length).toBeLessThanOrEqual(MAX_GROUP_SIZE);
     const cohorts = group.members.map((m) => m.cohort);
     expect(new Set(cohorts).size).toBe(cohorts.length);
   }
@@ -73,12 +73,11 @@ describe("formGroups", () => {
   });
 
   it("spreads a big cohort across groups so it still fits", () => {
-    // Cohort A has one person for each of the two groups; if both landed in the
-    // first group's candidate list late, the second group couldn't form.
+    // Cohort A has one person for each of the two groups; if both were left
+    // until last, only one could be placed and the other would be waitlisted.
     const signups = [
       person("B", "out-dancing", "hike"), person("C", "out-dancing", "hike"),
       person("D", "out-dancing", "hike"), person("E", "morning-person", "museum"),
-      person("F", "morning-person", "museum"), person("G", "morning-person", "museum"),
       person("A", "board-games", "movie-day"), person("A", "board-games", "movie-day"),
     ];
 
@@ -89,33 +88,35 @@ describe("formGroups", () => {
     expect(result.waitlist).toHaveLength(0);
   });
 
-  it("makes groups of 4 and 5 from 9 people", () => {
-    const signups = ["A", "B", "C", "D", "E", "F", "G", "H", "I"].map((c) => person(c, "out-dancing", "hike"));
+  it("makes groups of 3, with a 4 for the leftover, from 10 people", () => {
+    const signups = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"].map((c) => person(c, "out-dancing", "hike"));
 
     const result = formGroups(signups);
 
     expectValid(result, signups);
-    expect(result.groups.map((g) => g.members.length).sort()).toEqual([4, 5]);
+    expect(result.groups.map((g) => g.members.length).sort()).toEqual([3, 3, 4]);
     expect(result.waitlist).toHaveLength(0);
   });
 
   it("waitlists people who don't fit, rather than making groups too big", () => {
-    const signups = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"].map((c) => person(c, "out-dancing", "hike"));
+    // One group of 3, room for one more, and one left over.
+    const signups = ["A", "B", "C", "D", "E"].map((c) => person(c, "out-dancing", "hike"));
 
     const result = formGroups(signups);
 
     expectValid(result, signups);
-    expect(result.groups).toHaveLength(2);
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0]!.members).toHaveLength(4);
     expect(result.waitlist).toHaveLength(1);
   });
 
   it("waitlists everyone when there are too few people for a group", () => {
-    const signups = ["A", "B", "C"].map((c) => person(c, "out-dancing", "hike"));
+    const signups = ["A", "B"].map((c) => person(c, "out-dancing", "hike"));
 
     const result = formGroups(signups);
 
     expect(result.groups).toHaveLength(0);
-    expect(result.waitlist).toHaveLength(3);
+    expect(result.waitlist).toHaveLength(2);
   });
 
   it("handles a realistic round of 23 sign-ups", () => {
@@ -129,6 +130,6 @@ describe("formGroups", () => {
     const result = formGroups(signups);
 
     expectValid(result, signups);
-    expect(result.groups.length).toBeGreaterThanOrEqual(4);
+    expect(result.groups.length).toBeGreaterThanOrEqual(6);
   });
 });

@@ -1,8 +1,9 @@
 import { QUESTIONS } from "../questions.js";
 import type { Group, GroupingResult, Signup } from "../types.js";
 
-export const MIN_GROUP_SIZE = 4;
-export const MAX_GROUP_SIZE = 5;
+// Groups of 3, with some of 4 so leftovers aren't waitlisted.
+export const MIN_GROUP_SIZE = 3;
+export const MAX_GROUP_SIZE = 4;
 
 /** How many questions two people answered the same way. */
 export function matchScore(a: Signup, b: Signup): number {
@@ -26,7 +27,7 @@ export function groupScore(members: readonly Signup[]): number {
 }
 
 /**
- * Splits sign-ups into groups of 4–5 where nobody shares a cohort, keeping
+ * Splits sign-ups into groups of 3–4 where nobody shares a cohort, keeping
  * people who answered alike together. Anyone who can't be placed goes on the
  * waitlist for the next round.
  *

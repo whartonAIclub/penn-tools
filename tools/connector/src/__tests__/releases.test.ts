@@ -58,15 +58,15 @@ describe.skipIf(!databaseUrl)("Connector releases (Postgres)", () => {
   });
 
   it("previews without saving, releases once, and later releases only match newcomers and the waitlist", async () => {
-    // Five students from different cohorts: one group, and nobody waits.
-    for (const [id, cohort] of [["a", "A"], ["b", "B"], ["c", "C"], ["d", "D"], ["e", "E"]] as const) {
+    // Four students from different cohorts: one group, and nobody waits.
+    for (const [id, cohort] of [["a", "A"], ["b", "B"], ["c", "C"], ["d", "D"]] as const) {
       await signUp(id, cohort);
     }
 
     const preview = await previewRelease(sql);
-    expect(preview.groups.flatMap((g) => g.members.map((m) => m.id)).sort()).toEqual(["a", "b", "c", "d", "e"]);
+    expect(preview.groups.flatMap((g) => g.members.map((m) => m.id)).sort()).toEqual(["a", "b", "c", "d"]);
     expect(await getMatch(sql, "a")).toBeNull();
-    expect(await listUnmatched(sql)).toHaveLength(5);
+    expect(await listUnmatched(sql)).toHaveLength(4);
     expect((await getStatus(sql, "a")).kind).toBe("waiting");
     expect((await getStatus(sql, "nobody")).kind).toBe("not-signed-up");
 
@@ -76,14 +76,14 @@ describe.skipIf(!databaseUrl)("Connector releases (Postgres)", () => {
 
     const match = await getMatch(sql, "c");
     expect(match?.releaseId).toBe(first.releaseId);
-    expect(match?.members.map((m) => m.id).sort()).toEqual(["a", "b", "c", "d", "e"]);
+    expect(match?.members.map((m) => m.id).sort()).toEqual(["a", "b", "c", "d"]);
     const status = await getStatus(sql, "c");
-    expect(status.kind === "matched" && status.match.members).toHaveLength(5);
+    expect(status.kind === "matched" && status.match.members).toHaveLength(4);
 
     // A newcomer after the release isn't matched yet, and the first group stays as it was.
     await signUp("f", "F");
     expect((await listUnmatched(sql)).map((s) => s.id)).toEqual(["f"]);
-    expect((await getMatch(sql, "a"))?.members).toHaveLength(5);
+    expect((await getMatch(sql, "a"))?.members).toHaveLength(4);
     expect((await getStatus(sql, "f")).kind).toBe("waiting");
 
     // One person can't make a group: the next release waitlists them, and they stay unmatched.
