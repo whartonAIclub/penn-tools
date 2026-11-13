@@ -436,6 +436,58 @@
 .outreach .textarea { align-self: stretch; }
 .outreachTitle { font-size: 0.875rem; }
 
+/* ── Follow-up chat ─────────────────────────────────────────────────────────── */
+
+.chat {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.chatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chatMessages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chatQuestion,
+.chatAnswer {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chatQuestion {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--penn-blue);
+  color: #fff;
+}
+.chatAnswer {
+  align-self: flex-start;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.chatForm {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.chatForm .textarea { flex: 1; }
+
 .contactFields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

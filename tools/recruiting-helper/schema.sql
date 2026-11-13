@@ -33,3 +33,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS items_user_match_idx ON items (user_id, kind, 
 
 -- The ranked list: a user's items, best score first, most recent first within a score.
 CREATE INDEX IF NOT EXISTS items_user_rank_idx ON items (user_id, score DESC, updated_at DESC);
+
+-- Follow-up questions about one item and the AI's answers, oldest first (by id).
+-- Removing the item deletes its chat; re-scoring a repeat keeps the item's id, and so its chat.
+CREATE TABLE IF NOT EXISTS messages (
+  id         BIGSERIAL   PRIMARY KEY,
+  item_id    UUID        NOT NULL REFERENCES items (id) ON DELETE CASCADE,
+  user_id    TEXT        NOT NULL,
+  role       TEXT        NOT NULL CHECK (role IN ('user', 'assistant')),
+  content    TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS messages_item_idx ON messages (item_id, id);

@@ -193,6 +193,15 @@ async function writeRescores(
   return changes.length;
 }
 
+/** One of the user's items, or null if it doesn't exist or isn't theirs. */
+export async function getItem(sql: Sql, userId: string, itemId: string): Promise<SavedItem | null> {
+  if (!UUID_RE.test(itemId)) return null;
+  const [row] = await sql<{ id: string; result: NewItem; updated_at: Date }[]>`
+    SELECT id, result, updated_at FROM items WHERE id = ${itemId} AND user_id = ${userId}
+  `;
+  return row ? toSaved(row.id, row.result, row.updated_at) : null;
+}
+
 /** One of the user's people, or null if it doesn't exist, isn't theirs or isn't a person. */
 export async function getContact(sql: Sql, userId: string, itemId: string): Promise<SavedContact | null> {
   if (!UUID_RE.test(itemId)) return null;
@@ -277,9 +286,13 @@ function toSaved(id: string, result: NewItem, updatedAt: Date): SavedItem {
   // People saved before links and schools were kept for them have none of these fields.
   const saved = { link: null, ...(result as Partial<NewItem>), id, addedAt: updatedAt.toISOString() } as SavedItem;
   if (saved.kind === "contact" && saved.schools === undefined) return { ...saved, schools: null, pennAlum: null };
-  // Postings saved before summaries, teams and search phrases were written.
-  if (saved.kind === "posting" && saved.summary === undefined) {
-    return { ...saved, summary: null, team: null, teamStated: null, searchKeywords: [] };
+  if (saved.kind === "posting") {
+    // Postings saved before summaries, teams and search phrases were written, or before pay was read.
+    const old = saved.summary === undefined ? { summary: null, team: null, teamStated: null, searchKeywords: [] } : {};
+    // Pay estimated by an earlier version, when the posting didn't state it, isn't shown.
+    const { salaryStated, ...rest } = saved as SavedPosting & { salaryStated?: boolean | null };
+    const noPay = saved.salary === undefined || salaryStated === false ? { salary: null } : {};
+    return { ...rest, ...old, ...noPay };
   }
   return saved;
 }
