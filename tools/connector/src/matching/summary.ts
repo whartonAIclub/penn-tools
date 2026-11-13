@@ -8,10 +8,14 @@ export interface SharedAnswer {
   count: number;
 }
 
-/** The answers at least two people in the group gave, most common first: what they have in common. */
+/**
+ * The answers at least two people in the group gave, most common first: what
+ * they have in common. The meeting format isn't something in common.
+ */
 export function sharedAnswers(members: readonly Signup[]): SharedAnswer[] {
   const shared: SharedAnswer[] = [];
   for (const question of QUESTIONS) {
+    if (question.scored === false) continue;
     for (const option of question.options) {
       const count = members.filter((m) => m.answers[question.id] === option.id).length;
       if (count >= 2) shared.push({ question: question.prompt, answer: option.label, count });

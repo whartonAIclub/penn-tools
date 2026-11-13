@@ -6,6 +6,12 @@ export interface Question {
   id: string;
   prompt: string;
   options: readonly AnswerOption[];
+  /**
+   * False for a question about how someone wants to meet rather than who
+   * they'd click with (the meeting format): it's asked and saved like any
+   * other, but never counts as something in common. True when left out.
+   */
+  scored?: boolean;
 }
 
 export interface AnswerOption {

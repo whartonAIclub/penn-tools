@@ -21,6 +21,15 @@ describe("sharedAnswers", () => {
     ]);
   });
 
+  it("leaves out the meeting format", () => {
+    const group = [person("A", "out-dancing", "hike"), person("B", "morning-person", "museum")].map((p) => ({
+      ...p,
+      answers: { ...p.answers, "meet-format": "small-group" },
+    }));
+
+    expect(sharedAnswers(group)).toEqual([]);
+  });
+
   it("is empty when nobody answered alike", () => {
     const group = [person("A", "out-dancing", "hike"), person("B", "morning-person", "museum")];
 

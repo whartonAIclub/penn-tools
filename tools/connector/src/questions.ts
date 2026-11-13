@@ -15,6 +15,17 @@ export const COHORTS: readonly Cohort[] = [
 // is safe.
 export const QUESTIONS: readonly Question[] = [
   {
+    // How they'd like to meet, not who they'd click with: never scored.
+    id: "meet-format",
+    prompt: "How would you like to meet people?",
+    options: [
+      { id: "one-on-one", label: "One-on-one" },
+      { id: "small-group", label: "Small group (3–4)" },
+      { id: "either", label: "Either works for me" },
+    ],
+    scored: false,
+  },
+  {
     // Night owl or morning person.
     id: "friday-midnight",
     prompt: "Friday midnight plan",

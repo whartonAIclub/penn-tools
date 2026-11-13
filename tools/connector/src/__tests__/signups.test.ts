@@ -11,6 +11,7 @@ import type { Sql } from "postgres";
 import { checkSignup, listSignups, saveSignup } from "../signups.js";
 
 const answers = {
+  "meet-format": "either",
   "friday-midnight": "rooftop-talk",
   "free-day": "hike",
   "party-style": "kitchen-chat",
@@ -37,7 +38,7 @@ describe("checkSignup", () => {
     expect(checkSignup({ ...ok, lastName: "" })).toEqual({ ok: false, error: "Enter your last name." });
     expect(checkSignup({ ...ok, firstName: "A".repeat(101) }).ok).toBe(false);
     expect(checkSignup({ ...ok, cohort: "Z" })).toEqual({ ok: false, error: "Choose your cohort." });
-    expect(checkSignup({ ...ok, answers: { "friday-midnight": "rooftop-talk" } })).toEqual({
+    expect(checkSignup({ ...ok, answers: { "meet-format": "either", "friday-midnight": "rooftop-talk" } })).toEqual({
       ok: false,
       error: 'Answer "A free day in Philly".',
     });

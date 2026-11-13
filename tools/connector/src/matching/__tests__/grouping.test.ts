@@ -36,6 +36,12 @@ describe("matchScore", () => {
     expect(matchScore(a, person("B", "morning-person", "museum"))).toBe(0);
   });
 
+  it("doesn't count the meeting format as something in common", () => {
+    const a: Signup = { ...person("A", "out-dancing", "hike"), answers: { "meet-format": "one-on-one" } };
+    const b: Signup = { ...person("B", "out-dancing", "hike"), answers: { "meet-format": "one-on-one" } };
+    expect(matchScore(a, b)).toBe(0);
+  });
+
   it("doesn't count unanswered questions", () => {
     const a: Signup = { ...person("A", "out-dancing", "hike"), answers: {} };
     const b: Signup = { ...person("B", "out-dancing", "hike"), answers: {} };
