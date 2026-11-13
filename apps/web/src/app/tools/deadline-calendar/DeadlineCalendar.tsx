@@ -1,8 +1,9 @@
 "use client";
 
-// Upload syllabus PDFs and see their deadlines, course by course. Each PDF
-// goes to the tool's route (extract/route.ts) on its own, as base64, so one
-// that fails doesn't hold up the rest; the route reads it with the user's AI.
+// Upload syllabus PDFs, see their deadlines course by course, and fix what the
+// AI got wrong. Each PDF goes to the tool's route (extract/route.ts) on its
+// own, as base64, so one that fails doesn't hold up the rest; the route reads
+// it with the user's AI. Fixes live in this page's state.
 
 import { useRef, useState } from "react";
 import Link from "next/link";
@@ -17,10 +18,21 @@ const CONCURRENT_READS = 3;
 
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 
+/** A deadline with a key that stays the same while the student edits and deletes others. */
+type Item = Deadline & { key: number };
+type Course = Omit<Syllabus, "deadlines"> & { deadlines: Item[] };
+
 /** How reading a syllabus went. `kind` is the AIError's, when the AI API failed. */
 type Outcome = { state: "done"; result: Syllabus } | { state: "error"; message: string; kind?: string };
-type Status = { state: "ready" } | { state: "reading" } | Outcome;
+type Status =
+  | { state: "ready" }
+  | { state: "reading" }
+  | { state: "done"; course: Course }
+  | { state: "error"; message: string; kind?: string };
 type Upload = { id: number; file: File } & Status;
+
+/** What a row's edit form changes. */
+type Fix = Pick<Deadline, "title" | "date" | "time">;
 
 const TYPE_LABELS: Record<Deadline["type"], string> = {
   exam: "Exam",
@@ -73,6 +85,16 @@ async function readSyllabus(file: File, provider: AIProvider): Promise<Outcome> 
   }
 }
 
+/**
+ * Dated deadlines first, earliest first (untimed before timed on the same
+ * day), then undated ones in the order they were. The same order the tool's
+ * sortDeadlines gives, kept here so the page doesn't bundle the tool's schema.
+ */
+function sortItems(items: Item[]): Item[] {
+  const key = (d: Item) => `${d.date ?? "9999-99-99"} ${d.time ?? "00:00"}`;
+  return [...items].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
+}
+
 /** Today's date in the browser as YYYY-MM-DD, for marking past deadlines. */
 function today(): string {
   const now = new Date();
@@ -101,6 +123,23 @@ function formatCategory({ category, percent, count, counted }: GradingCategory):
   return counted === count ? `${share} (all ${count} count)` : `${share} (best ${counted} of ${count}, ${count - counted} dropped)`;
 }
 
+/** A class's name in the class picker, with how it's going: "MKTG 612: Dynamic Marketing Strategy · 3 to check". */
+function classLabel(upload: Upload): string {
+  switch (upload.state) {
+    case "done": {
+      const name = upload.course.course ?? upload.file.name;
+      const toCheck = upload.course.deadlines.filter((d) => d.needsReview).length;
+      return toCheck > 0 ? `${name} · ${toCheck} to check` : name;
+    }
+    case "ready":
+      return `${upload.file.name} · ready to read`;
+    case "reading":
+      return `${upload.file.name} · reading…`;
+    case "error":
+      return `${upload.file.name} · couldn't be read`;
+  }
+}
+
 export function DeadlineCalendar({
   providers,
   labels,
@@ -115,6 +154,10 @@ export function DeadlineCalendar({
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [onlyToCheck, setOnlyToCheck] = useState(false);
+  /** The class shown, or "all"; null (or a removed class) shows the first. */
+  const [selected, setSelected] = useState<number | "all" | null>(null);
+  /** Whether the student has generated yet: until then every chosen file is listed, without the class picker. */
+  const [generated, setGenerated] = useState(false);
   const nextId = useRef(1);
 
   const reading = uploads.some((u) => u.state === "reading");
@@ -122,6 +165,15 @@ export function DeadlineCalendar({
 
   function update(id: number, status: Status) {
     setUploads((current) => current.map((u) => (u.id === id ? { id: u.id, file: u.file, ...status } : u)));
+  }
+
+  /** Applies `change` to one course's deadlines, then re-sorts them. */
+  function editCourse(id: number, change: (items: Item[]) => Item[]) {
+    setUploads((current) =>
+      current.map((u) =>
+        u.id === id && u.state === "done" ? { ...u, course: { ...u.course, deadlines: sortItems(change(u.course.deadlines)) } } : u,
+      ),
+    );
   }
 
   function add(files: File[]) {
@@ -140,31 +192,48 @@ export function DeadlineCalendar({
 
   function remove(id: number) {
     setNotice(null);
-    setUploads((current) => current.filter((u) => u.id !== id));
+    const rest = uploads.filter((u) => u.id !== id);
+    setUploads(rest);
+    if (rest.length === 0) setGenerated(false);
   }
 
   async function findDeadlines() {
+    setGenerated(true);
     const queue = [...ready];
     for (const { id } of queue) update(id, { state: "reading" });
     // CONCURRENT_READS workers take files off the queue until it's empty.
     const worker = async () => {
       for (let upload = queue.shift(); upload; upload = queue.shift()) {
-        update(upload.id, await readSyllabus(upload.file, provider));
+        const outcome = await readSyllabus(upload.file, provider);
+        if (outcome.state === "error") {
+          update(upload.id, outcome);
+        } else {
+          const { deadlines, ...rest } = outcome.result;
+          update(upload.id, { state: "done", course: { ...rest, deadlines: deadlines.map((d) => ({ ...d, key: nextId.current++ })) } });
+        }
       }
     };
     await Promise.all(Array.from({ length: Math.min(CONCURRENT_READS, queue.length) }, worker));
   }
 
-  const done = uploads.filter((u): u is Upload & { state: "done"; result: Syllabus } => u.state === "done");
-  const deadlineCount = done.reduce((sum, u) => sum + u.result.deadlines.length, 0);
-  const reviewCount = done.reduce((sum, u) => sum + u.result.deadlines.filter((d) => d.needsReview).length, 0);
+  const done = uploads.filter((u): u is Upload & { state: "done"; course: Course } => u.state === "done");
+  const deadlineCount = done.reduce((sum, u) => sum + u.course.deadlines.length, 0);
+  const reviewCount = done.reduce((sum, u) => sum + u.course.deadlines.filter((d) => d.needsReview).length, 0);
+
+  const shownId = selected === "all" || uploads.some((u) => u.id === selected) ? selected : (uploads[0]?.id ?? null);
+  // While syllabi are being read, only the progress line shows; the class picker and its sections come once all are done.
+  const finished = uploads.filter((u) => u.state === "done" || u.state === "error").length;
+  const started = uploads.filter((u) => u.state !== "ready").length;
+  const showPicker = generated && !reading && uploads.length > 1;
+  const shown = reading ? [] : !showPicker || shownId === "all" ? uploads : uploads.filter((u) => u.id === shownId);
 
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Deadline Calendar</h1>
       <p className={styles.intro}>
         Upload your syllabi to pull out their exams, quizzes, assignments and other deadlines. Check them against each
-        syllabus: items the AI wasn&apos;t sure about are highlighted.
+        syllabus: fix anything that&apos;s wrong, and confirm the items the AI wasn&apos;t sure about, which are
+        highlighted.
       </p>
 
       <section className={styles.card}>
@@ -214,7 +283,21 @@ export function DeadlineCalendar({
         {reading && <p className={styles.note}>Each syllabus usually takes 20–60 seconds.</p>}
       </section>
 
-      {done.length > 0 && (
+      {reading && (
+        <p className={styles.status} role="status">
+          Reading… {finished} of {started} {started === 1 ? "class" : "classes"} done
+        </p>
+      )}
+
+      {generated && !reading && done.length > 0 && (
+        <p className={styles.status} role="status">
+          Ready!{showPicker && " Use the dropdown to check through."}
+          {reviewCount > 0 &&
+            " Check the “Show only items to check” box to add in deadlines when not listed in the syllabus."}
+        </p>
+      )}
+
+      {!reading && done.length > 0 && (
         <div className={styles.summaryRow}>
           <p className={styles.summary}>
             {done.length} {done.length === 1 ? "syllabus" : "syllabi"} · {deadlineCount}{" "}
@@ -230,20 +313,48 @@ export function DeadlineCalendar({
         </div>
       )}
 
-      {uploads.map((upload) => (
+      {showPicker && (
+        <label className={styles.classPicker}>
+          Class
+          <select
+            value={String(shownId)}
+            onChange={(e) => setSelected(e.target.value === "all" ? "all" : Number(e.target.value))}
+          >
+            {uploads.map((u) => (
+              <option key={u.id} value={u.id}>
+                {classLabel(u)}
+              </option>
+            ))}
+            <option value="all">All classes</option>
+          </select>
+        </label>
+      )}
+
+      {shown.map((upload) => (
         <UploadCard
           key={upload.id}
           upload={upload}
           onlyToCheck={onlyToCheck && reviewCount > 0}
           onRemove={() => remove(upload.id)}
+          onEdit={(change) => editCourse(upload.id, change)}
         />
       ))}
     </div>
   );
 }
 
-function UploadCard({ upload, onlyToCheck, onRemove }: { upload: Upload; onlyToCheck: boolean; onRemove: () => void }) {
-  const heading = upload.state === "done" ? (upload.result.course ?? upload.file.name) : upload.file.name;
+function UploadCard({
+  upload,
+  onlyToCheck,
+  onRemove,
+  onEdit,
+}: {
+  upload: Upload;
+  onlyToCheck: boolean;
+  onRemove: () => void;
+  onEdit: (change: (items: Item[]) => Item[]) => void;
+}) {
+  const heading = upload.state === "done" ? (upload.course.course ?? upload.file.name) : upload.file.name;
   return (
     <section className={styles.results}>
       <div className={styles.courseHeader}>
@@ -254,7 +365,7 @@ function UploadCard({ upload, onlyToCheck, onRemove }: { upload: Upload; onlyToC
           </button>
         )}
       </div>
-      {upload.state === "done" && upload.result.course && <p className={styles.fileName}>{upload.file.name}</p>}
+      {upload.state === "done" && upload.course.course && <p className={styles.fileName}>{upload.file.name}</p>}
 
       {upload.state === "ready" && <p className={styles.note}>Ready to read.</p>}
       {upload.state === "reading" && <p className={styles.note}>Reading…</p>}
@@ -271,36 +382,54 @@ function UploadCard({ upload, onlyToCheck, onRemove }: { upload: Upload; onlyToC
           )}
         </p>
       )}
-      {upload.state === "done" && <Results result={upload.result} onlyToCheck={onlyToCheck} />}
+      {upload.state === "done" && <Results course={upload.course} onlyToCheck={onlyToCheck} onEdit={onEdit} />}
     </section>
   );
 }
 
-function Results({ result, onlyToCheck }: { result: Syllabus; onlyToCheck: boolean }) {
+function Results({
+  course,
+  onlyToCheck,
+  onEdit,
+}: {
+  course: Course;
+  onlyToCheck: boolean;
+  onEdit: (change: (items: Item[]) => Item[]) => void;
+}) {
   const now = today();
-  const toReview = result.deadlines.filter((d) => d.needsReview).length;
-  const shown = onlyToCheck ? result.deadlines.filter((d) => d.needsReview) : result.deadlines;
+  const toReview = course.deadlines.filter((d) => d.needsReview).length;
+  const shown = onlyToCheck ? course.deadlines.filter((d) => d.needsReview) : course.deadlines;
   const dated = shown.filter((d) => d.date !== null);
   const undated = shown.filter((d) => d.date === null);
 
-  if (result.deadlines.length === 0) {
-    return <p className={styles.note}>No deadlines found. Check that this is the course syllabus.</p>;
-  }
-  if (shown.length === 0) {
-    return <p className={styles.note}>Nothing to check in this course.</p>;
-  }
+  // Fixing or confirming an item means the student has checked it. A new start
+  // time drops the old end time, which could now come before it.
+  const fix = (key: number, change: Fix) =>
+    onEdit((items) =>
+      items.map((d) =>
+        d.key === key
+          ? { ...d, ...change, endTime: change.time === d.time ? d.endTime : null, needsReview: false, note: null }
+          : d,
+      ),
+    );
+  const confirm = (key: number) => onEdit((items) => items.map((d) => (d.key === key ? { ...d, needsReview: false, note: null } : d)));
+  const remove = (key: number) => onEdit((items) => items.filter((d) => d.key !== key));
+  const actions = (d: Item) => ({ onFix: (change: Fix) => fix(d.key, change), onConfirm: () => confirm(d.key), onDelete: () => remove(d.key) });
 
   return (
     <>
       <p className={styles.note}>
-        {result.deadlines.length} {result.deadlines.length === 1 ? "deadline" : "deadlines"}
+        {course.deadlines.length} {course.deadlines.length === 1 ? "deadline" : "deadlines"}
         {toReview > 0 && ` · ${toReview} to check`}
       </p>
-      {result.grading.length > 0 && (
+      {course.grading.length > 0 && (
         <p className={styles.grading}>
-          <span className={styles.gradingLabel}>Grading:</span> {result.grading.map(formatCategory).join(" · ")}
+          <span className={styles.gradingLabel}>Grading:</span> {course.grading.map(formatCategory).join(" · ")}
         </p>
       )}
+
+      {course.deadlines.length === 0 && <p className={styles.note}>No deadlines found. Check that this is the course syllabus.</p>}
+      {course.deadlines.length > 0 && shown.length === 0 && <p className={styles.note}>Nothing to check in this course.</p>}
 
       {dated.length > 0 && (
         <table className={styles.table}>
@@ -310,11 +439,14 @@ function Results({ result, onlyToCheck }: { result: Syllabus; onlyToCheck: boole
               <th>Time</th>
               <th>Deadline</th>
               <th>Type</th>
+              <th>
+                <span className={styles.visuallyHidden}>Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {dated.map((d, i) => (
-              <Row key={i} deadline={d} past={d.date! < now} />
+            {dated.map((d) => (
+              <Row key={d.key} deadline={d} past={d.date! < now} {...actions(d)} />
             ))}
           </tbody>
         </table>
@@ -323,10 +455,11 @@ function Results({ result, onlyToCheck }: { result: Syllabus; onlyToCheck: boole
       {undated.length > 0 && (
         <>
           <h3 className={styles.subheading}>Needs a date</h3>
+          <p className={styles.note}>Add a date to put these in your calendar.</p>
           <table className={styles.table}>
             <tbody>
-              {undated.map((d, i) => (
-                <Row key={i} deadline={d} past={false} />
+              {undated.map((d) => (
+                <Row key={d.key} deadline={d} past={false} {...actions(d)} />
               ))}
             </tbody>
           </table>
@@ -336,12 +469,44 @@ function Results({ result, onlyToCheck }: { result: Syllabus; onlyToCheck: boole
   );
 }
 
-function Row({ deadline: d, past }: { deadline: Deadline; past: boolean }) {
+function Row({
+  deadline: d,
+  past,
+  onFix,
+  onConfirm,
+  onDelete,
+}: {
+  deadline: Item;
+  past: boolean;
+  onFix: (change: Fix) => void;
+  onConfirm: () => void;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const dated = d.date !== null;
+
+  if (editing) {
+    return (
+      <tr className={styles.editing}>
+        <td colSpan={dated ? 5 : 3}>
+          <EditForm
+            deadline={d}
+            onSave={(change) => {
+              onFix(change);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </td>
+      </tr>
+    );
+  }
+
   const className = [d.needsReview && styles.review, past && styles.past].filter(Boolean).join(" ");
   return (
     <tr className={className || undefined}>
-      {d.date !== null && <td className={styles.date}>{formatDate(d.date)}</td>}
-      {d.date !== null && (
+      {dated && <td className={styles.date}>{formatDate(d.date!)}</td>}
+      {dated && (
         <td className={styles.time}>
           {d.time ? formatTime(d.time) : "—"}
           {d.time && d.endTime && `–${formatTime(d.endTime)}`}
@@ -354,6 +519,58 @@ function Row({ deadline: d, past }: { deadline: Deadline; past: boolean }) {
         {d.needsReview && d.note && <span className={styles.reviewNote}>Check: {d.note}</span>}
       </td>
       <td className={styles.type}>{TYPE_LABELS[d.type]}</td>
+      <td className={styles.actions}>
+        {d.needsReview && dated && (
+          <button className={styles.action} onClick={onConfirm}>
+            Looks right
+          </button>
+        )}
+        <button className={styles.action} onClick={() => setEditing(true)}>
+          {dated ? "Edit" : "Add date"}
+        </button>
+        <button className={styles.action} onClick={onDelete} aria-label={`Delete ${d.title}`}>
+          Delete
+        </button>
+      </td>
     </tr>
+  );
+}
+
+function EditForm({ deadline: d, onSave, onCancel }: { deadline: Item; onSave: (change: Fix) => void; onCancel: () => void }) {
+  const [title, setTitle] = useState(d.title);
+  const [date, setDate] = useState(d.date ?? "");
+  const [time, setTime] = useState(d.time ?? "");
+  const canSave = title.trim() !== "" && date !== "";
+
+  return (
+    <form
+      className={styles.editForm}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSave) onSave({ title: title.trim(), date, time: time || null });
+      }}
+    >
+      <label className={styles.field}>
+        Deadline
+        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} required />
+      </label>
+      <label className={styles.field}>
+        Date
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+      </label>
+      <label className={styles.field}>
+        Time (optional)
+        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+      </label>
+      {d.needsReview && d.note && <p className={styles.reviewNote}>Check: {d.note}</p>}
+      <div className={styles.editButtons}>
+        <button type="submit" className={styles.button} disabled={!canSave}>
+          Save
+        </button>
+        <button type="button" className={styles.action} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }

@@ -92,6 +92,15 @@
 
 /* ── Results ───────────────────────────────────────────────────────────────── */
 
+.status {
+  padding: 10px 14px;
+  border: 1px solid #dce3ff;
+  border-radius: 8px;
+  background: #f5f7ff;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
 .summaryRow {
   display: flex;
   flex-wrap: wrap;
@@ -103,6 +112,25 @@
 .summary {
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.classPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.classPicker select {
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--bg);
 }
 
 .toggle {
@@ -222,4 +250,73 @@
 
 .past td {
   color: var(--section-label);
+}
+
+/* ── Fixing deadlines ──────────────────────────────────────────────────────── */
+
+.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.action {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.action:hover { color: var(--text); }
+
+.editing td {
+  background: #f5f7ff;
+}
+
+.editForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.field:first-child {
+  flex: 1 1 200px;
+}
+
+.field input {
+  padding: 6px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.editForm .reviewNote {
+  flex-basis: 100%;
+}
+
+.editButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
