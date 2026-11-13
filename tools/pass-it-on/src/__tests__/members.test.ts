@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import { listMembers, addMember, setMemberActive, syncMembers } from "../members.js";
+import { listMembers, addMember, setMemberActive, syncMembers, renameMember } from "../members.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -36,6 +36,10 @@ describe.skipIf(!databaseUrl)("member storage", () => {
     await sql`DELETE FROM events`;
     await sql`DELETE FROM members`;
   });
+
+  // The club's seeded default and alternate leads, which syncMembers also adds.
+  const LEADS = ["Billy", "Charlie", "Himanshi", "Kira", "Manisha", "Marcela", "Michael"];
+  const withoutLeads = (names: string[]) => names.filter((n) => !LEADS.includes(n));
 
   const mkEvent = async () => {
     const [e] = await sql<{ id: string }[]>`
@@ -89,16 +93,65 @@ describe.skipIf(!databaseUrl)("member storage", () => {
     await sql`INSERT INTO tasks (event_id, title, owner) VALUES (${eventId}, 'T3', '   ')`;
     await sql`INSERT INTO tasks (event_id, title, owner) VALUES (${eventId}, 'T4', 'zed')`;
     await addMember(sql, "YARA");
-    expect(await syncMembers(sql)).toBe(1);
-    expect((await listMembers(sql)).map((m) => m.name)).toEqual(["YARA", "Zed"]);
+    expect(await syncMembers(sql)).toBe(1 + LEADS.length);
+    expect(withoutLeads((await listMembers(sql)).map((m) => m.name))).toEqual(["YARA", "Zed"]);
   });
 
   it("is idempotent", async () => {
     const eventId = await mkEvent();
     await sql`INSERT INTO tasks (event_id, title, owner) VALUES (${eventId}, 'T1', 'Mia')`;
     await sql`INSERT INTO tasks (event_id, title, owner) VALUES (${eventId}, 'T2', 'Noah')`;
-    expect(await syncMembers(sql)).toBe(2);
+    expect(await syncMembers(sql)).toBe(2 + LEADS.length);
     expect(await syncMembers(sql)).toBe(0);
-    expect(await listMembers(sql)).toHaveLength(2);
+    expect(await listMembers(sql)).toHaveLength(2 + LEADS.length);
+  });
+
+  it("picks up the club's default and alternate leads, and never un-hides a hidden person", async () => {
+    await syncMembers(sql);
+    const names = (await listMembers(sql)).map((m) => m.name);
+    expect(names).toEqual(expect.arrayContaining(["Manisha", "Kira", "Himanshi", "Marcela", "Charlie", "Michael", "Billy"]));
+    const kira = (await listMembers(sql)).find((m) => m.name === "Kira")!;
+    await setMemberActive(sql, kira.id, false);
+    await syncMembers(sql);
+    expect((await listMembers(sql, { activeOnly: true })).map((m) => m.name)).not.toContain("Kira");
+  });
+
+  describe("renameMember", () => {
+    it("fixes the name everywhere it is used, but not inside a shared cell", async () => {
+      const id = await mkEvent();
+      await sql`INSERT INTO event_roles (event_id, position, role, person) VALUES (${id}, 0, 'Pub Leader 1', 'Benju'), (${id}, 1, 'Prez Owner', 'Benju/Arjun')`;
+      await sql`UPDATE events SET pub_leader = 'Benju' WHERE id = ${id}`;
+      await sql`INSERT INTO tasks (event_id, title, owner, offset_days) VALUES (${id}, 't', 'Benju', -1)`;
+      await sql`UPDATE role_defaults SET person = 'Benju', alternates = ARRAY['Kira', 'Benju'] WHERE role = 'Marketing Lead'`;
+      const benju = await addMember(sql, "Benju");
+
+      expect(await renameMember(sql, benju, " Benji ")).toEqual({ id: benju, merged: false });
+
+      const roles = await sql<{ person: string }[]>`SELECT person FROM event_roles WHERE event_id = ${id} ORDER BY position`;
+      expect(roles.map((r) => r.person)).toEqual(["Benji", "Benju/Arjun"]);
+      const [ev] = await sql<{ pub_leader: string }[]>`SELECT pub_leader FROM events WHERE id = ${id}`;
+      expect(ev!.pub_leader).toBe("Benji");
+      const [task] = await sql<{ owner: string }[]>`SELECT owner FROM tasks WHERE event_id = ${id}`;
+      expect(task!.owner).toBe("Benji");
+      const [d] = await sql<{ person: string; alternates: string[] }[]>`SELECT person, alternates FROM role_defaults WHERE role = 'Marketing Lead'`;
+      expect(d).toEqual({ person: "Benji", alternates: ["Kira", "Benji"] });
+      expect((await listMembers(sql)).map((m) => m.name)).toContain("Benji");
+      await sql`UPDATE role_defaults SET person = 'Manisha', alternates = ARRAY['Kira', 'Himanshi'] WHERE role = 'Marketing Lead'`;
+    });
+
+    it("merges into an existing person when the new name is taken (ignoring case), keeping that person visible", async () => {
+      const benji = await addMember(sql, "Benji");
+      await setMemberActive(sql, benji, false);
+      const benju = await addMember(sql, "Benju");
+      expect(await renameMember(sql, benju, "benji")).toEqual({ id: benji, merged: true });
+      const all = await listMembers(sql);
+      expect(all.filter((m) => m.name.toLowerCase().startsWith("benj"))).toEqual([{ id: benji, name: "Benji", role: null, active: true }]);
+    });
+
+    it("rejects a blank name, and returns null for an unknown person", async () => {
+      const id = await addMember(sql, "Zed");
+      await expect(renameMember(sql, id, "  ")).rejects.toThrow(RangeError);
+      expect(await renameMember(sql, 999999, "X")).toBeNull();
+    });
   });
 });

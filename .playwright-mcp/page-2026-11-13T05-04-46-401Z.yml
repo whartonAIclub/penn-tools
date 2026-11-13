@@ -1,0 +1,224 @@
+- generic [active] [ref=f27e1]:
+  - banner [ref=f27e2]:
+    - generic [ref=f27e3]:
+      - button "Hide tools" [expanded] [ref=f27e4] [cursor=pointer]
+      - link "PennTools" [ref=f27e7] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f27e8]:
+        - generic [aria-hidden] [ref=f27e9]: /
+        - link "Pass It On" [ref=f27e10] [cursor=pointer]:
+          - /url: /tools/pass-it-on
+        - button "Tool information" [ref=f27e12] [cursor=pointer]
+    - generic [ref=f27e15]:
+      - link "PennTools on GitHub" [ref=f27e16] [cursor=pointer]:
+        - /url: https://github.com/whartonAIclub/penn-tools
+        - generic [ref=f27e19]: GitHub
+      - link "Account settings" [ref=f27e20] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=f27e21]: L
+      - button "Log out" [ref=f27e22] [cursor=pointer]
+  - generic [ref=f27e23]:
+    - navigation "Tools" [ref=f27e24]:
+      - link "Dashboard" [ref=f27e25] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f27e27]:
+        - button "Recruiting" [expanded] [ref=f27e28] [cursor=pointer]
+        - list [ref=f27e33]:
+          - listitem [ref=f27e34]:
+            - link "MBA Tech Internships" [ref=f27e35] [cursor=pointer]:
+              - /url: https://github.com/TrevorDohm/MBA-Tech-Internships-2027
+          - listitem [ref=f27e40]:
+            - link "PM Zero to One" [ref=f27e41] [cursor=pointer]:
+              - /url: https://pmzerotoone.netlify.app/
+      - generic [ref=f27e46]:
+        - button "Academics" [expanded] [ref=f27e47] [cursor=pointer]
+        - list [ref=f27e52]:
+          - listitem [ref=f27e53]:
+            - link "QuakerCal" [ref=f27e54] [cursor=pointer]:
+              - /url: https://quakercal.vercel.app/
+          - listitem [ref=f27e59]:
+            - link "ROIC Tree Generator" [ref=f27e60] [cursor=pointer]:
+              - /url: https://roic-tree-generator.vercel.app/
+      - generic [ref=f27e65]:
+        - button "Productivity" [expanded] [ref=f27e66] [cursor=pointer]
+        - list [ref=f27e71]:
+          - listitem [ref=f27e72]:
+            - link "Defluffer" [ref=f27e73] [cursor=pointer]:
+              - /url: https://itayzit.github.io/defluffer/
+          - listitem [ref=f27e78]:
+            - link "ThankYouGPT" [ref=f27e79] [cursor=pointer]:
+              - /url: https://thank-you-gpt.com
+          - listitem [ref=f27e84]:
+            - link "StacTab" [ref=f27e85] [cursor=pointer]:
+              - /url: https://chromewebstore.google.com/detail/stactab/hdfcdcoogjkdogmnhhopkekanpldoefh
+          - listitem [ref=f27e90]:
+            - link "AI Compass" [ref=f27e91] [cursor=pointer]:
+              - /url: https://akshitkalra.com/aicompass
+          - listitem [ref=f27e96]:
+            - link "Pass It On BETA" [ref=f27e97] [cursor=pointer]:
+              - /url: /tools/pass-it-on
+              - generic [ref=f27e98]: Pass It On
+              - generic [ref=f27e99]: BETA
+      - generic [ref=f27e100]:
+        - button "LLM Tools BETA" [expanded] [ref=f27e101] [cursor=pointer]:
+          - generic [ref=f27e102]: LLM Tools
+          - generic [ref=f27e103]: BETA
+        - list [ref=f27e107]:
+          - listitem [ref=f27e108]:
+            - link "Resume Customizer" [ref=f27e109] [cursor=pointer]:
+              - /url: /tools/resume-customizer
+          - listitem [ref=f27e111]:
+            - link "Career Canvas" [ref=f27e112] [cursor=pointer]:
+              - /url: /tools/career-canvas
+          - listitem [ref=f27e114]:
+            - link "Penn Planner" [ref=f27e115] [cursor=pointer]:
+              - /url: /tools/penn-planner
+          - listitem [ref=f27e117]:
+            - link "CourseMatch Assist" [ref=f27e118] [cursor=pointer]:
+              - /url: /tools/coursematch-assist
+          - listitem [ref=f27e120]:
+            - link "PitchCoach AI" [ref=f27e121] [cursor=pointer]:
+              - /url: /tools/pitch-coach
+      - generic [ref=f27e123]:
+        - button "Platform" [expanded] [ref=f27e124] [cursor=pointer]
+        - list [ref=f27e129]:
+          - listitem [ref=f27e130]:
+            - link "Platform Playground" [ref=f27e131] [cursor=pointer]:
+              - /url: /tools/platform-playground
+          - listitem [ref=f27e133]:
+            - link "AskPenn BETA" [ref=f27e134] [cursor=pointer]:
+              - /url: /tools/askpenn
+              - generic [ref=f27e135]: AskPenn
+              - generic [ref=f27e136]: BETA
+    - main [ref=f27e140]:
+      - generic [ref=f27e141]:
+        - heading "Pass It On" [level=1] [ref=f27e142]
+        - navigation "Pass It On" [ref=f27e143]:
+          - link "Events" [ref=f27e144] [cursor=pointer]:
+            - /url: /tools/pass-it-on
+          - link "Roles" [ref=f27e145] [cursor=pointer]:
+            - /url: /tools/pass-it-on/roles
+          - link "Checklist" [ref=f27e146] [cursor=pointer]:
+            - /url: /tools/pass-it-on/board
+          - link "Calendar" [ref=f27e147] [cursor=pointer]:
+            - /url: /tools/pass-it-on/calendar
+          - link "Template" [ref=f27e148] [cursor=pointer]:
+            - /url: /tools/pass-it-on/template
+          - link "Library" [ref=f27e149] [cursor=pointer]:
+            - /url: /tools/pass-it-on/library
+          - link "Ask" [ref=f27e150] [cursor=pointer]:
+            - /url: /tools/pass-it-on/ask
+        - generic [ref=f27e151]:
+          - heading "Edit event" [level=2] [ref=f27e152]
+          - generic [ref=f27e153]:
+            - text: Name
+            - textbox "Name" [ref=f27e154]:
+              - /placeholder: "Pub: Fall Kickoff"
+              - text: Grad Pub
+          - generic [ref=f27e155]:
+            - generic [ref=f27e156]:
+              - text: Date
+              - textbox "Date" [ref=f27e157]: 2027-05-20
+            - generic [ref=f27e158]:
+              - text: Time
+              - textbox "Time" [ref=f27e159]:
+                - /placeholder: 5.30-8.30pm
+            - generic [ref=f27e160]:
+              - text: Budget ($)
+              - textbox "Budget ($)" [ref=f27e161]:
+                - /placeholder: "1500"
+          - generic [ref=f27e162]:
+            - text: Theme
+            - textbox "Theme" [ref=f27e163]
+          - generic [ref=f27e164]:
+            - text: Location
+            - textbox "Location" [ref=f27e165]:
+              - /placeholder: Lucy's
+              - text: Armory
+          - group "Roles" [ref=f27e166]:
+            - generic [ref=f27e168]:
+              - generic [ref=f27e169]:
+                - text: CoS Owner
+                - combobox "CoS Owner" [ref=f27e170]
+              - generic [ref=f27e171]:
+                - text: Pub Leader 1
+                - combobox "Pub Leader 1" [ref=f27e172]
+              - generic [ref=f27e173]:
+                - text: Pub Leader 2
+                - combobox "Pub Leader 2" [ref=f27e174]
+              - generic [ref=f27e175]:
+                - text: Pub Leader 3
+                - combobox "Pub Leader 3" [ref=f27e176]
+              - generic [ref=f27e177]:
+                - text: Prez Owner
+                - combobox "Prez Owner" [ref=f27e178]
+              - generic [ref=f27e179]:
+                - text: Ops Lead
+                - combobox "Ops Lead" [ref=f27e180]
+              - generic [ref=f27e181]:
+                - text: Marketing Lead
+                - combobox "Marketing Lead" [ref=f27e182]
+              - generic [ref=f27e183]:
+                - text: Finance Lead
+                - combobox "Finance Lead" [ref=f27e184]
+              - generic [ref=f27e185]:
+                - text: Entertainment Lead
+                - combobox "Entertainment Lead" [ref=f27e186]
+            - strong [ref=f27e187]: Other roles
+            - button "Add role" [ref=f27e189] [cursor=pointer]
+          - group "Partner clubs" [ref=f27e190]:
+            - generic [ref=f27e192]:
+              - textbox "Partner club" [ref=f27e193]:
+                - /placeholder: Club name
+                - text: OSL
+              - button "Remove club" [ref=f27e194] [cursor=pointer]: Remove
+            - button "Add partner club" [ref=f27e196] [cursor=pointer]
+          - generic [ref=f27e197]:
+            - generic [ref=f27e198]:
+              - checkbox "Confirmed with club" [ref=f27e199]
+              - text: Confirmed with club
+            - generic [ref=f27e200]:
+              - checkbox "Confirmed with venue" [ref=f27e201]
+              - text: Confirmed with venue
+            - generic [ref=f27e202]:
+              - checkbox "Cancelled" [ref=f27e203]
+              - text: Cancelled
+          - generic [ref=f27e204]:
+            - checkbox "Specialized equipment" [ref=f27e205]
+            - text: Specialized equipment
+          - generic [ref=f27e206]:
+            - text: Club contact
+            - textbox "Club contact" [ref=f27e207]
+          - generic [ref=f27e208]:
+            - text: "Vendors (one per line, like \"Bistro: catering\")"
+            - 'textbox "Vendors (one per line, like \"Bistro: catering\")" [ref=f27e209]'
+          - generic [ref=f27e210]:
+            - text: Notes
+            - textbox "Notes" [ref=f27e211]:
+              - /placeholder: Ask for WGA funding
+              - text: Arjun/Diva/Benji (column label not provided).
+          - group [ref=f27e212]:
+            - generic "After the event" [ref=f27e213]
+          - generic [ref=f27e214]:
+            - generic [ref=f27e215]:
+              - button "Save" [ref=f27e216] [cursor=pointer]
+              - link "Cancel" [ref=f27e217] [cursor=pointer]:
+                - /url: /tools/pass-it-on
+            - button "Delete" [ref=f27e218] [cursor=pointer]
+        - generic [ref=f27e219]:
+          - heading "Checklist" [level=2] [ref=f27e221]
+          - paragraph [ref=f27e222]: This event has no checklist yet.
+          - group "Extra modules" [ref=f27e223]:
+            - generic [ref=f27e225]:
+              - checkbox "Club collab suggested — Tasks for each partner club, from the rider to the fund transfer." [checked] [ref=f27e226]
+              - generic [ref=f27e227]:
+                - text: Club collab
+                - generic [ref=f27e228]: suggested
+                - generic [ref=f27e229]: — Tasks for each partner club, from the rider to the fund transfer.
+            - generic [ref=f27e230]:
+              - 'checkbox "Non-Wharton schools — Events open to students from other schools: Eventbrite ticketing, GAPSA and outreach." [ref=f27e231]'
+              - generic [ref=f27e232]:
+                - text: Non-Wharton schools
+                - generic [ref=f27e233]: "— Events open to students from other schools: Eventbrite ticketing, GAPSA and outreach."
+          - button "Generate checklist" [ref=f27e235] [cursor=pointer]
+  - alert [ref=f27e236]

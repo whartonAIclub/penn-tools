@@ -47,7 +47,13 @@ export interface ChecklistGroup {
 const STATUS_LABELS: Record<TaskStatus, string> = { todo: "To do", doing: "Doing", blocked: "Blocked", done: "Done", skipped: "Skipped" };
 const STATUSES = Object.keys(STATUS_LABELS) as TaskStatus[];
 
-export function ChecklistTable({ groups, today }: { groups: ChecklistGroup[]; today: string }) {
+/** Who can own a task: everyone the tool knows, and each event's role holders (shown first, with their role). */
+export interface OwnerChoices {
+  people: string[];
+  eventRoles: Record<string, { role: string; person: string }[]>;
+}
+
+export function ChecklistTable({ groups, today, owners }: { groups: ChecklistGroup[]; today: string; owners: OwnerChoices }) {
   const router = useRouter();
   // Statuses shown before the server confirms them, and the latest click per task.
   const [shown, setShown] = useState<Record<number, TaskStatus>>({});
@@ -168,7 +174,7 @@ export function ChecklistTable({ groups, today }: { groups: ChecklistGroup[]; to
                   </tr>
                 )}
                 {section.rows.map(({ task, depth }) => (
-                  <Row key={task.id} task={task} depth={depth} today={today} status={shown[task.id] ?? task.status} error={[errors[`${task.id}:status`], errors[`${task.id}:field`]].filter(Boolean).join(" ") || undefined} save={save} remove={remove} />
+                  <Row key={task.id} task={task} depth={depth} today={today} owners={owners} status={shown[task.id] ?? task.status} error={[errors[`${task.id}:status`], errors[`${task.id}:field`]].filter(Boolean).join(" ") || undefined} save={save} remove={remove} />
                 ))}
               </tbody>
             ))}
@@ -183,6 +189,7 @@ function Row({
   task,
   depth,
   today,
+  owners,
   status,
   error,
   save,
@@ -191,6 +198,7 @@ function Row({
   task: TaskRow;
   depth: number;
   today: string;
+  owners: OwnerChoices;
   status: TaskStatus;
   error: string | undefined;
   save: (task: TaskRow, change: TaskChange) => Promise<void>;
@@ -208,7 +216,7 @@ function Row({
     <>
       <tr className={`${depth > 0 ? styles.subRow : ""} ${finished ? styles.rowDone : ""}`.trim()}>
         <td className={styles.checkCell} data-label="Done">
-          <label className={styles.checkLabel}>
+          <label className={styles.checkHit}>
             <input type="checkbox" className={styles.bigCheck} aria-label={`Mark "${task.title}" done`} checked={status === "done"} onChange={(e) => void save(task, { status: e.target.checked ? "done" : "todo" })} />
           </label>
         </td>
@@ -227,14 +235,11 @@ function Row({
           {task.dueDate ? <time dateTime={task.dueDate} title={task.dueDate}>{shortDate(task.dueDate, today)}</time> : "No date"}
         </td>
         <td data-label="Owner">
-          <input
+          <OwnerPicker
             key={ownerNow}
-            className={styles.cellInput}
-            list="pass-it-on-members"
-            defaultValue={ownerNow}
-            placeholder="Unassigned"
-            aria-label={`Owner of "${task.title}"`}
-            onBlur={(e) => e.target.value.trim() !== ownerNow && void save(task, { owner: e.target.value })}
+            task={task}
+            owners={owners}
+            onPick={(owner) => owner.trim() !== ownerNow && void save(task, { owner })}
           />
         </td>
         <td data-label="Status">
@@ -272,5 +277,73 @@ function Row({
         </td>
       </tr>
     </>
+  );
+}
+
+const SOMEONE_ELSE = "\u0000someone-else";
+
+/**
+ * The owner menu: Unassigned, this event's role holders (labelled with their
+ * role), everyone else the tool knows, and "Someone else…" to type a new name.
+ * A plain list, not a text box with suggestions: those only suggest names
+ * matching what's already typed, so a filled-in owner hid everyone else.
+ */
+function OwnerPicker({ task, owners, onPick }: { task: TaskRow; owners: OwnerChoices; onPick: (owner: string) => void }) {
+  const [typing, setTyping] = useState(false);
+  const current = task.owner === "Unassigned" ? "" : task.owner;
+  const holders = (task.eventId ? (owners.eventRoles[task.eventId] ?? []) : []).filter((r) => r.person.trim() !== "");
+  const holderNames = new Set(holders.map((h) => h.person));
+  const others = owners.people.filter((p) => !holderNames.has(p));
+  const known = current === "" || holderNames.has(current) || others.includes(current);
+
+  if (typing) {
+    return (
+      <input
+        className={styles.cellInput}
+        autoFocus
+        placeholder="Type a name"
+        aria-label={`New owner of "${task.title}"`}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setTyping(false);
+        }}
+        onBlur={(e) => {
+          const name = e.target.value.trim();
+          setTyping(false);
+          if (name !== "") onPick(name);
+        }}
+      />
+    );
+  }
+
+  return (
+    <select
+      className={styles.select}
+      value={current}
+      aria-label={`Owner of "${task.title}"`}
+      onChange={(e) => (e.target.value === SOMEONE_ELSE ? setTyping(true) : onPick(e.target.value))}
+    >
+      <option value="">Unassigned</option>
+      {!known && <option value={current}>{current}</option>}
+      {holders.length > 0 && (
+        <optgroup label="This event">
+          {holders.map((h) => (
+            <option key={`${h.role}:${h.person}`} value={h.person}>
+              {h.person} ({h.role})
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {others.length > 0 && (
+        <optgroup label="Everyone">
+          {others.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      <option value={SOMEONE_ELSE}>Someone else…</option>
+    </select>
   );
 }

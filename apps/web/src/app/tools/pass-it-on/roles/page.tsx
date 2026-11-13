@@ -2,10 +2,11 @@
 // much, and the club's default for each lead role. Past events are behind a link.
 
 import Link from "next/link";
-import { ROLE_SLOTS, listRoleAssignments, listRoleDefaults, listTasks, type RoleSlot } from "@penntools/tool-pass-it-on";
+import { ROLE_SLOTS, listMembers, listRoleAssignments, listRoleDefaults, listTasks, syncMembers, type RoleSlot } from "@penntools/tool-pass-it-on";
 import { db } from "../db";
 import styles from "../PassItOn.module.css";
 import { today as todayInPhilly } from "../today";
+import { PeopleEditor, type PersonRow } from "./PeopleEditor";
 import { RoleDefaultsForm, RolesGrid } from "./RolesGrid";
 
 const LEAD_ROLES: RoleSlot[] = ["Ops Lead", "Marketing Lead", "Finance Lead", "Entertainment Lead"];
@@ -20,11 +21,14 @@ export default async function RolesPage({ searchParams }: { searchParams: Record
   const showPast = first(searchParams["past"]) === "1";
   const today = todayInPhilly();
 
-  const [assignments, upcoming, defaults, openTasks] = await Promise.all([
+  // Names used since the list was last filled (and the club's default leads) join it before it's shown.
+  await syncMembers(db());
+  const [assignments, upcoming, defaults, openTasks, members] = await Promise.all([
     listRoleAssignments(db(), showPast ? {} : { from: today }),
     listRoleAssignments(db(), { from: today }),
     listRoleDefaults(db()),
     listTasks(db(), { statuses: ["todo", "doing", "blocked"] }),
+    listMembers(db()),
   ]);
 
   const defaultOf: Record<string, string> = {};
@@ -51,6 +55,14 @@ export default async function RolesPage({ searchParams }: { searchParams: Record
   }
   for (const t of openTasks) for (const name of names(t.owner)) entry(name).tasks += 1;
   const people = [...load.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const personRows: PersonRow[] = members.map((m) => ({
+    id: m.id,
+    name: m.name,
+    active: m.active,
+    events: load.get(m.name)?.events.size ?? 0,
+    tasks: load.get(m.name)?.tasks ?? 0,
+  }));
+  const activeNames = members.filter((m) => m.active).map((m) => m.name);
 
   const defaultRows = LEAD_ROLES.map((role) => {
     const d = defaults.find((x) => x.role === role);
@@ -76,7 +88,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Record
         {rows.length === 0 ? (
           <p className={styles.muted}>No upcoming events.</p>
         ) : (
-          <RolesGrid rows={rows} roles={[...ROLE_SLOTS]} defaults={defaultOf} />
+          <RolesGrid rows={rows} roles={[...ROLE_SLOTS]} defaults={defaultOf} people={activeNames} />
         )}
       </section>
 
@@ -108,6 +120,14 @@ export default async function RolesPage({ searchParams }: { searchParams: Record
             </table>
           </div>
         )}
+      </section>
+
+      <section className={styles.card}>
+        <h2 className={styles.heading}>People</h2>
+        <p className={styles.muted}>
+          The names offered in every drop-down. Renaming fixes the name wherever it's used (renaming onto an existing name merges the two). Hiding takes someone out of the drop-downs but leaves the roles and tasks they already have.
+        </p>
+        <PeopleEditor people={personRows} />
       </section>
 
       <section className={styles.card}>

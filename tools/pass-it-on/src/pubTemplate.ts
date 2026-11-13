@@ -150,16 +150,29 @@ function toItem(spec: Spec, index: number, defaultRole: string | null = null): T
   };
 }
 
-/** Template version 2's role for an item: an explicit one, else by area and phase. */
-function roleOf(spec: Spec): string {
-  if (spec.role) return spec.role;
-  switch (spec.area) {
+/** Items that go to the Prez Owner rather than by area and phase. */
+const PREZ_ITEMS = new Set(["partnerships", "membership-specials"]);
+
+/**
+ * The role that owns a template item, by the version 2 rule: marketing, finance
+ * and entertainment go to their leads, pre-event operations to the Ops Lead,
+ * partnership and membership decisions to the Prez Owner, everything else to
+ * Pub Leader 1. A per-club key ("collab-rider:ski-club") is read by its item key.
+ */
+export function roleForItem(item: { key: string; area: Area; phase: Phase }): string {
+  if (PREZ_ITEMS.has(item.key.split(":")[0]!)) return "Prez Owner";
+  switch (item.area) {
     case "marketing": return "Marketing Lead";
     case "finance": return "Finance Lead";
     case "entertainment": return "Entertainment Lead";
-    case "operations": return spec.phase === "pre" ? "Ops Lead" : "Pub Leader 1";
+    case "operations": return item.phase === "pre" ? "Ops Lead" : "Pub Leader 1";
     default: return "Pub Leader 1";
   }
+}
+
+/** Template version 2's role for an item: an explicit one, else the rule above. */
+function roleOf(spec: Spec): string {
+  return spec.role ?? roleForItem(spec);
 }
 
 /** Version 1 of the Pub template, with its modules and the one known issue. */
@@ -182,13 +195,12 @@ export const PUB_TEMPLATE_V1: PubTemplate = {
 
 // Version 2: every item has a role, the Singles module became "Non-Wharton
 // schools" and the International one is gone.
-const PREZ_ITEMS = new Set(["partnerships", "membership-specials"]);
 const SPECS_V2: Spec[] = SPECS.filter((spec) => spec.moduleKey !== "international").map((spec) => {
   const moved: Spec =
     spec.moduleKey === "singles"
       ? { ...spec, key: spec.key.replace(/^singles-/, "nonwharton-"), moduleKey: "non-wharton" }
       : spec;
-  return PREZ_ITEMS.has(spec.key) ? { ...moved, role: "Prez Owner" } : moved;
+  return moved;
 });
 
 /** Version 2 of the Pub template: roles on every item, Non-Wharton schools instead of Singles and International. */

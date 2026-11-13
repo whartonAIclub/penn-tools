@@ -6,6 +6,8 @@
 import type { Sql } from "postgres";
 import { DEFAULT_EVENT_TYPE, UUID_RE, leaderOf } from "./planning.js";
 import type { RoleInput } from "./planning.js";
+import { roleForItem } from "./pubTemplate.js";
+import type { Area, Phase } from "./checklist.js";
 
 export const ROLE_SLOTS = [
   "CoS Owner",
@@ -283,5 +285,29 @@ export async function listRoleAssignments(sql: Sql, options: { from?: string } =
       if ((ROLE_SLOTS as readonly string[]).includes(r.role)) roles[r.role as RoleSlot] = r.person?.trim() || null;
     }
     return { eventId: e.id, title: e.title, eventDate: e.event_date, cancelled: e.cancelled, roles, openTasks: e.open_tasks };
+  });
+}
+
+/**
+ * One-off repair for tasks generated before roles existed: each open template
+ * task with no role link gets the role the template rule gives it (see
+ * `roleForItem`), then every role-linked owner is re-resolved. Done and skipped
+ * tasks and hand-made to-dos are left alone. Safe to run again: a task linked
+ * once has a role, so it isn't picked up twice. Note that a task someone
+ * reassigned by hand also has no role link, so this takes it over too.
+ */
+export async function linkUnlinkedTasksToRoles(sql: Sql): Promise<{ linked: number; reowned: number }> {
+  return sql.begin(async (transaction) => {
+    const tx = transaction as unknown as Sql;
+    const rows = await tx<{ id: string; key: string; area: Area; phase: Phase }[]>`
+      SELECT id::text, template_item_key AS key, area, phase FROM tasks
+      WHERE owner_role IS NULL AND template_item_key IS NOT NULL AND event_id IS NOT NULL
+        AND area IS NOT NULL AND phase IS NOT NULL AND status NOT IN ('done', 'skipped')
+      FOR UPDATE`;
+    for (const row of rows) {
+      await tx`UPDATE tasks SET owner_role = ${roleForItem(row)} WHERE id = ${row.id}`;
+    }
+    const reowned = rows.length > 0 ? await reassignRoleOwners(tx, null) : 0;
+    return { linked: rows.length, reowned };
   });
 }

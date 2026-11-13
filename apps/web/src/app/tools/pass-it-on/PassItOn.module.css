@@ -519,7 +519,8 @@
   padding: 0;
 }
 
-.checkLabel {
+/* The checklist table's 44px click target (not .checkLabel, which the event page's module list uses). */
+.checkHit {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -649,4 +650,10 @@
 .rolesTable {
   border-collapse: separate;
   border-spacing: 0;
+}
+
+.personActions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
 }

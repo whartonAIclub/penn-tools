@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import { ROLE_SLOTS, canonicalRole, normalizeRoles, isPubLeaderRole, resolveOwner, setRoleDefault, setEventRole, listRoleAssignments } from "../roles.js";
+import { ROLE_SLOTS, linkUnlinkedTasksToRoles, listRoleDefaults, canonicalRole, normalizeRoles, isPubLeaderRole, resolveOwner, setRoleDefault, setEventRole, listRoleAssignments } from "../roles.js";
 import type { RoleDefault } from "../roles.js";
 import { createPlannedEvent, updatePlannedEvent, getPlannedEvent } from "../planning.js";
 import type { PlannedEventInput } from "../planning.js";
@@ -270,5 +270,36 @@ describe.skipIf(!databaseUrl)("role owners in the database", () => {
       owner: "Stale", ownerRole: "Ops Lead", isPostmortem: false, notes: null, timeHint: null, partner: null, source: "template", confirmed: false,
     }]);
     expect((await task(id, "stale")).owner).toBe("Ivana");
+  });
+
+  it("links open tasks from before roles existed to their role, and re-owns them", async () => {
+    const id = await createPlannedEvent(sql, input({ title: "Legacy", roles: [{ role: "Pub Leader 1", person: "Diva" }, { role: "Ops Lead", person: "Ivana" }, { role: "CoS Owner", person: "Cam" }] }), "u");
+    const legacy = (key: string, area: string, phase: string, status = "todo", source = "template") => sql`
+      INSERT INTO tasks (event_id, template_item_key, title, phase, area, offset_days, owner, status, source)
+      VALUES (${id}, ${key}, ${key}, ${phase}, ${area}, -7, 'Diva', ${status}, ${source})`;
+    await legacy("food-order", "operations", "pre");
+    await legacy("flyer", "marketing", "pre");
+    await legacy("confirm-food", "operations", "day_of");
+    await legacy("collab-rider:ski-club", "partners", "pre");
+    await legacy("partnerships", "general", "pre");
+    await legacy("budget", "finance", "pre", "done");
+    await sql`INSERT INTO tasks (event_id, title, owner, offset_days, source) VALUES (${id}, 'hand-made', 'Sam', -1, 'manual')`;
+
+    const result = await linkUnlinkedTasksToRoles(sql);
+    expect(result.linked).toBeGreaterThanOrEqual(5); // earlier tests in this schema leave unlinked tasks too
+
+    const all = await listTasks(sql, { eventIds: [id] });
+    const of = (key: string) => all.find((t) => t.templateItemKey === key)!;
+    expect(of("food-order")).toMatchObject({ owner: "Ivana", ownerRole: "Ops Lead" });
+    const marketingDefault = (await listRoleDefaults(sql)).find((d) => d.role === "Marketing Lead")!.person; // an earlier test changes it
+    expect(of("flyer")).toMatchObject({ owner: marketingDefault, ownerRole: "Marketing Lead" });
+    expect(of("confirm-food")).toMatchObject({ owner: "Diva", ownerRole: "Pub Leader 1" });
+    expect(of("collab-rider:ski-club")).toMatchObject({ owner: "Diva", ownerRole: "Pub Leader 1" });
+    expect(of("partnerships")).toMatchObject({ owner: "Cam", ownerRole: "Prez Owner" }); // no Prez Owner: CoS stands in
+    expect(of("budget")).toMatchObject({ owner: "Diva", ownerRole: null }); // done: untouched
+    expect(all.find((t) => t.title === "hand-made")).toMatchObject({ owner: "Sam", ownerRole: null });
+
+    // Running again finds nothing left to link.
+    expect((await linkUnlinkedTasksToRoles(sql)).linked).toBe(0);
   });
 });

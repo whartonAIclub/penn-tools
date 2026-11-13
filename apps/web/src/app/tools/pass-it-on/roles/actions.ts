@@ -3,7 +3,7 @@
 // Server actions for the Roles tab. Each checks the signed-in user and the
 // browser's input, and returns problems as data, like ../actions.ts.
 
-import { MAX_FIELD_LENGTH, ROLE_SLOTS, databaseProblem, databaseProblemMessage, setEventRole, setRoleDefault, syncMembers, type RoleSlot } from "@penntools/tool-pass-it-on";
+import { MAX_FIELD_LENGTH, ROLE_SLOTS, addMember, databaseProblem, databaseProblemMessage, renameMember, setEventRole, setMemberActive, setRoleDefault, syncMembers, type RoleSlot } from "@penntools/tool-pass-it-on";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "../db";
 import type { ActionResult } from "../actions";
@@ -56,4 +56,33 @@ export async function setRoleDefaultAction(role: string, person: string, alterna
     await syncMembers(db());
     return { ok: true, data: null };
   });
+}
+
+const personId = (id: unknown): id is number => typeof id === "number" && Number.isSafeInteger(id) && id > 0;
+
+/** Adds someone to the people list (or shows them again if they were hidden). */
+export async function addPersonAction(name: string): Promise<ActionResult<null>> {
+  if (!(await getCurrentUser())) return signedOut;
+  return run(async () => {
+    const id = await addMember(db(), clean(name));
+    await setMemberActive(db(), id, true);
+    return { ok: true, data: null };
+  });
+}
+
+/** Renames someone everywhere their exact name is used; onto an existing name, the two are merged. */
+export async function renamePersonAction(id: number, name: string): Promise<ActionResult<{ merged: boolean }>> {
+  if (!(await getCurrentUser())) return signedOut;
+  if (!personId(id)) return fail("That person is no longer on the list.");
+  return run(async () => {
+    const result = await renameMember(db(), id, clean(name));
+    return result ? { ok: true, data: { merged: result.merged } } : fail("That person is no longer on the list.");
+  });
+}
+
+/** Hides someone from every drop-down (they keep any roles and tasks they already have), or shows them again. */
+export async function setPersonHiddenAction(id: number, hidden: boolean): Promise<ActionResult<null>> {
+  if (!(await getCurrentUser())) return signedOut;
+  if (!personId(id) || typeof hidden !== "boolean") return fail("That person is no longer on the list.");
+  return run(async () => ((await setMemberActive(db(), id, !hidden)) ? { ok: true, data: null } : fail("That person is no longer on the list.")));
 }

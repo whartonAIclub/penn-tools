@@ -1,0 +1,2760 @@
+- generic [active] [ref=f39e1]:
+  - banner [ref=f39e2]:
+    - generic [ref=f39e3]:
+      - button "Hide tools" [expanded] [ref=f39e4] [cursor=pointer]
+      - link "PennTools" [ref=f39e7] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f39e8]:
+        - generic [aria-hidden] [ref=f39e9]: /
+        - link "Pass It On" [ref=f39e10] [cursor=pointer]:
+          - /url: /tools/pass-it-on
+        - button "Tool information" [ref=f39e12] [cursor=pointer]
+    - generic [ref=f39e15]:
+      - link "PennTools on GitHub" [ref=f39e16] [cursor=pointer]:
+        - /url: https://github.com/whartonAIclub/penn-tools
+        - generic [ref=f39e19]: GitHub
+      - link "Account settings" [ref=f39e20] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=f39e21]: L
+      - button "Log out" [ref=f39e22] [cursor=pointer]
+  - generic [ref=f39e23]:
+    - navigation "Tools" [ref=f39e24]:
+      - link "Dashboard" [ref=f39e25] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f39e27]:
+        - button "Recruiting" [expanded] [ref=f39e28] [cursor=pointer]
+        - list [ref=f39e33]:
+          - listitem [ref=f39e34]:
+            - link "MBA Tech Internships" [ref=f39e35] [cursor=pointer]:
+              - /url: https://github.com/TrevorDohm/MBA-Tech-Internships-2027
+          - listitem [ref=f39e40]:
+            - link "PM Zero to One" [ref=f39e41] [cursor=pointer]:
+              - /url: https://pmzerotoone.netlify.app/
+      - generic [ref=f39e46]:
+        - button "Academics" [expanded] [ref=f39e47] [cursor=pointer]
+        - list [ref=f39e52]:
+          - listitem [ref=f39e53]:
+            - link "QuakerCal" [ref=f39e54] [cursor=pointer]:
+              - /url: https://quakercal.vercel.app/
+          - listitem [ref=f39e59]:
+            - link "ROIC Tree Generator" [ref=f39e60] [cursor=pointer]:
+              - /url: https://roic-tree-generator.vercel.app/
+      - generic [ref=f39e65]:
+        - button "Productivity" [expanded] [ref=f39e66] [cursor=pointer]
+        - list [ref=f39e71]:
+          - listitem [ref=f39e72]:
+            - link "Defluffer" [ref=f39e73] [cursor=pointer]:
+              - /url: https://itayzit.github.io/defluffer/
+          - listitem [ref=f39e78]:
+            - link "ThankYouGPT" [ref=f39e79] [cursor=pointer]:
+              - /url: https://thank-you-gpt.com
+          - listitem [ref=f39e84]:
+            - link "StacTab" [ref=f39e85] [cursor=pointer]:
+              - /url: https://chromewebstore.google.com/detail/stactab/hdfcdcoogjkdogmnhhopkekanpldoefh
+          - listitem [ref=f39e90]:
+            - link "AI Compass" [ref=f39e91] [cursor=pointer]:
+              - /url: https://akshitkalra.com/aicompass
+          - listitem [ref=f39e96]:
+            - link "Pass It On BETA" [ref=f39e97] [cursor=pointer]:
+              - /url: /tools/pass-it-on
+              - generic [ref=f39e98]: Pass It On
+              - generic [ref=f39e99]: BETA
+      - generic [ref=f39e100]:
+        - button "LLM Tools BETA" [expanded] [ref=f39e101] [cursor=pointer]:
+          - generic [ref=f39e102]: LLM Tools
+          - generic [ref=f39e103]: BETA
+        - list [ref=f39e107]:
+          - listitem [ref=f39e108]:
+            - link "Resume Customizer" [ref=f39e109] [cursor=pointer]:
+              - /url: /tools/resume-customizer
+          - listitem [ref=f39e111]:
+            - link "Career Canvas" [ref=f39e112] [cursor=pointer]:
+              - /url: /tools/career-canvas
+          - listitem [ref=f39e114]:
+            - link "Penn Planner" [ref=f39e115] [cursor=pointer]:
+              - /url: /tools/penn-planner
+          - listitem [ref=f39e117]:
+            - link "CourseMatch Assist" [ref=f39e118] [cursor=pointer]:
+              - /url: /tools/coursematch-assist
+          - listitem [ref=f39e120]:
+            - link "PitchCoach AI" [ref=f39e121] [cursor=pointer]:
+              - /url: /tools/pitch-coach
+      - generic [ref=f39e123]:
+        - button "Platform" [expanded] [ref=f39e124] [cursor=pointer]
+        - list [ref=f39e129]:
+          - listitem [ref=f39e130]:
+            - link "Platform Playground" [ref=f39e131] [cursor=pointer]:
+              - /url: /tools/platform-playground
+          - listitem [ref=f39e133]:
+            - link "AskPenn BETA" [ref=f39e134] [cursor=pointer]:
+              - /url: /tools/askpenn
+              - generic [ref=f39e135]: AskPenn
+              - generic [ref=f39e136]: BETA
+    - main [ref=f39e140]:
+      - generic [ref=f39e141]:
+        - heading "Pass It On" [level=1] [ref=f39e142]
+        - navigation "Pass It On" [ref=f39e143]:
+          - link "Events" [ref=f39e144] [cursor=pointer]:
+            - /url: /tools/pass-it-on
+          - link "Roles" [ref=f39e145] [cursor=pointer]:
+            - /url: /tools/pass-it-on/roles
+          - link "Checklist" [ref=f39e146] [cursor=pointer]:
+            - /url: /tools/pass-it-on/board
+          - link "Calendar" [ref=f39e147] [cursor=pointer]:
+            - /url: /tools/pass-it-on/calendar
+          - link "Template" [ref=f39e148] [cursor=pointer]:
+            - /url: /tools/pass-it-on/template
+          - link "Library" [ref=f39e149] [cursor=pointer]:
+            - /url: /tools/pass-it-on/library
+          - link "Ask" [ref=f39e150] [cursor=pointer]:
+            - /url: /tools/pass-it-on/ask
+        - generic [ref=f39e151]:
+          - generic [ref=f39e152]:
+            - text: Event
+            - combobox "Event" [ref=f39e153]:
+              - option "All events"
+              - option "Ongoing to-dos"
+              - option "Pre-Term Pub (2026-08-14)"
+              - option "Free Pub (2026-08-25)"
+              - option "Sports Pub (2026-09-10)"
+              - option "AMERICA 250 (2026-09-17)"
+              - option "Oktoberfest (2026-09-24)"
+              - option "International Pub (2026-10-22)"
+              - option "Big Gay Halloween (2026-10-29)"
+              - option "Single's Pub (2026-11-05)"
+              - option "Chili Cook Off (2026-11-12)" [selected]
+              - option "Baguettes Beer and Bangers - Euroski Reunion (2027-01-21)"
+              - option "Allow me to re-introduce myself (2027-01-28)"
+              - option "Beer Pong x Kid's Club (2027-02-04)"
+              - option "Black History Month (2027-02-11)"
+              - option "Follies Pub (2027-02-18)"
+              - option "St Paddy's Singles (2027-03-18)"
+              - option "TBD (2027-03-25)"
+              - option "Fight Night Weigh In (2027-04-01)"
+              - option "Hockey Playoffs (2027-04-08)"
+              - option "BoTB Preview (2027-04-15)"
+              - option "Green Pub (2027-04-22)"
+              - option "Grad Pub (2027-05-20)"
+          - generic [ref=f39e154]:
+            - text: Owner
+            - combobox "Owner" [ref=f39e155]
+          - generic [ref=f39e156]:
+            - text: Due
+            - combobox "Due" [ref=f39e157]:
+              - option "Any date" [selected]
+              - option "Overdue"
+              - option "Next 7 days"
+              - option "Next 14 days"
+          - generic [ref=f39e159]:
+            - checkbox "Show done" [checked] [ref=f39e160]
+            - text: Show done
+          - button "Filter" [ref=f39e161] [cursor=pointer]
+          - link "Clear" [ref=f39e162] [cursor=pointer]:
+            - /url: /tools/pass-it-on/board
+        - region "Chili Cook Off" [ref=f39e163]:
+          - generic [ref=f39e164]:
+            - heading [level=2] [ref=f39e165]:
+              - link "Chili Cook Off" [ref=f39e166] [cursor=pointer]:
+                - /url: /tools/pass-it-on/events/0ad8cc6b-20ef-4d2a-959f-24d41d21cb63
+            - generic [ref=f39e167]: 2026-11-12 · 53 of 61 done
+            - 'progressbar "Chili Cook Off: 53 of 61 tasks done" [ref=f39e168]'
+          - table [ref=f39e169]:
+            - rowgroup [ref=f39e170]:
+              - row [ref=f39e171]:
+                - columnheader "Done" [ref=f39e172]: ✓
+                - columnheader "Task" [ref=f39e174]
+                - columnheader "Due" [ref=f39e175]
+                - columnheader "Owner" [ref=f39e176]
+                - columnheader "Status" [ref=f39e177]
+            - rowgroup [ref=f39e178]:
+              - row [ref=f39e179]:
+                - columnheader "Planning" [ref=f39e180]
+              - row [ref=f39e181]:
+                - cell [ref=f39e182]:
+                  - 'checkbox "Mark \"Food Club: remind about the signed Club Collab Rider\" done" [checked] [ref=f39e184] [cursor=pointer]'
+                - 'cell "Food Club: remind about the signed Club Collab Rider Assumed: confirm · Food Club" [ref=f39e185]':
+                  - generic [ref=f39e186]: "Food Club: remind about the signed Club Collab Rider"
+                  - generic [ref=f39e187]: "Assumed: confirm · Food Club"
+                - cell [ref=f39e188]:
+                  - time [ref=f39e189]: Oct 22
+                - cell "Diva (Pub Leader 1)" [ref=f39e190]:
+                  - 'combobox "Owner of \"Food Club: remind about the signed Club Collab Rider\"" [ref=f39e191]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e192]:
+                  - 'combobox "Status of \"Food Club: remind about the signed Club Collab Rider\"" [ref=f39e193]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e194]:
+                - cell [ref=f39e195]:
+                  - 'checkbox "Mark \"Ski Club: remind about the signed Club Collab Rider\" done" [checked] [ref=f39e197] [cursor=pointer]'
+                - 'cell "Ski Club: remind about the signed Club Collab Rider Assumed: confirm · Ski Club" [ref=f39e198]':
+                  - generic [ref=f39e199]: "Ski Club: remind about the signed Club Collab Rider"
+                  - generic [ref=f39e200]: "Assumed: confirm · Ski Club"
+                - cell [ref=f39e201]:
+                  - time [ref=f39e202]: Oct 22
+                - cell "Diva (Pub Leader 1)" [ref=f39e203]:
+                  - 'combobox "Owner of \"Ski Club: remind about the signed Club Collab Rider\"" [ref=f39e204]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e205]:
+                  - 'combobox "Status of \"Ski Club: remind about the signed Club Collab Rider\"" [ref=f39e206]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e207]:
+                - cell [ref=f39e208]:
+                  - checkbox "Mark \"Make a group chat with the Presidents and CFO\" done" [checked] [ref=f39e210] [cursor=pointer]
+                - 'cell "Make a group chat with the Presidents and CFO Assumed: confirm" [ref=f39e211]':
+                  - generic [ref=f39e212]: Make a group chat with the Presidents and CFO
+                  - generic [ref=f39e213]: "Assumed: confirm"
+                - cell [ref=f39e214]:
+                  - time [ref=f39e215]: Oct 29
+                - cell "Diva (Pub Leader 1)" [ref=f39e216]:
+                  - combobox "Owner of \"Make a group chat with the Presidents and CFO\"" [ref=f39e217]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e218]:
+                  - combobox "Status of \"Make a group chat with the Presidents and CFO\"" [ref=f39e219]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e220]:
+                - cell [ref=f39e221]:
+                  - checkbox "Mark \"Create the event folder and planning doc\" done" [checked] [ref=f39e223] [cursor=pointer]
+                - cell "Create the event folder and planning doc" [ref=f39e224]
+                - cell [ref=f39e226]:
+                  - time [ref=f39e227]: Oct 29
+                - cell "Diva (Pub Leader 1)" [ref=f39e228]:
+                  - combobox "Owner of \"Create the event folder and planning doc\"" [ref=f39e229]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e230]:
+                  - combobox "Status of \"Create the event folder and planning doc\"" [ref=f39e231]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e232]:
+                - cell [ref=f39e233]:
+                  - checkbox "Mark \"Get deadlines approved by the Chief of Staff and a Co-President\" done" [checked] [ref=f39e235] [cursor=pointer]
+                - cell "Get deadlines approved by the Chief of Staff and a Co-President" [ref=f39e236]
+                - cell [ref=f39e238]:
+                  - time [ref=f39e239]: Oct 29
+                - cell "Diva (Pub Leader 1)" [ref=f39e240]:
+                  - combobox "Owner of \"Get deadlines approved by the Chief of Staff and a Co-President\"" [ref=f39e241]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e242]:
+                  - combobox "Status of \"Get deadlines approved by the Chief of Staff and a Co-President\"" [ref=f39e243]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e244]:
+                - cell [ref=f39e245]:
+                  - checkbox "Mark \"Official event flyer, and post to Instagram\" done" [checked] [ref=f39e247] [cursor=pointer]
+                - cell "Official event flyer, and post to Instagram" [ref=f39e248]
+                - cell [ref=f39e250]:
+                  - time [ref=f39e251]: Oct 29
+                - cell "Diva (Pub Leader 1)" [ref=f39e252]:
+                  - combobox "Owner of \"Official event flyer, and post to Instagram\"" [ref=f39e253]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e254]:
+                  - combobox "Status of \"Official event flyer, and post to Instagram\"" [ref=f39e255]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e256]:
+                - cell [ref=f39e257]:
+                  - checkbox "Mark \"Send the flyer and blurb to Ops for CampusGroups\" done" [checked] [ref=f39e259] [cursor=pointer]
+                - cell "Send the flyer and blurb to Ops for CampusGroups" [ref=f39e260]
+                - cell [ref=f39e262]:
+                  - time [ref=f39e263]: Oct 29
+                - cell "Diva (Pub Leader 1)" [ref=f39e264]:
+                  - combobox "Owner of \"Send the flyer and blurb to Ops for CampusGroups\"" [ref=f39e265]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e266]:
+                  - combobox "Status of \"Send the flyer and blurb to Ops for CampusGroups\"" [ref=f39e267]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e268]:
+                - cell [ref=f39e269]:
+                  - 'checkbox "Mark \"Food Club: signed Club Collab Rider and written confirmation on file\" done" [checked] [ref=f39e271] [cursor=pointer]'
+                - 'cell "Food Club: signed Club Collab Rider and written confirmation on file Food Club" [ref=f39e272]':
+                  - generic [ref=f39e273]: "Food Club: signed Club Collab Rider and written confirmation on file"
+                  - generic [ref=f39e274]: Food Club
+                - cell [ref=f39e275]:
+                  - time [ref=f39e276]: Oct 29
+                - cell "Diva (Pub Leader 1)" [ref=f39e277]:
+                  - 'combobox "Owner of \"Food Club: signed Club Collab Rider and written confirmation on file\"" [ref=f39e278]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e279]:
+                  - 'combobox "Status of \"Food Club: signed Club Collab Rider and written confirmation on file\"" [ref=f39e280]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e281]:
+                - cell [ref=f39e282]:
+                  - 'checkbox "Mark \"Ski Club: signed Club Collab Rider and written confirmation on file\" done" [checked] [ref=f39e284] [cursor=pointer]'
+                - 'cell "Ski Club: signed Club Collab Rider and written confirmation on file Ski Club" [ref=f39e285]':
+                  - generic [ref=f39e286]: "Ski Club: signed Club Collab Rider and written confirmation on file"
+                  - generic [ref=f39e287]: Ski Club
+                - cell [ref=f39e288]:
+                  - time [ref=f39e289]: Oct 29
+                - cell "Diva (Pub Leader 1)" [ref=f39e290]:
+                  - 'combobox "Owner of \"Ski Club: signed Club Collab Rider and written confirmation on file\"" [ref=f39e291]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e292]:
+                  - 'combobox "Status of \"Ski Club: signed Club Collab Rider and written confirmation on file\"" [ref=f39e293]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e294]:
+                - cell [ref=f39e295]:
+                  - checkbox "Mark \"Submit venue and food fees for restricted-fund PO payment\" done" [checked] [ref=f39e297] [cursor=pointer]
+                - cell "Submit venue and food fees for restricted-fund PO payment" [ref=f39e298]
+                - cell [ref=f39e300]:
+                  - time [ref=f39e301]: Nov 2
+                - cell "Diva (Pub Leader 1)" [ref=f39e302]:
+                  - combobox "Owner of \"Submit venue and food fees for restricted-fund PO payment\"" [ref=f39e303]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e304]:
+                  - combobox "Status of \"Submit venue and food fees for restricted-fund PO payment\"" [ref=f39e305]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e306]:
+                - cell [ref=f39e307]:
+                  - checkbox "Mark \"Decide on membership specials, if any\" done" [checked] [ref=f39e309] [cursor=pointer]
+                - cell "Decide on membership specials, if any" [ref=f39e310]
+                - cell [ref=f39e312]:
+                  - time [ref=f39e313]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e314]:
+                  - combobox "Owner of \"Decide on membership specials, if any\"" [ref=f39e315]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e316]:
+                  - combobox "Status of \"Decide on membership specials, if any\"" [ref=f39e317]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e318]:
+                - cell [ref=f39e319]:
+                  - checkbox "Mark \"Finalize the event budget\" done" [checked] [ref=f39e321] [cursor=pointer]
+                - cell "Finalize the event budget Budget changes over $1,500 need a majority of the Co-Presidents (bylaws 4.2)" [ref=f39e322]:
+                  - generic [ref=f39e323]: Finalize the event budget
+                  - generic [ref=f39e324]: Budget changes over $1,500 need a majority of the Co-Presidents (bylaws 4.2)
+                - cell [ref=f39e325]:
+                  - time [ref=f39e326]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e327]:
+                  - combobox "Owner of \"Finalize the event budget\"" [ref=f39e328]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e329]:
+                  - combobox "Status of \"Finalize the event budget\"" [ref=f39e330]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e331]:
+                - cell [ref=f39e332]:
+                  - checkbox "Mark \"Make and distribute the Partiful\" done" [checked] [ref=f39e334] [cursor=pointer]
+                - cell "Make and distribute the Partiful At the latest" [ref=f39e335]:
+                  - generic [ref=f39e336]: Make and distribute the Partiful
+                  - generic [ref=f39e337]: At the latest
+                - cell [ref=f39e338]:
+                  - time [ref=f39e339]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e340]:
+                  - combobox "Owner of \"Make and distribute the Partiful\"" [ref=f39e341]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e342]:
+                  - combobox "Status of \"Make and distribute the Partiful\"" [ref=f39e343]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e344]:
+                - cell [ref=f39e345]:
+                  - checkbox "Mark \"Publish the event on CampusGroups\" done" [checked] [ref=f39e347] [cursor=pointer]
+                - cell "Publish the event on CampusGroups At the latest" [ref=f39e348]:
+                  - generic [ref=f39e349]: Publish the event on CampusGroups
+                  - generic [ref=f39e350]: At the latest
+                - cell [ref=f39e351]:
+                  - time [ref=f39e352]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e353]:
+                  - combobox "Owner of \"Publish the event on CampusGroups\"" [ref=f39e354]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e355]:
+                  - combobox "Status of \"Publish the event on CampusGroups\"" [ref=f39e356]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e357]:
+                - cell [ref=f39e358]:
+                  - checkbox "Mark \"Place the food order\" done" [checked] [ref=f39e360] [cursor=pointer]
+                - cell "Place the food order" [ref=f39e361]
+                - cell [ref=f39e363]:
+                  - time [ref=f39e364]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e365]:
+                  - combobox "Owner of \"Place the food order\"" [ref=f39e366]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e367]:
+                  - combobox "Status of \"Place the food order\"" [ref=f39e368]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e369]:
+                - cell [ref=f39e370]:
+                  - checkbox "Mark \"Pizza\" done" [checked] [ref=f39e372] [cursor=pointer]
+                - cell "Pizza" [ref=f39e373]
+                - cell [ref=f39e375]:
+                  - time [ref=f39e376]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e377]:
+                  - combobox "Owner of \"Pizza\"" [ref=f39e378]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e379]:
+                  - combobox "Status of \"Pizza\"" [ref=f39e380]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e381]:
+                - cell [ref=f39e382]:
+                  - checkbox "Mark \"Non-pizza snacks\" done" [checked] [ref=f39e384] [cursor=pointer]
+                - 'cell "Non-pizza snacks Past order: chicken tenders; wings x2, 1 buffalo and 1 BBQ; veg quesadillas x2; cheesesteak spring rolls x2; pigs in a blanket x2; pretzel x1" [ref=f39e385]':
+                  - generic [ref=f39e386]: Non-pizza snacks
+                  - generic [ref=f39e387]: "Past order: chicken tenders; wings x2, 1 buffalo and 1 BBQ; veg quesadillas x2; cheesesteak spring rolls x2; pigs in a blanket x2; pretzel x1"
+                - cell [ref=f39e388]:
+                  - time [ref=f39e389]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e390]:
+                  - combobox "Owner of \"Non-pizza snacks\"" [ref=f39e391]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e392]:
+                  - combobox "Status of \"Non-pizza snacks\"" [ref=f39e393]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e394]:
+                - cell [ref=f39e395]:
+                  - checkbox "Mark \"Fill in the catering tracker for this event\" done" [checked] [ref=f39e397] [cursor=pointer]
+                - cell "Fill in the catering tracker for this event" [ref=f39e398]
+                - cell [ref=f39e400]:
+                  - time [ref=f39e401]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e402]:
+                  - combobox "Owner of \"Fill in the catering tracker for this event\"" [ref=f39e403]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e404]:
+                  - combobox "Status of \"Fill in the catering tracker for this event\"" [ref=f39e405]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e406]:
+                - cell [ref=f39e407]:
+                  - 'checkbox "Mark \"Food Club: confirm in writing what the club covers and up to what amount\" done" [checked] [ref=f39e409] [cursor=pointer]'
+                - 'cell "Food Club: confirm in writing what the club covers and up to what amount Food Club" [ref=f39e410]':
+                  - generic [ref=f39e411]: "Food Club: confirm in writing what the club covers and up to what amount"
+                  - generic [ref=f39e412]: Food Club
+                - cell [ref=f39e413]:
+                  - time [ref=f39e414]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e415]:
+                  - 'combobox "Owner of \"Food Club: confirm in writing what the club covers and up to what amount\"" [ref=f39e416]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e417]:
+                  - 'combobox "Status of \"Food Club: confirm in writing what the club covers and up to what amount\"" [ref=f39e418]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e419]:
+                - cell [ref=f39e420]:
+                  - 'checkbox "Mark \"Ski Club: confirm in writing what the club covers and up to what amount\" done" [checked] [ref=f39e422] [cursor=pointer]'
+                - 'cell "Ski Club: confirm in writing what the club covers and up to what amount Ski Club" [ref=f39e423]':
+                  - generic [ref=f39e424]: "Ski Club: confirm in writing what the club covers and up to what amount"
+                  - generic [ref=f39e425]: Ski Club
+                - cell [ref=f39e426]:
+                  - time [ref=f39e427]: Nov 5
+                - cell "Diva (Pub Leader 1)" [ref=f39e428]:
+                  - 'combobox "Owner of \"Ski Club: confirm in writing what the club covers and up to what amount\"" [ref=f39e429]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e430]:
+                  - 'combobox "Status of \"Ski Club: confirm in writing what the club covers and up to what amount\"" [ref=f39e431]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e432]:
+                - cell [ref=f39e433]:
+                  - checkbox "Mark \"WhatsApp message (Monday of event week)\" done" [checked] [ref=f39e435] [cursor=pointer]
+                - cell "WhatsApp message (Monday of event week)" [ref=f39e436]
+                - cell [ref=f39e438]:
+                  - time [ref=f39e439]: Nov 9
+                - cell "Diva (Pub Leader 1)" [ref=f39e440]:
+                  - combobox "Owner of \"WhatsApp message (Monday of event week)\"" [ref=f39e441]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e442]:
+                  - combobox "Status of \"WhatsApp message (Monday of event week)\"" [ref=f39e443]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e444]:
+                - cell [ref=f39e445]:
+                  - 'checkbox "Mark \"Food Club: get the club''s free-entry names (at most 2 complimentary board members)\" done" [checked] [ref=f39e447] [cursor=pointer]'
+                - 'cell "Food Club: get the club''s free-entry names (at most 2 complimentary board members) Food Club" [ref=f39e448]':
+                  - generic [ref=f39e449]: "Food Club: get the club's free-entry names (at most 2 complimentary board members)"
+                  - generic [ref=f39e450]: Food Club
+                - cell [ref=f39e451]:
+                  - time [ref=f39e452]: Nov 9
+                - cell "Diva (Pub Leader 1)" [ref=f39e453]:
+                  - 'combobox "Owner of \"Food Club: get the club''s free-entry names (at most 2 complimentary board members)\"" [ref=f39e454]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e455]:
+                  - 'combobox "Status of \"Food Club: get the club''s free-entry names (at most 2 complimentary board members)\"" [ref=f39e456]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e457]:
+                - cell [ref=f39e458]:
+                  - 'checkbox "Mark \"Ski Club: get the club''s free-entry names (at most 2 complimentary board members)\" done" [checked] [ref=f39e460] [cursor=pointer]'
+                - 'cell "Ski Club: get the club''s free-entry names (at most 2 complimentary board members) Ski Club" [ref=f39e461]':
+                  - generic [ref=f39e462]: "Ski Club: get the club's free-entry names (at most 2 complimentary board members)"
+                  - generic [ref=f39e463]: Ski Club
+                - cell [ref=f39e464]:
+                  - time [ref=f39e465]: Nov 9
+                - cell "Diva (Pub Leader 1)" [ref=f39e466]:
+                  - 'combobox "Owner of \"Ski Club: get the club''s free-entry names (at most 2 complimentary board members)\"" [ref=f39e467]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e468]:
+                  - 'combobox "Status of \"Ski Club: get the club''s free-entry names (at most 2 complimentary board members)\"" [ref=f39e469]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e470]:
+                - cell [ref=f39e471]:
+                  - checkbox "Mark \"Send the event email to members (get it reviewed first)\" done" [checked] [ref=f39e473] [cursor=pointer]
+                - cell "Send the event email to members (get it reviewed first)" [ref=f39e474]
+                - cell [ref=f39e476]:
+                  - time [ref=f39e477]: Nov 10
+                - cell "Diva (Pub Leader 1)" [ref=f39e478]:
+                  - combobox "Owner of \"Send the event email to members (get it reviewed first)\"" [ref=f39e479]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e480]:
+                  - combobox "Status of \"Send the event email to members (get it reviewed first)\"" [ref=f39e481]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e482]:
+                - cell [ref=f39e483]:
+                  - checkbox "Mark \"Remind the board about tabling and the setup call time\" done" [checked] [ref=f39e485] [cursor=pointer]
+                - cell "Remind the board about tabling and the setup call time" [ref=f39e486]
+                - cell [ref=f39e488]:
+                  - time [ref=f39e489]: Nov 10
+                - cell "Diva (Pub Leader 1)" [ref=f39e490]:
+                  - combobox "Owner of \"Remind the board about tabling and the setup call time\"" [ref=f39e491]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e492]:
+                  - combobox "Status of \"Remind the board about tabling and the setup call time\"" [ref=f39e493]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e494]:
+                - cell [ref=f39e495]:
+                  - 'checkbox "Mark \"Food Club: upload members to CampusGroups with free tickets\" done" [checked] [ref=f39e497] [cursor=pointer]'
+                - 'cell "Food Club: upload members to CampusGroups with free tickets Food Club" [ref=f39e498]':
+                  - generic [ref=f39e499]: "Food Club: upload members to CampusGroups with free tickets"
+                  - generic [ref=f39e500]: Food Club
+                - cell [ref=f39e501]:
+                  - time [ref=f39e502]: Nov 10
+                - cell "Diva (Pub Leader 1)" [ref=f39e503]:
+                  - 'combobox "Owner of \"Food Club: upload members to CampusGroups with free tickets\"" [ref=f39e504]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e505]:
+                  - 'combobox "Status of \"Food Club: upload members to CampusGroups with free tickets\"" [ref=f39e506]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e507]:
+                - cell [ref=f39e508]:
+                  - 'checkbox "Mark \"Ski Club: upload members to CampusGroups with free tickets\" done" [checked] [ref=f39e510] [cursor=pointer]'
+                - 'cell "Ski Club: upload members to CampusGroups with free tickets Ski Club" [ref=f39e511]':
+                  - generic [ref=f39e512]: "Ski Club: upload members to CampusGroups with free tickets"
+                  - generic [ref=f39e513]: Ski Club
+                - cell [ref=f39e514]:
+                  - time [ref=f39e515]: Nov 10
+                - cell "Diva (Pub Leader 1)" [ref=f39e516]:
+                  - 'combobox "Owner of \"Ski Club: upload members to CampusGroups with free tickets\"" [ref=f39e517]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e518]:
+                  - 'combobox "Status of \"Ski Club: upload members to CampusGroups with free tickets\"" [ref=f39e519]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e520]:
+                - cell [ref=f39e521]:
+                  - checkbox "Mark \"Pack merch, wristbands, laptop and power strips\" done" [checked] [ref=f39e523] [cursor=pointer]
+                - cell "Pack merch, wristbands, laptop and power strips" [ref=f39e524]
+                - cell [ref=f39e526]:
+                  - time [ref=f39e527]: Nov 11
+                - cell "Diva (Pub Leader 1)" [ref=f39e528]:
+                  - combobox "Owner of \"Pack merch, wristbands, laptop and power strips\"" [ref=f39e529]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e530]:
+                  - combobox "Status of \"Pack merch, wristbands, laptop and power strips\"" [ref=f39e531]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e532]:
+                - cell [ref=f39e533]:
+                  - checkbox "Mark \"Print QR codes for tabling (drop-in ticket and membership sign-up)\" done" [checked] [ref=f39e535] [cursor=pointer]
+                - cell "Print QR codes for tabling (drop-in ticket and membership sign-up)" [ref=f39e536]
+                - cell [ref=f39e538]:
+                  - time [ref=f39e539]: Nov 11
+                - cell "Diva (Pub Leader 1)" [ref=f39e540]:
+                  - combobox "Owner of \"Print QR codes for tabling (drop-in ticket and membership sign-up)\"" [ref=f39e541]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e542]:
+                  - combobox "Status of \"Print QR codes for tabling (drop-in ticket and membership sign-up)\"" [ref=f39e543]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e544]:
+                - cell [ref=f39e545]:
+                  - 'checkbox "Mark \"Food Club: cross-check the list against the ticket export, then refund members who already paid\" done" [checked] [ref=f39e547] [cursor=pointer]'
+                - 'cell "Food Club: cross-check the list against the ticket export, then refund members who already paid Food Club · EOD" [ref=f39e548]':
+                  - generic [ref=f39e549]: "Food Club: cross-check the list against the ticket export, then refund members who already paid"
+                  - generic [ref=f39e550]: Food Club · EOD
+                - cell [ref=f39e551]:
+                  - time [ref=f39e552]: Nov 11
+                - cell "Diva (Pub Leader 1)" [ref=f39e553]:
+                  - 'combobox "Owner of \"Food Club: cross-check the list against the ticket export, then refund members who already paid\"" [ref=f39e554]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e555]:
+                  - 'combobox "Status of \"Food Club: cross-check the list against the ticket export, then refund members who already paid\"" [ref=f39e556]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e557]:
+                - cell [ref=f39e558]:
+                  - 'checkbox "Mark \"Ski Club: cross-check the list against the ticket export, then refund members who already paid\" done" [checked] [ref=f39e560] [cursor=pointer]'
+                - 'cell "Ski Club: cross-check the list against the ticket export, then refund members who already paid Ski Club · EOD" [ref=f39e561]':
+                  - generic [ref=f39e562]: "Ski Club: cross-check the list against the ticket export, then refund members who already paid"
+                  - generic [ref=f39e563]: Ski Club · EOD
+                - cell [ref=f39e564]:
+                  - time [ref=f39e565]: Nov 11
+                - cell "Diva (Pub Leader 1)" [ref=f39e566]:
+                  - 'combobox "Owner of \"Ski Club: cross-check the list against the ticket export, then refund members who already paid\"" [ref=f39e567]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e568]:
+                  - 'combobox "Status of \"Ski Club: cross-check the list against the ticket export, then refund members who already paid\"" [ref=f39e569]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e570]:
+                - cell [ref=f39e571]:
+                  - 'checkbox "Mark \"Food Club: send the final layout\" done" [checked] [ref=f39e573] [cursor=pointer]'
+                - 'cell "Food Club: send the final layout Food Club" [ref=f39e574]':
+                  - generic [ref=f39e575]: "Food Club: send the final layout"
+                  - generic [ref=f39e576]: Food Club
+                - cell [ref=f39e577]:
+                  - time [ref=f39e578]: Nov 11
+                - cell "Diva (Pub Leader 1)" [ref=f39e579]:
+                  - 'combobox "Owner of \"Food Club: send the final layout\"" [ref=f39e580]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e581]:
+                  - 'combobox "Status of \"Food Club: send the final layout\"" [ref=f39e582]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e583]:
+                - cell [ref=f39e584]:
+                  - 'checkbox "Mark \"Ski Club: send the final layout\" done" [checked] [ref=f39e586] [cursor=pointer]'
+                - 'cell "Ski Club: send the final layout Ski Club" [ref=f39e587]':
+                  - generic [ref=f39e588]: "Ski Club: send the final layout"
+                  - generic [ref=f39e589]: Ski Club
+                - cell [ref=f39e590]:
+                  - time [ref=f39e591]: Nov 11
+                - cell "Diva (Pub Leader 1)" [ref=f39e592]:
+                  - 'combobox "Owner of \"Ski Club: send the final layout\"" [ref=f39e593]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e594]:
+                  - 'combobox "Status of \"Ski Club: send the final layout\"" [ref=f39e595]':
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e596]:
+                - cell [ref=f39e597]:
+                  - checkbox "Mark \"Align on event partnerships (start of semester)\" done" [checked] [ref=f39e599] [cursor=pointer]
+                - cell "Align on event partnerships (start of semester)" [ref=f39e600]
+                - cell "No date" [ref=f39e602]
+                - cell "Diva (Pub Leader 1)" [ref=f39e603]:
+                  - combobox "Owner of \"Align on event partnerships (start of semester)\"" [ref=f39e604]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e605]:
+                  - combobox "Status of \"Align on event partnerships (start of semester)\"" [ref=f39e606]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+            - rowgroup [ref=f39e607]:
+              - row [ref=f39e608]:
+                - columnheader "Run of show" [ref=f39e609]
+              - row [ref=f39e610]:
+                - cell [ref=f39e611]:
+                  - checkbox "Mark \"WhatsApp message (event day)\" done" [checked] [ref=f39e613] [cursor=pointer]
+                - cell "WhatsApp message (event day)" [ref=f39e614]
+                - cell [ref=f39e616]:
+                  - time [ref=f39e617]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e618]:
+                  - combobox "Owner of \"WhatsApp message (event day)\"" [ref=f39e619]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e620]:
+                  - combobox "Status of \"WhatsApp message (event day)\"" [ref=f39e621]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e622]:
+                - cell [ref=f39e623]:
+                  - checkbox "Mark \"Tabling shift (see the Tabling sheet)\" done" [checked] [ref=f39e625] [cursor=pointer]
+                - 'cell "Tabling shift (see the Tabling sheet) Assumed: confirm (Chili tabled 12–3 on the day)" [ref=f39e626]':
+                  - generic [ref=f39e627]: Tabling shift (see the Tabling sheet)
+                  - generic [ref=f39e628]: "Assumed: confirm (Chili tabled 12–3 on the day)"
+                - cell [ref=f39e629]:
+                  - time [ref=f39e630]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e631]:
+                  - combobox "Owner of \"Tabling shift (see the Tabling sheet)\"" [ref=f39e632]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e633]:
+                  - combobox "Status of \"Tabling shift (see the Tabling sheet)\"" [ref=f39e634]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e635]:
+                - cell [ref=f39e636]:
+                  - checkbox "Mark \"Set up speakers\" done" [checked] [ref=f39e638] [cursor=pointer]
+                - cell "Set up speakers" [ref=f39e639]
+                - cell [ref=f39e641]:
+                  - time [ref=f39e642]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e643]:
+                  - combobox "Owner of \"Set up speakers\"" [ref=f39e644]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e645]:
+                  - combobox "Status of \"Set up speakers\"" [ref=f39e646]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e647]:
+                - cell [ref=f39e648]:
+                  - checkbox "Mark \"Allocate the DJ\" done" [checked] [ref=f39e650] [cursor=pointer]
+                - cell "Allocate the DJ" [ref=f39e651]
+                - cell [ref=f39e653]:
+                  - time [ref=f39e654]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e655]:
+                  - combobox "Owner of \"Allocate the DJ\"" [ref=f39e656]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e657]:
+                  - combobox "Status of \"Allocate the DJ\"" [ref=f39e658]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e659]:
+                - cell [ref=f39e660]:
+                  - checkbox "Mark \"Confirm the food order\" done" [checked] [ref=f39e662] [cursor=pointer]
+                - cell "Confirm the food order" [ref=f39e663]
+                - cell [ref=f39e665]:
+                  - time [ref=f39e666]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e667]:
+                  - combobox "Owner of \"Confirm the food order\"" [ref=f39e668]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e669]:
+                  - combobox "Status of \"Confirm the food order\"" [ref=f39e670]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e671]:
+                - cell [ref=f39e672]:
+                  - checkbox "Mark \"Confirm setup with Entertainment and the venue\" done" [checked] [ref=f39e674] [cursor=pointer]
+                - cell "Confirm setup with Entertainment and the venue" [ref=f39e675]
+                - cell [ref=f39e677]:
+                  - time [ref=f39e678]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e679]:
+                  - combobox "Owner of \"Confirm setup with Entertainment and the venue\"" [ref=f39e680]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e681]:
+                  - combobox "Status of \"Confirm setup with Entertainment and the venue\"" [ref=f39e682]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e683]:
+                - cell [ref=f39e684]:
+                  - checkbox "Mark \"Print check-in materials\" done" [checked] [ref=f39e686] [cursor=pointer]
+                - cell "Print check-in materials" [ref=f39e687]
+                - cell [ref=f39e689]:
+                  - time [ref=f39e690]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e691]:
+                  - combobox "Owner of \"Print check-in materials\"" [ref=f39e692]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e693]:
+                  - combobox "Status of \"Print check-in materials\"" [ref=f39e694]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e695]:
+                - cell [ref=f39e696]:
+                  - checkbox "Mark \"Drop-in ticket QR (Venmo QR on the back?)\" done" [checked] [ref=f39e698] [cursor=pointer]
+                - cell "Drop-in ticket QR (Venmo QR on the back?)" [ref=f39e699]
+                - cell [ref=f39e701]:
+                  - time [ref=f39e702]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e703]:
+                  - combobox "Owner of \"Drop-in ticket QR (Venmo QR on the back?)\"" [ref=f39e704]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e705]:
+                  - combobox "Status of \"Drop-in ticket QR (Venmo QR on the back?)\"" [ref=f39e706]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e707]:
+                - cell [ref=f39e708]:
+                  - checkbox "Mark \"Membership sign-up sheet with the latest pricing\" done" [checked] [ref=f39e710] [cursor=pointer]
+                - cell "Membership sign-up sheet with the latest pricing" [ref=f39e711]
+                - cell [ref=f39e713]:
+                  - time [ref=f39e714]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e715]:
+                  - combobox "Owner of \"Membership sign-up sheet with the latest pricing\"" [ref=f39e716]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e717]:
+                  - combobox "Status of \"Membership sign-up sheet with the latest pricing\"" [ref=f39e718]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e719]:
+                - cell [ref=f39e720]:
+                  - checkbox "Mark \"Set up the check-in table\" done" [checked] [ref=f39e722] [cursor=pointer]
+                - cell "Set up the check-in table" [ref=f39e723]
+                - cell [ref=f39e725]:
+                  - time [ref=f39e726]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e727]:
+                  - combobox "Owner of \"Set up the check-in table\"" [ref=f39e728]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e729]:
+                  - combobox "Status of \"Set up the check-in table\"" [ref=f39e730]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e731]:
+                - cell [ref=f39e732]:
+                  - checkbox "Mark \"Pub team arrives for setup (the call time is in the event's notes)\" done" [checked] [ref=f39e734] [cursor=pointer]
+                - cell "Pub team arrives for setup (the call time is in the event's notes)" [ref=f39e735]
+                - cell [ref=f39e737]:
+                  - time [ref=f39e738]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e739]:
+                  - combobox "Owner of \"Pub team arrives for setup (the call time is in the event's notes)\"" [ref=f39e740]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e741]:
+                  - combobox "Status of \"Pub team arrives for setup (the call time is in the event's notes)\"" [ref=f39e742]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e743]:
+                - cell [ref=f39e744]:
+                  - checkbox "Mark \"Manage merch and membership sign-ups\" done" [checked] [ref=f39e746] [cursor=pointer]
+                - cell "Manage merch and membership sign-ups" [ref=f39e747]
+                - cell [ref=f39e749]:
+                  - time [ref=f39e750]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e751]:
+                  - combobox "Owner of \"Manage merch and membership sign-ups\"" [ref=f39e752]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e753]:
+                  - combobox "Status of \"Manage merch and membership sign-ups\"" [ref=f39e754]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e755]:
+                - cell [ref=f39e756]:
+                  - checkbox "Mark \"Support the check-in desk with the Pub Leaders\" done" [checked] [ref=f39e758] [cursor=pointer]
+                - cell "Support the check-in desk with the Pub Leaders" [ref=f39e759]
+                - cell [ref=f39e761]:
+                  - time [ref=f39e762]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e763]:
+                  - combobox "Owner of \"Support the check-in desk with the Pub Leaders\"" [ref=f39e764]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e765]:
+                  - combobox "Status of \"Support the check-in desk with the Pub Leaders\"" [ref=f39e766]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e767]:
+                - cell [ref=f39e768]:
+                  - checkbox "Mark \"Encourage sign-ups to memberships and spread the word\" done" [checked] [ref=f39e770] [cursor=pointer]
+                - cell "Encourage sign-ups to memberships and spread the word" [ref=f39e771]
+                - cell [ref=f39e773]:
+                  - time [ref=f39e774]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e775]:
+                  - combobox "Owner of \"Encourage sign-ups to memberships and spread the word\"" [ref=f39e776]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e777]:
+                  - combobox "Status of \"Encourage sign-ups to memberships and spread the word\"" [ref=f39e778]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e779]:
+                - cell [ref=f39e780]:
+                  - checkbox "Mark \"Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)\" done" [checked] [ref=f39e782] [cursor=pointer]
+                - cell "Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)" [ref=f39e783]
+                - cell [ref=f39e785]:
+                  - time [ref=f39e786]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e787]:
+                  - combobox "Owner of \"Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)\"" [ref=f39e788]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e789]:
+                  - combobox "Status of \"Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)\"" [ref=f39e790]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e791]:
+                - cell [ref=f39e792]:
+                  - checkbox "Mark \"Receive and manage the food order\" done" [checked] [ref=f39e794] [cursor=pointer]
+                - cell "Receive and manage the food order" [ref=f39e795]
+                - cell [ref=f39e797]:
+                  - time [ref=f39e798]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e799]:
+                  - combobox "Owner of \"Receive and manage the food order\"" [ref=f39e800]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e801]:
+                  - combobox "Status of \"Receive and manage the food order\"" [ref=f39e802]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e803]:
+                - cell [ref=f39e804]:
+                  - checkbox "Mark \"Distribute merch to early-bird sign-ups\" done" [checked] [ref=f39e806] [cursor=pointer]
+                - cell "Distribute merch to early-bird sign-ups" [ref=f39e807]
+                - cell [ref=f39e809]:
+                  - time [ref=f39e810]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e811]:
+                  - combobox "Owner of \"Distribute merch to early-bird sign-ups\"" [ref=f39e812]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e813]:
+                  - combobox "Status of \"Distribute merch to early-bird sign-ups\"" [ref=f39e814]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e815]:
+                - cell [ref=f39e816]:
+                  - checkbox "Mark \"Collect merch and props at close\" done" [checked] [ref=f39e818] [cursor=pointer]
+                - cell "Collect merch and props at close" [ref=f39e819]
+                - cell [ref=f39e821]:
+                  - time [ref=f39e822]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e823]:
+                  - combobox "Owner of \"Collect merch and props at close\"" [ref=f39e824]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e825]:
+                  - combobox "Status of \"Collect merch and props at close\"" [ref=f39e826]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e827]:
+                - cell [ref=f39e828]:
+                  - checkbox "Mark \"Take photos and post to the Instagram story\" done" [checked] [ref=f39e830] [cursor=pointer]
+                - cell "Take photos and post to the Instagram story" [ref=f39e831]
+                - cell [ref=f39e833]:
+                  - time [ref=f39e834]: Nov 12
+                - cell "Diva (Pub Leader 1)" [ref=f39e835]:
+                  - combobox "Owner of \"Take photos and post to the Instagram story\"" [ref=f39e836]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "Done" [ref=f39e837]:
+                  - combobox "Status of \"Take photos and post to the Instagram story\"" [ref=f39e838]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f39e839]:
+                - cell [ref=f39e840]:
+                  - checkbox "Mark \"Log attendance in the After Action tracker\" done" [ref=f39e842] [cursor=pointer]
+                - cell "Log attendance in the After Action tracker Chili did this at T+1" [ref=f39e843]:
+                  - generic [ref=f39e844]: Log attendance in the After Action tracker
+                  - generic [ref=f39e845]: Chili did this at T+1
+                - cell [ref=f39e846]:
+                  - time [ref=f39e847]: Nov 17
+                - cell "Bridget (CoS Owner)" [ref=f39e848]:
+                  - combobox "Owner of \"Log attendance in the After Action tracker\"" [ref=f39e849]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)" [selected]
+                    - option "Diva (Pub Leader 1)"
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e850]:
+                  - combobox "Status of \"Log attendance in the After Action tracker\"" [ref=f39e851]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f39e852]:
+                - cell [ref=f39e853]:
+                  - checkbox "Mark \"Submit event feedback to the post-event form\" done" [ref=f39e855] [cursor=pointer]
+                - cell "Submit event feedback to the post-event form" [ref=f39e856]
+                - cell [ref=f39e858]:
+                  - time [ref=f39e859]: Nov 17
+                - cell "Diva (Pub Leader 1)" [ref=f39e860]:
+                  - combobox "Owner of \"Submit event feedback to the post-event form\"" [ref=f39e861]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e862]:
+                  - combobox "Status of \"Submit event feedback to the post-event form\"" [ref=f39e863]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f39e864]:
+                - cell [ref=f39e865]:
+                  - checkbox "Mark \"Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)\" done" [ref=f39e867] [cursor=pointer]
+                - cell "Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)" [ref=f39e868]
+                - cell [ref=f39e870]:
+                  - time [ref=f39e871]: Nov 17
+                - cell "Marcela" [ref=f39e872]:
+                  - combobox "Owner of \"Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)\"" [ref=f39e873]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)"
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela" [selected]
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e874]:
+                  - combobox "Status of \"Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)\"" [ref=f39e875]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f39e876]:
+                - cell [ref=f39e877]:
+                  - 'checkbox "Mark \"Post-mortem: answer the five questions\" done" [ref=f39e879] [cursor=pointer]'
+                - 'cell "Post-mortem: answer the five questions" [ref=f39e880]'
+                - cell [ref=f39e882]:
+                  - time [ref=f39e883]: Nov 17
+                - cell "Diva (Pub Leader 1)" [ref=f39e884]:
+                  - 'combobox "Owner of \"Post-mortem: answer the five questions\"" [ref=f39e885]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e886]:
+                  - 'combobox "Status of \"Post-mortem: answer the five questions\"" [ref=f39e887]':
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f39e888]:
+                - cell [ref=f39e889]:
+                  - 'checkbox "Mark \"Food Club: request the fund transfer (subsidy math; within 5 days of the event)\" done" [ref=f39e891] [cursor=pointer]'
+                - 'cell "Food Club: request the fund transfer (subsidy math; within 5 days of the event) Food Club" [ref=f39e892]':
+                  - generic [ref=f39e893]: "Food Club: request the fund transfer (subsidy math; within 5 days of the event)"
+                  - generic [ref=f39e894]: Food Club
+                - cell [ref=f39e895]:
+                  - time [ref=f39e896]: Nov 17
+                - cell "Diva (Pub Leader 1)" [ref=f39e897]:
+                  - 'combobox "Owner of \"Food Club: request the fund transfer (subsidy math; within 5 days of the event)\"" [ref=f39e898]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e899]:
+                  - 'combobox "Status of \"Food Club: request the fund transfer (subsidy math; within 5 days of the event)\"" [ref=f39e900]':
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f39e901]:
+                - cell [ref=f39e902]:
+                  - 'checkbox "Mark \"Ski Club: request the fund transfer (subsidy math; within 5 days of the event)\" done" [ref=f39e904] [cursor=pointer]'
+                - 'cell "Ski Club: request the fund transfer (subsidy math; within 5 days of the event) Ski Club" [ref=f39e905]':
+                  - generic [ref=f39e906]: "Ski Club: request the fund transfer (subsidy math; within 5 days of the event)"
+                  - generic [ref=f39e907]: Ski Club
+                - cell [ref=f39e908]:
+                  - time [ref=f39e909]: Nov 17
+                - cell "Diva (Pub Leader 1)" [ref=f39e910]:
+                  - 'combobox "Owner of \"Ski Club: request the fund transfer (subsidy math; within 5 days of the event)\"" [ref=f39e911]':
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e912]:
+                  - 'combobox "Status of \"Ski Club: request the fund transfer (subsidy math; within 5 days of the event)\"" [ref=f39e913]':
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f39e914]:
+                - cell [ref=f39e915]:
+                  - checkbox "Mark \"Report the partnership outcomes to the Chief of Staff, Finance and the Presidents\" done" [ref=f39e917] [cursor=pointer]
+                - cell "Report the partnership outcomes to the Chief of Staff, Finance and the Presidents" [ref=f39e918]
+                - cell [ref=f39e920]:
+                  - time [ref=f39e921]: Nov 17
+                - cell "Diva (Pub Leader 1)" [ref=f39e922]:
+                  - combobox "Owner of \"Report the partnership outcomes to the Chief of Staff, Finance and the Presidents\"" [ref=f39e923]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)" [selected]
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela"
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e924]:
+                  - combobox "Status of \"Report the partnership outcomes to the Chief of Staff, Finance and the Presidents\"" [ref=f39e925]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f39e926]:
+                - cell [ref=f39e927]:
+                  - checkbox "Mark \"Check reimbursement status\" done" [ref=f39e929] [cursor=pointer]
+                - cell "Check reimbursement status About 4 weeks with WGA plus 1–2 weeks to be paid; errors restart the clock" [ref=f39e930]:
+                  - generic [ref=f39e931]: Check reimbursement status
+                  - generic [ref=f39e932]: About 4 weeks with WGA plus 1–2 weeks to be paid; errors restart the clock
+                - cell [ref=f39e933]:
+                  - time [ref=f39e934]: Dec 17
+                - cell "Marcela" [ref=f39e935]:
+                  - combobox "Owner of \"Check reimbursement status\"" [ref=f39e936]:
+                    - option "Unassigned"
+                    - option "Bridget (CoS Owner)"
+                    - option "Diva (Pub Leader 1)"
+                    - option "All"
+                    - option "Andrew Herbst, Matt Guererra"
+                    - option "Arjun"
+                    - option "Benji"
+                    - option "Benji/Arjun"
+                    - option "Benju"
+                    - option "Billy"
+                    - option "Charlie"
+                    - option "Foster, Shakeel, Danielle"
+                    - option "Himanshi"
+                    - option "Ivana"
+                    - option "Jake"
+                    - option "Justin"
+                    - option "Kira"
+                    - option "Manisha"
+                    - option "Marcela" [selected]
+                    - option "Mark"
+                    - option "Michael"
+                    - option "Nihar"
+                    - option "OSL"
+                    - option "Sabrina"
+                    - option "Shakeel Zia"
+                    - option "Someone else…"
+                - cell "To do" [ref=f39e937]:
+                  - combobox "Status of \"Check reimbursement status\"" [ref=f39e938]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+        - generic [ref=f39e939]:
+          - heading "Add a to-do" [level=3] [ref=f39e940]
+          - paragraph [ref=f39e941]: "For things the template doesn't cover: a one-off for one event, or an ongoing job like merch inventory."
+          - generic [ref=f39e942]:
+            - text: What needs doing
+            - textbox "What needs doing" [ref=f39e943]
+          - generic [ref=f39e944]:
+            - text: Owner
+            - combobox "Owner" [ref=f39e945]
+          - generic [ref=f39e946]:
+            - text: For event
+            - combobox "For event" [ref=f39e947]:
+              - 'option "None: an ongoing to-do" [selected]'
+              - option "Pre-Term Pub (2026-08-14)"
+              - option "Free Pub (2026-08-25)"
+              - option "Sports Pub (2026-09-10)"
+              - option "AMERICA 250 (2026-09-17)"
+              - option "Oktoberfest (2026-09-24)"
+              - option "International Pub (2026-10-22)"
+              - option "Big Gay Halloween (2026-10-29)"
+              - option "Single's Pub (2026-11-05)"
+              - option "Chili Cook Off (2026-11-12)"
+              - option "Baguettes Beer and Bangers - Euroski Reunion (2027-01-21)"
+              - option "Allow me to re-introduce myself (2027-01-28)"
+              - option "Beer Pong x Kid's Club (2027-02-04)"
+              - option "Black History Month (2027-02-11)"
+              - option "Follies Pub (2027-02-18)"
+              - option "St Paddy's Singles (2027-03-18)"
+              - option "TBD (2027-03-25)"
+              - option "Fight Night Weigh In (2027-04-01)"
+              - option "Hockey Playoffs (2027-04-08)"
+              - option "BoTB Preview (2027-04-15)"
+              - option "Green Pub (2027-04-22)"
+              - option "Grad Pub (2027-05-20)"
+          - generic [ref=f39e948]:
+            - text: Due date (optional)
+            - textbox "Due date (optional)" [ref=f39e949]
+          - button "Add to-do" [disabled] [ref=f39e951]

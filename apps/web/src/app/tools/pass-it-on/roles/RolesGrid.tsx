@@ -16,7 +16,7 @@ export interface GridRow {
   cells: { role: string; person: string }[];
 }
 
-export function RolesGrid({ rows, roles, defaults }: { rows: GridRow[]; roles: string[]; defaults: Record<string, string> }) {
+export function RolesGrid({ rows, roles, defaults, people }: { rows: GridRow[]; roles: string[]; defaults: Record<string, string>; people: string[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
@@ -38,6 +38,11 @@ export function RolesGrid({ rows, roles, defaults }: { rows: GridRow[]; roles: s
           {error}
         </p>
       )}
+      <datalist id="roles-grid-people">
+        {people.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
       <div className={styles.tableWrap}>
         <table className={styles.rolesTable}>
           <thead>
@@ -63,6 +68,7 @@ export function RolesGrid({ rows, roles, defaults }: { rows: GridRow[]; roles: s
                   <td key={cell.role}>
                     <input
                       className={styles.cellInput}
+                      list="roles-grid-people"
                       defaultValue={cell.person}
                       placeholder={defaults[cell.role] ?? ""}
                       aria-label={`${cell.role} for ${row.title}`}
