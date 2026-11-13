@@ -57,10 +57,10 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | 13 | Date math (`dueDate`, weekday anchors), task and subtask generation with owners by role, rescheduling. 161 tool tests | **Done** |
 | 14 | Pub template version 1, from the playbook and the Big Gay Halloween checklist, with modules (club collab, international, singles/GAPSA) and the PO issue flagged. Also a Run of show category and per-club repeating items. 208 tool tests | **Done** |
 | 15 | Task and to-do storage; filters; members list (`listMembers`, `addMember`, `syncMembers`). 208 tool tests | **Done** |
-| 16 | Creating an event generates its checklist; moving the date reschedules | To do |
-| 17 | Board: columns, owner and due-window filters, "waiting on", subtasks, per-area readiness, "no Pub Leader" flag on events | To do |
-| 18 | Template tab: view, known issues, revert | To do |
-| 19 | **Exit test:** two overlapping events, correct dates and owners | To do |
+| 16 | Creating an event generates its checklist (also an Update checklist button on the event page); moving the date reschedules, via `updatePlannedEvent`. 231 tool tests | **Built, needs a manual check** |
+| 17 | Board tab: columns, owner/event/due-window filters, "waiting on", subtasks, per-area readiness, "No Pub Leader" flag (board and Events list), add to-dos by hand | **Built, needs a manual check** |
+| 18 | Template tab: Planning / Run of show, known issues (resolve), versions, revert | **Built, needs a manual check** |
+| 19 | **Exit test:** two overlapping events, correct dates and owners | Passes as an automated test (`eventWorkflow.test.ts`); not yet seen in the browser |
 | **Week 3: AI layer, post-mortem, pilot** | | |
 | 20–21 | Suggested modules and past lessons when creating an event | To do |
 | 22–23 | Post-mortem task: pre-filled questions or uploaded notes, then a lesson review queue | To do |

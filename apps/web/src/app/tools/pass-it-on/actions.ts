@@ -19,9 +19,11 @@ import {
   deletePlannedEvent,
   deletePlannedEvents,
   deleteSource,
+  generateEventChecklist,
   parseVendorLines,
   searchLibrary,
   searchLibraryKeywords,
+  syncMembers,
   updatePlannedEvent,
   type CitedAnswer,
   type Passage,
@@ -68,8 +70,12 @@ export interface EventFormValues {
   cancelled: boolean;
 }
 
-/** Creates an event (id null) or saves changes to one. */
-export async function saveEvent(id: string | null, values: EventFormValues): Promise<ActionResult<{ id: string }>> {
+/**
+ * Creates an event (id null) or saves changes to one. A new event that isn't
+ * cancelled gets its checklist; changing the date of an existing one moves its
+ * tasks (done inside updatePlannedEvent). `tasks` is how many tasks were added.
+ */
+export async function saveEvent(id: string | null, values: EventFormValues): Promise<ActionResult<{ id: string; tasks: number }>> {
   const user = await getCurrentUser();
   if (!user) return signedOut;
   const checked = checkPlannedEventInput({
@@ -79,9 +85,15 @@ export async function saveEvent(id: string | null, values: EventFormValues): Pro
   if (!checked.ok) return fail(checked.message);
 
   return run(async () => {
-    if (id === null) return { ok: true, data: { id: await createPlannedEvent(db(), checked.value, user.id) } };
+    if (id === null) {
+      const created = await createPlannedEvent(db(), checked.value, user.id);
+      const checklist = checked.value.cancelled ? null : await generateEventChecklist(db(), created);
+      await syncMembers(db());
+      return { ok: true, data: { id: created, tasks: checklist?.created ?? 0 } };
+    }
     if (typeof id !== "string" || !(await updatePlannedEvent(db(), id, checked.value))) return fail("That event no longer exists.");
-    return { ok: true, data: { id } };
+    await syncMembers(db());
+    return { ok: true, data: { id, tasks: 0 } };
   });
 }
 

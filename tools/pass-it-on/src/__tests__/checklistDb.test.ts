@@ -254,6 +254,15 @@ describe.skipIf(!databaseUrl)("checklist schema", () => {
       expect(await taskOf(id, "mon")).toBe(-4);
     });
 
+    it("recomputes a weekday-anchored task that repeats per club (key 'item:club')", async () => {
+      const v = await newVersion([["mon", null, 1]]);
+      const id = await newEvent("2026-10-22", v);
+      await newTask(id, "mon:ski-club", -3);
+      const r = await rescheduleEvent(sql, id, "2026-10-23");
+      expect(r.recomputed).toBe(1);
+      expect(await taskOf(id, "mon:ski-club")).toBe(-4);
+    });
+
     it("leaves done tasks alone", async () => {
       const v = await newVersion([["mon", null, 1]]);
       const id = await newEvent("2026-10-22", v);

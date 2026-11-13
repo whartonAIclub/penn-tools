@@ -4,6 +4,7 @@
 // stays in one place. Only names are stored, no emails.
 
 import type { Sql } from "postgres";
+import { rescheduleEventIn } from "./checklist.js";
 import { MAX_FIELD_LENGTH } from "./records.js";
 
 export const MAX_PARTIES = 20;
@@ -252,7 +253,7 @@ export async function updatePlannedEventIn(tx: Sql, id: string, input: PlannedEv
   const leader = leaderOf(input.roles);
   const rows = await tx`
     UPDATE events
-    SET title = ${input.title}, event_date = ${input.eventDate}, theme = ${input.theme}, venue = ${input.venue},
+    SET title = ${input.title}, theme = ${input.theme}, venue = ${input.venue},
         budget = ${input.budget}, pub_leader = ${leader}, organizer_name = ${leader ?? "Unassigned"},
         event_time = ${input.eventTime}, notes = ${input.notes}, confirmed_club = ${input.confirmedClub},
         confirmed_venue = ${input.confirmedVenue}, club_contact = ${input.clubContact},
@@ -262,6 +263,8 @@ export async function updatePlannedEventIn(tx: Sql, id: string, input: PlannedEv
     RETURNING id
   `;
   if (rows.length === 0) return false;
+  // The date moves through rescheduleEventIn so the event's tasks move with it (checkPlannedEventInput gives null, never "", for no date).
+  await rescheduleEventIn(tx, id, input.eventDate);
   await setParties(tx, id, input);
   return true;
 }

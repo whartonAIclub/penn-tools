@@ -1,14 +1,22 @@
 import { notFound } from "next/navigation";
-import { formatVendorLines, getPlannedEvent } from "@penntools/tool-pass-it-on";
+import { formatVendorLines, getPlannedEvent, getTemplate, listTasks, suggestedModules } from "@penntools/tool-pass-it-on";
 import { db } from "../../db";
 import { emptyEventForm } from "../emptyEventForm";
+import { ChecklistPanel } from "../ChecklistPanel";
 import { EventForm } from "../EventForm";
 
 export default async function EditEventPage({ params }: { params: { id: string } }) {
   const event = await getPlannedEvent(db(), params.id);
   if (!event) notFound();
 
+  const [tasks, template, appliedRows] = await Promise.all([
+    listTasks(db(), { eventIds: [event.id] }),
+    getTemplate(db()),
+    db()<{ module_key: string }[]>`SELECT module_key FROM event_modules WHERE event_id = ${event.id}`,
+  ]);
+
   return (
+    <>
     <EventForm
       id={event.id}
       initial={{
@@ -32,5 +40,13 @@ export default async function EditEventPage({ params }: { params: { id: string }
         cancelled: event.cancelled,
       }}
     />
+    <ChecklistPanel
+      eventId={event.id}
+      taskCount={tasks.length}
+      modules={template?.modules ?? []}
+      applied={appliedRows.map((r) => r.module_key)}
+      suggested={suggestedModules(event)}
+    />
+    </>
   );
 }

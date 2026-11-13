@@ -188,59 +188,78 @@ export function generateTasks(
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export interface RescheduleResult {
+  from: string | null;
+  to: string | null;
+  moved: number;
+  recomputed: number;
+}
+
 /**
  * Moves an event to `newDate` (null clears it) and reschedules its unfinished
  * tasks: weekday-anchored ones get a new offset for the new weekday. Due dates
- * are never stored for event tasks (event date + offset, computed when read). Done tasks are never touched. `moved`
- * counts unfinished tasks whose due date changed, `recomputed` anchored tasks
- * whose offset changed. An unknown or malformed id returns all nulls and zeros.
+ * are never stored for event tasks (event date + offset, computed when read).
+ * Done tasks are never touched. `moved` counts unfinished tasks whose due date
+ * changed, `recomputed` anchored tasks whose offset changed. An unknown or
+ * malformed id returns all nulls and zeros.
  */
-export async function rescheduleEvent(
-  sql: Sql,
-  eventId: string,
-  newDate: string | null,
-): Promise<{ from: string | null; to: string | null; moved: number; recomputed: number }> {
+export async function rescheduleEvent(sql: Sql, eventId: string, newDate: string | null): Promise<RescheduleResult> {
+  if (newDate !== null) parseDate(newDate);
+  if (!UUID.test(eventId)) return { from: null, to: null, moved: 0, recomputed: 0 };
+  return sql.begin(async (transaction) => rescheduleEventIn(transaction as unknown as Sql, eventId, newDate));
+}
+
+/** rescheduleEvent inside a transaction the caller already opened (`tx`). */
+export async function rescheduleEventIn(tx: Sql, eventId: string, newDate: string | null): Promise<RescheduleResult> {
   if (newDate !== null) parseDate(newDate);
   if (!UUID.test(eventId)) return { from: null, to: null, moved: 0, recomputed: 0 };
 
-  return sql.begin(async (transaction) => {
-    const tx = transaction as unknown as Sql;
-    const [event] = await tx<{ date: string | null; version: string | null }[]>`
-      SELECT event_date::text AS date, template_version_id::text AS version
-      FROM events WHERE id = ${eventId} FOR UPDATE`;
-    if (!event) return { from: null, to: null, moved: 0, recomputed: 0 };
-    const from = event.date;
-    if (from === newDate) return { from, to: newDate, moved: 0, recomputed: 0 };
+  const [event] = await tx<{ date: string | null; version: string | null }[]>`
+    SELECT event_date::text AS date, template_version_id::text AS version
+    FROM events WHERE id = ${eventId} FOR UPDATE`;
+  if (!event) return { from: null, to: null, moved: 0, recomputed: 0 };
+  const from = event.date;
+  if (from === newDate) return { from, to: newDate, moved: 0, recomputed: 0 };
 
-    await tx`UPDATE events SET event_date = ${newDate}, updated_at = NOW() WHERE id = ${eventId}`;
+  await tx`UPDATE events SET event_date = ${newDate}, updated_at = NOW() WHERE id = ${eventId}`;
 
-    const tasks = await tx<{ id: string; key: string | null; offset: number | null }[]>`
-      SELECT id::text, template_item_key AS key, offset_days AS offset
-      FROM tasks WHERE event_id = ${eventId} AND status <> 'done'`;
-    const anchors = new Map<string, number>();
-    if (event.version !== null && newDate !== null) {
-      const rows = await tx<{ key: string; weekday: number }[]>`
-        SELECT key, anchor_weekday AS weekday FROM template_items
-        WHERE version_id = ${event.version} AND anchor_weekday IS NOT NULL`;
-      for (const row of rows) anchors.set(row.key, row.weekday);
+  const tasks = await tx<{ id: string; key: string | null; offset: number | null }[]>`
+    SELECT id::text, template_item_key AS key, offset_days AS offset
+    FROM tasks WHERE event_id = ${eventId} AND status <> 'done'`;
+  const anchors = new Map<string, number>();
+  if (event.version !== null && newDate !== null) {
+    const rows = await tx<{ key: string; weekday: number }[]>`
+      SELECT key, anchor_weekday AS weekday FROM template_items
+      WHERE version_id = ${event.version} AND anchor_weekday IS NOT NULL`;
+    for (const row of rows) anchors.set(row.key, row.weekday);
+  }
+
+  let moved = 0;
+  let recomputed = 0;
+  for (const task of tasks) {
+    // A per-club task's key is "<item key>:<club slug>"; the template knows only the item key.
+    const weekday = task.key === null ? undefined : anchors.get(task.key.split(":")[0]!);
+    let offset = task.offset;
+    if (weekday !== undefined && newDate !== null) {
+      offset = anchorOffset(newDate, weekday);
+      if (offset !== task.offset) recomputed++;
     }
-
-    let moved = 0;
-    let recomputed = 0;
-    for (const task of tasks) {
-      const weekday = task.key === null ? undefined : anchors.get(task.key);
-      let offset = task.offset;
-      if (weekday !== undefined && newDate !== null) {
-        offset = anchorOffset(newDate, weekday);
-        if (offset !== task.offset) recomputed++;
-      }
-      const before = from !== null && task.offset !== null ? dueDate(from, task.offset) : null;
-      const after = newDate !== null && offset !== null ? dueDate(newDate, offset) : null;
-      if (before !== after) moved++;
-      if (offset !== task.offset) {
-        await tx`UPDATE tasks SET offset_days = ${offset} WHERE id = ${task.id} AND status <> 'done'`;
-      }
+    const before = from !== null && task.offset !== null ? dueDate(from, task.offset) : null;
+    const after = newDate !== null && offset !== null ? dueDate(newDate, offset) : null;
+    if (before !== after) moved++;
+    if (offset !== task.offset) {
+      await tx`UPDATE tasks SET offset_days = ${offset} WHERE id = ${task.id} AND status <> 'done'`;
     }
-    return { from, to: newDate, moved, recomputed };
-  });
+  }
+  return { from, to: newDate, moved, recomputed };
+}
+
+/** How a task's timing reads on the Template tab: "T-14", "T+5", "T-0 (day of)" or "Monday of event week". */
+export function describeTiming(item: Pick<TemplateItem, "offsetDays" | "anchorWeekday">): string {
+  if (item.offsetDays !== null) return item.offsetDays === 0 ? "T-0" : item.offsetDays < 0 ? `T${item.offsetDays}` : `T+${item.offsetDays}`;
+  if (item.anchorWeekday !== null) {
+    const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return `${names[item.anchorWeekday]} of event week`;
+  }
+  return "No set date";
 }

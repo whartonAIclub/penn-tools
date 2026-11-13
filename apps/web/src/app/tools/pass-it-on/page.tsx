@@ -1,14 +1,15 @@
 // The Events tab: the master calendar, every Pub grouped by month, soonest first.
 
 import Link from "next/link";
-import { groupByMonth, listPlannedEvents } from "@penntools/tool-pass-it-on";
+import { eventsWithoutLeader, groupByMonth, listPlannedEvents } from "@penntools/tool-pass-it-on";
 import { db } from "./db";
 import styles from "./PassItOn.module.css";
+import { today } from "./today";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export default async function PassItOnPage() {
-  const events = await listPlannedEvents(db());
+  const [events, noLeader] = await Promise.all([listPlannedEvents(db()), eventsWithoutLeader(db(), today()).then((ids) => new Set(ids))]);
 
   return (
     <section className={styles.card}>
@@ -33,6 +34,7 @@ export default async function PassItOnPage() {
                     {e.title}
                   </Link>
                   {e.cancelled && <span className={styles.tag}>Cancelled</span>}
+                  {noLeader.has(e.id) && <span className={styles.flag}>No Pub Leader</span>}
                   <span className={styles.muted}>
                     {[e.eventDate, e.eventTime, e.theme, e.venue, e.pubLeader && `Leader: ${e.pubLeader}`, e.budget !== null && money.format(e.budget)].filter(Boolean).join(" · ")}
                   </span>
