@@ -1,4 +1,4 @@
-// The Pub template (version 1): the checklist every Pub starts from, plus
+// The Pub template (versions 1 and 2): the checklist every Pub starts from, plus
 // storing it in the tool's tables and loading it back. Built from the playbook
 // and the Big Gay Halloween and Chili Cook Off checklists.
 
@@ -17,6 +17,8 @@ export interface TemplateIssue {
 }
 
 export interface PubTemplate {
+  /** Identifies a built-in template in template_versions.source ("pub-v1", "pub-v2"). */
+  source: string;
   note: string;
   modules: TemplateModule[];
   items: TemplateItem[];
@@ -48,6 +50,8 @@ interface Spec {
   notes?: string;
   timeHint?: string;
   postmortem?: boolean;
+  /** Template version 2 role for the item, when the area-and-phase rule gives the wrong one. */
+  role?: string;
 }
 
 const T = (days: number): Timing => ({ days });
@@ -126,7 +130,7 @@ const SPECS: Spec[] = [
   { key: "intl-followup", title: "{club}: follow up if they haven't responded", phase: "pre", area: "partners", timing: T(-45), moduleKey: "international", repeat: true, notes: ASSUMED },
 ];
 
-function toItem(spec: Spec, index: number): TemplateItem {
+function toItem(spec: Spec, index: number, defaultRole: string | null = null): TemplateItem {
   const { timing } = spec;
   return {
     key: spec.key,
@@ -137,7 +141,7 @@ function toItem(spec: Spec, index: number): TemplateItem {
     area: spec.area,
     offsetDays: timing !== null && "days" in timing ? timing.days : null,
     anchorWeekday: timing !== null && "weekday" in timing ? timing.weekday : null,
-    defaultRole: null,
+    defaultRole,
     notes: spec.notes ?? null,
     sort: index * 10,
     isPostmortem: spec.postmortem ?? false,
@@ -146,15 +150,28 @@ function toItem(spec: Spec, index: number): TemplateItem {
   };
 }
 
+/** Template version 2's role for an item: an explicit one, else by area and phase. */
+function roleOf(spec: Spec): string {
+  if (spec.role) return spec.role;
+  switch (spec.area) {
+    case "marketing": return "Marketing Lead";
+    case "finance": return "Finance Lead";
+    case "entertainment": return "Entertainment Lead";
+    case "operations": return spec.phase === "pre" ? "Ops Lead" : "Pub Leader 1";
+    default: return "Pub Leader 1";
+  }
+}
+
 /** Version 1 of the Pub template, with its modules and the one known issue. */
 export const PUB_TEMPLATE_V1: PubTemplate = {
+  source: "pub-v1",
   note: "Built from the playbook and the Big Gay Halloween and Chili Cook Off checklists.",
   modules: [
     { key: "club-collab", name: "Club collab", description: "Tasks for each partner club, from the rider to the fund transfer." },
     { key: "international", name: "International Pub", description: "Placeholder to be replaced with the International Pub Checklist." },
     { key: "singles", name: "Singles / GAPSA", description: "Extra tasks for a Singles event run with GAPSA." },
   ],
-  items: SPECS.map(toItem),
+  items: SPECS.map((spec, index) => toItem(spec, index)),
   issues: [
     {
       itemKey: "po",
@@ -163,23 +180,62 @@ export const PUB_TEMPLATE_V1: PubTemplate = {
   ],
 };
 
+// Version 2: every item has a role, the Singles module became "Non-Wharton
+// schools" and the International one is gone.
+const PREZ_ITEMS = new Set(["partnerships", "membership-specials"]);
+const SPECS_V2: Spec[] = SPECS.filter((spec) => spec.moduleKey !== "international").map((spec) => {
+  const moved: Spec =
+    spec.moduleKey === "singles"
+      ? { ...spec, key: spec.key.replace(/^singles-/, "nonwharton-"), moduleKey: "non-wharton" }
+      : spec;
+  return PREZ_ITEMS.has(spec.key) ? { ...moved, role: "Prez Owner" } : moved;
+});
+
+/** Version 2 of the Pub template: roles on every item, Non-Wharton schools instead of Singles and International. */
+export const PUB_TEMPLATE_V2: PubTemplate = {
+  source: "pub-v2",
+  note: "Roles on every item; Non-Wharton schools module replaces Singles and International",
+  modules: [
+    PUB_TEMPLATE_V1.modules[0]!,
+    {
+      key: "non-wharton",
+      name: "Non-Wharton schools",
+      description: "Events open to students from other schools: Eventbrite ticketing, GAPSA and outreach.",
+    },
+  ],
+  items: SPECS_V2.map((spec, index) => toItem(spec, index, roleOf(spec))),
+  issues: PUB_TEMPLATE_V1.issues,
+};
+
+const BUILT_IN: PubTemplate[] = [PUB_TEMPLATE_V1, PUB_TEMPLATE_V2];
+
 /**
- * Makes sure version 1 of the template exists and returns its id. Inserts it
- * in one transaction when missing; safe to call twice or at the same time.
+ * Makes sure every built-in template exists (each as the next version number
+ * when missing, in order) and returns the id of the newest built-in version.
+ * One transaction under a table lock, so it is safe to call twice or at the
+ * same time. Versions made by "revert" aren't built-ins and are left alone.
  */
 export async function ensureTemplate(sql: Sql): Promise<number> {
   return sql.begin(async (transaction) => {
     const tx = transaction as unknown as Sql;
-    const inserted = await tx<{ id: string }[]>`
-      INSERT INTO template_versions (version, note) VALUES (1, ${PUB_TEMPLATE_V1.note})
-      ON CONFLICT (version) DO NOTHING RETURNING id`;
-    if (inserted[0]) {
-      const versionId = inserted[0].id;
-      for (const m of PUB_TEMPLATE_V1.modules) {
+    await tx`LOCK TABLE template_versions IN SHARE ROW EXCLUSIVE MODE`;
+    let newest = 0;
+    for (const template of BUILT_IN) {
+      const [existing] = await tx<{ id: string }[]>`SELECT id FROM template_versions WHERE source = ${template.source}`;
+      if (existing) {
+        newest = Number(existing.id);
+        continue;
+      }
+      const [row] = await tx<{ id: string }[]>`
+        INSERT INTO template_versions (version, note, source)
+        VALUES ((SELECT COALESCE(MAX(version), 0) + 1 FROM template_versions), ${template.note}, ${template.source})
+        RETURNING id`;
+      const versionId = row!.id;
+      for (const m of template.modules) {
         await tx`INSERT INTO template_modules (version_id, key, name, description)
                  VALUES (${versionId}, ${m.key}, ${m.name}, ${m.description})`;
       }
-      for (const i of PUB_TEMPLATE_V1.items) {
+      for (const i of template.items) {
         await tx`INSERT INTO template_items
                    (version_id, key, module_key, parent_key, title, phase, area, offset_days,
                     anchor_weekday, default_role, notes, sort, is_postmortem, repeat_for, time_hint)
@@ -187,14 +243,13 @@ export async function ensureTemplate(sql: Sql): Promise<number> {
                     ${i.area}, ${i.offsetDays}, ${i.anchorWeekday}, ${i.defaultRole}, ${i.notes},
                     ${i.sort}, ${i.isPostmortem}, ${i.repeatFor}, ${i.timeHint})`;
       }
-      for (const issue of PUB_TEMPLATE_V1.issues) {
+      for (const issue of template.issues) {
         await tx`INSERT INTO template_issues (version_id, item_key, text)
                  VALUES (${versionId}, ${issue.itemKey}, ${issue.text})`;
       }
-      return Number(versionId);
+      newest = Number(versionId);
     }
-    const [existing] = await tx<{ id: string }[]>`SELECT id FROM template_versions WHERE version = 1`;
-    return Number(existing!.id);
+    return newest;
   });
 }
 

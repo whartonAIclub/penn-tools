@@ -75,7 +75,7 @@ describe("input checks", () => {
       ok: true,
       value: {
         eventTime: "5.30-8.30pm",
-        roles: [{ role: "Pub Leader", person: "Ada" }, { role: "Ops Lead", person: null }],
+        roles: [{ role: "Pub Leader 1", person: "Ada" }, { role: "Ops Lead", person: null }],
         confirmedClub: true,
         confirmedVenue: false,
         totalAttendees: 1200,
@@ -122,6 +122,8 @@ describe("input checks", () => {
         ticketRevenue: null,
         costs: null,
         cancelled: false,
+        needsEquipment: false,
+        equipment: [],
       },
     });
     for (const bad of [{}, { title: "x", eventDate: "2026-02-31" }, { title: "x", budget: -5 }, { title: "x", budget: "lots" }, { title: "x", partnerClubs: "a" }, { title: "x", roles: [{ role: "", person: "Ada" }] }, { title: "x", totalAttendees: 1.5 }, { title: "x", costs: -1 }]) {
@@ -242,7 +244,7 @@ describe.skipIf(!databaseUrl)("library and planned events (Postgres)", () => {
       eventDate: "2026-10-30",
       budget: 1500,
       pubLeader: "Pat Example",
-      roles: [{ role: "Pub Leader", person: "Pat Example" }, { role: "Ops Lead", person: null }],
+      roles: [{ role: "Pub Leader 1", person: "Pat Example" }, { role: "Ops Lead", person: null }],
       eventTime: "5.30-8.30pm",
       confirmedVenue: true,
       totalAttendees: 120,
@@ -321,6 +323,8 @@ function planned(title: string, overrides: Partial<PlannedEventInput> = {}): Pla
     ticketRevenue: 1800,
     costs: null,
     cancelled: false,
+    needsEquipment: false,
+    equipment: [],
     ...overrides,
   };
 }

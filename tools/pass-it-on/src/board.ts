@@ -5,10 +5,11 @@ import type { Sql } from "postgres";
 import { parseDate } from "./checklist.js";
 import type { Area } from "./checklist.js";
 import type { RoleInput } from "./planning.js";
+import { isPubLeaderRole } from "./roles.js";
 
-/** True when someone holds the role "Pub Leader". Unlike `leaderOf`, no other named person stands in. */
+/** True when someone holds Pub Leader 1, 2 or 3 (or the old unnumbered "Pub Leader"). Unlike `leaderOf`, no other named person stands in. */
 export function hasPubLeader(roles: RoleInput[]): boolean {
-  return roles.some((r) => r.role.trim().toLowerCase() === "pub leader" && (r.person ?? "").trim() !== "");
+  return roles.some((r) => isPubLeaderRole(r.role) && (r.person ?? "").trim() !== "");
 }
 
 /** Ids of events that still lie ahead (or have no date), aren't cancelled and have no Pub Leader. `today` is YYYY-MM-DD. */
@@ -20,7 +21,7 @@ export async function eventsWithoutLeader(sql: Sql, today: string): Promise<stri
       AND (e.event_date IS NULL OR e.event_date >= ${today}::date)
       AND NOT EXISTS (
         SELECT 1 FROM event_roles r
-        WHERE r.event_id = e.id AND lower(btrim(r.role)) = 'pub leader' AND btrim(coalesce(r.person, '')) <> ''
+        WHERE r.event_id = e.id AND lower(btrim(r.role)) IN ('pub leader 1', 'pub leader 2', 'pub leader 3', 'pub leader') AND btrim(coalesce(r.person, '')) <> ''
       )
     ORDER BY e.event_date ASC NULLS LAST, e.created_at`;
   return rows.map((r) => r.id);
@@ -49,7 +50,7 @@ export async function eventReadiness(sql: Sql): Promise<EventReadiness[]> {
     SELECT e.id::text AS event_id, e.title, e.event_date::text AS event_date, e.cancelled,
            NOT EXISTS (
              SELECT 1 FROM event_roles r
-             WHERE r.event_id = e.id AND lower(btrim(r.role)) = 'pub leader' AND btrim(coalesce(r.person, '')) <> ''
+             WHERE r.event_id = e.id AND lower(btrim(r.role)) IN ('pub leader 1', 'pub leader 2', 'pub leader 3', 'pub leader') AND btrim(coalesce(r.person, '')) <> ''
            ) AS no_leader,
            t.area, COUNT(*)::text AS total, COUNT(*) FILTER (WHERE t.status = 'done')::text AS done
     FROM events e JOIN tasks t ON t.event_id = e.id

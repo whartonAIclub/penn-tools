@@ -59,6 +59,9 @@ export {
   MAX_PARTIES,
 } from "./planning.js";
 export type { PlannedEventInput, PlannedEvent, PlannedEventSummary, VendorInput, RoleInput } from "./planning.js";
+export { ROLE_SLOTS, canonicalRole, normalizeRoles, isPubLeaderRole, resolveOwner, listRoleDefaults, setRoleDefault, setEventRole, listRoleAssignments } from "./roles.js";
+export type { RoleSlot, RoleDefault, RoleAssignment } from "./roles.js";
+export { MAX_EQUIPMENT } from "./equipment.js";
 export { proposeEvents, CalendarProposalSchema, CALENDAR_SYSTEM_PROMPT } from "./calendar.js";
 export type { EventProposal, SourceRow } from "./calendar.js";
 export {
@@ -73,10 +76,10 @@ export {
   deleteCalendarImport,
 } from "./calendarStorage.js";
 export type { MatchKind, ProposalStatus, StoredProposal, CalendarImportSummary } from "./calendarStorage.js";
-export { groupByMonth, UNDATED_GROUP } from "./calendarView.js";
+export { groupByMonth, splitByToday, UNDATED_GROUP } from "./calendarView.js";
 export { dueDate, anchorOffset, generateTasks, rescheduleEvent, categoryOf, suggestedModules, describeTiming } from "./checklist.js";
 export type { Phase, Area, TemplateItem, TaskDraft } from "./checklist.js";
-export { PUB_TEMPLATE_V1, ensureTemplate, getTemplate } from "./pubTemplate.js";
+export { PUB_TEMPLATE_V1, PUB_TEMPLATE_V2, ensureTemplate, getTemplate } from "./pubTemplate.js";
 export type { PubTemplate, TemplateModule, TemplateIssue, LoadedTemplate } from "./pubTemplate.js";
 export { hasPubLeader, eventsWithoutLeader, eventReadiness } from "./board.js";
 export type { EventReadiness } from "./board.js";

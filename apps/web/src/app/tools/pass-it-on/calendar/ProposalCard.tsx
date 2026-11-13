@@ -36,6 +36,8 @@ function toFormValues(i: Input): EventFormValues {
     ticketRevenue: str(i.ticketRevenue),
     costs: str(i.costs),
     cancelled: i.cancelled,
+    needsEquipment: i.needsEquipment ?? false,
+    equipment: (i.equipment ?? []).join("\n"),
   };
 }
 

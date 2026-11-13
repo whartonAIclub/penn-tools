@@ -24,6 +24,7 @@ const draft = (key: string, over: Partial<TaskDraft> = {}): TaskDraft => ({
   area: "general",
   offsetDays: -7,
   owner: "Unassigned",
+  ownerRole: null,
   isPostmortem: false,
   notes: null,
   timeHint: null,
@@ -69,7 +70,7 @@ describe.skipIf(!databaseUrl)("task storage", () => {
       draft("child", { parentKey: "parent" }),
       draft("parent"),
       draft("club-child:a", { parentKey: "club:a", partner: "A" }),
-      draft("club:a", { partner: "A", area: "partners", timeHint: "EOD", owner: "Sam", notes: "n", isPostmortem: true }),
+      draft("club:a", { partner: "A", area: "partners", timeHint: "EOD", owner: "Sam", ownerRole: "Ops Lead", notes: "n", isPostmortem: true }),
     ];
     expect(await createEventTasks(sql, id, drafts)).toBe(4);
     const rows = await sql<{ key: string; parent: string | null }[]>`
@@ -79,7 +80,7 @@ describe.skipIf(!databaseUrl)("task storage", () => {
     expect(parentOf).toEqual({ child: "parent", parent: null, "club-child:a": "club:a", "club:a": null });
     const [club] = await listTasks(sql, { eventIds: [id] }).then((t) => t.filter((x) => x.templateItemKey === "club:a"));
     expect(club).toMatchObject({
-      partner: "A", area: "partners", timeHint: "EOD", owner: "Sam", notes: "n", isPostmortem: true,
+      partner: "A", area: "partners", timeHint: "EOD", owner: "Michael" /* role-owned: re-resolved to the Ops Lead default */, ownerRole: "Ops Lead", notes: "n", isPostmortem: true,
       source: "template", confirmed: false, phase: "pre", offsetDays: -7, status: "todo",
     });
   });
@@ -295,5 +296,23 @@ describe.skipIf(!databaseUrl)("task storage", () => {
     expect(await count(id)).toBe(1);
     await sql`DELETE FROM events WHERE id = ${id}`;
     expect(await count(id)).toBe(0);
+  });
+
+  it("the owner filter matches any name in a 'A/B' owner, whole names only", async () => {
+    const id = await mkEvent();
+    await createEventTasks(sql, id, [draft("duo", { owner: "Diva/Arjun" })]);
+    const keys = async (owner: string) => (await listTasks(sql, { eventIds: [id], owner })).map((t) => t.templateItemKey);
+    expect(await keys("Arjun")).toEqual(["duo"]);
+    expect(await keys("diva")).toEqual(["duo"]);
+    expect(await keys("Ar")).toEqual([]);
+  });
+
+  it("a hand-picked owner stops following the role", async () => {
+    const id = await mkEvent();
+    await createEventTasks(sql, id, [draft("fol", { owner: "Michael", ownerRole: "Ops Lead" })]);
+    const [t] = await listTasks(sql, { eventIds: [id] });
+    expect(t!.ownerRole).toBe("Ops Lead");
+    await updateTask(sql, t!.id, { owner: "Sam" });
+    expect((await listTasks(sql, { eventIds: [id] }))[0]!.ownerRole).toBeNull();
   });
 });

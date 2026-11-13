@@ -68,6 +68,9 @@ export interface EventFormValues {
   ticketRevenue: string;
   costs: string;
   cancelled: boolean;
+  needsEquipment: boolean;
+  /** One item per line; used only when needsEquipment is true. */
+  equipment: string;
 }
 
 /**

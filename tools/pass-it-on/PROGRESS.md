@@ -1,6 +1,6 @@
 # Pass It On: progress and plan
 
-*Last updated 2026-11-09. Repo: `jhard99/penn-tools`, branch `pass-it-on`.*
+*Last updated 2026-11-12. Repo: `jhard99/penn-tools`, branch `pass-it-on`.*
 
 ## What we're building
 
@@ -68,6 +68,28 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | 26 | **Pilot** with a current Pub leader | To do |
 | 27 | Pull request to `whartonAIclub/penn-tools` | To do |
 
+## 2026-11-12 changes: roles and checklist table
+
+Two new tabs: **Roles** (a grid of who holds each role, per event, plus club defaults) and **Checklist** (the old Board, same URL, now a table with one-click check-off). 283 tool tests.
+
+| Req | What | Status |
+|---|---|---|
+| 1 | Roles tab: edit role holders per event and the club's default leads; default names seeded in `schema.sql` | **Built, needs a manual check** |
+| 2 | Task owners follow the owner chain (see Decisions); changing a role holder re-owns its tasks | **Built, needs a manual check** |
+| 3 | Template v2: each item gets a role by area and phase; events on v1 keep v1 | **Built, needs a manual check** |
+| 5 | Equipment on an event: Arrange at T-7 and Return at T+1 tasks, owned by the Ops Lead | **Built, needs a manual check** |
+| 6 | Checklist tab (was Board): table, one-click strike, Planning before Run of show, show-done toggle; Events tab soonest first with "Past events (N)" | **Built, needs a manual check** |
+
+`db:deploy` ran twice against the local database with no errors (schema re-runs cleanly).
+
+**Manual checks for Joe (signed in):**
+- **New event:** Pub Leader 1 "Diva", Ops Lead blank, equipment "Fog machine". `food-order` is owned by Michael, an "Arrange: Fog machine" task exists, and there is no "No Pub Leader" flag.
+- **Changing Ops Lead:** set it to "Ivana"; `food-order` moves to Ivana.
+- **Older events:** a v1 event's page lists v1's modules.
+- **Roles tab:** typing a cell value and tabbing away saves it; changing the Marketing Lead default to Kira updates the placeholders; the grid scrolls sideways without the page scrolling.
+- **Checklist tab:** one click strikes a row and a reload keeps it in single-event view; five quick clicks end on the fifth click's state; a failed save reverts and shows an error; Planning comes before Run of show; at 400px wide rows stack with no sideways scroll.
+- **Events tab:** soonest first, past events in "Past events (N)".
+
 **Cut line, in this order:** meeting-notes extraction → proposed template changes → suggested modules → non-event to-dos → Drive zip and WhatsApp support. **Never cut:** cited search, event records, dated tasks with owners generated from the template, and human approval.
 
 ## Step 11: exit test runbook
@@ -93,6 +115,12 @@ Needs real Pub files (kept outside the repo) and, for the AI answers, an OpenAI 
 - **Owners** *(2026-11-10)*: a task's owner is a plain name. The default is whoever holds the item's default role on the event (e.g. "Ops Lead"), else the Pub Leader, else "Unassigned". The `members` list is filled from names already used, only for dropdowns and filters.
 - **Run of show and partner clubs** *(2026-11-10)*: the template has a "Run of show" category for day-of, during-event and post-event items, and items that repeat for each partner club are generated once per club.
 - **Provenance** *(2026-11-10)*: every task records where it came from (template, manual, meeting notes, inferred) and whether its owner has confirmed. Meeting-notes extraction is a Week 3 option after template-change proposals.
+- **Owner chain** *(2026-11-12)*: specialist slot, then the role's holder, then the club default, then CoS Owner, then Prez Owner, then Unassigned. Pub Leader slots go PL1, PL2, PL3, CoS, Prez.
+- **Template v2** *(2026-11-12)*: each item's role comes from a rule by area and phase; partnerships and membership specials go to the Prez Owner. Events on v1 keep v1.
+- **Default lead names** *(2026-11-12)*: seeded in `schema.sql`; Joe chose to keep them in the repo.
+- **Board is now the Checklist tab** *(2026-11-12)*, at the same URL.
+- **Equipment tasks** *(2026-11-12)*: Arrange at T-7 and Return at T+1, owned by the Ops Lead.
+- **Older events** *(2026-11-12)*: tasks generated before this change have no role link (owner_role NULL), so editing a role on an older event doesn't move them; regenerating doesn't change them either, so reassign by hand.
 - **Approval rule on the finance item:** a budget change over $1,500 needs a majority of the Co-Presidents (bylaws 4.2). Shown as a note on the item, not enforced.
 - **"Board-only" access:** not needed while the pilot runs on one laptop. It comes after the pilot, with the Platform team.
 

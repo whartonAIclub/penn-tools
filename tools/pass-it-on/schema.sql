@@ -335,3 +335,68 @@ CREATE TABLE IF NOT EXISTS template_issues (
   text       TEXT   NOT NULL,
   status     TEXT   NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved'))
 );
+
+-- Role names become the canonical slots (see src/roles.ts). Idempotent: once a
+-- row has a slot name no statement below matches it again.
+UPDATE event_roles r SET role = v.slot
+FROM (VALUES
+    ('cos', 'CoS Owner'), ('cos owner', 'CoS Owner'), ('chief of staff', 'CoS Owner'),
+    ('c-suite owner', 'CoS Owner'), ('c suite owner', 'CoS Owner'),
+    ('prez', 'Prez Owner'), ('prez owner', 'Prez Owner'), ('pres owner', 'Prez Owner'),
+    ('president', 'Prez Owner'), ('president owner', 'Prez Owner'),
+    ('ops', 'Ops Lead'), ('ops lead', 'Ops Lead'), ('operations lead', 'Ops Lead'),
+    ('marketing', 'Marketing Lead'), ('marketing lead', 'Marketing Lead'),
+    ('finance', 'Finance Lead'), ('finance lead', 'Finance Lead'),
+    ('entertainment', 'Entertainment Lead'), ('entertainment lead', 'Entertainment Lead'),
+    ('pub leader 1', 'Pub Leader 1'), ('pub leader 2', 'Pub Leader 2'), ('pub leader 3', 'Pub Leader 3')
+  ) AS v(variant, slot)
+WHERE lower(regexp_replace(btrim(r.role), '\s+', ' ', 'g')) = v.variant AND r.role <> v.slot;
+
+-- Unnumbered "pub leader" rows take each event's free Pub Leader numbers in
+-- position order; rows beyond the free numbers become a plain "Pub Leader".
+-- A later run finds no unnumbered rows left to number (extras are already
+-- spelled "Pub Leader" and are rewritten to the same text).
+WITH unnumbered AS (
+  SELECT r.id, row_number() OVER (PARTITION BY r.event_id ORDER BY r.position, r.id) AS n, r.event_id
+  FROM event_roles r
+  WHERE lower(regexp_replace(btrim(r.role), '\s+', ' ', 'g')) IN ('pub leader', 'leader')
+), free AS (
+  SELECT e.event_id, g.num, row_number() OVER (PARTITION BY e.event_id ORDER BY g.num) AS n
+  FROM (SELECT DISTINCT event_id FROM unnumbered) e
+  CROSS JOIN generate_series(1, 3) AS g(num)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM event_roles x WHERE x.event_id = e.event_id AND lower(regexp_replace(btrim(x.role), '\s+', ' ', 'g')) = 'pub leader ' || g.num
+  )
+)
+UPDATE event_roles r SET role = 'Pub Leader ' || f.num
+FROM unnumbered u JOIN free f ON f.event_id = u.event_id AND f.n = u.n
+WHERE r.id = u.id;
+UPDATE event_roles SET role = 'Pub Leader'
+WHERE lower(regexp_replace(btrim(role), '\s+', ' ', 'g')) IN ('pub leader', 'leader') AND role <> 'Pub Leader';
+
+-- Club-wide defaults for the lead roles: who holds a slot when an event names
+-- no one. Seeded once; later edits are kept (ON CONFLICT DO NOTHING).
+CREATE TABLE IF NOT EXISTS role_defaults (
+  role       TEXT PRIMARY KEY,
+  person     TEXT,
+  alternates TEXT[] NOT NULL DEFAULT '{}'
+);
+INSERT INTO role_defaults (role, person, alternates) VALUES
+  ('Marketing Lead', 'Manisha', ARRAY['Kira', 'Himanshi']),
+  ('Finance Lead', 'Marcela', ARRAY['Charlie']),
+  ('Ops Lead', 'Michael', ARRAY[]::TEXT[]),
+  ('Entertainment Lead', 'Billy', ARRAY[]::TEXT[])
+ON CONFLICT (role) DO NOTHING;
+
+-- Which role an event task's owner came from (see src/roles.ts), so a role
+-- change can move the task. NULL for tasks someone assigned by hand.
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS owner_role TEXT;
+
+-- Built-in template versions are found by source, not by number.
+ALTER TABLE template_versions ADD COLUMN IF NOT EXISTS source TEXT;
+UPDATE template_versions SET source = 'pub-v1' WHERE version = 1 AND reverted_from IS NULL AND source IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS template_versions_source_idx ON template_versions (source) WHERE source IS NOT NULL;
+
+-- Specialized equipment: the checkbox, and the items one per line.
+ALTER TABLE events ADD COLUMN IF NOT EXISTS needs_equipment BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS equipment       TEXT;

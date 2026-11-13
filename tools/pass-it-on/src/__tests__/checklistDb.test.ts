@@ -51,6 +51,20 @@ describe.skipIf(!databaseUrl)("checklist schema", () => {
     await expect(sql.unsafe(schemaSql)).resolves.toBeDefined();
   });
 
+  it("schema.sql rewrites old role names to slots, once", async () => {
+    const [e] = await sql<{ id: string }[]>`
+      INSERT INTO events (title, event_type, organizer_name, created_by) VALUES ('R', 'pub', 'O', 'u') RETURNING id`;
+    await sql`INSERT INTO event_roles (event_id, position, role, person) VALUES
+      (${e!.id}, 0, 'pub leader', 'A'), (${e!.id}, 1, 'C-suite owner', 'B'), (${e!.id}, 2, 'pub leader', 'C')`;
+    const read = () => sql<{ role: string; person: string }[]>`
+      SELECT role, person FROM event_roles WHERE event_id = ${e!.id} ORDER BY position`;
+    const expected = [{ role: "Pub Leader 1", person: "A" }, { role: "CoS Owner", person: "B" }, { role: "Pub Leader 2", person: "C" }];
+    await sql.unsafe(schemaSql);
+    expect([...(await read())].map((r) => ({ ...r }))).toEqual(expected);
+    await sql.unsafe(schemaSql);
+    expect([...(await read())].map((r) => ({ ...r }))).toEqual(expected);
+  });
+
   it("rejects an item with both an offset and a weekday anchor", async () => {
     await expect(insertItem("both", -3, 1)).rejects.toThrow();
   });

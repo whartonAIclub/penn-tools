@@ -8,6 +8,7 @@ import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
 import { MAX_BUDGET, MAX_COUNT, MAX_PARTIES, MAX_ROLES, checkPlannedEventInput, type PlannedEventInput } from "./planning.js";
 import { MAX_FIELD_LENGTH } from "./records.js";
+import { normalizeRoles } from "./roles.js";
 
 /** Rows sent to the AI per call, so a long calendar never runs into its output limit. */
 export const ROWS_PER_CALL = 40;
@@ -85,11 +86,12 @@ function clean(raw: RawProposal, rowText: string): RawProposal {
     notes: text(raw.notes),
     clubContact: text(raw.clubContact),
     partnerClubs: raw.partnerClubs.map((c) => text(c)).filter((c): c is string => c !== null).slice(0, MAX_PARTIES),
-    roles: raw.roles
-      .map((r) => ({ role: text(r.role), person: text(r.person) }))
-      .filter((r) => r.role !== null || r.person !== null)
-      .map((r) => ({ role: r.role ?? "Role", person: r.person }))
-      .slice(0, MAX_ROLES),
+    roles: normalizeRoles(
+      raw.roles
+        .map((r) => ({ role: text(r.role), person: text(r.person) }))
+        .filter((r) => r.role !== null || r.person !== null)
+        .map((r) => ({ role: r.role ?? "Role", person: r.person })),
+    ).slice(0, MAX_ROLES),
     totalAttendees: count(raw.totalAttendees),
     dropIns: count(raw.dropIns),
     ticketRevenue: money(raw.ticketRevenue),

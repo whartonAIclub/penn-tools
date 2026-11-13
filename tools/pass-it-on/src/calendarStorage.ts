@@ -4,6 +4,7 @@
 
 import type { Sql } from "postgres";
 import type { EventProposal } from "./calendar.js";
+import { normalizeRoles } from "./roles.js";
 import { createPlannedEventIn, getPlannedEvent, updatePlannedEventIn, type PlannedEvent, type PlannedEventInput } from "./planning.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,8 +53,11 @@ function differences(proposed: PlannedEventInput, existing: PlannedEvent): strin
     ["club contact", proposed.clubContact, existing.clubContact],
   ];
   for (const [name, a, b] of text) if (a !== null && norm(a) !== norm(b)) changed.push(name);
-  const roles = (r: { role: string; person: string | null }[]) => JSON.stringify(r.map((x) => [norm(x.role), norm(x.person)]));
-  if (proposed.roles.length > 0 && roles(proposed.roles) !== roles(existing.roles)) changed.push("roles");
+  // Normalized first, so stored rows in a different order (or with old role names) don't count as a change.
+  // Only the roles the spreadsheet names count; the calendar has no column for the rest.
+  const named = normalizeRoles(proposed.roles);
+  const have = new Map(normalizeRoles(existing.roles).map((x) => [norm(x.role), norm(x.person)]));
+  if (named.some((x) => have.get(norm(x.role)) !== norm(x.person))) changed.push("roles");
   const clubs = (c: string[]) => JSON.stringify(c.map(norm).sort());
   if (proposed.partnerClubs.length > 0 && clubs(proposed.partnerClubs) !== clubs(existing.partnerClubs)) changed.push("partner clubs");
   if (proposed.confirmedClub && !existing.confirmedClub) changed.push("club confirmed");
@@ -66,6 +70,17 @@ function differences(proposed: PlannedEventInput, existing: PlannedEvent): strin
   ];
   for (const [name, a, b] of numbers) if (a !== null && a !== b) changed.push(name);
   return changed;
+}
+
+/** Each role the spreadsheet names wins its slot; slots and other roles it doesn't name stay. */
+function mergeRoles(existing: PlannedEventInput["roles"], proposed: PlannedEventInput["roles"]): PlannedEventInput["roles"] {
+  const merged = normalizeRoles(existing);
+  for (const r of normalizeRoles(proposed)) {
+    const at = merged.findIndex((m) => norm(m.role) === norm(r.role));
+    if (at >= 0) merged[at] = r;
+    else merged.push(r);
+  }
+  return merged;
 }
 
 /**
@@ -81,7 +96,7 @@ function mergeProposal(existing: PlannedEvent, p: PlannedEventInput): PlannedEve
     theme: existing.theme,
     venue: p.venue ?? existing.venue,
     budget: existing.budget,
-    roles: p.roles.length > 0 ? p.roles : existing.roles,
+    roles: mergeRoles(existing.roles, p.roles),
     partnerClubs: p.partnerClubs.length > 0 ? p.partnerClubs : existing.partnerClubs,
     vendors: existing.vendors,
     notes: p.notes ?? existing.notes,
@@ -93,6 +108,9 @@ function mergeProposal(existing: PlannedEvent, p: PlannedEventInput): PlannedEve
     ticketRevenue: p.ticketRevenue ?? existing.ticketRevenue,
     costs: p.costs ?? existing.costs,
     cancelled: existing.cancelled,
+    // A spreadsheet row says nothing about equipment, so a re-import must not wipe it.
+    needsEquipment: existing.needsEquipment,
+    equipment: existing.equipment,
   };
 }
 

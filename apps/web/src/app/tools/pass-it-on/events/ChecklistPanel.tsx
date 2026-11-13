@@ -50,7 +50,7 @@ export function ChecklistPanel({
         <h2 className={styles.heading}>Checklist</h2>
         {taskCount > 0 && (
           <Link href={`/tools/pass-it-on/board?event=${eventId}`} className={styles.link}>
-            See on the board
+            Open the checklist
           </Link>
         )}
       </div>

@@ -6,6 +6,7 @@ import type { Sql } from "postgres";
 import { generateTasks, suggestedModules } from "./checklist.js";
 import { getPlannedEvent } from "./planning.js";
 import { ensureTemplate, getTemplate } from "./pubTemplate.js";
+import { listRoleDefaults } from "./roles.js";
 import { createEventTasks } from "./tasks.js";
 
 export interface ChecklistResult {
@@ -44,6 +45,7 @@ export async function generateEventChecklist(
   const drafts = generateTasks(template.items, moduleKeys, {
     eventDate: event.eventDate,
     roles: event.roles,
+    roleDefaults: await listRoleDefaults(sql),
     partnerClubs: event.partnerClubs,
   });
   const created = await createEventTasks(sql, event.id, drafts, { templateVersionId: template.versionId, moduleKeys });

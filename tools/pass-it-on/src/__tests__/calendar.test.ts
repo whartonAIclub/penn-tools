@@ -59,7 +59,7 @@ describe("proposeEvents", () => {
     ]);
     const result = await proposeEvents(ai, "openai", rows);
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ sheet: "Draft", input: { roles: [{ role: "Pub Leader", person: "Diva" }] } });
+    expect(result[0]).toMatchObject({ sheet: "Draft", input: { roles: [{ role: "Pub Leader 1", person: "Diva" }] } });
   });
 
   it("keeps skipped rows with the AI's reason", async () => {

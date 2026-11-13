@@ -9,7 +9,8 @@ import styles from "./PassItOn.module.css";
 const BASE = "/tools/pass-it-on";
 const TABS = [
   { href: BASE, label: "Events", active: (p: string) => p === BASE || p.startsWith(`${BASE}/events`) },
-  { href: `${BASE}/board`, label: "Board", active: (p: string) => p.startsWith(`${BASE}/board`) },
+  { href: `${BASE}/roles`, label: "Roles", active: (p: string) => p.startsWith(`${BASE}/roles`) },
+  { href: `${BASE}/board`, label: "Checklist", active: (p: string) => p.startsWith(`${BASE}/board`) },
   { href: `${BASE}/calendar`, label: "Calendar", active: (p: string) => p.startsWith(`${BASE}/calendar`) },
   { href: `${BASE}/template`, label: "Template", active: (p: string) => p.startsWith(`${BASE}/template`) },
   { href: `${BASE}/library`, label: "Library", active: (p: string) => p.startsWith(`${BASE}/library`) },

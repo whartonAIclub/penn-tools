@@ -4,6 +4,7 @@
 
 import type { Sql } from "postgres";
 import { parseDate } from "./checklist.js";
+import { reassignRoleOwners } from "./roles.js";
 import type { Area, Phase, TaskDraft } from "./checklist.js";
 
 export type TaskStatus = "todo" | "doing" | "blocked" | "done" | "skipped";
@@ -26,6 +27,7 @@ export interface TaskRow {
   offsetDays: number | null;
   dueDate: string | null;
   owner: string;
+  ownerRole: string | null;
   status: TaskStatus;
   waitingOn: string | null;
   completedAt: string | null;
@@ -100,10 +102,10 @@ export async function createEventTasks(
       for (const d of batch) {
         const parentId = d.parentKey === null || d.parentKey === d.templateItemKey ? null : (ids.get(d.parentKey) ?? null);
         const [row] = await tx<{ id: string }[]>`
-          INSERT INTO tasks (event_id, template_item_key, parent_task_id, title, phase, area, offset_days, owner,
+          INSERT INTO tasks (event_id, template_item_key, parent_task_id, title, phase, area, offset_days, owner, owner_role,
                              is_postmortem, notes, time_hint, partner, source, confirmed)
           VALUES (${eventId}, ${d.templateItemKey}, ${parentId}, ${d.title}, ${d.phase}, ${d.area}, ${d.offsetDays},
-                  ${d.owner}, ${d.isPostmortem}, ${d.notes}, ${d.timeHint}, ${d.partner}, ${d.source}, ${d.confirmed})
+                  ${d.owner}, ${d.ownerRole}, ${d.isPostmortem}, ${d.notes}, ${d.timeHint}, ${d.partner}, ${d.source}, ${d.confirmed})
           ON CONFLICT (event_id, template_item_key) WHERE event_id IS NOT NULL AND template_item_key IS NOT NULL DO NOTHING
           RETURNING id::text`;
         if (row) {
@@ -121,6 +123,8 @@ export async function createEventTasks(
     for (const key of new Set(options.moduleKeys ?? [])) {
       await tx`INSERT INTO event_modules (event_id, module_key) VALUES (${eventId}, ${key}) ON CONFLICT DO NOTHING`;
     }
+    // Roles may have changed since the drafts were built (the event is locked now), so resolve role-owned owners again from the current roles.
+    await reassignRoleOwners(tx, eventId);
     return inserted;
   });
 }
@@ -138,6 +142,7 @@ interface RawTask {
   offset_days: number | null;
   due: string | null;
   owner: string;
+  owner_role: string | null;
   status: TaskStatus;
   waiting_on: string | null;
   completed_at: string | null;
@@ -168,10 +173,10 @@ export async function listTasks(
       FROM tasks LEFT JOIN events e ON e.id = tasks.event_id
     )
     SELECT id::text, event_id::text, event_title, event_date::text AS event_date, template_item_key,
-           parent_task_id::text, title, phase, area, offset_days, due::text AS due, owner, status, waiting_on,
+           parent_task_id::text, title, phase, area, offset_days, due::text AS due, owner, owner_role, status, waiting_on,
            completed_at::text AS completed_at, is_postmortem, notes, source, confirmed, time_hint, partner
     FROM t
-    WHERE (${filter.owner ?? null}::text IS NULL OR lower(owner) = lower(${filter.owner ?? null}::text))
+    WHERE (${filter.owner ?? null}::text IS NULL OR lower(${filter.owner ?? null}::text) = ANY(SELECT btrim(x) FROM unnest(string_to_array(lower(owner), '/')) x))
       AND (${filter.eventIds ?? null}::text[] IS NULL OR event_id::text = ANY(${filter.eventIds ?? null}::text[]))
       AND (${filter.statuses ?? null}::text[] IS NULL OR status = ANY(${filter.statuses ?? null}::text[]))
       AND (
@@ -194,6 +199,7 @@ export async function listTasks(
     offsetDays: r.offset_days,
     dueDate: r.due,
     owner: r.owner,
+    ownerRole: r.owner_role,
     status: r.status,
     waitingOn: r.waiting_on,
     completedAt: r.completed_at,
@@ -244,7 +250,10 @@ export async function updateTask(
 
     const set: Record<string, unknown> = {};
     if (title !== undefined) set["title"] = title;
-    if (owner !== undefined) set["owner"] = owner;
+    if (owner !== undefined) {
+      set["owner"] = owner;
+      set["owner_role"] = null; // a hand-picked owner stops following the role
+    }
     if (has("waitingOn")) set["waiting_on"] = change.waitingOn;
     if (has("notes")) set["notes"] = change.notes;
     if (has("timeHint")) set["time_hint"] = change.timeHint;

@@ -18,7 +18,8 @@ import {
   skipProposal,
   updateProposal,
 } from "../calendarStorage.js";
-import { createPlannedEvent, deletePlannedEvent, deletePlannedEvents, getPlannedEvent, listPlannedEvents, type PlannedEventInput } from "../planning.js";
+import { listTasks } from "../tasks.js";
+import { createPlannedEvent, deletePlannedEvent, deletePlannedEvents, getPlannedEvent, listPlannedEvents, updatePlannedEvent, type PlannedEventInput } from "../planning.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -46,6 +47,8 @@ function input(title: string, overrides: Partial<PlannedEventInput> = {}): Plann
     ticketRevenue: null,
     costs: null,
     cancelled: false,
+    needsEquipment: false,
+    equipment: [],
     ...overrides,
   };
 }
@@ -100,8 +103,51 @@ describe.skipIf(!databaseUrl)("calendar storage", () => {
     const eventId = (a as { eventId: string }).eventId;
     expect((b as { eventId: string }).eventId).toBe(eventId);
     expect((await listPlannedEvents(sql)).filter((e) => e.title === "Oktoberfest")).toHaveLength(1);
-    expect(await getPlannedEvent(sql, eventId)).toMatchObject({ importId: id, venue: "Armory", roles: [{ role: "Pub Leader", person: "Diva" }] });
+    expect(await getPlannedEvent(sql, eventId)).toMatchObject({ importId: id, venue: "Armory", roles: [{ role: "Pub Leader 1", person: "Diva" }] });
     expect((await getCalendarImport(sql, id))!.proposals[0]).toMatchObject({ status: "approved", eventId });
+  });
+
+  it("doesn't call stored roles in a different order a change", async () => {
+    const eventId = await createPlannedEvent(sql, input("Order Pub", { eventDate: "2027-05-06", roles: [{ role: "Pub Leader 1", person: "Diva" }, { role: "Ops Lead", person: "Sam" }] }), "u1");
+    // A legacy event: rows written directly, out of slot order.
+    await sql`DELETE FROM event_roles WHERE event_id = ${eventId}`;
+    await sql`INSERT INTO event_roles (event_id, position, role, person) VALUES (${eventId}, 0, 'Ops Lead', 'Sam'), (${eventId}, 1, 'Pub Leader 1', 'Diva')`;
+    const id = await createCalendarImport(sql, {
+      filename: "Order.xlsx",
+      uploadedBy: "u1",
+      proposals: [proposal(1, input("Order Pub", { eventDate: "2027-05-06", roles: [{ role: "Pub Leader 1", person: "Diva" }, { role: "Ops Lead", person: "Sam" }] }))],
+    });
+    const [p] = (await getCalendarImport(sql, id))!.proposals;
+    expect(p!.changes).not.toContain("roles");
+    expect(p!.matchKind).toBe("unchanged");
+  });
+
+  it("only compares the roles the calendar names, and keeps other slots on approval", async () => {
+    const roles = [{ role: "Pub Leader 1", person: "Diva" }, { role: "Marketing Lead", person: "Kira" }];
+    const eventId = await createPlannedEvent(sql, input("Lead Pub", { eventDate: "2027-06-01", roles }), "u1");
+    const same = input("Lead Pub", { eventDate: "2027-06-01", roles: [{ role: "CoS Owner", person: "Sam" }, { role: "Pub Leader 1", person: "Diva" }] });
+    await updatePlannedEvent(sql, eventId, { ...(await getPlannedEvent(sql, eventId))!, roles: [...roles, { role: "CoS Owner", person: "Sam" }] });
+    const id1 = await createCalendarImport(sql, { filename: "L1.xlsx", uploadedBy: "u1", proposals: [proposal(1, same)] });
+    const [p1] = (await getCalendarImport(sql, id1))!.proposals;
+    expect(p1!.changes).not.toContain("roles");
+    expect(p1!.matchKind).toBe("unchanged");
+
+    const changed = input("Lead Pub", { eventDate: "2027-06-01", roles: [{ role: "CoS Owner", person: "Sam" }, { role: "Pub Leader 1", person: "Benji" }] });
+    const id2 = await createCalendarImport(sql, { filename: "L2.xlsx", uploadedBy: "u1", proposals: [proposal(1, changed)] });
+    const [p2] = (await getCalendarImport(sql, id2))!.proposals;
+    expect(p2!.changes).toContain("roles");
+    expect((await approveProposal(sql, p2!.id, "u1")).ok).toBe(true);
+    const after = (await getPlannedEvent(sql, eventId))!.roles;
+    expect(after).toContainEqual({ role: "Marketing Lead", person: "Kira" });
+    expect(after).toContainEqual({ role: "Pub Leader 1", person: "Benji" });
+    expect(after).toContainEqual({ role: "CoS Owner", person: "Sam" });
+  });
+
+  it("stores raw roles as canonical slot names when an event is created", async () => {
+    const eventId = await createPlannedEvent(sql, input("Raw Roles Pub", { eventDate: "2027-05-07", roles: [{ role: "pub leader", person: "A" }, { role: "C-suite owner", person: "B" }] }), "u1");
+    const event = await getPlannedEvent(sql, eventId);
+    expect(event!.roles).toEqual([{ role: "CoS Owner", person: "B" }, { role: "Pub Leader 1", person: "A" }]);
+    expect(event!.pubLeader).toBe("A");
   });
 
   it("labels proposals new, changed and unchanged against existing events, with the changed fields", async () => {
@@ -173,6 +219,17 @@ describe.skipIf(!databaseUrl)("calendar storage", () => {
     expect(p!.matchKind).toBe("changed");
     await approveProposal(sql, p!.id, "u1");
     expect(await getPlannedEvent(sql, existing)).toMatchObject({ venue: "Lucy's", theme: "Beer", budget: 900, vendors: [{ name: "Bistro", role: "catering" }], cancelled: true, totalAttendees: 120 });
+  });
+
+  it("approving a changed proposal keeps the event's equipment", async () => {
+    const existing = await createPlannedEvent(sql, input("Gear Pub", { eventDate: "2026-11-05", needsEquipment: true, equipment: ["Fog machine"] }), "u1");
+    const id = await createCalendarImport(sql, { filename: "H.xlsx", uploadedBy: "u1", proposals: [proposal(1, input("Gear Pub", { eventDate: "2026-11-05", venue: "Lucy's" }))] });
+    const [p] = (await getCalendarImport(sql, id))!.proposals;
+    expect(p!.matchKind).toBe("changed");
+    await approveProposal(sql, p!.id, "u1");
+    expect(await getPlannedEvent(sql, existing)).toMatchObject({ venue: "Lucy's", needsEquipment: true, equipment: ["Fog machine"] });
+    const keys = (await listTasks(sql, { eventIds: [existing] })).map((t) => t.templateItemKey);
+    expect(keys).toContain("equipment:fog-machine");
   });
 
   it("approving an unchanged proposal links the existing event instead of duplicating it", async () => {

@@ -2,8 +2,9 @@
 // daylight saving never shifts a result. Weekdays: 0 = Sunday ... 6 = Saturday.
 
 import type { Sql } from "postgres";
-import { leaderOf } from "./planning.js";
 import type { RoleInput } from "./planning.js";
+import { resolveOwner } from "./roles.js";
+import type { RoleDefault } from "./roles.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -64,6 +65,8 @@ export interface TaskDraft {
   area: Area;
   offsetDays: number | null;
   owner: string;
+  /** The role the owner was asked for (resolved again when a role holder changes). */
+  ownerRole: string | null;
   isPostmortem: boolean;
   notes: string | null;
   timeHint: string | null;
@@ -82,7 +85,7 @@ export function suggestedModules(event: { partnerClubs: string[] }): string[] {
   return event.partnerClubs.some((club) => slugOf(club) !== "") ? ["club-collab"] : [];
 }
 
-function slugOf(name: string): string {
+export function slugOf(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
@@ -113,7 +116,7 @@ function uniqueClubs(names: string[]): { name: string; slug: string }[] {
 export function generateTasks(
   items: TemplateItem[],
   moduleKeys: string[],
-  event: { eventDate: string | null; roles: RoleInput[]; partnerClubs: string[] },
+  event: { eventDate: string | null; roles: RoleInput[]; roleDefaults: RoleDefault[]; partnerClubs: string[] },
 ): TaskDraft[] {
   const modules = new Set(moduleKeys);
   let included = items.filter((i) => i.moduleKey === null || modules.has(i.moduleKey));
@@ -141,13 +144,7 @@ export function generateTasks(
     repeats(item) ? clubs.map((club) => ({ item, club })) : [{ item, club: null }],
   );
 
-  const leader = leaderOf(event.roles);
-  const holders = event.roles.filter((r) => r.person);
-  const ownerOf = (item: TemplateItem): string => {
-    const role = item.defaultRole?.trim().toLowerCase();
-    const holder = role ? holders.find((r) => r.role.trim().toLowerCase() === role) : undefined;
-    return holder?.person ?? leader ?? "Unassigned";
-  };
+  const ownerOf = (item: TemplateItem) => resolveOwner(item.defaultRole, event.roles, event.roleDefaults);
   const offsetOf = (item: TemplateItem): number | null => {
     if (item.offsetDays !== null) return item.offsetDays;
     if (item.anchorWeekday !== null && event.eventDate !== null) {
@@ -176,7 +173,7 @@ export function generateTasks(
       phase: item.phase,
       area: item.area,
       offsetDays: offset,
-      owner: ownerOf(item),
+      ...ownerOf(item),
       isPostmortem: item.isPostmortem,
       notes: item.notes,
       timeHint: item.timeHint,

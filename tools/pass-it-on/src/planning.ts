@@ -6,6 +6,8 @@
 import type { Sql } from "postgres";
 import { rescheduleEventIn } from "./checklist.js";
 import { MAX_FIELD_LENGTH } from "./records.js";
+import { checkEquipment, syncEquipmentTasks } from "./equipment.js";
+import { normalizeRoles, reassignRoleOwners } from "./roles.js";
 
 export const MAX_PARTIES = 20;
 export const MAX_ROLES = 20;
@@ -15,7 +17,7 @@ export const MAX_COUNT = 1_000_000;
 export const MAX_BUDGET = 99_999_999.99;
 export const DEFAULT_EVENT_TYPE = "pub";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface VendorInput {
   name: string;
@@ -52,6 +54,10 @@ export interface PlannedEventInput {
   costs: number | null;
   /** Called off, but kept on the calendar so it's seen. */
   cancelled: boolean;
+  /** The event needs specialized equipment; each item in `equipment` becomes tasks. */
+  needsEquipment: boolean;
+  /** One item per entry. Empty when needsEquipment is false. */
+  equipment: string[];
 }
 
 export interface PlannedEvent extends PlannedEventInput {
@@ -113,13 +119,20 @@ function checkRoles(value: unknown): Checked<RoleInput[]> {
     if (!role.value) return { ok: false, message: `Name the role that ${person.value} has.` };
     roles.push({ role: role.value, person: person.value });
   }
-  return { ok: true, value: roles };
+  return { ok: true, value: normalizeRoles(roles) };
 }
 
-/** The Pub Leader's name for lists: the first Pub Leader with a person, else the first person. */
+/** Pub Leader names in the order leaderOf prefers them; the unnumbered one is the old spelling. */
+const LEADER_ORDER = ["pub leader 1", "pub leader 2", "pub leader 3", "pub leader"];
+
+/** The Pub Leader's name for lists: the first person in Pub Leader 1, then 2, then 3, then the old "Pub Leader", else the first person named. */
 export function leaderOf(roles: RoleInput[]): string | null {
   const named = roles.filter((r) => r.person);
-  return (named.find((r) => r.role.toLowerCase() === "pub leader") ?? named[0])?.person ?? null;
+  for (const name of LEADER_ORDER) {
+    const found = named.find((r) => r.role.trim().toLowerCase() === name);
+    if (found) return found.person;
+  }
+  return named[0]?.person ?? null;
 }
 
 function isRealDate(value: string): boolean {
@@ -153,6 +166,11 @@ export function checkPlannedEventInput(input: unknown): Checked<PlannedEventInpu
   if (!clubContact.ok) return clubContact;
   const roles = checkRoles(raw["roles"]);
   if (!roles.ok) return roles;
+
+  const needsEquipment = raw["needsEquipment"] === true;
+  // Missing means none, so forms that don't send equipment yet keep working.
+  const equipment = checkEquipment(raw["equipment"]);
+  if (!equipment.ok) return equipment;
 
   const budget = optionalMoney(raw["budget"], "the budget");
   if (!budget.ok) return budget;
@@ -202,6 +220,8 @@ export function checkPlannedEventInput(input: unknown): Checked<PlannedEventInpu
       ticketRevenue: ticketRevenue.value,
       costs: costs.value,
       cancelled: raw["cancelled"] === true,
+      needsEquipment,
+      equipment: needsEquipment ? equipment.value : [],
     },
   };
 }
@@ -225,19 +245,24 @@ export async function createPlannedEvent(sql: Sql, input: PlannedEventInput, cre
 }
 
 /** createPlannedEvent inside a transaction the caller already opened (`tx`), optionally recording the calendar import it came from. */
-export async function createPlannedEventIn(tx: Sql, input: PlannedEventInput, createdBy: string, importId: string | null): Promise<string> {
+export async function createPlannedEventIn(tx: Sql, rawInput: PlannedEventInput, createdBy: string, importId: string | null): Promise<string> {
+  // The one write point every caller reaches (forms, calendar approval), so roles are always canonical.
+  const input = withEquipment(rawInput);
   const leader = leaderOf(input.roles);
   const [row] = await tx<{ id: string }[]>`
     INSERT INTO events (title, event_type, event_date, organizer_name, created_by, theme, venue, budget, pub_leader,
                         event_time, notes, confirmed_club, confirmed_venue, club_contact,
-                        total_attendees, drop_ins, ticket_revenue, costs, cancelled, import_id)
+                        total_attendees, drop_ins, ticket_revenue, costs, cancelled, import_id,
+                        needs_equipment, equipment)
     VALUES (${input.title}, ${DEFAULT_EVENT_TYPE}, ${input.eventDate}, ${leader ?? "Unassigned"}, ${createdBy},
             ${input.theme}, ${input.venue}, ${input.budget}, ${leader},
             ${input.eventTime}, ${input.notes}, ${input.confirmedClub}, ${input.confirmedVenue}, ${input.clubContact},
-            ${input.totalAttendees}, ${input.dropIns}, ${input.ticketRevenue}, ${input.costs}, ${input.cancelled}, ${importId})
+            ${input.totalAttendees}, ${input.dropIns}, ${input.ticketRevenue}, ${input.costs}, ${input.cancelled}, ${importId},
+            ${input.needsEquipment}, ${equipmentText(input)})
     RETURNING id
   `;
   await setParties(tx, row!.id, input);
+  await syncEquipmentTasks(tx, row!.id, input.needsEquipment ? input.equipment : []);
   return row!.id;
 }
 
@@ -248,8 +273,9 @@ export async function updatePlannedEvent(sql: Sql, id: string, input: PlannedEve
 }
 
 /** updatePlannedEvent inside a transaction the caller already opened (`tx`). */
-export async function updatePlannedEventIn(tx: Sql, id: string, input: PlannedEventInput): Promise<boolean> {
+export async function updatePlannedEventIn(tx: Sql, id: string, rawInput: PlannedEventInput): Promise<boolean> {
   if (!UUID_RE.test(id)) return false;
+  const input = withEquipment(rawInput);
   const leader = leaderOf(input.roles);
   const rows = await tx`
     UPDATE events
@@ -258,7 +284,8 @@ export async function updatePlannedEventIn(tx: Sql, id: string, input: PlannedEv
         event_time = ${input.eventTime}, notes = ${input.notes}, confirmed_club = ${input.confirmedClub},
         confirmed_venue = ${input.confirmedVenue}, club_contact = ${input.clubContact},
         total_attendees = ${input.totalAttendees}, drop_ins = ${input.dropIns},
-        ticket_revenue = ${input.ticketRevenue}, costs = ${input.costs}, cancelled = ${input.cancelled}, updated_at = NOW()
+        ticket_revenue = ${input.ticketRevenue}, costs = ${input.costs}, cancelled = ${input.cancelled},
+        needs_equipment = ${input.needsEquipment}, equipment = ${equipmentText(input)}, updated_at = NOW()
     WHERE id = ${id}
     RETURNING id
   `;
@@ -266,8 +293,19 @@ export async function updatePlannedEventIn(tx: Sql, id: string, input: PlannedEv
   // The date moves through rescheduleEventIn so the event's tasks move with it (checkPlannedEventInput gives null, never "", for no date).
   await rescheduleEventIn(tx, id, input.eventDate);
   await setParties(tx, id, input);
+  await syncEquipmentTasks(tx, id, input.needsEquipment ? input.equipment : []);
+  await reassignRoleOwners(tx, id);
   return true;
 }
+
+/** The input with canonical roles and equipment made consistent (callers from before equipment existed may omit it). */
+function withEquipment(raw: PlannedEventInput): PlannedEventInput {
+  const needsEquipment = raw.needsEquipment === true;
+  return { ...raw, roles: normalizeRoles(raw.roles), needsEquipment, equipment: needsEquipment ? (raw.equipment ?? []) : [] };
+}
+
+/** Equipment as stored: items joined by newlines, null for none. */
+const equipmentText = (input: PlannedEventInput): string | null => (input.equipment.length > 0 ? input.equipment.join("\n") : null);
 
 async function setParties(tx: Sql, eventId: string, input: PlannedEventInput): Promise<void> {
   await tx`DELETE FROM event_partner_clubs WHERE event_id = ${eventId}`;
@@ -317,6 +355,8 @@ interface DetailRow extends PlannedRow {
   ticket_revenue: string | null;
   costs: string | null;
   import_id: string | null;
+  needs_equipment: boolean;
+  equipment: string | null;
 }
 
 const toSummary = (r: PlannedRow): PlannedEventSummary => ({
@@ -348,7 +388,7 @@ export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEven
   const [row] = await sql<DetailRow[]>`
     SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time, cancelled, import_id,
            notes, confirmed_club, confirmed_venue, club_contact, total_attendees, drop_ins,
-           ticket_revenue::text AS ticket_revenue, costs::text AS costs
+           ticket_revenue::text AS ticket_revenue, costs::text AS costs, needs_equipment, equipment
     FROM events WHERE id = ${id}
   `;
   if (!row) return null;
@@ -377,6 +417,8 @@ export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEven
     costs: row.costs === null ? null : Number(row.costs),
     partnerClubs: clubs.map((c) => c.name),
     vendors: vendors.map((v) => ({ name: v.name, role: v.role })),
+    needsEquipment: row.needs_equipment,
+    equipment: row.equipment ? row.equipment.split("\n") : [],
   };
 }
 

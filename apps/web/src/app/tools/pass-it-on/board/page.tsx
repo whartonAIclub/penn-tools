@@ -1,13 +1,15 @@
-// The Board tab: every in-flight event's tasks, plus ongoing to-dos, in columns
-// by status. Filters live in the URL (a plain GET form), so a view can be
-// bookmarked. Above the columns, each event's readiness per area.
+// The Checklist tab (still at /board): a table per group, ongoing to-dos first,
+// then each event soonest first, with its progress in the group header. Filters
+// live in the URL (a plain GET form), so a view can be bookmarked.
 
 import Link from "next/link";
-import { eventReadiness, listMembers, listPlannedEvents, listTasks, type TaskRow, type TaskStatus } from "@penntools/tool-pass-it-on";
+import { categoryOf, eventReadiness, listMembers, listPlannedEvents, listTasks, type TaskRow, type TaskStatus } from "@penntools/tool-pass-it-on";
 import { db } from "../db";
 import styles from "../PassItOn.module.css";
 import { addDays, today as todayInPhilly } from "../today";
-import { AddTodo, TaskCard } from "./Board";
+import { AddTodo } from "./Board";
+import { ShowDoneToggle } from "./ShowDoneToggle";
+import { ChecklistTable, type ChecklistGroup, type ChecklistRow } from "./ChecklistTable";
 
 const WINDOWS = {
   all: "Any date",
@@ -17,30 +19,17 @@ const WINDOWS = {
 } as const;
 type WindowKey = keyof typeof WINDOWS;
 
-const COLUMNS: { status: TaskStatus; label: string }[] = [
-  { status: "todo", label: "To do" },
-  { status: "doing", label: "Doing" },
-  { status: "blocked", label: "Blocked" },
-  { status: "done", label: "Done" },
-];
-
-const AREA_LABELS: Record<string, string> = {
-  general: "General",
-  finance: "Finance",
-  marketing: "Marketing",
-  operations: "Operations",
-  entertainment: "Entertainment",
-  partners: "Partners",
-};
-
 type Params = { owner: string | undefined; window: string | undefined; event: string | undefined; done: string | undefined };
+const last = (v: string | string[] | undefined) => (Array.isArray(v) ? v[v.length - 1] : v);
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function BoardPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const params: Params = { owner: first(searchParams["owner"]), window: first(searchParams["window"]), event: first(searchParams["event"]), done: first(searchParams["done"]) };
+  const params: Params = { owner: first(searchParams["owner"]), window: first(searchParams["window"]), event: first(searchParams["event"]), done: last(searchParams["done"]) };
   const today = todayInPhilly();
   const window: WindowKey = params.window !== undefined && params.window in WINDOWS ? (params.window as WindowKey) : "all";
-  const showDone = params.done === "1";
+  // Done tasks are hidden across all events and shown when one event is picked; the form sends `done` (1 or 0) only when the Show done box overrides that.
+  const oneEvent = !!params.event && params.event !== "ongoing";
+  const showDone = params.done === "1" ? true : params.done === "0" ? false : oneEvent;
 
   const range =
     window === "overdue" ? { to: addDays(today, -1) } : window === "week" ? { from: today, to: addDays(today, 6) } : window === "fortnight" ? { from: today, to: addDays(today, 13) } : {};
@@ -67,8 +56,36 @@ export default async function BoardPage({ searchParams }: { searchParams: Record
     if (t.parentTaskId !== null && ids.has(t.parentTaskId)) childrenOf.set(t.parentTaskId, [...(childrenOf.get(t.parentTaskId) ?? []), t]);
     else top.push(t);
   }
+  const byDue = (a: TaskRow, b: TaskRow) => (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31") || a.id - b.id;
+  const rowsFor = (list: TaskRow[]): ChecklistRow[] =>
+    [...list].sort(byDue).flatMap((t) => [{ task: t, depth: 0 }, ...[...(childrenOf.get(t.id) ?? [])].sort(byDue).map((c) => ({ task: c, depth: 1 }))]);
 
-  const inFlight = readiness.filter((e) => !e.cancelled && (e.eventDate === null || e.eventDate >= today));
+  const groups: ChecklistGroup[] = [];
+  const ongoing = top.filter((t) => t.eventId === null);
+  if (ongoing.length > 0) {
+    groups.push({ key: "ongoing", title: "Ongoing to-dos", href: null, date: null, done: ongoing.filter((t) => t.status === "done").length, total: ongoing.length, noPubLeader: false, sections: [{ label: null, rows: rowsFor(ongoing) }] });
+  }
+  const eventGroups = readiness
+    .filter((e) => !e.cancelled && top.some((t) => t.eventId === e.eventId))
+    .sort((a, b) => (a.eventDate ?? "9999-12-31").localeCompare(b.eventDate ?? "9999-12-31") || a.title.localeCompare(b.title));
+  for (const e of eventGroups) {
+    const mine = top.filter((t) => t.eventId === e.eventId);
+    const planning = mine.filter((t) => t.phase === null || categoryOf(t.phase) === "planning");
+    const run = mine.filter((t) => t.phase !== null && categoryOf(t.phase) === "run_of_show");
+    groups.push({
+      key: e.eventId,
+      title: e.title,
+      href: `/tools/pass-it-on/events/${e.eventId}`,
+      date: e.eventDate,
+      done: e.done,
+      total: e.total,
+      noPubLeader: e.noPubLeader,
+      sections: [
+        ...(planning.length > 0 ? [{ label: "Planning", rows: rowsFor(planning) }] : []),
+        ...(run.length > 0 ? [{ label: "Run of show", rows: rowsFor(run) }] : []),
+      ],
+    });
+  }
 
   return (
     <>
@@ -77,39 +94,6 @@ export default async function BoardPage({ searchParams }: { searchParams: Record
           <option key={m.id} value={m.name} />
         ))}
       </datalist>
-
-      <section className={styles.card}>
-        <h2 className={styles.heading}>Readiness</h2>
-        {inFlight.length === 0 ? (
-          <p className={styles.muted}>
-            No upcoming events have a checklist yet. Open an event and choose <strong>Generate checklist</strong>, or <Link href="/tools/pass-it-on/events/new" className={styles.link}>add an event</Link>: new events get one automatically.
-          </p>
-        ) : (
-          <ul className={styles.list}>
-            {inFlight.map((e) => (
-              <li key={e.eventId} className={styles.item}>
-                <span>
-                  <Link href={`/tools/pass-it-on/events/${e.eventId}`} className={styles.itemTitle}>
-                    {e.title}
-                  </Link>
-                  {e.noPubLeader && <span className={styles.flag}>No Pub Leader</span>}
-                </span>
-                <span className={styles.muted}>
-                  {e.eventDate ?? "No date"} · {e.done} of {e.total} done
-                </span>
-                <progress className={styles.progress} value={e.done} max={e.total} aria-label={`${e.title}: ${e.done} of ${e.total} tasks done`} />
-                <span className={styles.chips}>
-                  {e.areas.map((a) => (
-                    <span key={a.area ?? "none"} className={styles.tag}>
-                      {a.area === null ? "Other" : (AREA_LABELS[a.area] ?? a.area)} {a.done}/{a.total}
-                    </span>
-                  ))}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       <form className={styles.filters} method="get">
         <label className={styles.compact}>
@@ -142,9 +126,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Record
           </select>
         </label>
         <label className={styles.compact}>
-          <span>
-            <input type="checkbox" name="done" value="1" defaultChecked={showDone} /> Show done
-          </span>
+          <ShowDoneToggle initialEvent={params.event ?? ""} initialChecked={showDone} label="Show done" />
         </label>
         <button className={styles.secondary}>Filter</button>
         <Link href="/tools/pass-it-on/board" className={styles.link}>
@@ -152,26 +134,14 @@ export default async function BoardPage({ searchParams }: { searchParams: Record
         </Link>
       </form>
 
-      {top.length === 0 ? (
+      {groups.length === 0 ? (
         <section className={styles.card}>
-          <p className={styles.muted}>Nothing matches these filters.</p>
+          <p className={styles.muted}>
+            Nothing matches these filters. If an event has no checklist yet, open it and choose <strong>Generate checklist</strong>, or <Link href="/tools/pass-it-on/events/new" className={styles.link}>add an event</Link>: new events get one automatically.
+          </p>
         </section>
       ) : (
-        <div className={styles.columns}>
-          {COLUMNS.filter((c) => c.status !== "done" || (showDone && window !== "overdue")).map((column) => {
-            const cards = top.filter((t) => t.status === column.status);
-            return (
-              <section key={column.status} className={styles.column} aria-label={column.label}>
-                <h3 className={styles.monthHeading}>
-                  {column.label} <span className={styles.muted}>{cards.length}</span>
-                </h3>
-                {cards.map((t) => (
-                  <TaskCard key={t.id} task={t} subtasks={childrenOf.get(t.id) ?? []} today={today} />
-                ))}
-              </section>
-            );
-          })}
-        </div>
+        <ChecklistTable groups={groups} today={today} />
       )}
 
       <AddTodo events={events.filter((e) => !e.cancelled).map((e) => ({ id: e.id, title: e.title, eventDate: e.eventDate }))} />

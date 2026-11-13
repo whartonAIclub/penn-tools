@@ -10,7 +10,7 @@ export const emptyEventForm: EventFormValues = {
   theme: "",
   venue: "",
   budget: "",
-  roles: [{ role: "Pub Leader", person: "" }],
+  roles: [],
   partnerClubs: [""],
   vendors: "",
   notes: "",
@@ -22,4 +22,6 @@ export const emptyEventForm: EventFormValues = {
   ticketRevenue: "",
   costs: "",
   cancelled: false,
+  needsEquipment: false,
+  equipment: "",
 };

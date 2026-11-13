@@ -230,6 +230,23 @@
   color: var(--section-label);
 }
 
+.pastEvents {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.pastEvents > summary {
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--section-label);
+  padding: 4px 0;
+}
+
+.pastEvents > summary:hover {
+  text-decoration: underline;
+}
+
 .cardGroup {
   display: flex;
   flex-direction: column;
@@ -259,35 +276,6 @@
   gap: 4px;
   font-size: 0.8rem;
   color: var(--section-label);
-}
-
-.columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
-  align-items: start;
-}
-
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.taskCard {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 0.85rem;
-  overflow-wrap: anywhere;
-}
-
-.taskTitle {
-  font-weight: 600;
 }
 
 .struck {
@@ -383,4 +371,242 @@
   align-items: baseline;
   gap: 8px;
   font-size: 0.875rem;
+}
+
+.roleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+@media (max-width: 559px) {
+  .roleGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Roles tab. A scrolling wrapper keeps wide tables from scrolling the page. */
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table,
+.rolesTable {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.rolesTable th,
+.rolesTable td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rolesTable thead th {
+  color: var(--section-label);
+  font-weight: 600;
+}
+
+.rolesEvent {
+  font-weight: 600;
+}
+
+.rolesDefaultLabel {
+  min-width: 140px;
+}
+
+.cellInput {
+  width: 120px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+}
+
+.cellInput::placeholder {
+  color: var(--section-label);
+  opacity: 0.6;
+}
+
+.cellInput:hover {
+  border-color: var(--border);
+}
+
+.cellInput:focus {
+  border-color: var(--penn-blue);
+  background: var(--bg);
+  outline: none;
+}
+
+/* Checklist tab: a table per group; rows stack as cards under 560px. */
+.groupHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.groupHeader .heading {
+  margin: 0;
+}
+
+.groupHeader .progress {
+  flex-basis: 100%;
+}
+
+.checklistTable {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.checklistTable th,
+.checklistTable td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.checklistTable thead th {
+  color: var(--section-label);
+  font-weight: 600;
+}
+
+.subHeader th {
+  padding-top: 12px;
+  color: var(--section-label);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.subRow .taskCell {
+  padding-left: 28px;
+}
+
+.rowDone .taskName {
+  color: var(--section-label);
+  text-decoration: line-through;
+}
+
+.rowDone {
+  opacity: 0.75;
+}
+
+.taskName {
+  font-weight: 600;
+}
+
+.checkCell {
+  width: 44px;
+  padding: 0;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.bigCheck {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.checklistTable .cellInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 100px;
+  max-width: 100%;
+}
+
+.checklistTable .select {
+  max-width: 100%;
+}
+
+@media (max-width: 559px) {
+  .checklistTable,
+  .checklistTable tbody,
+  .checklistTable tr,
+  .checklistTable td,
+  .checklistTable th {
+    display: block;
+    width: auto;
+  }
+
+  .checklistTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .checklistTable tr {
+    position: relative;
+    margin-top: 8px;
+    padding: 6px 8px 6px 52px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .checklistTable .subHeader {
+    padding: 0;
+    border: none;
+  }
+
+  .checklistTable td,
+  .checklistTable th {
+    padding: 2px 0;
+    border: none;
+  }
+
+  .checklistTable td[data-label]:not(.checkCell):not(.taskCell)::before {
+    content: attr(data-label) ": ";
+    color: var(--section-label);
+    font-size: 0.75rem;
+  }
+
+  .checklistTable .checkCell {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 44px;
+  }
+
+  /* Indent with padding, not margin: a margin on a width:100% row pushes it past the container. */
+  .checklistTable .subRow {
+    padding-left: 68px;
+  }
+
+  .checklistTable .subRow .checkCell {
+    left: 20px;
+  }
+
+  .subRow .taskCell {
+    padding-left: 0;
+  }
 }
