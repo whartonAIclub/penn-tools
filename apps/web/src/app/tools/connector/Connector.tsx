@@ -1,9 +1,8 @@
 "use client";
 
 // Connector's screens, in order: the profile form, the questions, then a
-// review of the answers. Review is the last chance to change them: "Ready to
-// be matched" saves the sign-up and moves on to matching (./matching), which
-// shows the student's group.
+// review of the answers. "Ready to be matched" saves the sign-up and moves on
+// to the waiting screen (./waiting) until the team releases matches.
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -34,7 +33,7 @@ export function Connector({ questions, cohorts }: Props) {
     setSaveError(null);
     startSaving(async () => {
       const result = await saveSignup({ ...profile, answers: finalAnswers });
-      if (result.ok) router.push("/tools/connector/matching");
+      if (result.ok) router.push("/tools/connector/waiting");
       else setSaveError(result.error);
     });
   }

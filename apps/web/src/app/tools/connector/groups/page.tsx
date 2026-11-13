@@ -4,6 +4,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { toolSql } from "@penntools/platform/db";
 import { COHORTS, formGroups, listSignups, sharedAnswers } from "@penntools/tool-connector";
 import type { Signup } from "@penntools/tool-connector";
@@ -29,6 +30,16 @@ function initials(name: string): string {
     .join("");
 }
 
+/**
+ * Whether the team has released matches. Until then students wait, since
+ * groups worked out live would reshuffle with every new sign-up. Always false
+ * for now: releasing (and saving the groups) comes next, and this will then
+ * check for a release in the database.
+ */
+async function matchesReleased(): Promise<boolean> {
+  return false;
+}
+
 /** Everyone's saved sign-ups, or null if Connector's database can't be read. */
 async function loadSignups(): Promise<Signup[] | null> {
   const sql = toolSql("connector");
@@ -44,6 +55,8 @@ async function loadSignups(): Promise<Signup[] | null> {
 export default async function ConnectorGroupsPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Connector" />;
+
+  if (!(await matchesReleased())) redirect("/tools/connector/waiting");
 
   const signups = await loadSignups();
   if (!signups) {

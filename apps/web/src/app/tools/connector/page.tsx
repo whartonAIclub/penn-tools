@@ -1,9 +1,9 @@
 // Connector: helps Wharton students meet people outside their usual circles.
 // Signed-out visitors are asked to sign in; signed-in students fill in the
 // profile form and the questions, and their sign-up is saved. Students who
-// have already signed up are matched, and their answers are locked in, so
-// they go straight to their group. The questions and cohorts come from the
-// tool's shared lists (questions.ts), which the matching reads too.
+// have already signed up go straight to the waiting screen until matches are
+// released. The questions and cohorts come from the tool's shared lists
+// (questions.ts), which the matching reads too.
 
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -32,6 +32,6 @@ async function hasSignedUp(userId: string): Promise<boolean> {
 export default async function ConnectorPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Connector" />;
-  if (await hasSignedUp(user.id)) redirect("/tools/connector/groups");
+  if (await hasSignedUp(user.id)) redirect("/tools/connector/waiting");
   return <Connector questions={QUESTIONS} cohorts={COHORTS} />;
 }
