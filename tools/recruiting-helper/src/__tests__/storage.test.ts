@@ -24,6 +24,8 @@ import {
   setOutreachStyle,
   type NewItem,
 } from "../storage.js";
+import { askAboutItem, ChatFullError, clearChat, getChat, ItemNotFoundError, MAX_CHAT_MESSAGES } from "../chat.js";
+import type { AI, AIStreamEvent, GenerateRequest } from "@penntools/core/ai";
 import { SAMPLE_PROFILE } from "../samples.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
@@ -51,6 +53,8 @@ function posting(score: number, link: string | null, title = "Partner Manager"):
     team: null,
     teamStated: null,
     searchKeywords: [],
+    salary: null,
+    salaryStated: null,
     score,
     tier: "target",
     matchedCompany: "Google",
@@ -78,6 +82,32 @@ function contact(score: number, name: string | null, link: string | null = null,
     schools: [],
     pennAlum: false,
   };
+}
+
+/** An AI whose stream answers `answer` in two pieces and records each request. */
+function fakeAI(answer: string) {
+  const requests: GenerateRequest[] = [];
+  const ai = {
+    stream: async function* (request: GenerateRequest): AsyncGenerator<AIStreamEvent> {
+      requests.push(request);
+      yield { type: "text", delta: answer.slice(0, 3) };
+      yield { type: "text", delta: answer.slice(3) };
+      yield {
+        type: "done",
+        result: { text: answer, provider: "anthropic", model: "fake", usage: { inputTokens: 1, outputTokens: 1, reasoningTokens: 0 }, stopReason: "end" },
+      };
+    },
+  } as unknown as AI;
+  return { ai, requests };
+}
+
+/** Asks a question and reads the whole answer. */
+async function ask(userId: string, itemId: string, question: string, ai: AI): Promise<string> {
+  let text = "";
+  for await (const event of await askAboutItem({ sql, ai, userId, itemId, provider: "anthropic", question })) {
+    if (event.type === "text") text += event.delta;
+  }
+  return text;
 }
 
 describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
@@ -253,6 +283,69 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
 
     await saveEmail(sql, "lou", item.id, null);
     expect(await getContact(sql, "lou", item.id)).not.toHaveProperty("email");
+  });
+
+  it("loads postings saved before pay was read, with no pay", async () => {
+    const { salary: _s, salaryStated: _ss, ...old } = posting(3, null) as Extract<NewItem, { kind: "posting" }>;
+    await sql`INSERT INTO items (user_id, kind, score, result) VALUES ('pia', 'posting', 3, ${sql.json(old as never)})`;
+    expect(await listItems(sql, "pia")).toMatchObject([{ salary: null, salaryStated: null, summary: null }]);
+  });
+
+  it("saves questions and answers about an item, and sends the model the item and earlier messages", async () => {
+    await saveProfile(sql, "quinn", SAMPLE_PROFILE);
+    const { item } = await saveItem(sql, "quinn", { ...posting(4, null), salary: "$150,000-$180,000 a year", salaryStated: false } as NewItem);
+    const { ai, requests } = fakeAI("Likely partners: Accenture, Deloitte.");
+
+    expect(await ask("quinn", item.id, "Who would this team partner with?", ai)).toBe("Likely partners: Accenture, Deloitte.");
+    await ask("quinn", item.id, "And in Europe?", ai);
+
+    expect(await getChat(sql, "quinn", item.id)).toEqual([
+      { role: "user", content: "Who would this team partner with?" },
+      { role: "assistant", content: "Likely partners: Accenture, Deloitte." },
+      { role: "user", content: "And in Europe?" },
+      { role: "assistant", content: "Likely partners: Accenture, Deloitte." },
+    ]);
+    const second = requests[1]!;
+    expect(second.tier).toBe("standard");
+    expect(second.messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(second.messages[0]!.content).toContain("Partner Manager at Google");
+    expect(second.messages[0]!.content).toContain("$150,000-$180,000 a year (estimate)");
+    expect(second.messages[0]!.content).toContain(SAMPLE_PROFILE.targetRoles);
+    expect(second.messages[2]!.content).toBe("And in Europe?");
+  });
+
+  it("keeps each chat to its own user and item, through a repeat, and deletes it with the item", async () => {
+    const { item } = await saveItem(sql, "rae", contact(3, "Chat Person"));
+    const { ai } = fakeAI("Ask about their path.");
+    await ask("rae", item.id, "What should I ask?", ai);
+
+    expect(await getChat(sql, "mallory", item.id)).toBeNull();
+    await expect(askAboutItem({ sql, ai, userId: "mallory", itemId: item.id, provider: "anthropic", question: "Hi" })).rejects.toBeInstanceOf(
+      ItemNotFoundError,
+    );
+    expect(await clearChat(sql, "mallory", item.id)).toBe(false);
+
+    // Scoring the same person again keeps the item, and so its chat.
+    expect((await saveItem(sql, "rae", contact(4, "Chat Person"))).item.id).toBe(item.id);
+    expect(await getChat(sql, "rae", item.id)).toHaveLength(2);
+
+    await removeItem(sql, "rae", item.id);
+    expect(await sql`SELECT 1 FROM messages WHERE item_id = ${item.id}`).toHaveLength(0);
+  });
+
+  it("clears a chat, and refuses questions once a chat is full", async () => {
+    const { item } = await saveItem(sql, "sol", contact(3, "Full Chat"));
+    await sql`
+      INSERT INTO messages (item_id, user_id, role, content)
+      SELECT ${item.id}, 'sol', 'user', 'q' FROM generate_series(1, ${MAX_CHAT_MESSAGES})
+    `;
+    const { ai, requests } = fakeAI("x");
+    await expect(askAboutItem({ sql, ai, userId: "sol", itemId: item.id, provider: "anthropic", question: "One more?" })).rejects.toBeInstanceOf(
+      ChatFullError,
+    );
+    expect(requests).toHaveLength(0);
+    expect(await clearChat(sql, "sol", item.id)).toBe(true);
+    expect(await getChat(sql, "sol", item.id)).toEqual([]);
   });
 
   it("removes only the user's own items", async () => {

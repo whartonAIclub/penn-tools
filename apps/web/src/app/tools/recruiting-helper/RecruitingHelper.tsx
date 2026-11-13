@@ -7,8 +7,9 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { AIProvider } from "@penntools/core/ai";
+import type { AIError, AIProvider, AIStreamEvent } from "@penntools/core/ai";
 import type {
+  ChatMessage,
   CompanyTier,
   OutreachDraft,
   RecruitingProfile,
@@ -18,9 +19,11 @@ import type {
 } from "@penntools/tool-recruiting-helper";
 import { isDocx, readDocx } from "@penntools/tool-recruiting-helper/docx";
 import {
+  clearMyChat,
   clearMyOutreachStyle,
   draftMissingOutreach,
   draftMyOutreach,
+  loadMyChat,
   removeMyItem,
   reviseAllMyOutreach,
   saveMyEmail,
@@ -836,6 +839,7 @@ function RankedList({
                     <span className={styles.hint}>
                       {item.kind === "posting" ? item.company : `${item.title} at ${item.company}`} ·{" "}
                       {item.kind === "posting" ? "Job" : `${item.priority} priority`}
+                      {item.kind === "posting" && item.salary ? ` · ${item.salary}${item.salaryStated ? "" : " (estimate)"}` : ""}
                       {item.kind === "posting" && item.applyBy ? ` · apply by ${item.applyBy}` : ""}
                       {item.kind === "contact" && item.schools?.length ? ` · ${item.schools.join("; ")}` : ""}
                     </span>
@@ -866,6 +870,7 @@ function RankedList({
                       onSaved={onUpdated}
                     />
                   )}
+                  <ItemChat key={item.id} item={item} provider={provider} />
                   <button className={styles.textButton} onClick={() => void remove(item.id)}>
                     Remove from list
                   </button>
@@ -1019,6 +1024,21 @@ function ItemDetails({ item, onUpdated }: { item: SavedItem; onUpdated: (item: S
             LinkedIn search phrases.
           </p>
         )}
+        <p>
+          <strong>Pay:</strong>{" "}
+          {item.salary ? (
+            <>
+              {item.salary}{" "}
+              <span className={styles.inlineHint}>
+                ({item.salaryStated ? "stated in the posting" : "estimate: the posting doesn't say"})
+              </span>
+            </>
+          ) : (
+            <span className={styles.inlineHint}>
+              Scored before pay was read: paste the posting again, or ask below.
+            </span>
+          )}
+        </p>
         {item.team && (
           <p>
             <strong>Team:</strong> {item.team}{" "}
@@ -1354,6 +1374,203 @@ function Outreach({
           </p>
         </>
       )}
+      {error && (
+        <p className={styles.error}>
+          {error.message}
+          {error.kind && KEY_PROBLEMS.has(error.kind) && (
+            <>
+              {" "}
+              <Link href="/settings" className={styles.link}>
+                Open Settings
+              </Link>
+            </>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Follow-up chat ───────────────────────────────────────────────────────────
+
+const CHAT_EXAMPLES: Record<SavedItem["kind"], string[]> = {
+  posting: [
+    "What companies would this team likely partner with?",
+    "What does a typical week look like in this role?",
+    "How should I tailor my résumé for this?",
+  ],
+  contact: [
+    "What should I ask them in a coffee chat?",
+    "What does their team likely work on?",
+    "Make my email draft shorter",
+  ],
+};
+
+/** Questions about one item, answered by the AI as it writes, and saved with the item. */
+function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider }) {
+  const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  const [question, setQuestion] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<ScoreError | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let current = true;
+    loadMyChat(item.id).then(
+      (result) => {
+        if (!current) return;
+        if (result.ok) setMessages(result.data);
+        else setError({ message: result.message });
+      },
+      () => current && setError({ message: "Couldn't load your questions. Check your connection and reload." }),
+    );
+    return () => {
+      current = false;
+      abortRef.current?.abort();
+    };
+  }, [item.id]);
+
+  /** Replaces the last message (the answer being written). */
+  const updateAnswer = (content: string) =>
+    setMessages((m) => (m ? [...m.slice(0, -1), { role: "assistant", content }] : m));
+
+  async function ask(text: string) {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    setQuestion("");
+    setMessages((m) => [...(m ?? []), { role: "user", content: text }, { role: "assistant", content: "" }]);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let answer = "";
+    const fail = (e: ScoreError) => {
+      setError(e);
+      // Drop the empty answer; the question stays, as it's saved.
+      if (!answer) setMessages((m) => (m ? m.slice(0, -1) : m));
+    };
+    try {
+      const res = await fetch("/tools/recruiting-helper/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, provider, question: text }),
+        signal: controller.signal,
+      });
+      if (res.status === 401) return fail({ message: "Sign in with the button at the top right first." });
+      if (!res.ok || !res.body) {
+        const body = (await res.json().catch(() => ({}))) as { error?: ScoreError };
+        // Not saved, so take the question back off the chat and put it back in the box.
+        setMessages((m) => (m ? m.slice(0, -2) : m));
+        setQuestion(text);
+        setError(body.error ?? { message: "Something went wrong. Try again." });
+        return;
+      }
+
+      // Server-sent events: one "data: <json>" per event, separated by blank lines.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finished = false;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          const event = JSON.parse(part.slice(6)) as AIStreamEvent | { type: "error"; error: ReturnType<AIError["toJSON"]> };
+          if (event.type === "text") {
+            answer += event.delta;
+            updateAnswer(answer);
+          } else if (event.type === "done") {
+            finished = true;
+            if (!event.result.text.trim()) fail({ message: "The AI couldn't answer that. Try rephrasing." });
+          } else if (event.type === "error") {
+            finished = true;
+            fail(event.error);
+          }
+        }
+      }
+      if (!finished) fail({ message: "The answer was interrupted. Ask again." });
+    } catch {
+      if (!controller.signal.aborted) fail({ message: "Couldn't reach PennTools. Check your connection and try again." });
+    } finally {
+      abortRef.current = null;
+      setBusy(false);
+    }
+  }
+
+  async function clear() {
+    if (!window.confirm("Delete these questions and answers?")) return;
+    setError(null);
+    try {
+      const result = await clearMyChat(item.id);
+      if (result.ok) setMessages([]);
+      else setError({ message: result.message });
+    } catch {
+      setError({ message: "Couldn't clear it. Check your connection and try again." });
+    }
+  }
+
+  return (
+    <div className={styles.chat}>
+      <div className={styles.chatHeader}>
+        <strong className={styles.outreachTitle}>Ask about this {item.kind === "posting" ? "role" : "person"}</strong>
+        {messages && messages.length > 0 && !busy && (
+          <button className={styles.textButton} onClick={() => void clear()}>
+            Clear
+          </button>
+        )}
+      </div>
+      {messages === null && !error && <p className={styles.hint}>Loading…</p>}
+      {messages && messages.length > 0 && (
+        <ol className={styles.chatMessages}>
+          {messages.map((m, i) => (
+            <li key={i} className={m.role === "user" ? styles.chatQuestion : styles.chatAnswer}>
+              {m.content || (busy && i === messages.length - 1 ? "Thinking…" : "")}
+            </li>
+          ))}
+        </ol>
+      )}
+      {messages && messages.length === 0 && (
+        <div className={styles.chips}>
+          {CHAT_EXAMPLES[item.kind].map((example) => (
+            <button key={example} className={styles.chip} onClick={() => void ask(example)} disabled={busy}>
+              {example}
+            </button>
+          ))}
+        </div>
+      )}
+      {messages && (
+        <form
+          className={styles.chatForm}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void ask(question);
+          }}
+        >
+          <textarea
+            className={styles.textarea}
+            aria-label={`Ask about this ${item.kind === "posting" ? "role" : "person"}`}
+            rows={2}
+            value={question}
+            placeholder="Ask a question…"
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void ask(question);
+              }
+            }}
+          />
+          <button className={styles.button} type="submit" disabled={busy || !question.trim()}>
+            {busy ? "Answering…" : "Ask"}
+          </button>
+        </form>
+      )}
+      <p className={styles.hint}>
+        Answers come from what the AI already knows, not a web search, so check names and facts before you rely on them.
+      </p>
       {error && (
         <p className={styles.error}>
           {error.message}
