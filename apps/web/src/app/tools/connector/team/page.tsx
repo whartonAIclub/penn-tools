@@ -59,12 +59,16 @@ export default async function ConnectorTeamPage() {
       <h1 className={styles.title}>Connector team</h1>
       <p className={styles.intro}>
         <strong>{waiting}</strong> student{waiting === 1 ? "" : "s"} waiting to be matched. Releasing now would make
-        these groups. Nothing is saved until you release, and anyone who signs up in the meantime is included.
+        these pairs and groups. Nothing is saved until you release, and anyone who signs up in the meantime is
+        included.
       </p>
 
       {groups.map((group, i) => (
         <section key={i} className={styles.card}>
-          <strong>Group {i + 1}</strong>
+          <strong>
+            {group.members.length === 2 ? "One-on-one" : "Group"} {i + 1} · {group.score} shared answer
+            {group.score === 1 ? "" : "s"}
+          </strong>
           <ul>
             {group.members.map((m) => (
               <li key={m.id}>

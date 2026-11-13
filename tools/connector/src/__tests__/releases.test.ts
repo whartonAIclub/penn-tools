@@ -31,8 +31,11 @@ const schema = `connector_release_test_${Date.now()}`;
 let admin: Sql;
 let sql: Sql;
 
-/** Everyone answers the first option of every question. */
-const sameAnswers = Object.fromEntries(QUESTIONS.map((q) => [q.id, q.options[0]!.id]));
+/** Everyone wants a small group and answers the first option of every other question. */
+const sameAnswers = {
+  ...Object.fromEntries(QUESTIONS.map((q) => [q.id, q.options[0]!.id])),
+  "meet-format": "small-group",
+};
 
 /** Signs up a student with the given id in the given cohort. */
 async function signUp(id: string, cohort: string) {

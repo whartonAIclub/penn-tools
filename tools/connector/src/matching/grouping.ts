@@ -59,11 +59,19 @@ export function formGroups(signups: readonly Signup[]): GroupingResult {
     groups.push(group);
   }
 
+  // Place leftovers with the fewest groups they could join first, so an easy
+  // fit doesn't take the only spot someone else could have had.
   const waitlist: Signup[] = [];
-  for (const person of pool) {
-    const home = bestGroupWithRoom(groups, person);
-    if (home) home.push(person);
-    else waitlist.push(person);
+  while (pool.length > 0) {
+    const options = pool.map((person) => groups.filter((g) => g.length < MAX_GROUP_SIZE && fitsCohorts(g, person)).length);
+    const placeable = options.map((n, i) => [n, i] as const).filter(([n]) => n > 0);
+    if (placeable.length === 0) {
+      waitlist.push(...pool);
+      break;
+    }
+    const [, index] = placeable.reduce((best, next) => (next[0] < best[0] ? next : best));
+    const [person] = pool.splice(index, 1);
+    bestGroupWithRoom(groups, person!)!.push(person!);
   }
 
   return {

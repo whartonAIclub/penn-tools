@@ -81,14 +81,16 @@ export default async function ConnectorGroupsPage() {
       <div className={styles.page}>
         <h1 className={styles.title}>You&apos;re on the waitlist</h1>
         <p className={styles.intro}>
-          No group had room for you this round, so you&apos;ll be first in line for the next one. Check back here after
-          the next release to meet your group.
+          We couldn&apos;t find you a good match this round, so you&apos;ll be first in line for the next one. Check back
+          here after the next release.
         </p>
       </div>
     );
   }
 
   const group = status.match;
+  // A one-on-one match is a group of 2.
+  const isPair = group.members.length === 2;
 
   // You first, then everyone else.
   const members = [...group.members].sort((a, b) => Number(b.id === user.id) - Number(a.id === user.id));
@@ -96,16 +98,20 @@ export default async function ConnectorGroupsPage() {
   const others = members.filter((m) => m.id !== user.id);
   const email =
     `mailto:${others.map((m) => m.email).join(",")}` +
-    `?subject=${encodeURIComponent("Hello from your Connector group!")}` +
+    `?subject=${encodeURIComponent(isPair ? "Hello from your Connector match!" : "Hello from your Connector group!")}` +
     `&body=${encodeURIComponent(
-      "Hi all! Connector matched us into a group. Want to grab lunch or coffee this week? When are you free?\n\n",
+      isPair
+        ? `Hi ${others[0]!.name.split(" ")[0]}! Connector matched us. Want to grab lunch or coffee this week? When are you free?\n\n`
+        : "Hi all! Connector matched us into a group. Want to grab lunch or coffee this week? When are you free?\n\n",
     )}`;
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Meet your group</h1>
+      <h1 className={styles.title}>{isPair ? "Meet your match" : "Meet your group"}</h1>
       <p className={styles.intro}>
-        {members.length} people from {members.length} different cohorts, matched on how you like to spend your time.
+        {isPair
+          ? "Someone from another cohort, matched on how you like to spend your time."
+          : `${members.length} people from ${members.length} different cohorts, matched on how you like to spend your time.`}
       </p>
 
       <ul className={styles.tiles}>
@@ -144,10 +150,12 @@ export default async function ConnectorGroupsPage() {
       <section className={styles.reachOut}>
         <div>
           <h2 className={styles.reachOutTitle}>Make the first move</h2>
-          <p className={styles.intro}>Send your group a hello and pick a time to meet.</p>
+          <p className={styles.intro}>
+            {isPair ? "Say hello and pick a time to meet." : "Send your group a hello and pick a time to meet."}
+          </p>
         </div>
         <a href={email} className={styles.button}>
-          Email your group
+          {isPair ? `Email ${others[0]!.name.split(" ")[0]}` : "Email your group"}
         </a>
       </section>
     </div>

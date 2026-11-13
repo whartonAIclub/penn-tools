@@ -2,6 +2,7 @@ export { ConnectorTool } from "./ConnectorTool.js";
 export { COHORTS, QUESTIONS } from "./questions.js";
 export { formGroups, groupScore, matchScore, MIN_GROUP_SIZE, MAX_GROUP_SIZE } from "./matching/grouping.js";
 export { sharedAnswers } from "./matching/summary.js";
+export { formMatches, FORMAT_QUESTION_ID, MIN_PAIR_SCORE } from "./matching/matches.js";
 export type { SharedAnswer } from "./matching/summary.js";
 export { SAMPLE_SIGNUPS } from "./matching/samples.js";
 export { checkSignup, listSignups, saveSignup, MAX_NAME_LENGTH } from "./signups.js";

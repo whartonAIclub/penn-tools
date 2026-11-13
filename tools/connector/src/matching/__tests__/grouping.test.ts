@@ -94,6 +94,24 @@ describe("formGroups", () => {
     expect(result.waitlist).toHaveLength(0);
   });
 
+  it("places the leftover with the fewest options first, so nobody is squeezed out", () => {
+    // Two groups of 3 form; the leftovers are a G, who fits either group, and
+    // an A, who fits only the group without the other A. Placing G first
+    // could take that spot and waitlist A.
+    const signups = [
+      person("B", "out-dancing", "hike"), person("C", "out-dancing", "hike"),
+      person("D", "out-dancing", "hike"), person("E", "morning-person", "museum"),
+      person("F", "morning-person", "museum"), person("G", "morning-person", "museum"),
+      person("A", "board-games", "movie-day"), person("A", "board-games", "movie-day"),
+    ];
+
+    const result = formGroups(signups);
+
+    expectValid(result, signups);
+    expect(result.groups).toHaveLength(2);
+    expect(result.waitlist).toHaveLength(0);
+  });
+
   it("makes groups of 3, with a 4 for the leftover, from 10 people", () => {
     const signups = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"].map((c) => person(c, "out-dancing", "hike"));
 

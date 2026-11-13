@@ -3,7 +3,7 @@
 // never reshuffle. Anyone left on the waitlist joins the next release.
 
 import type { Sql } from "postgres";
-import { formGroups } from "./matching/grouping.js";
+import { formMatches } from "./matching/matches.js";
 import { toSignup, type SignupRow } from "./signups.js";
 import type { GroupingResult, Signup } from "./types.js";
 
@@ -25,9 +25,9 @@ export async function listUnmatched(sql: Sql): Promise<Signup[]> {
   return rows.map(toSignup);
 }
 
-/** The groups a release would make right now, without saving anything. */
+/** The pairs and groups a release would make right now, without saving anything. */
 export async function previewRelease(sql: Sql): Promise<GroupingResult> {
-  return formGroups(await listUnmatched(sql));
+  return formMatches(await listUnmatched(sql));
 }
 
 export interface ReleaseResult extends GroupingResult {
@@ -45,7 +45,7 @@ export async function releaseMatches(sql: Sql, releasedBy: string): Promise<Rele
     // with Omit), though at runtime it is called the same way.
     const tx = transaction as unknown as Sql;
     await tx`LOCK TABLE releases IN EXCLUSIVE MODE`;
-    const result = formGroups(await listUnmatched(tx));
+    const result = formMatches(await listUnmatched(tx));
     const [release] = await tx<{ id: string }[]>`
       INSERT INTO releases (released_by) VALUES (${releasedBy}) RETURNING id
     `;
