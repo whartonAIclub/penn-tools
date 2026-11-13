@@ -4,7 +4,7 @@ import { courseCode, switchToCrossListing, withFormat } from "../flow.js";
 import type { Course } from "../flow.js";
 import { newCourse, otherCourseCodes, parseCourse, readFormat } from "../parse.js";
 
-// The real Path@Penn details panel from SPEC.md.
+// The real Courses@Penn details panel from SPEC.md.
 const CLST_PANEL = `CLST 3324  Ceramics and Society
 Section 401, CRN 39068
 Section Status: Active
@@ -15,7 +15,7 @@ Credit: 1
 Scheduled With CLST 5324, section 401
 Maximum Enrollment: 10 / Seats Avail: 10`;
 
-// A real Path@Penn panel: the code alone on its line, the title below the section line.
+// A real Courses@Penn panel: the code alone on its line, the title below the section line.
 const CHIN_PANEL = `CHIN 0233
 Section 680, CRN 23190
 Beginning Taiwanese II

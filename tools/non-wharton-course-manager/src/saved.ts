@@ -3,7 +3,7 @@
 // back, and throws away anything that doesn't look right instead of crashing.
 
 import { FORMATS } from "./flow.js";
-import type { ContactSource, Course, CrossListing, PermissionStatus, Progress, StepNumber, Year } from "./flow.js";
+import type { ContactSource, Course, CrossListing, EmailText, PermissionStatus, Progress, StepNumber, Year } from "./flow.js";
 
 /** The browser storage key. Bump the version if the saved shape ever changes. */
 export const SAVE_KEY = "nwcm-progress-v1";
@@ -33,6 +33,11 @@ function readCrossListing(v: unknown): CrossListing | null | undefined {
   return { dept: v.dept, number: v.number, section: v.section };
 }
 
+/** An edited email, or null for none (also for progress saved before editing existed). */
+function readEmailText(v: unknown): EmailText | null {
+  return isObj(v) && isStr(v.subject) && isStr(v.body) ? { subject: v.subject, body: v.body } : null;
+}
+
 function readCourse(v: unknown): Course | null {
   if (!isObj(v)) return null;
   const { id, dept, number, section, title, instructor, email, contact } = v;
@@ -57,6 +62,7 @@ function readCourse(v: unknown): Course | null {
     crossListing,
     picked: v.picked,
     permission,
+    emailEdit: readEmailText(v.emailEdit),
   };
 }
 
@@ -79,7 +85,15 @@ export function readSaved(text: string | null): SavedState | null {
   const courses = p.courses.map(readCourse).filter((c): c is Course => c !== null);
   const step: StepNumber = data.step === 2 || data.step === 3 ? data.step : 1;
   return {
-    progress: { courses, term: p.term, name: p.name, year, step1Done: p.step1Done, registrationSent: p.registrationSent },
+    progress: {
+      courses,
+      term: p.term,
+      name: p.name,
+      year,
+      step1Done: p.step1Done,
+      registrationSent: p.registrationSent,
+      registrationEdit: readEmailText(p.registrationEdit),
+    },
     view: data.view === "flow" ? "flow" : "overview",
     step,
   };

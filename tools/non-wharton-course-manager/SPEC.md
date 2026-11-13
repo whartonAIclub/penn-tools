@@ -4,11 +4,11 @@
 
 ## Overview
 
-The Non-Wharton Course Manager guides MBA students through taking a Penn course outside Wharton. It is a three-step flow: (1) find courses on Path@Penn and check which ones count toward the MBA, (2) email each department for permission and track replies, (3) send approved courses to the MBA Program Office to register.
+The Non-Wharton Course Manager guides MBA students through taking a Penn course outside Wharton. It is a three-step flow: (1) find courses on Courses@Penn and check which ones count toward the MBA, (2) email each department for permission and track replies, (3) send approved courses to the MBA Program Office to register.
 
 **Policy the tool is built on** (MBA Program Office, Non-Wharton Courses):
 
-- Courses are found on Path@Penn (https://srfs.upenn.edu/path-at-penn).
+- Courses are found on Courses@Penn (https://courses.upenn.edu/).
 - To count toward the MBA degree a course must be graduate level (numbered 5000 or above).
 - Online courses must be synchronous (meet at a set time). Asynchronous courses do not count.
 - To enroll the student emails the course and section number (for example EDUC 5050-001) to mbaprogram@wharton.upenn.edu.
@@ -17,18 +17,11 @@ The Non-Wharton Course Manager guides MBA students through taking a Penn course 
 
 ## Screens and flow
 
-### Registration reminder banner (every screen)
-
-- A gold banner directly under the top bar, on the overview and all three steps.
-- A red "HEADS UP" pill, then: "**Permission isn't enrollment.** You also need to request each course in Path@Penn. Last day to add a spring course: **Feb 2, 2027**. Check MyWharton for this term's Advance Registration window."
-- An "Open Path@Penn ↗" rounded button (https://srfs.upenn.edu/path-at-penn, new tab) and a × that hides it for this visit only (it comes back on the next visit or refresh).
-- A gold dot pattern on the right edge. On a phone, the text wraps and the button drops below.
-- The date and the Advance Registration line come from the key dates file (see **Key dates**).
-
 ### Overview (first screen)
 
 - Eyebrow pill "NEW ON PENN TOOLS · BETA", title "Non-Wharton Course Manager" ("Non-Wharton" in Penn Red), the tagline.
 - A dotted-pattern panel holding three floating step cards (1 Find courses and check eligibility, 2 Request permission, 3 Register with the MBA Program). Each card has a number circle, title, one line of description and a progress bar that fills in one after another. Bars line up at the bottom of the cards.
+- **"HEADS UP" reminder card** in the main section, below the three step cards and above the Get started button: a rounded gold card with a gold dot pattern on the right edge, a red "HEADS UP" pill, then: "**Permission isn't enrollment.** You also need to request each course in Courses@Penn. Last day to add a [Term] course: [date]. Check MyWharton for this term's Advance Registration window." and an "Open Courses@Penn ↗" rounded button (https://courses.upenn.edu/, new tab). No dismiss ×. The term and date roll forward (see **Key dates**). On a phone, the text wraps and the button drops below. There's no reminder banner on the other screens.
 - "Get started" button. Note under it: "Takes about 5 minutes. The MBA Program Office has the final word on what counts."
 
 ### Layout after "Get started"
@@ -42,8 +35,8 @@ The Non-Wharton Course Manager guides MBA students through taking a Penn course 
 
 Each part appears only after the one before it.
 
-**A. Find courses on Path@Penn.** Three numbered tiles:
-1. Open Path@Penn and click Search & Register for Classes.
+**A. Find courses on Courses@Penn.** Three numbered tiles:
+1. Open Courses@Penn and click Search & Register for Classes.
 2. Pick the term, search, then click a course to open its details panel on the right.
 3. Copy that panel from the course code down to Seats Avail, or take a screenshot of it.
 
@@ -55,7 +48,7 @@ Button: "Got it, add a course".
   - **Paste details** (default): text box "Paste the course details panel. Messy is fine." and an "Add course" button. Shows "Reading the course details…" with a spinner, adds the course to the list below and clears the box.
   - **Upload screenshot** (P1): a drop area "Drop a screenshot of the details panel, or click to choose". Only build this if the platform's AI can read images.
 
-**What to read from the pasted text** (example of the real Path@Penn panel):
+**What to read from the pasted text** (example of the real Courses@Penn panel):
 
 ```
 CLST 3324  Ceramics and Society
@@ -103,7 +96,7 @@ Start with simple text matching. Upgrade to the platform's AI building block if 
     - **Find an email** (when the email wasn't in the course details): a light blue button. With an instructor: "Find [instructor]'s email", searching `"[instructor]" email upenn`. Without: "Find the department email", searching `[department full name] department email upenn`, using the department's full name (e.g. "Classical Studies") when the tool knows it, otherwise the code. Under it: "Copy the email from the results and paste it above." The tool never fills in an email from the search.
     - The button opens a **"Find an email" side panel** that slides in from the right inside the tool (full screen on a phone), in Google's usual look (white, Arial, Google's own search box and results; not restyled to Penn Modern): title, close button (Escape also closes it), Google Programmable Search's search box pre-filled with the search above, and its results. Programmable Search is limited to upenn.edu; search engine ID `b5cecbaca2c394506`.
     - **If Programmable Search can't load** (for example, blocked by the site's security settings), the button opens the same search on google.com in a pop-up window about half the screen wide, to the right of the current window; if pop-ups are blocked, in a new tab.
-  - Email preview (subject and body, filled with name, year, course and section, title, term). Until they're filled in, the preview shows [Your name], [first/second] and [Term].
+  - Email preview (subject and body, filled with name, year, course and section, title, term). Until they're filled in, the preview shows [Your name], [first/second] and [Term]. The subject and message are editable (see **Editing an email**).
   - "Open in email" button (mailto link). Clicking it moves the status from Not sent to Waiting. It's a disabled button until name, year and term are all filled in, with "Add your name, year and term above to unlock." beside it. "Find an email" and the status toggle work either way.
   - Status toggle: Not sent / Waiting / Approved / Declined
 - Buttons: "Back" and "Continue to registration" (disabled until at least one course is Approved, with the hint "Mark at least one course Approved to continue").
@@ -111,9 +104,16 @@ Start with simple text matching. Upgrade to the platform's AI building block if 
 ### Step 3: Register with the MBA Program
 
 - List of approved courses as green pills (code with section and title).
-- One combined email to mbaprogram@wharton.upenn.edu listing every approved course with its section number, for the chosen term.
+- One combined email to mbaprogram@wharton.upenn.edu listing every approved course with its section number, for the chosen term. The subject and message are editable (see **Editing an email**); the To address isn't.
 - "Open in email" (mailto) and "I sent it". "Open in email" is locked the same way as in Step 2, with "Add your name, year and term in Step 2 to unlock." (Step 2 is a link back.)
-- After "I sent it": a "One last step" card on the dot pattern. Text: "The MBA Program Office has your request. Watch your inbox in case they need anything else." Below it, a gold box with a red label "YOU'RE NOT ENROLLED YET", then: "Request [approved course-sections, comma separated] in Path@Penn → Search & Register for Classes before Feb 2, 2027. You're enrolled once it shows on your schedule." and an "Open Path@Penn" button (new tab). The date comes from the key dates file.
+- "I sent it" becomes "✓ Sent", with "Click again if you didn't send it after all." Clicking it again undoes it. The email card stays on screen after sending, so the student can open or change it again.
+- After "I sent it": below the email card, a "One last step" card on the dot pattern. Text: "The MBA Program Office has your request. Watch your inbox in case they need anything else." Below it, a gold box with a red label "YOU'RE NOT ENROLLED YET", then: "Request [approved course-sections, comma separated] in Courses@Penn → Search & Register for Classes before [date]. You're enrolled once it shows on your schedule." and an "Open Courses@Penn" button (new tab). [date] is the same rolling date as the overview reminder card (see **Key dates**); when it isn't published yet, it says "before the last day to add (see the Penn academic calendar)".
+
+### Editing an email
+
+- In Step 2 (each permission email) and Step 3 (the registration email), the subject and message in the preview can be edited directly. "Open in email" uses the edited version.
+- Under the preview: "You can edit the subject and message before opening it." Once edited: an "EDITED BY YOU" pill, "Changes to your details or courses won't update your version." and a "Reset to the standard email" link. Editing back to exactly the standard text counts as no edit.
+- Until it's edited, the email keeps filling in the student's name, year, term and courses. Edits are saved in the browser with everything else.
 
 ## Eligibility rules
 
@@ -128,14 +128,19 @@ Checked in this order. Eligibility is fixed logic, never an AI judgment.
 | 5 | Format missing | ADD FORMAT | We couldn't find how this class meets. (Shows the three format buttons.) |
 | 6 | Otherwise | ✓ COUNTS | Graduate level, meets in class. / Graduate level, online at a set time. |
 
-**Wharton departments:** ACCT, BEPP, FNCE, HCMG, LGST, MGMT, MKTG, OIDD, REAL, STAT, WH, WHG, MGEC, WHCP. MGEC and WHCP are still to be checked in Path@Penn before launch. DYNM is not Wharton.
+**Wharton departments:** ACCT, BEPP, FNCE, HCMG, LGST, MGMT, MKTG, OIDD, REAL, STAT, WH, WHG, MGEC, WHCP. MGEC and WHCP are still to be checked in Courses@Penn before launch. DYNM is not Wharton.
 
 ## Key dates
 
-One small config file in the tool's folder holds the dates. The registration banner and Step 3 read from it, so next term only that file changes.
+One small config file in the tool's folder (`src/keyDates.ts`) holds the dates. The overview reminder card and Step 3 read from it, so each term only that file changes.
 
-- **Last day to add a spring course:** Feb 2, 2027 (Penn academic calendar)
+- **Last day to add a course, by term** (Penn academic calendar), oldest first:
+  - Fall 2026: 2026-09-08
+  - Spring 2027: 2027-02-02
+  - Fall 2027: not published yet (left empty)
+- **Rolling deadline:** show the first term whose date hasn't passed yet (the deadline day itself still counts). If that term's date is empty, show "see the Penn academic calendar" instead of a date. On Nov 12, 2026 this shows Spring 2027, Feb 2, 2027.
 - **Advance Registration window:** not confirmed. Show "Check MyWharton for this term's Advance Registration window."
+- **Tests:** a date before Sep 8, 2026 shows Fall 2026; Nov 12, 2026 shows Spring 2027; Feb 3, 2027 shows Fall 2027 with "see the Penn academic calendar".
 
 ## Department contact list
 
@@ -204,7 +209,7 @@ Running list of changes found while testing. Build these when the current step i
 
 - [x] **Step 1, duplicate courses:** if a student adds a course that's already in the list (same course number and section, or the same course after switching to its graduate version), don't add it again. Show a short message under the paste box: "[COURSE-SECTION] is already in your list." Clear the paste box either way.
 - [x] **Step 1, how-to tile 03:** change to "Copy that panel from the **course code down through Registration Restrictions**." (The prototype adds "or take a screenshot of it"; leave that out until screenshot upload is built.)
-- [ ] **Step 2, who gives permission:** read from the pasted panel whether permission comes from the instructor or the department, and show "Path@Penn says permission comes from the [instructor/department]." as a gold pill under the "Who to email" note. Show nothing if the panel doesn't say. Needs a real panel copied down through Registration Restrictions, to match Path@Penn's exact wording.
+- [ ] **Step 2, who gives permission:** read from the pasted panel whether permission comes from the instructor or the department, and show "Courses@Penn says permission comes from the [instructor/department]." as a gold pill under the "Who to email" note. Show nothing if the panel doesn't say. Needs a real panel copied down through Registration Restrictions, to match Courses@Penn's exact wording.
 - [x] **Step 2, find an email:** when the email wasn't found in the course details, show a light blue "Find [INSTRUCTOR]'s email" button (or "Find the department contact" when no instructor was found) beside that pill. It opens a Google search in a new tab: `"[INSTRUCTOR]" [DEPT] site:upenn.edu`, or `[DEPT] department graduate coordinator site:upenn.edu`. The student reads the results and types the email themselves; the tool never fills it in from the search.
 - [ ] **Step 2, better contact finding (to scope):** the "Find their email" Google search works but isn't good enough yet. Ideas to explore, in rough order of value: (1) a checked department contact list so most courses show AUTO-FILLED; (2) the "who gives permission" line, so students know whether to look for the instructor or the department; (3) a sharper search, e.g. the department's own website or the Penn Directory instead of Google; (4) after approval, ask "Who did you email?" and save it for the next student (needs shared storage). Decide which to build after user testing shows where students get stuck.
 - [ ] **Step 2, embedded contact search:** search for the contact inside the tool using Google Programmable Search, limited to upenn.edu. Needs a free search engine ID.
@@ -255,7 +260,7 @@ Paste each one separately and click Add course.
 | `CLST 3324 Ceramics and Society` (no "Scheduled With" line) | Title "Ceramics and Society", DOESN'T COUNT (below 5000) |
 | Both lines above pasted together | Adds only CHIN 0233, and a note says "We added CHIN 0233. Add CLST 3324 on its own." |
 
-The real CHIN 0233 panel as copied from Path@Penn:
+The real CHIN 0233 panel as copied from Courses@Penn:
 
 ```
 CHIN 0233

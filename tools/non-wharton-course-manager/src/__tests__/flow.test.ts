@@ -17,6 +17,7 @@ function course(overrides: Partial<Course>): Course {
     crossListing: null,
     picked: true,
     permission: "not-sent",
+    emailEdit: null,
     ...overrides,
   };
 }

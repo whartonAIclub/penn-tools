@@ -3,7 +3,7 @@
 
 import { departmentName } from "./departments.js";
 import { courseCode } from "./flow.js";
-import type { ContactSource, Course, PermissionStatus, Year } from "./flow.js";
+import type { ContactSource, Course, EmailText, PermissionStatus, Year } from "./flow.js";
 
 export interface Email {
   /** "" when there's no address yet: the student fills it in their email app. */
@@ -130,4 +130,17 @@ export function registrationEmail(courses: readonly Course[], sender: Sender): E
       `Please let me know if there's anything else I need to do to register.\n\n` +
       `Thank you,\n${name}`,
   };
+}
+
+/** The email to open: the standard one, with the student's edited subject and message if they made any. */
+export function withEdits(standard: Email, edit: EmailText | null): Email {
+  return edit ? { ...standard, subject: edit.subject, body: edit.body } : standard;
+}
+
+/**
+ * What to store after the student edits the subject or message. Editing it
+ * back to exactly the standard email counts as no edit, so it keeps updating.
+ */
+export function editAfterTyping(standard: Email, next: EmailText): EmailText | null {
+  return next.subject === standard.subject && next.body === standard.body ? null : next;
 }

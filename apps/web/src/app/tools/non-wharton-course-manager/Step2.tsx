@@ -16,12 +16,14 @@ import {
   permissionEmail,
   senderReady,
   withContact,
+  withEdits,
 } from "@penntools/tool-non-wharton-course-manager";
 import type { Course, Sender, Year } from "@penntools/tool-non-wharton-course-manager";
 import { ArrowIcon, ChevronIcon, InfoIcon, MailIcon, SearchIcon } from "./icons";
 import { loadSearch, searchStatus } from "./googleSearch";
 import { openBeside } from "./openSearch";
 import { SearchPanel } from "./SearchPanel";
+import { EditableEmail } from "./EditableEmail";
 import { delay } from "./motion";
 import styles from "./CourseManager.module.css";
 
@@ -236,15 +238,16 @@ function PermissionCard({ number, appearAt, course, sender, open, onToggle, onCh
             )}
           </div>
 
-          <div className={styles.emailPreview}>
-            <span className={styles.code}>SUBJECT</span>
-            <span className={styles.emailSubject}>{email.subject}</span>
-            <p className={styles.emailBody}>{email.body}</p>
-          </div>
+          <EditableEmail
+            id={`nwcm-email-${course.id}`}
+            standard={email}
+            edit={course.emailEdit}
+            onEdit={(emailEdit) => onChange({ ...course, emailEdit })}
+          />
 
           <div className={styles.spreadRow}>
             <OpenInEmail
-              href={ready ? mailtoLink(email) : null}
+              href={ready ? mailtoLink(withEdits(email, course.emailEdit)) : null}
               onOpen={() => onChange({ ...course, permission: afterOpeningEmail(course.permission) })}
               lockedNote="Add your name, year and term above to unlock."
             />

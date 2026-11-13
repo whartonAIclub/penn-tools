@@ -1,6 +1,6 @@
 "use client";
 
-// Step 1: find courses on Path@Penn (A), add them one at a time (B), see which
+// Step 1: find courses on Courses@Penn (A), add them one at a time (B), see which
 // count (C). Each part appears only after the one before it.
 
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import {
 import type { Course } from "@penntools/tool-non-wharton-course-manager";
 import { ArrowIcon, CloseIcon, InfoIcon } from "./icons";
 import { delay } from "./motion";
+import { COURSES_AT_PENN } from "./ReminderCard";
 import styles from "./CourseManager.module.css";
 
 /** How long "Reading the course details…" shows, so adding doesn't feel like a flicker. */
@@ -86,13 +87,13 @@ export function Step1({ courses, onAdd, onUpdate, onRemove, onContinue }: Props)
       <section className={`${styles.card} ${styles.rise}`} style={delay(0.1)}>
         <h3 className={styles.cardTitle}>
           <span className={styles.letter}>A</span>
-          Find courses on Path@Penn
+          Find courses on Courses@Penn
         </h3>
         <ol className={styles.tiles}>
           <li className={styles.tile}>
             <span className={styles.tileNumber}>01</span>
             <span>
-              Open <a href="https://srfs.upenn.edu/path-at-penn" target="_blank" rel="noreferrer">Path@Penn</a> and
+              Open <a href={COURSES_AT_PENN} target="_blank" rel="noreferrer">Courses@Penn</a> and
               click <strong>Search &amp; Register for Classes</strong>.
             </span>
           </li>

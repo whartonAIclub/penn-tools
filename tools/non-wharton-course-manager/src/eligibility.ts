@@ -4,7 +4,7 @@
 
 import type { Course } from "./flow.js";
 
-/** Wharton departments (SPEC.md). MGEC and WHCP are still to be checked in Path@Penn before launch. DYNM is not Wharton. */
+/** Wharton departments (SPEC.md). MGEC and WHCP are still to be checked in Courses@Penn before launch. DYNM is not Wharton. */
 export const WHARTON_DEPARTMENTS: readonly string[] = [
   "ACCT", "BEPP", "FNCE", "HCMG", "LGST", "MGMT", "MKTG", "OIDD", "REAL", "STAT", "WH", "WHG", "MGEC", "WHCP",
 ];

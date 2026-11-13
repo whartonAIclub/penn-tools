@@ -1,13 +1,15 @@
 // The first screen: what the tool does, the three steps, and "Get started".
 
 import { ArrowIcon } from "./icons";
+import type { CurrentDeadline } from "@penntools/tool-non-wharton-course-manager";
 import { delay } from "./motion";
+import { ReminderCard } from "./ReminderCard";
 import styles from "./CourseManager.module.css";
 
 const STEPS = [
   {
     title: "Find courses and check eligibility",
-    text: "Search Path@Penn, paste your picks here and see which ones count toward your MBA.",
+    text: "Search Courses@Penn, paste your picks here and see which ones count toward your MBA.",
     circle: styles.circleBlue,
     bar: styles.barBlue,
     // When this bar starts filling: each starts as the one before finishes.
@@ -29,7 +31,7 @@ const STEPS = [
   },
 ];
 
-export function Overview({ onStart }: { onStart: () => void }) {
+export function Overview({ deadline, onStart }: { deadline: CurrentDeadline | null; onStart: () => void }) {
   return (
     <main className={styles.overview}>
       <section className={`${styles.hero} ${styles.rise}`}>
@@ -57,6 +59,8 @@ export function Overview({ onStart }: { onStart: () => void }) {
           ))}
         </ol>
       </div>
+
+      <ReminderCard deadline={deadline} style={delay(2.4)} />
 
       <div className={`${styles.startArea} ${styles.rise}`} style={delay(2.6)}>
         <button type="button" className={styles.startButton} onClick={onStart}>

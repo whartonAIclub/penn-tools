@@ -50,6 +50,14 @@ export interface Course {
   /** Chosen to request permission for. Only courses that count can be picked. */
   picked: boolean;
   permission: PermissionStatus;
+  /** The student's own version of the permission email, or null to use the standard one. */
+  emailEdit: EmailText | null;
+}
+
+/** An email's subject and message as the student edited them. */
+export interface EmailText {
+  subject: string;
+  body: string;
 }
 
 /** Everything the student has done so far. */
@@ -64,6 +72,8 @@ export interface Progress {
   step1Done: boolean;
   /** Pressed "I sent it" in Step 3. */
   registrationSent: boolean;
+  /** The student's own version of the registration email, or null to use the standard one. */
+  registrationEdit: EmailText | null;
 }
 
 export type Year = "first" | "second";
@@ -90,6 +100,7 @@ export const EMPTY_PROGRESS: Progress = {
   year: null,
   step1Done: false,
   registrationSent: false,
+  registrationEdit: null,
 };
 
 /** "CLST 5324-401", or "CLST 5324" without a section. */

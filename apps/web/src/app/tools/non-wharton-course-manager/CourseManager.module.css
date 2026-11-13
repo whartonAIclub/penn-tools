@@ -921,8 +921,50 @@
   row-gap: 14px;
   align-items: baseline;
 }
-.emailSubject { font-weight: 500; }
-.emailBody { grid-column: 1 / -1; white-space: pre-wrap; }
+/* The editable email: looks like the preview, with a light outline on hover and focus. */
+.emailEditor { display: flex; flex-direction: column; gap: 8px; }
+.subjectInput,
+.bodyInput {
+  font: inherit;
+  color: var(--blue);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 4px 8px;
+  margin: -5px -9px;
+  width: calc(100% + 18px);
+}
+.subjectInput { font-weight: 500; }
+.bodyInput {
+  grid-column: 1 / -1;
+  resize: vertical;
+  line-height: 1.65;
+  field-sizing: content;
+  min-height: 8em;
+}
+.subjectInput:hover,
+.bodyInput:hover { border-color: #d8d6cc; background: rgba(255, 255, 255, 0.5); }
+.subjectInput:focus,
+.bodyInput:focus { outline: 2px solid var(--link); outline-offset: 0; background: var(--card); }
+
+.editedRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.editedPill {
+  composes: label;
+  font-size: 11px;
+  background: var(--blue-light);
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+
+/* Read by screen readers only. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
 .mailButton {
   display: inline-flex;
@@ -1095,39 +1137,36 @@
 .searchResults :global(.gsc-modal-background-image),
 .searchResults :global(.gsc-results-close-btn) { display: none !important; }
 
-/* ---- Registration reminder banner (every screen) ---- */
+/* ---- Overview "HEADS UP" reminder card ---- */
 
-.banner {
+.reminderCard {
   position: relative;
   overflow: hidden;
+  width: 100%;
+  max-width: 760px;
   background: var(--gold-light);
-  border-bottom: 1px solid #ebddaf;
+  border-radius: 24px;
+  padding: 24px 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  font-size: 15px;
+  line-height: 1.55;
 }
 /* Gold dots along the right edge. */
-.banner::after {
+.reminderCard::after {
   content: "";
   position: absolute;
   right: 0;
   top: 0;
   bottom: 0;
-  width: 200px;
+  width: 160px;
   background-image: radial-gradient(rgba(215, 188, 106, 0.6) 1.1px, transparent 1.4px);
   background-size: 12px 12px;
   pointer-events: none;
 }
-.bannerInner {
-  position: relative;
-  z-index: 1;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 12px 24px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 16px;
-  font-size: 14px;
-  line-height: 1.5;
-}
+.reminderCard > * { position: relative; z-index: 1; }
 .headsUp {
   composes: label;
   flex: none;
@@ -1137,9 +1176,8 @@
   border-radius: 9999px;
   padding: 4px 10px;
 }
-.bannerText { flex: 1 1 420px; min-width: 0; }
-.bannerText strong { font-weight: 500; }
-.bannerButton,
+.reminderText { flex: 1 1 360px; min-width: 0; margin: 0; }
+.reminderText strong { font-weight: 500; }
 .pathButton {
   flex: none;
   display: inline-flex;
@@ -1148,28 +1186,14 @@
   text-decoration: none;
   border-radius: 9999px;
   background: var(--blue);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  padding: 0 16px;
-  min-height: 36px;
+  padding: 0 18px;
+  min-height: 40px;
 }
-.root .bannerButton,
-.root .bannerButton:hover,
 .root .pathButton,
 .root .pathButton:hover { color: #fff; }
-.bannerButton:focus-visible,
 .pathButton:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
-.bannerClose {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  color: var(--blue);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bannerClose:hover { background: rgba(1, 31, 91, 0.06); }
 
 /* Step 3's "You're not enrolled yet" box on the final card. */
 .notEnrolled {
@@ -1185,13 +1209,10 @@
 }
 .notEnrolled strong { font-weight: 500; }
 .notEnrolled .label { font-size: 11px; }
-.pathButton { align-self: flex-start; font-size: 14px; padding: 0 18px; min-height: 40px; }
+.notEnrolled .pathButton { align-self: flex-start; }
 
 @media (max-width: 600px) {
-  .bannerInner { padding: 12px 16px; }
-  .bannerClose { order: 1; margin-left: auto; }
-  .bannerText { order: 2; flex-basis: 100%; }
-  .bannerButton { order: 3; }
+  .reminderCard { padding: 20px; }
   .searchPanel { width: 100%; padding: 20px 16px; }
   .donePanel { padding: 24px 16px; }
   .doneArt { display: none; }

@@ -9,6 +9,7 @@ import {
   SAVE_KEY,
   STEP_TITLES,
   approvedCourses,
+  currentDeadline,
   pickedCourses,
   readSaved,
   saveText,
@@ -18,7 +19,6 @@ import {
 import type { Course, Progress, StepNumber } from "@penntools/tool-non-wharton-course-manager";
 import { mono, sans, serif } from "./fonts";
 import { Overview } from "./Overview";
-import { ReminderBanner } from "./ReminderBanner";
 import { Step1 } from "./Step1";
 import { Step2 } from "./Step2";
 import { Step3 } from "./Step3";
@@ -28,7 +28,7 @@ import styles from "./CourseManager.module.css";
 
 /** One line under each step's title in its header card. */
 const STEP_INTROS: Record<StepNumber, string> = {
-  1: "Look up a course on Path@Penn, bring its details here and we'll tell you if it counts toward your MBA.",
+  1: "Look up a course on Courses@Penn, bring its details here and we'll tell you if it counts toward your MBA.",
   2: "Email each department to ask if you can enroll, then update each course when you hear back.",
   3: "Send your approved courses and section numbers to the MBA Program Office. They handle the registration.",
 };
@@ -55,9 +55,9 @@ export function CourseManager() {
   const [view, setView] = useState<"overview" | "flow">("overview");
   const [step, setStep] = useState<StepNumber>(1);
   const [terms] = useState(() => upcomingTerms(new Date()));
+  /** The next "last day to add" that hasn't passed (key dates file). */
+  const [deadline] = useState(() => currentDeadline(new Date()));
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
-  /** The reminder banner's ×: hidden for this visit only, so it isn't saved. */
-  const [bannerHidden, setBannerHidden] = useState(false);
   /** False until saved progress is read, so the page doesn't flash the overview first. */
   const [loaded, setLoaded] = useState(false);
 
@@ -123,10 +123,9 @@ export function CourseManager() {
         </div>
       </header>
 
-      {!bannerHidden && <ReminderBanner onDismiss={() => setBannerHidden(true)} />}
-
       {!loaded ? null : view === "overview" ? (
         <Overview
+          deadline={deadline}
           onStart={() => {
             setStep(1);
             setView("flow");
@@ -172,7 +171,10 @@ export function CourseManager() {
                 courses={approvedCourses(progress.courses)}
                 sender={{ name: progress.name, year: progress.year, term: progress.term }}
                 sent={progress.registrationSent}
-                onSent={() => setProgress((p) => ({ ...p, registrationSent: true }))}
+                deadline={deadline}
+                onSent={(registrationSent) => setProgress((p) => ({ ...p, registrationSent }))}
+                edit={progress.registrationEdit}
+                onEdit={(registrationEdit) => setProgress((p) => ({ ...p, registrationEdit }))}
                 onBack={() => setStep(2)}
               />
             )}

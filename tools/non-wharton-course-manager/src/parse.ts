@@ -1,4 +1,4 @@
-// Reads one course from the Path@Penn details panel a student pastes. Simple
+// Reads one course from the Courses@Penn details panel a student pastes. Simple
 // text matching: only what's in the text is filled in, and anything missing is
 // left empty for the student (never guessed).
 
@@ -6,7 +6,7 @@ import { checkEligibility, isGraduateLevel, isWharton } from "./eligibility.js";
 import type { Course, CrossListing, Format } from "./flow.js";
 
 /** The course details read from the text, before it joins the student's list. */
-export type CourseDetails = Omit<Course, "id" | "picked" | "permission" | "contact" | "contactSource">;
+export type CourseDetails = Omit<Course, "id" | "picked" | "permission" | "contact" | "contactSource" | "emailEdit">;
 
 /** A new entry in the student's list. Picked by default when it counts. */
 export function newCourse(details: CourseDetails, id: string): Course {
@@ -18,6 +18,7 @@ export function newCourse(details: CourseDetails, id: string): Course {
     contactSource: details.email ? "details" : "none",
     picked: checkEligibility(details).result === "counts",
     permission: "not-sent",
+    emailEdit: null,
   };
 }
 
