@@ -1,6 +1,6 @@
-// Deadline Calendar: upload a syllabus PDF and see its deadlines. Everything
-// runs on the AI API with the user's own key, so signed-out visitors are asked
-// to sign in and users without a saved key are sent to Settings.
+// Deadline Calendar: upload syllabus PDFs and see their deadlines. Everything
+// runs on the AI API, so signed-out visitors are asked to sign in, and users
+// out of free credit without a saved key are sent to Settings.
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
@@ -19,7 +19,7 @@ export default async function DeadlineCalendarPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Deadline Calendar" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("deadline-calendar"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="Deadline Calendar" />;
 
   return <DeadlineCalendar providers={providers} labels={PROVIDER_LABELS} maxPdfBytes={MAX_PDF_BYTES} />;

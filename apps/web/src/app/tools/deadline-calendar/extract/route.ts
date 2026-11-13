@@ -84,7 +84,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (pdfProblem) return failure(pdfProblem, 400);
 
   try {
-    const result = await extractDeadlines((await getAI())!, body!.provider as AIProvider, file, todayInPhiladelphia(), req.signal);
+    const ai = (await getAI("deadline-calendar"))!;
+    const result = await extractDeadlines(ai, body!.provider as AIProvider, file, todayInPhiladelphia(), req.signal);
     return Response.json({ result });
   } catch (error) {
     if (isAIError(error)) return Response.json({ error: error.toJSON() }, { status: 502 });

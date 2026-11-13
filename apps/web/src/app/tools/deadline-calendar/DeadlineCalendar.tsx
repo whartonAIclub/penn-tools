@@ -27,7 +27,7 @@ const MAX_SYLLABI = 8;
 /** How many syllabi are read at the same time, so a full load doesn't hit the provider's rate limits. */
 const CONCURRENT_READS = 3;
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 /** A deadline with a key that stays the same while the student edits and deletes others. */
 type Item = Deadline & { key: number };
