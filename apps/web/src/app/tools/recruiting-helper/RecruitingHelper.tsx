@@ -102,7 +102,7 @@ export function RecruitingHelper({
   return (
     <div className={styles.page}>
       <header>
-        <h1 className={styles.title}>Recruiting Helper</h1>
+        <h1 className={styles.title}>Alum Outreach Ranker</h1>
         <p className={styles.intro}>
           Paste a job posting or a LinkedIn profile. It&apos;s scored 1 to 5 against your own target companies, roles
           and background, and added to your ranked list, so you know whom to reach out to first.

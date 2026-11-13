@@ -8,8 +8,8 @@ import type { ToolManifest } from "@penntools/core/tools";
 export class RecruitingHelperTool extends Tool {
   readonly manifest: ToolManifest = {
     id: "recruiting-helper",
-    title: "Recruiting Helper",
-    description: "Helps you prioritize, based on your target companies and roles, which alums at which companies (LinkedIn) and which teams or organizations with open roles to reach out to and prioritize networking with.",
+    title: "Alum Outreach Ranker",
+    description: "Ranks LinkedIn contacts and job postings by your target companies and roles, and drafts emails for you to use with your alum directory.",
     contributors: ["Emily Chen"],
     // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
     // in @penntools/core/tools. To add a category, ask the Platform team.

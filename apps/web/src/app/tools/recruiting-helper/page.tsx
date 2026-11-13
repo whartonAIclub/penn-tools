@@ -25,15 +25,15 @@ import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { RecruitingHelper } from "./RecruitingHelper";
 
 export const metadata: Metadata = {
-  title: "Recruiting Helper",
+  title: "Alum Outreach Ranker",
 };
 
 export default async function RecruitingHelperPage() {
   const user = await getCurrentUser();
-  if (!user) return <SignInPrompt title="Recruiting Helper" />;
+  if (!user) return <SignInPrompt title="Alum Outreach Ranker" />;
 
   const providers = await (await getAI("recruiting-helper"))!.providers();
-  if (providers.length === 0) return <ApiKeyPrompt title="Recruiting Helper" />;
+  if (providers.length === 0) return <ApiKeyPrompt title="Alum Outreach Ranker" />;
 
   const sql = toolSql("recruitinghelper");
   if (!sql) throw new Error("Recruiting Helper's database is not configured (check DATABASE_URL).");
