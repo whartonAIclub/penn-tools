@@ -125,6 +125,8 @@ When a graded item has no specific date (for example, "due the evening after the
 
 When the syllabus gives different dates for different sections or course numbers, list each version separately and name its section.
 
+When in doubt, set needsReview: a student would rather confirm a correct date than miss a wrong one. Always set it, with a note, for a date you worked out rather than read (for example, "8 PM the day before Class 12"), for an item that applies only to some sections, and for an item whose date or time the syllabus states differently in two places.
+
 Times are 24-hour HH:MM: 11:59pm is 23:59 and noon is 12:00. Give an exam's start as time and its end as endTime. Use null when no time is given.
 
 Also list how the course grade is made up, one entry per category the syllabus weights (for example class participation, quizzes, homework, midterm exam, final exam), with its weight as the syllabus states it, in percent or in points. Give how many items each category has and how many count toward the grade: when the best 5 of 7 quizzes count, count is 7 and counted is 5; when every item counts, counted equals count. Leave out extra credit and bonus points. If the syllabus gives no weights, return an empty list and a null gradingUnit. Give each deadline the category it counts toward, named exactly as in the grading list.`;

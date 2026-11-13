@@ -15,3 +15,6 @@ export {
   todayInPhiladelphia,
 } from "./extract.js";
 export type { Deadline, DeadlineType, GradingCategory, Syllabus, SyllabusFile } from "./extract.js";
+// Also exported on its own as "@penntools/tool-deadline-calendar/calendar", for the page to use without the schema.
+export { buildCalendar, calendarEventCount } from "./calendar.js";
+export type { CalendarCourse } from "./calendar.js";

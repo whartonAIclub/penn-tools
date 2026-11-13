@@ -1,14 +1,24 @@
 "use client";
 
-// Upload syllabus PDFs, see their deadlines course by course, and fix what the
-// AI got wrong. Each PDF goes to the tool's route (extract/route.ts) on its
-// own, as base64, so one that fails doesn't hold up the rest; the route reads
-// it with the user's AI. Fixes live in this page's state.
+// Upload syllabus PDFs, see their deadlines course by course, fix what the AI
+// got wrong, and download them as a calendar file: three numbered steps. Each
+// PDF goes to the tool's route (extract/route.ts) on its own, as base64, so one
+// that fails doesn't hold up the rest; the route reads it with the user's AI.
+// Fixes live in this page's state.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { Deadline, GradingCategory, Syllabus } from "@penntools/tool-deadline-calendar";
+// The calendar code on its own, so the page doesn't bundle the tool's schema.
+import {
+  buildCalendar,
+  calendarEventCount,
+  calendarFileName,
+  courseCode,
+  formatTime,
+  type CalendarCourse,
+} from "@penntools/tool-deadline-calendar/calendar";
 import styles from "./DeadlineCalendar.module.css";
 
 /** The most syllabi at once: a full course load, with room to spare. */
@@ -30,6 +40,13 @@ type Status =
   | { state: "done"; course: Course }
   | { state: "error"; message: string; kind?: string };
 type Upload = { id: number; file: File } & Status;
+type DoneUpload = Upload & { state: "done"; course: Course };
+
+/** A file that couldn't be added, and why. */
+interface Rejected {
+  name: string;
+  message: string;
+}
 
 /** What a row's edit form changes. */
 type Fix = Pick<Deadline, "title" | "date" | "time">;
@@ -95,6 +112,19 @@ function sortItems(items: Item[]): Item[] {
   return [...items].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
 }
 
+/** Saves the courses' dated deadlines as an .ics file: all classes, or one class in a calendar of its own. */
+function downloadCalendar(courses: CalendarCourse[], fileName = "deadline-calendar.ics", calendarName?: string) {
+  const blob = new Blob([buildCalendar(courses, new Date(), calendarName)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 /** Today's date in the browser as YYYY-MM-DD, for marking past deadlines. */
 function today(): string {
   const now = new Date();
@@ -107,12 +137,9 @@ function formatDate(date: string): string {
   return new Date(year!, month! - 1, day!).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
-/** "11:59pm" from "23:59". */
-function formatTime(time: string): string {
-  const [hours, minutes] = time.split(":").map(Number);
-  const suffix = hours! < 12 ? "am" : "pm";
-  const hour12 = hours! % 12 === 0 ? 12 : hours! % 12;
-  return minutes === 0 ? `${hour12}${suffix}` : `${hour12}:${String(minutes).padStart(2, "0")}${suffix}`;
+/** "276 KB" or "1.2 MB". */
+function formatSize(bytes: number): string {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /** "Quizzes 10% (best 5 of 7, 2 dropped)", "Homework 16% (all 4 count)" or "Final exam 34%". */
@@ -123,21 +150,60 @@ function formatCategory({ category, percent, count, counted }: GradingCategory):
   return counted === count ? `${share} (all ${count} count)` : `${share} (best ${counted} of ${count}, ${count - counted} dropped)`;
 }
 
-/** A class's name in the class picker, with how it's going: "MKTG 612: Dynamic Marketing Strategy · 3 to check". */
-function classLabel(upload: Upload): string {
+/** What's left in a class: dated items to confirm, and undated ones, which need a date to go in the calendar. */
+function remaining(deadlines: Item[]): { toCheck: number; needDates: number } {
+  return {
+    toCheck: deadlines.filter((d) => d.date !== null && d.needsReview).length,
+    needDates: deadlines.filter((d) => d.date === null).length,
+  };
+}
+
+/** Whether the student still has something to do with this deadline: confirm it, or give it a date. */
+function needsAttention(d: Item): boolean {
+  return d.needsReview || d.date === null;
+}
+
+interface Badge {
+  text: string;
+  tone: "ok" | "warn" | "error" | "plain";
+}
+
+/** The badges for what's left: yellow "3 to check", red "2 need dates", or green "all clear". */
+function remainingBadges({ toCheck, needDates }: { toCheck: number; needDates: number }): Badge[] {
+  const badges: Badge[] = [];
+  if (toCheck > 0) badges.push({ text: `${toCheck} to check`, tone: "warn" });
+  if (needDates > 0) badges.push({ text: `${needDates} ${needDates === 1 ? "needs a date" : "need dates"}`, tone: "error" });
+  return badges.length > 0 ? badges : [{ text: "all clear", tone: "ok" }];
+}
+
+/** One choice in the class picker: a class, or all of them. */
+interface ClassOption {
+  value: number | "all";
+  name: string;
+  /** The badges after the name. */
+  badges: Badge[];
+}
+
+/** A class as the class picker shows it: its name, and badges for how it's going. */
+function classOption(upload: Upload): ClassOption {
   switch (upload.state) {
-    case "done": {
-      const name = upload.course.course ?? upload.file.name;
-      const toCheck = upload.course.deadlines.filter((d) => d.needsReview).length;
-      return toCheck > 0 ? `${name} · ${toCheck} to check` : name;
-    }
+    case "done":
+      return {
+        value: upload.id,
+        name: upload.course.course ?? upload.file.name,
+        badges: remainingBadges(remaining(upload.course.deadlines)),
+      };
     case "ready":
-      return `${upload.file.name} · ready to read`;
+      return { value: upload.id, name: upload.file.name, badges: [{ text: "not read yet", tone: "plain" }] };
     case "reading":
-      return `${upload.file.name} · reading…`;
+      return { value: upload.id, name: upload.file.name, badges: [{ text: "reading…", tone: "plain" }] };
     case "error":
-      return `${upload.file.name} · couldn't be read`;
+      return { value: upload.id, name: upload.file.name, badges: [{ text: "couldn't be read", tone: "error" }] };
   }
+}
+
+function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
 }
 
 export function DeadlineCalendar({
@@ -152,12 +218,13 @@ export function DeadlineCalendar({
 }) {
   const [provider, setProvider] = useState(providers[0]!);
   const [uploads, setUploads] = useState<Upload[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [rejected, setRejected] = useState<Rejected[]>([]);
   const [onlyToCheck, setOnlyToCheck] = useState(false);
   /** The class shown, or "all"; null (or a removed class) shows the first. */
   const [selected, setSelected] = useState<number | "all" | null>(null);
-  /** Whether the student has generated yet: until then every chosen file is listed, without the class picker. */
+  /** Whether the student has generated yet: until then there's no step 2 or 3. */
   const [generated, setGenerated] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const nextId = useRef(1);
 
   const reading = uploads.some((u) => u.state === "reading");
@@ -177,21 +244,26 @@ export function DeadlineCalendar({
   }
 
   function add(files: File[]) {
-    setNotice(null);
-    // The same file chosen twice (same name and size) is added once.
-    const fresh = files.filter((f) => !uploads.some((u) => u.file.name === f.name && u.file.size === f.size));
-    const room = MAX_SYLLABI - uploads.length;
-    if (fresh.length > room) setNotice(`You can add up to ${MAX_SYLLABI} syllabi at a time, so ${fresh.length - room} weren't added.`);
-    const added = fresh.slice(0, Math.max(0, room)).map((file): Upload => {
-      const id = nextId.current++;
+    const problems: Rejected[] = [];
+    const accepted: File[] = [];
+    for (const file of files) {
+      // The same file chosen twice (same name and size) is added once.
+      if (uploads.some((u) => u.file.name === file.name && u.file.size === file.size)) continue;
       const problem = fileProblem(file, maxPdfBytes);
-      return problem ? { id, file, state: "error", message: problem } : { id, file, state: "ready" };
-    });
+      if (problem) problems.push({ name: file.name, message: problem });
+      else accepted.push(file);
+    }
+    const room = MAX_SYLLABI - uploads.length;
+    for (const file of accepted.slice(Math.max(0, room))) {
+      problems.push({ name: file.name, message: `You can add up to ${MAX_SYLLABI} syllabi at a time.` });
+    }
+    setRejected(problems);
+    const added = accepted.slice(0, Math.max(0, room)).map((file): Upload => ({ id: nextId.current++, file, state: "ready" }));
     setUploads((current) => [...current, ...added]);
   }
 
   function remove(id: number) {
-    setNotice(null);
+    setRejected([]);
     const rest = uploads.filter((u) => u.id !== id);
     setUploads(rest);
     if (rest.length === 0) setGenerated(false);
@@ -199,6 +271,7 @@ export function DeadlineCalendar({
 
   async function findDeadlines() {
     setGenerated(true);
+    setRejected([]);
     const queue = [...ready];
     for (const { id } of queue) update(id, { state: "reading" });
     // CONCURRENT_READS workers take files off the queue until it's empty.
@@ -216,33 +289,69 @@ export function DeadlineCalendar({
     await Promise.all(Array.from({ length: Math.min(CONCURRENT_READS, queue.length) }, worker));
   }
 
-  const done = uploads.filter((u): u is Upload & { state: "done"; course: Course } => u.state === "done");
+  const done = uploads.filter((u): u is DoneUpload => u.state === "done");
   const deadlineCount = done.reduce((sum, u) => sum + u.course.deadlines.length, 0);
-  const reviewCount = done.reduce((sum, u) => sum + u.course.deadlines.filter((d) => d.needsReview).length, 0);
+  const left = done.reduce(
+    (sum, u) => {
+      const { toCheck, needDates } = remaining(u.course.deadlines);
+      return { toCheck: sum.toCheck + toCheck, needDates: sum.needDates + needDates };
+    },
+    { toCheck: 0, needDates: 0 },
+  );
+  const attentionCount = left.toCheck + left.needDates;
+  const calendarCourses: CalendarCourse[] = done.map((u) => ({
+    course: u.course.course,
+    deadlines: u.course.deadlines,
+    grading: u.course.grading,
+  }));
+  const eventCount = calendarEventCount(calendarCourses);
 
-  const shownId = selected === "all" || uploads.some((u) => u.id === selected) ? selected : (uploads[0]?.id ?? null);
-  // While syllabi are being read, only the progress line shows; the class picker and its sections come once all are done.
-  const finished = uploads.filter((u) => u.state === "done" || u.state === "error").length;
-  const started = uploads.filter((u) => u.state !== "ready").length;
-  const showPicker = generated && !reading && uploads.length > 1;
-  const shown = reading ? [] : !showPicker || shownId === "all" ? uploads : uploads.filter((u) => u.id === shownId);
+  // Classes that have been sent to be read; the ones still waiting are listed in step 1.
+  const sent = uploads.filter((u) => u.state !== "ready");
+  const finished = sent.filter((u) => u.state === "done" || u.state === "error").length;
+  const showPicker = !reading && sent.length > 1;
+  const shownId = selected === "all" || sent.some((u) => u.id === selected) ? selected : (sent[0]?.id ?? null);
+  const shown = reading ? [] : !showPicker || shownId === "all" ? sent : sent.filter((u) => u.id === shownId);
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Deadline Calendar</h1>
-      <p className={styles.intro}>
-        Upload your syllabi to pull out their exams, quizzes, assignments and other deadlines. Check them against each
-        syllabus: fix anything that&apos;s wrong, and confirm the items the AI wasn&apos;t sure about, which are
-        highlighted.
-      </p>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Deadline Calendar</h1>
+        <p className={styles.intro}>
+          Turn your syllabi into one calendar of every exam, quiz and assignment, ready for Google Calendar, Apple
+          Calendar or Outlook.
+        </p>
+      </header>
 
-      <section className={styles.card}>
-        <label className={styles.upload}>
-          <span className={styles.uploadLabel}>Upload your syllabi (PDF format, up to {MAX_SYLLABI})</span>
+      {/* ── Step 1: upload ─────────────────────────────────────────────────── */}
+      <section className={styles.step}>
+        <StepTitle number={1} title="Upload your syllabi" />
+
+        <label
+          className={[styles.dropzone, dragging && styles.dropzoneActive, (reading || uploads.length >= MAX_SYLLABI) && styles.dropzoneDisabled]
+            .filter(Boolean)
+            .join(" ")}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            if (!reading && uploads.length < MAX_SYLLABI) add(Array.from(e.dataTransfer.files));
+          }}
+        >
+          <UploadIcon />
+          <span className={styles.dropzoneTitle}>
+            Drop your syllabi here, or <span className={styles.browse}>browse</span>
+          </span>
+          <span className={styles.dropzoneHint}>PDF format, up to {MAX_SYLLABI} files</span>
           <input
             type="file"
             accept="application/pdf,.pdf"
             multiple
+            className={styles.fileInput}
             onChange={(e) => {
               add(Array.from(e.target.files ?? []));
               e.target.value = ""; // so the same file can be chosen again after removing it
@@ -250,7 +359,39 @@ export function DeadlineCalendar({
             disabled={reading || uploads.length >= MAX_SYLLABI}
           />
         </label>
-        {notice && <p className={styles.note}>{notice}</p>}
+
+        {rejected.length > 0 && (
+          <ul className={styles.rejected} role="alert">
+            {rejected.map((r) => (
+              <li key={r.name}>
+                <strong>{r.name}:</strong> {r.message}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {ready.length > 0 && (
+          <ul className={styles.files}>
+            {ready.map((u) => (
+              <li key={u.id} className={styles.file}>
+                <FileIcon />
+                <span className={styles.fileName}>{u.file.name}</span>
+                <span className={styles.fileSize}>{formatSize(u.file.size)}</span>
+                <button className={styles.fileRemove} onClick={() => remove(u.id)} aria-label={`Remove ${u.file.name}`}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <button className={styles.primary} onClick={() => void findDeadlines()} disabled={ready.length === 0 || reading}>
+          {reading
+            ? "Generating your deadline calendar…"
+            : ready.length === 0
+              ? "Generate deadline calendar"
+              : `Generate deadline calendar for ${plural(ready.length, "class", "classes")}`}
+        </button>
 
         {providers.length > 1 ? (
           <label className={styles.provider}>
@@ -264,86 +405,288 @@ export function DeadlineCalendar({
             </select>
           </label>
         ) : (
-          <p className={styles.note}>
-            Using your {labels[provider]} key (add another in{" "}
+          <p className={styles.muted}>
+            Uses your {labels[provider]} key ·{" "}
             <Link href="/settings" className={styles.link}>
               Settings
-            </Link>{" "}
-            to switch)
+            </Link>
           </p>
         )}
-
-        <button className={styles.button} onClick={() => void findDeadlines()} disabled={ready.length === 0 || reading}>
-          {reading
-            ? "Generating your deadline calendar…"
-            : ready.length === 0
-              ? "Generate deadline calendar"
-              : `Generate deadline calendar for ${ready.length} ${ready.length === 1 ? "class" : "classes"}`}
-        </button>
-        {reading && <p className={styles.note}>Each syllabus usually takes 20–60 seconds.</p>}
       </section>
 
-      {reading && (
-        <p className={styles.status} role="status">
-          Reading… {finished} of {started} {started === 1 ? "class" : "classes"} done
-        </p>
-      )}
+      {/* ── Step 2: check ──────────────────────────────────────────────────── */}
+      {generated && sent.length > 0 && (
+        <section className={styles.step}>
+          <StepTitle number={2} title="Check your deadlines" />
 
-      {generated && !reading && done.length > 0 && (
-        <p className={styles.status} role="status">
-          Ready!{showPicker && " Use the dropdown to check through."}
-          {reviewCount > 0 &&
-            " Check the “Show only items to check” box to add in deadlines when not listed in the syllabus."}
-        </p>
-      )}
+          {reading ? (
+            <div className={styles.progress} role="status">
+              <span className={styles.spinner} aria-hidden="true" />
+              <span>
+                Reading… {finished} of {plural(sent.length, "class", "classes")} done. Each syllabus usually takes 20–60
+                seconds.
+              </span>
+            </div>
+          ) : (
+            <>
+              {done.length > 0 && (
+                <p className={styles.ready} role="status">
+                  <strong>Ready!</strong>
+                  {showPicker && " Use the dropdown to check through."}
+                  {attentionCount > 0 &&
+                    " Check the “Show only items to check” box to add in deadlines when not listed in the syllabus."}
+                </p>
+              )}
 
-      {!reading && done.length > 0 && (
-        <div className={styles.summaryRow}>
-          <p className={styles.summary}>
-            {done.length} {done.length === 1 ? "syllabus" : "syllabi"} · {deadlineCount}{" "}
-            {deadlineCount === 1 ? "deadline" : "deadlines"}
-            {reviewCount > 0 && ` · ${reviewCount} to check`}
-          </p>
-          {reviewCount > 0 && (
-            <label className={styles.toggle}>
-              <input type="checkbox" checked={onlyToCheck} onChange={(e) => setOnlyToCheck(e.target.checked)} />
-              Show only items to check
-            </label>
+              {done.length > 0 && (
+                <div className={styles.statsRow}>
+                  <div className={styles.stats}>
+                    <span className={styles.stat}>{plural(done.length, "class", "classes")}</span>
+                    <span className={styles.stat}>{plural(deadlineCount, "deadline", "deadlines")}</span>
+                    <Badges badges={remainingBadges(left)} />
+                  </div>
+                  {attentionCount > 0 && (
+                    <label className={styles.toggle}>
+                      <input type="checkbox" checked={onlyToCheck} onChange={(e) => setOnlyToCheck(e.target.checked)} />
+                      Show only items to check
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {showPicker && shownId !== null && (
+                <ClassPicker
+                  options={[...sent.map(classOption), { value: "all", name: "All classes", badges: [] }]}
+                  value={shownId}
+                  onChange={setSelected}
+                />
+              )}
+
+              {shown.map((upload) => (
+                <ClassCard
+                  key={upload.id}
+                  upload={upload}
+                  onlyToCheck={onlyToCheck && attentionCount > 0}
+                  onRemove={() => remove(upload.id)}
+                  onEdit={(change) => editCourse(upload.id, change)}
+                />
+              ))}
+            </>
           )}
-        </div>
+        </section>
       )}
 
-      {showPicker && (
-        <label className={styles.classPicker}>
-          Class
-          <select
-            value={String(shownId)}
-            onChange={(e) => setSelected(e.target.value === "all" ? "all" : Number(e.target.value))}
-          >
-            {uploads.map((u) => (
-              <option key={u.id} value={u.id}>
-                {classLabel(u)}
-              </option>
-            ))}
-            <option value="all">All classes</option>
-          </select>
-        </label>
+      {/* ── Step 3: download ───────────────────────────────────────────────── */}
+      {generated && !reading && done.length > 0 && (
+        <section className={styles.step}>
+          <StepTitle number={3} title="Add to your calendar" />
+          <div className={styles.download}>
+            <CalendarIcon />
+            <div className={styles.downloadBody}>
+              <button className={styles.primary} onClick={() => downloadCalendar(calendarCourses)} disabled={eventCount === 0}>
+                Download calendar ({plural(eventCount, "deadline", "deadlines")})
+              </button>
+              {left.toCheck > 0 && (
+                <p className={styles.muted}>
+                  {left.toCheck} {left.toCheck === 1 ? "item still needs" : "items still need"} checking. You can
+                  download now, but check them first so your calendar is right.
+                </p>
+              )}
+              {left.needDates > 0 && (
+                <p className={styles.muted}>
+                  {left.needDates} {left.needDates === 1 ? "deadline has" : "deadlines have"} no date, so{" "}
+                  {left.needDates === 1 ? "it isn't" : "they aren't"} included. Add dates to include them.
+                </p>
+              )}
+              {calendarCourses.length > 1 && (
+                <div className={styles.perClass}>
+                  <p className={styles.perClassTitle}>Want each class in its own color?</p>
+                  <p className={styles.muted}>
+                    Download each class on its own and import each into its own calendar, then give each calendar a
+                    color.
+                  </p>
+                  <div className={styles.perClassButtons}>
+                    {calendarCourses.map((c, i) => {
+                      const code = courseCode(c.course) ?? `Class ${i + 1}`;
+                      const count = calendarEventCount([c]);
+                      return (
+                        <button
+                          key={i}
+                          className={styles.action}
+                          onClick={() => downloadCalendar([c], calendarFileName(c.course), `${code} deadlines`)}
+                          disabled={count === 0}
+                          title={c.course ?? undefined}
+                        >
+                          {code} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <details className={styles.howTo}>
+                <summary>How to add it to your calendar</summary>
+                <ul>
+                  <li>
+                    <strong>Google Calendar:</strong> on a computer, open Settings → Import &amp; export, choose the file,
+                    then Import. Tip: create a new calendar first and import into it, so you can show, hide or delete all
+                    your deadlines at once.
+                  </li>
+                  <li>
+                    <strong>Color-coding in Google Calendar:</strong> create one calendar per class (the + next to
+                    &ldquo;Other calendars&rdquo; → Create new calendar), import each class&apos;s file into its own
+                    calendar, then in the left sidebar click ⋮ next to each calendar and pick a color.
+                  </li>
+                  <li>
+                    <strong>Apple Calendar or Outlook:</strong> open the downloaded file. Apple Calendar offers to add it
+                    as a new calendar, which you can then color.
+                  </li>
+                </ul>
+              </details>
+            </div>
+          </div>
+        </section>
       )}
-
-      {shown.map((upload) => (
-        <UploadCard
-          key={upload.id}
-          upload={upload}
-          onlyToCheck={onlyToCheck && reviewCount > 0}
-          onRemove={() => remove(upload.id)}
-          onEdit={(change) => editCourse(upload.id, change)}
-        />
-      ))}
     </div>
   );
 }
 
-function UploadCard({
+/**
+ * A dropdown of classes with colored badges, which a native <select> can't
+ * show. Opens on click, Enter, Space or the arrow keys; inside, the arrow keys
+ * move, Enter or Space picks, and Escape or a click outside closes it.
+ */
+function ClassPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: ClassOption[];
+  value: number | "all";
+  onChange: (value: number | "all") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const items = useRef<(HTMLButtonElement | null)[]>([]);
+  const current = options.find((o) => o.value === value) ?? options[0]!;
+  // Read when the list opens, so the effect below runs only on opening and closing, not on every render.
+  const selectedIndex = useRef(0);
+  selectedIndex.current = Math.max(0, options.findIndex((o) => o.value === value));
+
+  useEffect(() => {
+    if (!open) return;
+    // Focus the chosen class when the list opens, so the arrow keys start there.
+    items.current[selectedIndex.current]?.focus();
+    const close = (e: MouseEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  function choose(option: ClassOption) {
+    onChange(option.value);
+    setOpen(false);
+    trigger.current?.focus();
+  }
+
+  function onListKey(e: React.KeyboardEvent, index: number) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const next = (index + (e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+      items.current[next]?.focus();
+    } else if (e.key === "Escape") {
+      setOpen(false);
+      trigger.current?.focus();
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div className={styles.classPicker} ref={root}>
+      <span className={styles.classPickerLabel} id="class-picker-label">
+        Class
+      </span>
+      <button
+        ref={trigger}
+        type="button"
+        className={styles.pickerTrigger}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-labelledby="class-picker-label"
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+      >
+        <OptionContent option={current} />
+        <svg className={styles.chevron} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div className={styles.pickerList} role="listbox" aria-labelledby="class-picker-label">
+          {options.map((option, i) => (
+            <button
+              key={String(option.value)}
+              ref={(el) => {
+                items.current[i] = el;
+              }}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className={[styles.pickerOption, option.value === value && styles.pickerOptionSelected].filter(Boolean).join(" ")}
+              onClick={() => choose(option)}
+              onKeyDown={(e) => onListKey(e, i)}
+            >
+              <OptionContent option={option} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OptionContent({ option }: { option: ClassOption }) {
+  return (
+    <>
+      <span className={styles.optionName}>{option.name}</span>
+      <Badges badges={option.badges} small />
+    </>
+  );
+}
+
+function Badges({ badges, small = false }: { badges: Badge[]; small?: boolean }) {
+  const tones = { ok: styles.statOk, warn: styles.statWarn, error: styles.statError, plain: "" };
+  return (
+    <>
+      {badges.map((badge) => (
+        <span key={badge.text} className={[styles.stat, small && styles.optionBadge, tones[badge.tone]].filter(Boolean).join(" ")}>
+          {badge.tone === "ok" && !small ? `✓ ${badge.text}` : badge.text}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function StepTitle({ number, title }: { number: number; title: string }) {
+  return (
+    <h2 className={styles.stepTitle}>
+      <span className={styles.stepNumber} aria-hidden="true">
+        {number}
+      </span>
+      {title}
+    </h2>
+  );
+}
+
+function ClassCard({
   upload,
   onlyToCheck,
   onRemove,
@@ -356,19 +699,19 @@ function UploadCard({
 }) {
   const heading = upload.state === "done" ? (upload.course.course ?? upload.file.name) : upload.file.name;
   return (
-    <section className={styles.results}>
-      <div className={styles.courseHeader}>
-        <h2 className={styles.course}>{heading}</h2>
+    <article className={styles.classCard}>
+      <div className={styles.classHeader}>
+        <div className={styles.classHeading}>
+          <h3 className={styles.className}>{heading}</h3>
+          {upload.state === "done" && upload.course.course && <p className={styles.classFile}>{upload.file.name}</p>}
+        </div>
         {upload.state !== "reading" && (
-          <button className={styles.remove} onClick={onRemove} aria-label={`Remove ${upload.file.name}`}>
+          <button className={styles.ghost} onClick={onRemove} aria-label={`Remove ${upload.file.name}`}>
             Remove
           </button>
         )}
       </div>
-      {upload.state === "done" && upload.course.course && <p className={styles.fileName}>{upload.file.name}</p>}
 
-      {upload.state === "ready" && <p className={styles.note}>Ready to read.</p>}
-      {upload.state === "reading" && <p className={styles.note}>Reading…</p>}
       {upload.state === "error" && (
         <p className={styles.error} role="alert">
           {upload.message}
@@ -383,7 +726,7 @@ function UploadCard({
         </p>
       )}
       {upload.state === "done" && <Results course={upload.course} onlyToCheck={onlyToCheck} onEdit={onEdit} />}
-    </section>
+    </article>
   );
 }
 
@@ -397,8 +740,9 @@ function Results({
   onEdit: (change: (items: Item[]) => Item[]) => void;
 }) {
   const now = today();
-  const toReview = course.deadlines.filter((d) => d.needsReview).length;
-  const shown = onlyToCheck ? course.deadlines.filter((d) => d.needsReview) : course.deadlines;
+  const left = remaining(course.deadlines);
+  const allClear = left.toCheck + left.needDates === 0;
+  const shown = onlyToCheck ? course.deadlines.filter(needsAttention) : course.deadlines;
   const dated = shown.filter((d) => d.date !== null);
   const undated = shown.filter((d) => d.date === null);
 
@@ -418,51 +762,63 @@ function Results({
 
   return (
     <>
-      <p className={styles.note}>
-        {course.deadlines.length} {course.deadlines.length === 1 ? "deadline" : "deadlines"}
-        {toReview > 0 && ` · ${toReview} to check`}
-      </p>
+      <div className={styles.classMeta}>
+        <span>{plural(course.deadlines.length, "deadline", "deadlines")}</span>
+        {!allClear && <Badges badges={remainingBadges(left)} />}
+      </div>
       {course.grading.length > 0 && (
         <p className={styles.grading}>
-          <span className={styles.gradingLabel}>Grading:</span> {course.grading.map(formatCategory).join(" · ")}
+          <span className={styles.gradingLabel}>Grading</span>
+          {course.grading.map(formatCategory).join(" · ")}
         </p>
       )}
 
-      {course.deadlines.length === 0 && <p className={styles.note}>No deadlines found. Check that this is the course syllabus.</p>}
-      {course.deadlines.length > 0 && shown.length === 0 && <p className={styles.note}>Nothing to check in this course.</p>}
+      {course.deadlines.length === 0 && <p className={styles.muted}>No deadlines found. Check that this is the course syllabus.</p>}
+      {course.deadlines.length > 0 && allClear && (
+        <p className={styles.allClear} role="status">
+          <span className={styles.allClearIcon} aria-hidden="true">
+            ✓
+          </span>
+          All clear: nothing to check in this course.
+        </p>
+      )}
 
       {dated.length > 0 && (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Deadline</th>
-              <th>Type</th>
-              <th>
-                <span className={styles.visuallyHidden}>Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {dated.map((d) => (
-              <Row key={d.key} deadline={d} past={d.date! < now} {...actions(d)} />
-            ))}
-          </tbody>
-        </table>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Deadline</th>
+                <th>Type</th>
+                <th>
+                  <span className={styles.visuallyHidden}>Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {dated.map((d) => (
+                <Row key={d.key} deadline={d} past={d.date! < now} {...actions(d)} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {undated.length > 0 && (
         <>
-          <h3 className={styles.subheading}>Needs a date</h3>
-          <p className={styles.note}>Add a date to put these in your calendar.</p>
-          <table className={styles.table}>
-            <tbody>
-              {undated.map((d) => (
-                <Row key={d.key} deadline={d} past={false} {...actions(d)} />
-              ))}
-            </tbody>
-          </table>
+          <h4 className={styles.subheading}>Needs a date</h4>
+          <p className={styles.muted}>Add a date to put these in your calendar.</p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <tbody>
+                {undated.map((d) => (
+                  <Row key={d.key} deadline={d} past={false} {...actions(d)} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </>
@@ -518,17 +874,19 @@ function Row({
         {d.section && <span className={styles.section}>{d.section}</span>}
         {d.needsReview && d.note && <span className={styles.reviewNote}>Check: {d.note}</span>}
       </td>
-      <td className={styles.type}>{TYPE_LABELS[d.type]}</td>
+      <td>
+        <span className={`${styles.type} ${styles[`type_${d.type}`] ?? ""}`}>{TYPE_LABELS[d.type]}</span>
+      </td>
       <td className={styles.actions}>
         {d.needsReview && dated && (
-          <button className={styles.action} onClick={onConfirm}>
+          <button className={`${styles.action} ${styles.actionConfirm}`} onClick={onConfirm}>
             Looks right
           </button>
         )}
         <button className={styles.action} onClick={() => setEditing(true)}>
           {dated ? "Edit" : "Add date"}
         </button>
-        <button className={styles.action} onClick={onDelete} aria-label={`Delete ${d.title}`}>
+        <button className={`${styles.action} ${styles.actionDelete}`} onClick={onDelete} aria-label={`Delete ${d.title}`}>
           Delete
         </button>
       </td>
@@ -564,7 +922,7 @@ function EditForm({ deadline: d, onSave, onCancel }: { deadline: Item; onSave: (
       </label>
       {d.needsReview && d.note && <p className={styles.reviewNote}>Check: {d.note}</p>}
       <div className={styles.editButtons}>
-        <button type="submit" className={styles.button} disabled={!canSave}>
+        <button type="submit" className={styles.small} disabled={!canSave}>
           Save
         </button>
         <button type="button" className={styles.action} onClick={onCancel}>
@@ -572,5 +930,36 @@ function EditForm({ deadline: d, onSave, onCancel }: { deadline: Item; onSave: (
         </button>
       </div>
     </form>
+  );
+}
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function UploadIcon() {
+  return (
+    <svg className={styles.dropzoneIcon} width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 16V4" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M20 16v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3" />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg className={styles.fileIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg className={styles.downloadIcon} width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+      <path d="m9 15 2 2 4-4" />
+    </svg>
   );
 }
