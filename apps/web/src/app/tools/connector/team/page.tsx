@@ -4,12 +4,20 @@
 
 import type { Metadata } from "next";
 import { toolSql } from "@penntools/platform/db";
-import { previewRelease, type GroupingResult } from "@penntools/tool-connector";
+import {
+  cohortClashes,
+  matchQuality,
+  previewRelease,
+  SCORED_QUESTIONS,
+  WEAK_MATCH_QUALITY,
+  type GroupingResult,
+} from "@penntools/tool-connector";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { canRelease } from "./access";
 import { ReleaseButton } from "./ReleaseButton";
 import styles from "../Connector.module.css";
+import team from "./Team.module.css";
 
 export const metadata: Metadata = {
   title: "Connector team",
@@ -52,32 +60,89 @@ export default async function ConnectorTeamPage() {
   }
 
   const { groups, waitlist } = preview;
+  const rows = groups.map((group, i) => ({
+    number: i + 1,
+    isPair: group.members.length === 2,
+    members: group.members,
+    quality: matchQuality(group.members),
+    clashes: cohortClashes(group.members),
+  }));
   const waiting = groups.reduce((n, g) => n + g.members.length, 0) + waitlist.length;
+  const pairCount = rows.filter((r) => r.isPair).length;
+  const groupCount = rows.length - pairCount;
+  const clashed = rows.filter((r) => r.clashes > 0);
+  const weak = rows.filter((r) => r.quality < WEAK_MATCH_QUALITY);
+  const average = rows.length === 0 ? 0 : rows.reduce((total, r) => total + r.quality, 0) / rows.length;
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Connector team</h1>
       <p className={styles.intro}>
-        <strong>{waiting}</strong> student{waiting === 1 ? "" : "s"} waiting to be matched. Releasing now would make
-        these pairs and groups. Nothing is saved until you release, and anyone who signs up in the meantime is
+        What releasing now would make. Nothing is saved until you release, and anyone who signs up in the meantime is
         included.
       </p>
 
-      {groups.map((group, i) => (
-        <section key={i} className={styles.card}>
-          <strong>
-            {group.members.length === 2 ? "One-on-one" : "Group"} {i + 1} · {group.score} shared answer
-            {group.score === 1 ? "" : "s"}
-          </strong>
-          <ul>
-            {group.members.map((m) => (
-              <li key={m.id}>
-                {m.name} · Cohort {m.cohort}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      <ul className={team.summary}>
+        <li>
+          <strong>Matches:</strong> {plural(waiting, "student")} waiting, making {plural(pairCount, "one-on-one pair")}{" "}
+          and {plural(groupCount, "group")}, with {waitlist.length} on the waitlist.
+        </li>
+        <li>
+          <strong>Cohort clashes:</strong>{" "}
+          {clashed.length === 0
+            ? "none. Nobody is matched with someone from their own cohort."
+            : `${plural(clashed.length, "group")} (${clashed.map((r) => `#${r.number}`).join(", ")}) ${
+                clashed.length === 1 ? "has" : "have"
+              } two people from the same cohort, so that everyone could be matched.`}
+        </li>
+        <li>
+          <strong>Match quality:</strong>{" "}
+          {rows.length === 0
+            ? "no matches yet."
+            : `${average.toFixed(1)} of ${SCORED_QUESTIONS} answers in common on average; ${
+                weak.length === 0
+                  ? "no weak matches."
+                  : `${plural(weak.length, "weak match")} (${weak.map((r) => `#${r.number}`).join(", ")}) with fewer than ${WEAK_MATCH_QUALITY} in common.`
+              }`}
+        </li>
+      </ul>
+
+      {rows.length > 0 && (
+        <div className={team.tableWrap}>
+          <table className={team.table}>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Type</th>
+                <th>Members</th>
+                <th>Match quality</th>
+                <th>Cohort clash</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.number}>
+                  <td>{r.number}</td>
+                  <td>{r.isPair ? "One-on-one" : "Group"}</td>
+                  <td>
+                    {r.members.map((m) => (
+                      <div key={m.id}>
+                        {m.name} <span className={team.muted}>· {m.cohort}</span>
+                      </div>
+                    ))}
+                  </td>
+                  <td className={r.quality < WEAK_MATCH_QUALITY ? team.flag : undefined}>
+                    {r.quality.toFixed(1)} / {SCORED_QUESTIONS}
+                    {r.quality < WEAK_MATCH_QUALITY && " · weak"}
+                  </td>
+                  <td className={r.clashes > 0 ? team.flag : undefined}>{r.clashes > 0 ? "⚠ Yes" : "No"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {waitlist.length > 0 && (
         <section className={styles.card}>
