@@ -839,7 +839,7 @@ function RankedList({
                     <span className={styles.hint}>
                       {item.kind === "posting" ? item.company : `${item.title} at ${item.company}`} ·{" "}
                       {item.kind === "posting" ? "Job" : `${item.priority} priority`}
-                      {item.kind === "posting" && item.salary ? ` · ${item.salary}${item.salaryStated ? "" : " (estimate)"}` : ""}
+                      {item.kind === "posting" && item.salary ? ` · ${item.salary}` : ""}
                       {item.kind === "posting" && item.applyBy ? ` · apply by ${item.applyBy}` : ""}
                       {item.kind === "contact" && item.schools?.length ? ` · ${item.schools.join("; ")}` : ""}
                     </span>
@@ -1024,21 +1024,12 @@ function ItemDetails({ item, onUpdated }: { item: SavedItem; onUpdated: (item: S
             LinkedIn search phrases.
           </p>
         )}
-        <p>
-          <strong>Pay:</strong>{" "}
-          {item.salary ? (
-            <>
-              {item.salary}{" "}
-              <span className={styles.inlineHint}>
-                ({item.salaryStated ? "stated in the posting" : "estimate: the posting doesn't say"})
-              </span>
-            </>
-          ) : (
-            <span className={styles.inlineHint}>
-              Scored before pay was read: paste the posting again, or ask below.
-            </span>
-          )}
-        </p>
+        {item.salary && (
+          <p>
+            <strong>Pay:</strong> {item.salary}{" "}
+            <span className={styles.inlineHint}>(from the posting)</span>
+          </p>
+        )}
         {item.team && (
           <p>
             <strong>Team:</strong> {item.team}{" "}

@@ -2,7 +2,7 @@
 
 How Recruiting Helper is tested: automated tests that run with no API key and cost nothing, a manual checklist run in the browser before each release, and the user tests from the WAIAC AI PM Training.
 
-Last run: 12 Nov 2026, on `team/recruiting-helper-chat-salary`, after adding pay and follow-up questions. Every test that was run passed; the results column says which were run that day and which earlier.
+Last run: 13 Nov 2026, on `team/recruiting-helper-chat-salary`, after adding pay (only when the posting states it) and follow-up questions. Every test that was run passed; the results column says which were run that day and which earlier.
 
 ## 1. Automated checks
 
@@ -18,11 +18,11 @@ The AI is replaced by a fake in these tests, so they need no key and don't spend
 
 | Area | File | Tests | What it proves |
 |---|---|---|---|
-| Scoring | `src/__tests__/scoring.test.ts` | 53 | Company tiers (+1 Target, 0 Secondary, −1 Practice or off-list); people's points (1 + 2 Target / 1 Secondary, +1 relevant role, +1 per bonus signal, capped at 5); signals not on the student's list are ignored and none counts twice; the paste is sent with the profile and screenshots go as images; an unclear paste asks instead of guessing; posting summaries, teams (named or inferred), search phrases and pay (stated or estimated) are kept; postings saved before summaries or pay existed still load; profile, paste and link checks, including text with a null character, which Postgres can't store |
+| Scoring | `src/__tests__/scoring.test.ts` | 53 | Company tiers (+1 Target, 0 Secondary, −1 Practice or off-list); people's points (1 + 2 Target / 1 Secondary, +1 relevant role, +1 per bonus signal, capped at 5); signals not on the student's list are ignored and none counts twice; the paste is sent with the profile and screenshots go as images; an unclear paste asks instead of guessing; posting summaries, teams (named or inferred), search phrases and the pay a posting states are kept, and none is guessed when it doesn't; postings saved before summaries or pay existed still load; profile, paste and link checks, including text with a null character, which Postgres can't store |
 | Outreach | `src/__tests__/outreach.test.ts` | 39 | Drafts are built only from the person's saved profile and the student's background; "schools not recorded" is passed on so no shared school is invented; a remembered style is followed by new drafts and dropped when cleared; "change all drafts" sends the current draft and the instruction; school and email boxes are checked; Penn and Wharton schools are tagged as Penn alumni and earn a matching bonus signal's point once |
 | Résumé | `src/__tests__/resume.test.ts` | 12 | The server accepts only PDFs, recognized by their bytes, not their names (Word files are read in the browser, so the server never unzips an upload); old `.doc` files get instructions to convert; Word text is read without AI; PDFs are read by the AI, and an unreadable one is reported |
 | Storage | `src/__tests__/storage.test.ts` | 19 | `schema.sql` can be re-run on every deploy; each user sees, edits and deletes only their own profile and items; the list is ranked best first; re-pasting a posting (same link, company and role) or person (same name and company) replaces it and keeps the earlier link, outreach draft and email, while two people with the same name at different companies, or two roles sharing a careers-page link, stay apart; a full list (500 items) refuses new items but still updates repeats; re-scoring after a profile change needs no AI and leaves drafts and emails alone; the outreach style survives a profile save; follow-up questions and answers are saved per item and user, sent to the model with the item and earlier messages, kept when the item is scored again, deleted with the item, cleared on request, and refused once a chat is full |
-| Follow-up chat | `src/__tests__/chat.test.ts` | 9 | Questions are checked (empty, too long, null character); the model gets the item (a posting's pay and whether its team is inferred, a person's schools or "not recorded" and their draft) and the student's profile with the first question, and only the latest messages after that |
+| Follow-up chat | `src/__tests__/chat.test.ts` | 9 | Questions are checked (empty, too long, null character); the model gets the item (a posting's stated pay, or that it states none, and whether its team is inferred, a person's schools or "not recorded" and their draft) and the student's profile with the first question, and only the latest messages after that |
 | **Total** | | **132** | |
 
 `pnpm typecheck` checks every package, including this one; `pnpm check:tools` checks the platform rules (no vendor SDKs, no direct provider calls, no reading saved API keys). The full `pnpm test` passes too.
@@ -49,7 +49,7 @@ Run at `/tools/recruiting-helper` while signed in, with an Anthropic or OpenAI k
 | M14 | Across devices | Sign in on a second browser | The same profile and list | Pass (in earlier run) |
 | M15 | Never sends | Look for any send action | Drafts can only be copied; the page says nothing is sent | Pass |
 | M16 | Missing drafts | Open the page with a person who has no email draft | Nothing is written on its own; a notice offers "Write the missing draft", which writes it with the selected AI provider | Pass |
-| M17 | Pay | Score a posting that states pay, and one that doesn't | The list row and details show the pay range; one the posting doesn't state is marked "estimate" | Pass (estimate shown for the example posting) |
+| M17 | Pay | Score a posting that states pay, and one that doesn't | The posting with pay shows its range on the list row and in its details, marked "from the posting"; the one without shows no pay at all, never an estimate | Pass (example posting with and without a pay line) |
 | M18 | Follow-up questions | Open an item, click an example question or type one, then reload the page | The answer appears as it's written, labels guesses as likely examples, and the chat is still there after reloading; **Clear** deletes it; removing the item deletes it too | Pass (asked about partners for the example posting) |
 
 ## 3. User tests (WAIAC AI PM Training)

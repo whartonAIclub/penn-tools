@@ -24,7 +24,6 @@ const job: SavedPosting = {
   teamStated: false,
   searchKeywords: [],
   salary: "$150,000-$180,000 a year",
-  salaryStated: true,
   score: 5,
   tier: "target",
   matchedCompany: "Google",
@@ -73,7 +72,8 @@ describe("itemContext", () => {
     const text = itemContext(job);
     expect(text).toContain("Partner Manager at Google (Manager)");
     expect(text).toContain("Team: Google Cloud, Partner Ecosystem (inferred, not stated)");
-    expect(text).toContain("Base pay: $150,000-$180,000 a year (stated in the posting)");
+    expect(text).toContain("Base pay (stated in the posting): $150,000-$180,000 a year");
+    expect(itemContext({ ...job, salary: null })).toContain("Base pay: not stated in the posting");
   });
 
   it("describes a person, with their draft, and says when schools weren't recorded", () => {

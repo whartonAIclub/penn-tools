@@ -233,13 +233,13 @@ export const PostingReview = z.object({
     .describe("4-6 short LinkedIn people-search phrases for finding people on that team, each including the company name"),
   salary: z
     .string()
-    .describe("Base pay as a short range with currency and period, e.g. '$140,000-$175,000 a year'; the posting's own range if it gives one, else your best estimate for this role, level, company and location; just the range, no notes"),
-  salaryStated: z.boolean().describe("True if the posting states the pay; false if salary is your estimate"),
+    .nullable()
+    .describe("The base pay range exactly as the posting states it, shortened to the range with currency and period, e.g. '$140,000-$175,000 a year'; null if the posting doesn't state pay. Never estimate"),
 });
 export type PostingReview = z.infer<typeof PostingReview>;
 
 /** Fields added after the first postings were saved; older postings lack them. */
-type PostingExtras = "summary" | "team" | "teamStated" | "searchKeywords" | "salary" | "salaryStated";
+type PostingExtras = "summary" | "team" | "teamStated" | "searchKeywords" | "salary";
 
 export interface ScoredPosting extends Omit<PostingReview, PostingExtras> {
   /** What the role would do; null for postings scored before summaries were written. */
@@ -249,10 +249,8 @@ export interface ScoredPosting extends Omit<PostingReview, PostingExtras> {
   teamStated: boolean | null;
   /** LinkedIn people-search phrases for the team; empty if none. */
   searchKeywords: string[];
-  /** Base pay range, e.g. "$140,000-$175,000 a year"; null for postings scored before pay was read. */
+  /** Base pay range as the posting states it, e.g. "$140,000-$175,000 a year"; null if it doesn't, or was scored before pay was read. */
   salary: string | null;
-  /** Whether the posting states the pay (true) or it's the AI's estimate (false); null if salary is. */
-  salaryStated: boolean | null;
   kind: "posting";
   score: number;
   tier: CompanyTier | "off-list";
@@ -279,7 +277,6 @@ export function scorePostingReview(
     teamStated: review.team?.trim() ? (review.teamStated ?? null) : null,
     searchKeywords: (review.searchKeywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 6),
     salary: review.salary?.trim() || null,
-    salaryStated: review.salary?.trim() ? (review.salaryStated ?? null) : null,
     roleFit: clamp(review.roleFit),
     leadWith: review.leadWith.slice(0, 3),
     score: clamp(review.roleFit + points),
@@ -460,9 +457,7 @@ Also summarize the role and name its team. Say teamStated is false whenever the 
 outright and you are inferring it from the work, product or org described; never present a guess as fact.
 For searchKeywords, write phrases a student could type into LinkedIn's people search to find people on that
 team or doing similar work there (e.g. "Google Cloud partner manager", "Google ISV partnerships").
-For salary, copy the posting's base pay range if it states one (salaryStated true). If it doesn't, give your best
-estimate of the base pay range for this role, level, company and location (salaryStated false); never present an
-estimate as stated.
+For salary, copy the base pay range only if the posting states one; if it doesn't, return null. Never estimate pay.
 
 For a person, use ONLY what is stated on their profile: never infer nationality, language, school or
 anything else from a name or photo. If their name isn't clearly stated, return null for it.

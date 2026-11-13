@@ -54,7 +54,6 @@ function posting(score: number, link: string | null, title = "Partner Manager"):
     teamStated: null,
     searchKeywords: [],
     salary: null,
-    salaryStated: null,
     score,
     tier: "target",
     matchedCompany: "Google",
@@ -285,15 +284,21 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
     expect(await getContact(sql, "lou", item.id)).not.toHaveProperty("email");
   });
 
-  it("loads postings saved before pay was read, with no pay", async () => {
-    const { salary: _s, salaryStated: _ss, ...old } = posting(3, null) as Extract<NewItem, { kind: "posting" }>;
-    await sql`INSERT INTO items (user_id, kind, score, result) VALUES ('pia', 'posting', 3, ${sql.json(old as never)})`;
-    expect(await listItems(sql, "pia")).toMatchObject([{ salary: null, salaryStated: null, summary: null }]);
+  it("loads postings saved before pay was read with no pay, and hides pay an earlier version estimated", async () => {
+    const { salary: _s, ...old } = posting(3, null, "Old") as Extract<NewItem, { kind: "posting" }>;
+    const estimated = { ...posting(2, null, "Estimated"), salary: "$1-$2 a year", salaryStated: false };
+    const stated = { ...posting(1, null, "Stated"), salary: "$3-$4 a year", salaryStated: true };
+    for (const result of [old, estimated, stated]) {
+      await sql`INSERT INTO items (user_id, kind, score, result) VALUES ('pia', 'posting', ${result.score}, ${sql.json(result as never)})`;
+    }
+    const items = await listItems(sql, "pia");
+    expect(items.map((i) => i.kind === "posting" && i.salary)).toEqual([null, null, "$3-$4 a year"]);
+    expect(items.every((i) => !("salaryStated" in i))).toBe(true);
   });
 
   it("saves questions and answers about an item, and sends the model the item and earlier messages", async () => {
     await saveProfile(sql, "quinn", SAMPLE_PROFILE);
-    const { item } = await saveItem(sql, "quinn", { ...posting(4, null), salary: "$150,000-$180,000 a year", salaryStated: false } as NewItem);
+    const { item } = await saveItem(sql, "quinn", { ...posting(4, null), salary: "$150,000-$180,000 a year" } as NewItem);
     const { ai, requests } = fakeAI("Likely partners: Accenture, Deloitte.");
 
     expect(await ask("quinn", item.id, "Who would this team partner with?", ai)).toBe("Likely partners: Accenture, Deloitte.");
@@ -309,7 +314,7 @@ describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
     expect(second.tier).toBe("standard");
     expect(second.messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
     expect(second.messages[0]!.content).toContain("Partner Manager at Google");
-    expect(second.messages[0]!.content).toContain("$150,000-$180,000 a year (estimate)");
+    expect(second.messages[0]!.content).toContain("Base pay (stated in the posting): $150,000-$180,000 a year");
     expect(second.messages[0]!.content).toContain(SAMPLE_PROFILE.targetRoles);
     expect(second.messages[2]!.content).toBe("And in Europe?");
   });

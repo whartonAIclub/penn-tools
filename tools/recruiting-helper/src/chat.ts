@@ -91,7 +91,7 @@ export function itemContext(item: SavedItem): string {
           `## Job posting`,
           `Role: ${item.title} at ${item.company}${item.level ? ` (${item.level})` : ""}`,
           item.team ? `Team: ${item.team} (${item.teamStated ? "named in the posting" : "inferred, not stated"})` : null,
-          item.salary ? `Base pay: ${item.salary} (${item.salaryStated ? "stated in the posting" : "estimate"})` : null,
+          item.salary ? `Base pay (stated in the posting): ${item.salary}` : `Base pay: not stated in the posting`,
           item.summary ? `What the role does: ${item.summary}` : null,
           `Role fit: ${item.roleFit}/5. ${item.reason}`,
           item.leadWith.length ? `Student should lead with: ${item.leadWith.join("; ")}` : null,

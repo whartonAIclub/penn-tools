@@ -289,8 +289,10 @@ function toSaved(id: string, result: NewItem, updatedAt: Date): SavedItem {
   if (saved.kind === "posting") {
     // Postings saved before summaries, teams and search phrases were written, or before pay was read.
     const old = saved.summary === undefined ? { summary: null, team: null, teamStated: null, searchKeywords: [] } : {};
-    const noPay = saved.salary === undefined ? { salary: null, salaryStated: null } : {};
-    return { ...saved, ...old, ...noPay };
+    // Pay estimated by an earlier version, when the posting didn't state it, isn't shown.
+    const { salaryStated, ...rest } = saved as SavedPosting & { salaryStated?: boolean | null };
+    const noPay = saved.salary === undefined || salaryStated === false ? { salary: null } : {};
+    return { ...rest, ...old, ...noPay };
   }
   return saved;
 }
