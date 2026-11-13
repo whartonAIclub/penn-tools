@@ -266,3 +266,42 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS pet_ids UUID[] NOT NULL DEFAULT '{
 -- and `other_profile` is the side they're not, and switching swaps the two
 -- (members.ts). Null until they have used both sides.
 ALTER TABLE members ADD COLUMN IF NOT EXISTS other_profile JSONB;
+
+-- After matching (visits.ts): how the sitter gets in, each visit checked in
+-- with a photo of the pet, and the owner paying for each visit when it's done.
+-- The guide's codes reach the sitter only once both approve, like phone numbers.
+CREATE TABLE IF NOT EXISTS entry_guides (
+  request_id   UUID        PRIMARY KEY REFERENCES requests (id) ON DELETE CASCADE,
+  building     TEXT,
+  unit         TEXT,
+  key_method   TEXT        NOT NULL CHECK (key_method IN ('meet', 'doorman', 'lockbox', 'hidden', 'smart_lock', 'other')),
+  key_details  TEXT,
+  quirks       TEXT,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- A sitter's Venmo and PayPal usernames, so an owner's Pay button opens the right account.
+CREATE TABLE IF NOT EXISTS pay_handles (
+  user_id     TEXT        PRIMARY KEY,
+  venmo       TEXT,
+  paypal      TEXT,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS visits (
+  id             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id     UUID          NOT NULL REFERENCES requests (id) ON DELETE CASCADE,
+  sitter_id      TEXT          NOT NULL,
+  arrived_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+  arrived_photo  TEXT          NOT NULL,
+  arrived_note   TEXT,
+  left_at        TIMESTAMPTZ,
+  left_photo     TEXT,
+  left_note      TEXT,
+  amount         NUMERIC(8, 2) CHECK (amount > 0),
+  paid_method    TEXT          CHECK (paid_method IN ('venmo', 'paypal', 'zelle', 'cash', 'other')),
+  paid_at        TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS visits_request_idx ON visits (request_id, arrived_at DESC);
+-- One visit open at a time per booking.
+CREATE UNIQUE INDEX IF NOT EXISTS visits_one_open_idx ON visits (request_id) WHERE left_at IS NULL;

@@ -61,6 +61,7 @@ import {
 import { saveProfile } from "./actions";
 import { CheckIcon } from "./PennPaws";
 import { Choices, Continue, TextField } from "./Survey";
+import { Circled, Hero, PHOTOS } from "./Hero";
 import styles from "./PennPaws.module.css";
 
 interface Form {
@@ -444,8 +445,8 @@ export function Onboarding({
    * Their name and neighbourhood carry over; the rest is that side's questions.
    */
   startRole?: MemberRole;
-  /** Set when opened from the main page: called after saving or to cancel. */
-  onDone?: () => void;
+  /** Set when opened from the main page: called after saving (true) or to cancel (false). */
+  onDone?: (saved: boolean) => void;
 }) {
   const router = useRouter();
   const [f, setF] = useState<Form>(() => ({ ...fromProfile(initial), name, ...(startRole ? { role: startRole } : {}) }));
@@ -584,7 +585,7 @@ export function Onboarding({
       return;
     }
     router.refresh();
-    onDone?.();
+    onDone?.(true);
   };
 
   const petWord = f.petName.trim() || "your pet";
@@ -949,7 +950,7 @@ export function Onboarding({
         </button>
       )}
       {onDone && (
-        <button type="button" className={styles.link} onClick={onDone}>
+        <button type="button" className={styles.link} onClick={() => onDone(false)}>
           Cancel without saving
         </button>
       )}
@@ -969,6 +970,17 @@ export function Onboarding({
           )}
         </div>
       </header>
+      <Hero
+        compact
+        title={
+          <>
+            Pet care from <Circled>Penn students</Circled> you can trust.
+          </>
+        }
+        lead="Post when you need someone, or look after pets when you're free. It takes about a minute to set up."
+        photo={PHOTOS.catNap}
+        photoAlt="A ginger cat asleep on a cushioned chair"
+      />
       {body}
     </div>
   );

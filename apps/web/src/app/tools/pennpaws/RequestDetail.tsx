@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FIT_LABELS, REPORT_REASONS, addressFrom, describe, type AgreementTerms, type Contact, type SitterCard, type AskCheck, type Match } from "@penntools/tool-pennpaws";
 import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, report, withdraw, type ActionResult, type RequestPage } from "./actions";
+import { AfterMatch } from "./AfterMatch";
 import { Conversation } from "./Conversation";
 import { CheckIcon, PetAvatar } from "./PennPaws";
 import styles from "./PennPaws.module.css";
@@ -89,7 +90,7 @@ export function RequestDetail({
       <BackButton onBack={onBack} />
 
       <div className={styles.detailHead}>
-        <PetAvatar name={request.draft.petName} photo={request.draft.photo} large />
+        <PetAvatar name={request.draft.petName} photo={request.draft.photo} kind={request.draft.petKind} large />
         <div className={styles.cardName}>
           <h2 className={styles.petName}>{request.draft.petName}</h2>
           <span className={styles.muted}>{lines.pet}</span>
@@ -353,9 +354,14 @@ export function RequestDetail({
         </div>
       )}
 
+      {/* After matching: how to get in, visits with photos, and paying for each visit. */}
+      {role && (request.status === "matched" || request.status === "agreed" || request.status === "completed") && (
+        <AfterMatch requestId={request.id} onChanged={onChanged} />
+      )}
+
       {role && request.status === "agreed" && (
         <div className={styles.panelPlain}>
-          <span>When the care is finished, mark it done. {otherName} is told.</span>
+          <span>When the whole booking is over, mark it done. {otherName} is told.</span>
           <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(() => markDone(request.id))}>
             Mark as done
           </button>

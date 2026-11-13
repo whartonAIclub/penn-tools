@@ -5,6 +5,7 @@
 // tool.
 
 import type { Metadata } from "next";
+import { Fraunces, Manrope } from "next/font/google";
 import { toolSql } from "@penntools/platform/db";
 import {
   firstName,
@@ -31,6 +32,13 @@ import { Onboarding } from "./Onboarding";
 import { PennPaws } from "./PennPaws";
 import { TestMenu } from "./TestMenu";
 import { ALLOW_LOCAL_TEST_ACCOUNT } from "./school";
+
+// PennPaws's type: Fraunces, a soft heavy serif, for headlines, and Manrope
+// for everything else. next/font bundles both at build time, so the page
+// never loads anything from Google while someone uses it.
+const display = Fraunces({ subsets: ["latin"], variable: "--pp-display", axes: ["SOFT", "opsz"], display: "swap" });
+const body = Manrope({ subsets: ["latin"], variable: "--pp-body", display: "swap" });
+const fonts = `${display.variable} ${body.variable}`;
 
 export const metadata: Metadata = {
   title: "PennPaws",
@@ -60,10 +68,10 @@ export default async function PennPawsPage() {
   const testMenu = ALLOW_LOCAL_TEST_ACCOUNT && !isPennEmail(user.email) ? <TestMenu /> : null;
   if (!member || !school) {
     return (
-      <>
+      <div className={fonts}>
         <Onboarding name={member?.name ?? googleName} email={user.email} school={school} initial={member?.profile ?? null} />
         {testMenu}
-      </>
+      </div>
     );
   }
 
@@ -91,7 +99,7 @@ export default async function PennPawsPage() {
   }
 
   return (
-    <>
+    <div className={fonts}>
       <PennPaws
         userFirstName={userFirstName}
         pennVerified={isPennEmail(user.email)}
@@ -110,6 +118,6 @@ export default async function PennPawsPage() {
         paused={paused}
       />
       {testMenu}
-    </>
+    </div>
   );
 }

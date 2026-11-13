@@ -9,8 +9,10 @@
 // everything on those pets is carried in, so they answer only dates, care
 // and pay. Owners with no saved pet start with the one from setup filled in.
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { DateField } from "./DateField";
+import { MyPets } from "./MyPets";
 import {
   ACCESS,
   CARE_TYPES,
@@ -29,6 +31,7 @@ import {
   PET_KINDS,
   TASKS,
   TASKS_BY_KIND,
+  VISIT_MINUTES,
   describe,
   firstBookableDay,
   labelOf,
@@ -280,7 +283,11 @@ export function Survey({
 }) {
   const canPick = pets.length > 0 && profile !== null;
   const [picking, setPicking] = useState(canPick);
-  const [chosen, setChosen] = useState<string[]>(() => (pets.length === 1 && pets[0] ? [pets[0].id] : []));
+  // All saved pets start picked, since most trips leave every pet at home. Tap one to leave it out.
+  const [chosen, setChosen] = useState<string[]>(() => pets.map((p) => p.id));
+  // True while adding a pet that isn't in My Pets yet, from the picker.
+  const [addingPet, setAddingPet] = useState(false);
+  const router = useRouter();
   const [fromPets, setFromPets] = useState(false);
   const [a, setA] = useState<Answers>(() => (start ? { ...EMPTY, ...start } : EMPTY));
   // While picking pets the step stays at 0, whose answers only show once picking is done.
@@ -400,9 +407,12 @@ export function Survey({
   // A stay or boarding is paid by the night, visits by the visit.
   const nightly = a.careType === "stay" || boarding;
   const payUnit = nightly ? "a night" : "a visit";
+  // What the owner reads: a visit's length, so "$15 a visit" says what it buys.
+  const payUnitShown = nightly ? "a night" : `a ${VISIT_MINUTES}-min visit`;
   const payCount = countPaid(toDraft(a));
   const suggested = suggestPay(toDraft(a), rates);
   const suggestedPay = `$${suggested.amount} ${payUnit}`;
+  const suggestedPayShown = `$${suggested.amount} ${payUnitShown}`;
   const toggle = <T,>(list: readonly T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
   // The conversation so far: each question asked and its answer. After AI
@@ -459,6 +469,37 @@ export function Survey({
         : { label: "Review before posting", share: 1 }
       : { label: step < REVIEW ? `Step ${step + 1} of ${STEPS.length}, ${STEPS[step]}` : "Review before posting", share: Math.min(step, REVIEW) / REVIEW };
   const chosenNames = pets.filter((p) => chosen.includes(p.id)).map((p) => p.name);
+  // A pet just added shows up once the page refreshes; wait for it before going on.
+  const waitingForPet = chosen.some((id) => !pets.some((p) => p.id === id));
+
+  // Each new question slides the answers into view, so on a phone the next
+  // step is never hidden below the fold. Skipped on the first render.
+  const answerRef = useRef<HTMLDivElement>(null);
+  const seen = useRef(log.length);
+  useEffect(() => {
+    if (log.length === seen.current) return;
+    seen.current = log.length;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    answerRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" });
+  }, [log.length]);
+
+  if (picking && addingPet) {
+    return (
+      <MyPets
+        pets={pets}
+        onChanged={() => router.refresh()}
+        onProfile={() => setAddingPet(false)}
+        adding={{
+          onAdded: (id) => {
+            setChosen((prev) => [...prev, id]);
+            setAddingPet(false);
+            router.refresh();
+          },
+          onCancel: () => setAddingPet(false),
+        }}
+      />
+    );
+  }
 
   const kindTasks = TASKS_BY_KIND[a.petKind ?? "dog"];
 
@@ -470,17 +511,32 @@ export function Survey({
       </div>
 
       <ol className={styles.chat} aria-live="polite">
-        {log.map((line, i) => (
-          <li key={i} className={line.from === "bot" ? styles.bot : styles.me}>
-            {line.text}
-          </li>
-        ))}
+        {log.map((line, i) => {
+          // The newest question "types" for a moment before it shows, like a person answering.
+          const newest = line.from === "bot" && i === log.length - 1 && i > 0;
+          return (
+            <li key={`${i}-${line.text}`} className={line.from === "bot" ? `${styles.bot} ${newest ? styles.botNewest : ""}` : styles.me}>
+              {newest ? (
+                <>
+                  <span className={styles.typing} aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span className={styles.botText}>{line.text}</span>
+                </>
+              ) : (
+                line.text
+              )}
+            </li>
+          );
+        })}
       </ol>
 
       {step === REVIEW && (
         <div className={styles.panel}>
           <div className={styles.detailHead}>
-            <PetAvatar name={a.petName} photo={a.photo} />
+            <PetAvatar name={a.petName} photo={a.photo} kind={a.petKind} />
             <div className={styles.cardName}>
               <strong>{a.petName}</strong>
               <span className={styles.muted}>{lines.pet}</span>
@@ -562,7 +618,7 @@ export function Survey({
         </p>
       )}
 
-      <div className={styles.answer}>
+      <div key={`${picking}-${step}-${typing}-${understood}`} ref={answerRef} className={log.length > 1 && log[log.length - 1]?.from === "bot" ? `${styles.answer} ${styles.answerWait}` : styles.answer}>
         {picking && (
           <>
             <div className={styles.twoCol}>
@@ -576,7 +632,7 @@ export function Survey({
                     aria-pressed={on}
                     onClick={() => setChosen(toggle(chosen, pet.id))}
                   >
-                    <PetAvatar name={pet.name} photo={pet.photo} />
+                    <PetAvatar name={pet.name} photo={pet.photo} kind={pet.kind} />
                     <span className={styles.cardName}>
                       <strong>{pet.name}</strong>
                       <span className={styles.muted}>{pet.kind === "dog" ? "Dog" : pet.kind === "cat" ? "Cat" : pet.kindOther}</span>
@@ -584,13 +640,26 @@ export function Survey({
                   </button>
                 );
               })}
+              <button type="button" className={`${styles.tile} ${styles.petPick}`} onClick={() => setAddingPet(true)}>
+                <span className={styles.addPetMark} aria-hidden="true">
+                  +
+                </span>
+                <span className={styles.cardName}>
+                  <strong>Add a pet</strong>
+                  <span className={styles.muted}>Saved to My Pets</span>
+                </span>
+              </button>
             </div>
-            <button type="button" className={styles.primary} disabled={chosen.length === 0} onClick={pickPets}>
-              {chosen.length === 0 ? "Pick one or more" : `Continue with ${chosenNames.length === 1 ? chosenNames[0] : `${chosenNames.length} pets`}`}
+            <button type="button" className={styles.primary} disabled={chosen.length === 0 || waitingForPet} onClick={pickPets}>
+              {waitingForPet
+                ? "Adding your pet…"
+                : chosen.length === 0
+                  ? "Pick one or more"
+                  : `Continue with ${chosenNames.length <= 2 ? chosenNames.join(" and ") : `${chosenNames.length} pets`}`}
             </button>
             <span className={styles.hint}>Everything in My Pets comes along, so you only add dates, care and pay. Breed, food and health stay private until you book, unless you chose to share them.</span>
             <button type="button" className={styles.link} onClick={someoneElse}>
-              Someone not in My Pets
+              Post once without saving the pet
             </button>
           </>
         )}
@@ -656,7 +725,7 @@ export function Survey({
             <div className={styles.nameRow}>
               <TextField id="pp-name" label="Name" value={a.petName} placeholder="Mochi" maxLength={LIMITS.name} onChange={(petName) => set({ petName })} />
               <label className={a.photo ? styles.photoOn : styles.photo}>
-                {a.photo ? <PetAvatar name={a.petName} photo={a.photo} /> : <CameraIcon />}
+                {a.photo ? <PetAvatar name={a.petName} photo={a.photo} kind={a.petKind} /> : <CameraIcon />}
                 <input
                   type="file"
                   aria-label={a.photo ? "Change photo" : "Add a photo"}
@@ -778,19 +847,19 @@ export function Survey({
                 const value = `$${amount} ${payUnit}`;
                 return (
                   <button key={amount} type="button" className={a.pay === value ? styles.tileOn : styles.tile} aria-pressed={a.pay === value} onClick={() => answer({ pay: value, payOwn: false })}>
-                    ${amount} <span className={styles.hint}>{payUnit}</span>
+                    ${amount} <span className={styles.hint}>{payUnitShown}</span>
                   </button>
                 );
               })}
             </div>
             <div className={styles.suggestion}>
               <p>
-                <strong>Suggested: {suggestedPay}</strong>
+                <strong>Suggested: {suggestedPayShown}</strong>
                 {payCount && <>, about ${payCount.count * suggested.amount} for {payCount.label}</>}
               </p>
               <p className={styles.hint}>{explainPay(suggested)}. Based on your pet, care and dates.</p>
               <button type="button" className={styles.secondary} onClick={() => answer({ pay: suggestedPay, payOwn: false })}>
-                Use {suggestedPay}
+                Use {suggestedPayShown}
               </button>
             </div>
             <button type="button" className={a.payOwn ? styles.tileOn : styles.secondary} aria-pressed={a.payOwn} onClick={() => set({ payOwn: true, pay: "" })}>

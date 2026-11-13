@@ -35,7 +35,7 @@ describe("suggested pay", () => {
   it("adds for walks, medication and a holiday, and explains each", () => {
     const s = suggestPay(draft({ petKind: "dog", tasks: ["walks", "medication"], startsOn: "2026-11-25", endsOn: "2026-11-29" }));
     expect(s.amount).toBe(28);
-    expect(explainPay(s)).toBe("Dog walk $20, medication +$3, over a school break, when sitters are scarce +$5");
+    expect(explainPay(s)).toBe("30-min dog walk $20, medication +$3, over a school break, when sitters are scarce +$5");
   });
 
   it("prices stays and boarding by the night", () => {

@@ -10,6 +10,7 @@ import type { Sql } from "postgres";
 import { agreementTemplate } from "../agreement.js";
 import { clearPayment, leaveReview, listMyReviews, recordPayment } from "../jobs.js";
 import { getMember, oppositeRole, saveMember, switchRole } from "../members.js";
+import { loadOwners } from "../match.js";
 import { suggestPay } from "../pay.js";
 import { addPet, checkPet, getPet, listPets, petsByIds, removePet, savePetFromProfile, updatePet, type SavedPet } from "../pets.js";
 import { fileReport, listOpenReports, listTeamMembers, recordMatchScore, resolveReport, setMemberPaused, setRequestHidden, teamOverview } from "../team.js";
@@ -275,6 +276,18 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     expect((await getRequestView(sql, lu.id, requestId))?.status).toBe("cancelled");
   });
 
+  it("lets sitters who were turned down offer again when the picked sitter backs out", async () => {
+    const requestId = await createRequest(sql, lu, { ...draft, petName: "Pickle" });
+    await offerHelp(sql, priya, requestId, "Me!");
+    await offerHelp(sql, sam, requestId, "Me too.");
+    const priyaOffer = (await getRequestView(sql, lu.id, requestId))!.offers.find((o) => o.sitterFirstName === "Priya")!;
+    await acceptOffer(sql, lu.id, priyaOffer.id, template);
+    await withdrawOffer(sql, priya, requestId, null);
+    expect((await listNotifications(sql, sam.id))[0]?.message).toBe("Pickle needs a sitter again. Offer again if you're still free.");
+    await offerHelp(sql, sam, requestId, "Still free.");
+    expect((await getRequestView(sql, lu.id, requestId))!.offers.find((o) => o.sitterFirstName === "Sam")?.status).toBe("pending");
+  });
+
   it("lets the sitter finish a job, record pay and read ratings anonymously", async () => {
     const requestId = await createRequest(sql, lu, { ...draft, petName: "Biscuit" });
     await offerHelp(sql, priya, requestId, "Happy to.");
@@ -538,6 +551,14 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     expect(back?.profile).toEqual(ownerSaved);
     expect(back?.otherRole).toBe("sitter");
     expect((await switchRole(sql, dana.id))?.profile).toEqual(asSitter?.profile);
+
+    // On the sitter side, Dana's own request still reads her pet and home from the owner side.
+    const requestId = await createRequest(sql, dana, { ...draft, petName: "Biscuit" });
+    const context = (await loadOwners(sql, [requestId])).get(requestId);
+    expect(context?.profile?.pet.name).toBe("Biscuit");
+    expect(context?.point).toEqual({ lat: 39.948, lng: -75.223 });
+    await offerHelp(sql, priya, requestId, "Happy to.");
+    expect((await getRequestView(sql, priya.id, requestId))?.petNotes).toContain("With new people");
   });
 
   it("lets members report, and the team hide requests and pause members", async () => {

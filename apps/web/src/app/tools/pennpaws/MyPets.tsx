@@ -51,7 +51,7 @@ const BLANK: SavedPet = {
 };
 
 /** Shrinks a photo to at most 480px on its long side, as a JPEG data URL. */
-async function shrinkPhoto(file: File): Promise<string> {
+export async function shrinkPhoto(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 480 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
@@ -91,8 +91,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function MyPets({ pets, onChanged, onProfile }: { pets: Pet[]; onChanged: () => void; onProfile: () => void }) {
-  const [editing, setEditing] = useState<{ id: string | null; pet: SavedPet } | null>(null);
+/** Adding a pet from somewhere else, such as posting a request: opens straight on the form and hands back the new pet. */
+export interface AddingPet {
+  onAdded: (petId: string) => void;
+  onCancel: () => void;
+}
+
+export function MyPets({
+  pets,
+  onChanged,
+  onProfile,
+  adding,
+}: {
+  pets: Pet[];
+  onChanged: () => void;
+  onProfile: () => void;
+  adding?: AddingPet;
+}) {
+  const [editing, setEditing] = useState<{ id: string | null; pet: SavedPet } | null>(adding ? { id: null, pet: BLANK } : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -106,6 +122,7 @@ export function MyPets({ pets, onChanged, onProfile }: { pets: Pet[]; onChanged:
     const result = await savePet(editing.id, editing.pet);
     setBusy(false);
     if (!result.ok) return setError(result.error);
+    if (adding) return adding.onAdded(result.data);
     setEditing(null);
     onChanged();
   };
@@ -270,8 +287,8 @@ export function MyPets({ pets, onChanged, onProfile }: { pets: Pet[]; onChanged:
         <button type="button" className={styles.primary} disabled={busy} onClick={() => void save()}>
           {busy ? "Saving…" : editing.id ? "Save changes" : "Add this pet"}
         </button>
-        <button type="button" className={styles.secondary} disabled={busy} onClick={() => setEditing(null)}>
-          Cancel without saving
+        <button type="button" className={styles.secondary} disabled={busy} onClick={() => (adding ? adding.onCancel() : setEditing(null))}>
+          {adding ? "Back to picking pets" : "Cancel without saving"}
         </button>
       </section>
     );
@@ -293,7 +310,7 @@ export function MyPets({ pets, onChanged, onProfile }: { pets: Pet[]; onChanged:
           {pets.map((pet) => (
             <li key={pet.id} className={styles.offer}>
               <div className={styles.nameRow}>
-                <PetAvatar name={pet.name} photo={pet.photo} />
+                <PetAvatar name={pet.name} photo={pet.photo} kind={pet.kind} />
                 <div>
                   <strong>{pet.name}</strong>
                   <p className={styles.hint}>

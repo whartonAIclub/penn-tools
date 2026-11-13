@@ -10,7 +10,7 @@ import { allowedFrom, bothApproved, canSeeContacts, nextStatus, type OfferStatus
 import type { PaymentMethod, SitterJob } from "./jobs.js";
 import { payBand, ratesFromPosted, type PlatformRates } from "./pay.js";
 import { checkAsks, type AskCheck } from "./match.js";
-import { EXPERIENCE, SERVICES, checkProfile, petNotes } from "./profile.js";
+import { EXPERIENCE, SERVICES, checkProfile, ownerSideOf, petNotes } from "./profile.js";
 import { petsByIds, privatePetNotes } from "./pets.js";
 import { notify, type NotificationChannel } from "./notifications.js";
 import type { Handoff } from "./handoff.js";
@@ -406,9 +406,12 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
       const booked = isOwner || (party && accepted !== null && canSeeContacts(row.status));
       privateNotes = privatePetNotes(pets, booked ? "booked" : "offered");
     } else {
-      const [owner] = await sql<{ profile: unknown }[]>`SELECT profile FROM members WHERE user_id = ${row.owner_id}`;
-      const checked = owner ? checkProfile(owner.profile) : null;
-      if (checked?.ok && checked.value.role === "owner") privateNotes = petNotes(checked.value);
+      // Either side of the member's row: an owner looking after pets keeps their pet in other_profile.
+      const [owner] = await sql<{ profile: unknown; other_profile: unknown }[]>`
+        SELECT m.profile, to_jsonb(m) -> 'other_profile' AS other_profile FROM members m WHERE m.user_id = ${row.owner_id}
+      `;
+      const ownerSide = owner ? ownerSideOf(owner.profile, owner.other_profile) : null;
+      if (ownerSide) privateNotes = petNotes(ownerSide);
     }
   }
   const [last] = party ? await sql<{ phone: string }[]>`SELECT phone FROM handoffs WHERE user_id = ${viewerId} ORDER BY created_at DESC LIMIT 1` : [];
@@ -557,12 +560,14 @@ export async function withdrawOffer(
     const picked = offer.status === "accepted";
     if (picked && !nextStatus(offer.request_status, "sitter_withdraw", "sitter")) throw new PennPawsError("This booking is finished, so it can't be taken back.");
     await tx`UPDATE offers SET status = 'withdrawn', withdraw_reason = ${why} WHERE request_id = ${requestId} AND sitter_id = ${sitter.id}`;
+    let turnedDown: string[] = [];
     if (picked) {
       await tx`DELETE FROM agreements WHERE request_id = ${requestId}`;
       await tx`DELETE FROM handoffs WHERE request_id = ${requestId}`;
       await tx`UPDATE requests SET status = 'open', updated_at = NOW() WHERE id = ${requestId}`;
+      turnedDown = (await tx<{ sitter_id: string }[]>`SELECT sitter_id FROM offers WHERE request_id = ${requestId} AND status = 'declined'`).map((o) => o.sitter_id);
     }
-    return { ...offer, picked };
+    return { ...offer, picked, turnedDown };
   });
   const who = firstName(sitter.name);
   const said = why ? ` They said: "${why}"` : "";
@@ -575,6 +580,10 @@ export async function withdrawOffer(
     requestId,
     channels,
   );
+  // Sitters turned down when the owner picked someone else hear it's open again, and may offer again.
+  for (const sitterId of result.turnedDown) {
+    await notify(sql, sitterId, `${result.pet_name} needs a sitter again. Offer again if you're still free.`, requestId, channels);
+  }
 }
 
 // ── Sitter actions ────────────────────────────────────────────────────────────
@@ -603,8 +612,9 @@ export async function offerHelp(
     VALUES (${requestId}, ${sitter.id}, ${sitter.name}, ${sitter.email}, ${text})
     ON CONFLICT (request_id, sitter_id) DO UPDATE
       SET message = EXCLUDED.message, status = 'pending', withdraw_reason = NULL, match_score = NULL, created_at = NOW()
-      -- A sitter who took back their offer may offer again; anything else is a repeat.
-      WHERE offers.status = 'withdrawn'
+      -- A sitter who took back their offer, or was turned down before the picked
+      -- sitter backed out, may offer again; anything else is a repeat.
+      WHERE offers.status IN ('withdrawn', 'declined')
     RETURNING id
   `;
   if (inserted.length === 0) throw new PennPawsError("You already offered to help with this one.");

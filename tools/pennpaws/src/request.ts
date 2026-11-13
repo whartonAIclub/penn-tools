@@ -3,7 +3,7 @@
 
 import { z } from "@penntools/core/ai";
 import { GENDER_PREFS } from "./profile.js";
-import { ACCESS, CARE_TYPES, FREQUENCIES, LANGUAGES, LIMITS, MUST_HAVES, OTHER, PET_KINDS, TASKS, labelOf, listLabels, shortDate } from "./survey.js";
+import { ACCESS, CARE_TYPES, FREQUENCIES, LANGUAGES, LIMITS, MUST_HAVES, OTHER, PET_KINDS, TASKS, VISIT_MINUTES, labelOf, listLabels, shortDate } from "./survey.js";
 
 const values = <T extends readonly { value: string }[]>(options: T) =>
   options.map((option) => option.value) as [T[number]["value"], ...T[number]["value"][]];
@@ -136,7 +136,9 @@ export function describe(draft: RequestDraft): {
         ? VISITS_BY_CARE_TYPE[draft.careType]
         : draft.frequency === OTHER
           ? draft.frequencyOther ?? ""
-          : labelOf(FREQUENCIES, draft.frequency),
+          : draft.frequency === "overnight"
+            ? labelOf(FREQUENCIES, draft.frequency)
+            : `${labelOf(FREQUENCIES, draft.frequency)}, ${VISIT_MINUTES} min each`,
     care: care.join(", "),
     access:
       draft.access === OTHER

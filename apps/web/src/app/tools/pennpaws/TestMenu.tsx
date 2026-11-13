@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { testPlay, testStartOver } from "./actions";
 import styles from "./PennPaws.module.css";
+import { testFakeVisit } from "./visitActions";
 
 export function TestMenu() {
   const router = useRouter();
@@ -21,6 +22,14 @@ export function TestMenu() {
     const result = await testPlay();
     setBusy(false);
     setLog(result.ok ? (result.data.length ? result.data : ["Nothing for the fake people to do yet. Take your next step first."]) : [result.error]);
+    router.refresh();
+  };
+
+  const visit = async () => {
+    setBusy(true);
+    const result = await testFakeVisit();
+    setBusy(false);
+    setLog(result.ok ? result.data : [result.error]);
     router.refresh();
   };
 
@@ -43,9 +52,13 @@ export function TestMenu() {
             Fake people's turn
           </button>
           <p className={styles.testHint}>Fake sitters offer on your requests, fake owners pick you, and both approve agreements.</p>
+          <button type="button" className={styles.secondary} onClick={visit} disabled={busy}>
+            Fake sitter&apos;s visit
+          </button>
+          <p className={styles.testHint}>Once you&apos;re booked with a fake sitter: the first tap checks them in with a photo, the next finishes the visit so you can pay.</p>
           {confirming ? (
             <div className={styles.testConfirm}>
-              <p>Delete your profile, requests, offers and messages, and bring back fresh fake people?</p>
+              <p>Delete your profile, pets, requests, offers and messages, and bring back fresh fake people?</p>
               <div className={styles.testRow}>
                 <button type="button" className={styles.secondary} onClick={() => setConfirming(false)} disabled={busy}>
                   Keep it

@@ -383,6 +383,8 @@ export async function forgetMember(sql: Sql, userId: string): Promise<void> {
     await tx`DELETE FROM payments WHERE sitter_id = ${userId}`;
     await tx`DELETE FROM reviews WHERE sitter_id = ${userId} OR owner_id = ${userId}`;
     await tx`DELETE FROM notifications WHERE user_id = ${userId}`;
+    // Saved pets go too, so a fresh start doesn't offer pets from an earlier test.
+    await tx`DELETE FROM pets WHERE owner_id = ${userId}`;
     await tx`DELETE FROM members WHERE user_id = ${userId}`;
   });
 }

@@ -85,7 +85,7 @@ describe("describe", () => {
     expect(describeRequest(mochi)).toEqual({
       pet: "Dog, Shiba Inu, 3",
       when: "Nov 12 to Nov 15",
-      visits: "Twice a day",
+      visits: "Twice a day, 30 min each",
       care: "Walks, Fresh water",
       access: "Meet in person",
       sitter: null,
@@ -152,7 +152,7 @@ describe("agreement", () => {
   it("fills the template from the request, with no AI", () => {
     expect(agreementTemplate(mochi, "Lu")).toEqual({
       dates: "Nov 12 to Nov 15",
-      visits: "Twice a day",
+      visits: "Twice a day, 30 min each",
       care: "Walks, Fresh water",
       keys: "Meet in person",
       pay: "$20 a visit, paid directly (for example on Venmo)",

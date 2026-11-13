@@ -9,7 +9,8 @@ import type { Sql } from "postgres";
 import {
   ENERGY,
   NEIGHBORHOODS,
-  OwnerProfile,
+  ownerSideOf,
+  type OwnerProfile,
   PET_SIZES,
   type PetDetails,
   TRAVEL,
@@ -273,18 +274,22 @@ export function checkAsks(draft: RequestDraft, sitter: SitterProfile): AskCheck 
 /** The owner's location and pet profile for each request, by request id. */
 export async function loadOwners(sql: Sql, requestIds: readonly string[]): Promise<Map<string, OwnerContext>> {
   if (requestIds.length === 0) return new Map();
-  const rows = await sql<{ id: string; owner_id: string; pet_ids: string[]; lat: number | null; lng: number | null; area: string | null; profile: unknown }[]>`
-    SELECT r.id, r.owner_id, r.pet_ids, m.lat, m.lng, m.area, m.profile
+  // to_jsonb reads other_profile without failing where that column isn't added yet.
+  const rows = await sql<
+    { id: string; owner_id: string; pet_ids: string[]; lat: number | null; lng: number | null; area: string | null; profile: unknown; other_profile: unknown }[]
+  >`
+    SELECT r.id, r.owner_id, r.pet_ids, m.lat, m.lng, m.area, m.profile, to_jsonb(m) -> 'other_profile' AS other_profile
     FROM requests r LEFT JOIN members m ON m.user_id = r.owner_id
     WHERE r.id = ANY(${sql.array([...requestIds])}::uuid[])
   `;
   return new Map(
     await Promise.all(
       rows.map(async (row): Promise<[string, OwnerContext]> => {
-        const parsed = OwnerProfile.safeParse(row.profile);
-        const profile = parsed.success ? parsed.data : null;
+        // An owner on the sitter side keeps their pet and home in other_profile.
+        const profile = ownerSideOf(row.profile, row.other_profile);
         const pets = row.pet_ids.length ? await petsByIds(sql, row.owner_id, row.pet_ids) : [];
-        return [row.id, { point: pointOf({ area: row.area ?? "", lat: row.lat, lng: row.lng }), profile, ...(pets.length ? { pets } : {}) }];
+        const location = profile?.location ?? { area: row.area ?? "", lat: row.lat, lng: row.lng };
+        return [row.id, { point: pointOf(location), profile, ...(pets.length ? { pets } : {}) }];
       }),
     ),
   );

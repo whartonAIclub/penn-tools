@@ -4,6 +4,7 @@
 // below what commercial apps charge; change the numbers here to retune.
 
 import type { RequestDraft } from "./request.js";
+import { VISIT_MINUTES } from "./survey.js";
 
 export interface PaySuggestion {
   amount: number;
@@ -126,8 +127,8 @@ export function suggestPay(draft: RequestDraft, rates: PlatformRates = {}): PayS
     return { amount: total(parts), unit: "night", parts };
   }
 
-  if (draft.tasks.includes("walks")) base("walk", "Dog walk", VISIT.walk);
-  else base("dropIn", "Drop-in visit", VISIT.dropIn);
+  if (draft.tasks.includes("walks")) base("walk", `${VISIT_MINUTES}-min dog walk`, VISIT.walk);
+  else base("dropIn", `${VISIT_MINUTES}-min drop-in visit`, VISIT.dropIn);
   if (several) add("More than one pet", VISIT.severalPets);
   if (medication) add("Medication", VISIT.medication);
   if (holiday) add("Over a school break, when sitters are scarce", VISIT.holiday);

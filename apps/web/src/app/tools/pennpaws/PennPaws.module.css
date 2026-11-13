@@ -490,7 +490,7 @@
 .progressLabel { font-size: 0.8rem; color: var(--pp-muted); }
 
 .progress { height: 4px; border-radius: 2px; background: var(--pp-line); overflow: hidden; }
-.progress span { display: block; height: 100%; background: var(--pp-green); transition: width 0.2s; }
+.progress span { display: block; height: 100%; background: var(--pp-green); transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
 
 .chat {
   list-style: none;
@@ -520,6 +520,65 @@
   color: #ffffff;
   border-radius: 16px 16px 4px 16px;
 }
+
+/* The chat moves like a conversation: your answer pops in from the right, the
+   next question "types" for a moment on the left, then the choices rise in one
+   after another. Plain CSS, no animation library. "backwards", not "both", so
+   nothing stays transformed afterwards: a lasting transform would trap the
+   date picker under the buttons below it. */
+@keyframes pp-from-left {
+  from { opacity: 0; transform: translate(-10px, 6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pp-from-right {
+  from { opacity: 0; transform: translate(10px, 6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pp-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pp-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes pp-hide { to { opacity: 0; visibility: hidden; } }
+@keyframes pp-show { from { opacity: 0; } to { opacity: 1; } }
+
+.bot { animation: pp-from-left 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; transform-origin: bottom left; }
+.me { animation: pp-from-right 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards; transform-origin: bottom right; }
+/* The newest question arrives just after your answer, then types. */
+.botNewest { display: grid; animation-delay: 0.25s; }
+.botNewest > * { grid-area: 1 / 1; }
+.typing { display: inline-flex; align-items: center; gap: 4px; height: 1.45em; animation: pp-hide 0.15s ease 0.75s forwards; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--pp-muted); animation: pp-dot 0.9s ease-in-out infinite; }
+.typing i:nth-child(2) { animation-delay: 0.15s; }
+.typing i:nth-child(3) { animation-delay: 0.3s; }
+.botText { animation: pp-show 0.25s ease 0.75s backwards; }
+
+.answer > * { animation: pp-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: 0.05s; }
+.answer > *:nth-child(2) { animation-delay: 0.12s; }
+.answer > *:nth-child(3) { animation-delay: 0.19s; }
+.answer > *:nth-child(n + 4) { animation-delay: 0.26s; }
+/* After a question that types, the choices wait for it. */
+.answerWait > * { animation-delay: 0.8s; }
+.answerWait > *:nth-child(2) { animation-delay: 0.87s; }
+.answerWait > *:nth-child(3) { animation-delay: 0.94s; }
+.answerWait > *:nth-child(n + 4) { animation-delay: 1.01s; }
+
+/* Taps answer back. */
+.tile,
+.tileOn,
+.chip,
+.chipOn,
+.rowOption,
+.rowOptionOn { transition: transform 0.12s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease; }
+.tile:active,
+.tileOn:active,
+.chip:active,
+.chipOn:active,
+.rowOption:active,
+.rowOptionOn:active { transform: scale(0.97); }
 
 .answer {
   padding-top: 14px;
@@ -644,6 +703,17 @@
 
 @media (prefers-reduced-motion: reduce) {
   .progress span { transition: none; }
+  .bot,
+  .me,
+  .botText,
+  .answer > * { animation: none; }
+  .typing { display: none; }
+  .tile:active,
+  .tileOn:active,
+  .chip:active,
+  .chipOn:active,
+  .rowOption:active,
+  .rowOptionOn:active { transform: none; }
 }
 
 /* The local development user has no Penn email, so it is labeled honestly. */
@@ -902,6 +972,7 @@
 
 /* R43: picking saved pets to post for. */
 .petPick { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; }
+.addPetMark { flex: none; width: 52px; height: 52px; border-radius: 14px; border: 2px dashed var(--pp-green); color: var(--pp-green); display: grid; place-items: center; font-size: 1.6rem; font-weight: 600; }
 /* My Pets: a pet's photo is how a sitter recognises them at the door, so
    adding one gets a real target and a label, not a 52px square beside the
    name. The whole tile is the file input's label. */
@@ -1016,3 +1087,283 @@
 .calendarPick:hover:not(:disabled) { background: var(--pp-ground); }
 .calendarPick:disabled { color: #b4bdb9; cursor: default; }
 .calendarPickOn { background: var(--pp-green); color: #fff; font-weight: 600; }
+
+/* ── House style ──────────────────────────────────────────────────────────
+   Last in the file so it wins. Plum and cream with real pet photos, a soft
+   heavy serif (Fraunces) for headlines and Manrope for reading, teal pill
+   buttons, and honey marks drawn by hand around the words that matter. The
+   --pp-green names are kept so the rules above pick up the new colors
+   without being rewritten. */
+
+.app {
+  --pp-plum: #5c2e47;
+  --pp-plum-deep: #4a2339;
+  --pp-ink: #3b1f2e;
+  --pp-teal: #1d9b85;
+  --pp-teal-dark: #167d6b;
+  --pp-honey: #e8b64a;
+  --pp-cream: #f6f1e7;
+  --pp-sand: #e6dccb;
+  --pp-green: #1d9b85;
+  --pp-green-dark: #3b1f2e;
+  --pp-green-soft: #fbf0d4;
+  --pp-gold: #e8b64a;
+  --pp-gold-soft: #fbf0d4;
+  --pp-gold-text: #6a4800;
+  --pp-ground: #f6f1e7;
+  --pp-line: #e8dece;
+  --pp-muted: #7a6470;
+  --pp-leaf: #1d7a65;
+  --pp-leaf-soft: #e1f2ec;
+  --text: #3b1f2e;
+  --bg: #ffffff;
+  --pp-serif: var(--pp-display), ui-serif, Georgia, serif;
+
+  max-width: 720px;
+  padding: 24px 16px 72px;
+  gap: 22px;
+  font-family: var(--pp-body), system-ui, -apple-system, "Segoe UI", sans-serif;
+  background-color: var(--pp-cream);
+  /* Faint paw prints wandering off the bottom corner. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='%23e6dccb' fill-opacity='0.55'%3E%3Cg transform='translate(150 40) rotate(20) scale(1.6)'%3E%3Cellipse cx='6' cy='9' rx='2.6' ry='3.3'/%3E%3Cellipse cx='11' cy='4.5' rx='2.6' ry='3.3'/%3E%3Cellipse cx='17' cy='4.5' rx='2.6' ry='3.3'/%3E%3Cellipse cx='22' cy='9' rx='2.6' ry='3.3'/%3E%3Cpath d='M14 12c-4 0-7.5 4.3-7.5 7.6 0 2.2 1.7 3.4 3.7 3.4 1.5 0 2.4-.7 3.8-.7s2.3.7 3.8.7c2 0 3.7-1.2 3.7-3.4 0-3.3-3.5-7.6-7.5-7.6z'/%3E%3C/g%3E%3Cg transform='translate(190 130) rotate(30) scale(1.6)'%3E%3Cellipse cx='6' cy='9' rx='2.6' ry='3.3'/%3E%3Cellipse cx='11' cy='4.5' rx='2.6' ry='3.3'/%3E%3Cellipse cx='17' cy='4.5' rx='2.6' ry='3.3'/%3E%3Cellipse cx='22' cy='9' rx='2.6' ry='3.3'/%3E%3Cpath d='M14 12c-4 0-7.5 4.3-7.5 7.6 0 2.2 1.7 3.4 3.7 3.4 1.5 0 2.4-.7 3.8-.7s2.3.7 3.8.7c2 0 3.7-1.2 3.7-3.4 0-3.3-3.5-7.6-7.5-7.6z'/%3E%3C/g%3E%3Cg transform='translate(140 200) rotate(14) scale(1.6)'%3E%3Cellipse cx='6' cy='9' rx='2.6' ry='3.3'/%3E%3Cellipse cx='11' cy='4.5' rx='2.6' ry='3.3'/%3E%3Cellipse cx='17' cy='4.5' rx='2.6' ry='3.3'/%3E%3Cellipse cx='22' cy='9' rx='2.6' ry='3.3'/%3E%3Cpath d='M14 12c-4 0-7.5 4.3-7.5 7.6 0 2.2 1.7 3.4 3.7 3.4 1.5 0 2.4-.7 3.8-.7s2.3.7 3.8.7c2 0 3.7-1.2 3.7-3.4 0-3.3-3.5-7.6-7.5-7.6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right -40px bottom -20px;
+  line-height: 1.55;
+}
+@media (min-width: 760px) {
+  .app { margin-top: 16px; margin-bottom: 32px; padding: 32px 32px 72px; border-radius: 28px; }
+}
+
+/* ── Wordmark and header ── */
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--pp-serif);
+  font-size: 1.9rem;
+  font-weight: 700;
+  font-variation-settings: "SOFT" 100;
+  letter-spacing: -0.01em;
+  color: var(--pp-plum);
+}
+.title::before {
+  content: "";
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--pp-honey) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cg fill='%235c2e47'%3E%3Cellipse cx='7' cy='10' rx='2.4' ry='3'/%3E%3Cellipse cx='11.5' cy='6' rx='2.4' ry='3'/%3E%3Cellipse cx='16.5' cy='6' rx='2.4' ry='3'/%3E%3Cellipse cx='21' cy='10' rx='2.4' ry='3'/%3E%3Cpath d='M14 13c-3.8 0-7 4-7 7 0 2 1.6 3.1 3.4 3.1 1.4 0 2.3-.7 3.6-.7s2.2.7 3.6.7c1.8 0 3.4-1.1 3.4-3.1 0-3-3.2-7-7-7z'/%3E%3C/g%3E%3C/svg%3E") center / 22px no-repeat;
+}
+.verified { color: var(--pp-leaf); background: var(--pp-leaf-soft); }
+.testAccount { color: var(--pp-muted); background: transparent; border: 1px dashed #cdbfae; }
+
+.headerActions { flex-wrap: wrap; justify-content: flex-end; }
+@media (min-width: 861px) {
+  .headerActions { flex-wrap: nowrap; gap: 6px; }
+}
+@media (max-width: 860px) {
+  .header { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .headerActions { width: 100%; justify-content: flex-start; }
+}
+.profileButton,
+.switchButton { white-space: nowrap; }
+.profileButton,
+.switchButton,
+.bell { background: var(--bg); border: 1px solid var(--pp-line); color: var(--pp-ink); font-weight: 700; }
+.profileButton:hover,
+.switchButton:hover,
+.bell:hover { background: var(--bg); border-color: var(--pp-plum); }
+.profileButton[aria-current="page"] { background: var(--pp-plum); border-color: var(--pp-plum); color: #ffffff; }
+.badge { background: var(--pp-teal); color: #ffffff; box-shadow: 0 0 0 2px var(--bg); }
+
+/* ── Hero: plum panel, headline, real photo ── */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--pp-plum);
+  color: #ffffff;
+  min-height: 250px;
+}
+.heroCompact { min-height: 210px; }
+.heroText { padding: 30px 28px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.heroTitle {
+  margin: 0;
+  font-family: var(--pp-serif);
+  font-size: clamp(1.6rem, 4.2vw, 2.15rem);
+  line-height: 1.12;
+  font-weight: 700;
+  font-variation-settings: "SOFT" 100, "opsz" 72;
+  letter-spacing: -0.01em;
+  animation: pp-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.heroLead { margin: 0; font-size: 0.98rem; line-height: 1.6; color: rgba(255, 255, 255, 0.82); animation: pp-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.12s backwards; }
+.heroPhoto { position: relative; min-height: 220px; overflow: hidden; }
+.heroPhoto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: pp-ease-in 1.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@keyframes pp-ease-in { from { transform: scale(1.08); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
+@media (max-width: 620px) {
+  .hero { grid-template-columns: 1fr; }
+  .heroPhoto { order: -1; min-height: 190px; }
+  .heroText { padding: 22px 20px 26px; }
+}
+
+/* Hand-drawn marks: a loop around a word, a swoosh under a phrase. They draw themselves in. */
+.circled,
+.underlined { position: relative; white-space: nowrap; display: inline-block; }
+.circled { margin: 0 0.22em; }
+.scribble { position: absolute; left: -10%; top: -18%; width: 120%; height: 136%; overflow: visible; pointer-events: none; }
+.swoosh { position: absolute; left: -2%; bottom: -10px; width: 104%; height: 12px; overflow: visible; pointer-events: none; }
+.scribble path,
+.swoosh path {
+  fill: none;
+  stroke: var(--pp-honey);
+  stroke-width: 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 700;
+  stroke-dashoffset: 700;
+  animation: pp-draw 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.45s forwards;
+}
+@keyframes pp-draw { to { stroke-dashoffset: 0; } }
+
+/* ── Tabs: words with a plum underline ── */
+.tabs { padding: 0; gap: 0; border-radius: 0; background: transparent; border-bottom: 1.5px solid var(--pp-line); }
+.tabs2 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tab,
+.tabActive { min-height: 48px; border-radius: 0; box-shadow: none; background: transparent; font-size: 0.95rem; font-weight: 700; }
+.tab { color: var(--pp-muted); }
+.tab:hover { color: var(--pp-plum); }
+.tabActive { color: var(--pp-plum); box-shadow: inset 0 -3px 0 var(--pp-plum); }
+
+/* ── Type ── */
+.heading,
+.subhead,
+.petName,
+.testTitle { font-family: var(--pp-serif); font-weight: 700; font-variation-settings: "SOFT" 100; letter-spacing: -0.005em; color: var(--pp-plum); }
+.heading { font-size: 1.4rem; }
+.petName { font-size: 1.9rem; }
+.cardName strong { font-family: var(--pp-serif); font-size: 1.15rem; font-weight: 700; color: var(--pp-plum); }
+.pay { font-weight: 800; color: var(--pp-ink); }
+
+/* ── Surfaces: white cards on cream ── */
+.card,
+.panel,
+.panelPlain,
+.offer,
+.sitterCard,
+.ratingCard,
+.stat,
+.statAlert,
+.alert,
+.calendar,
+.testPanel { background: var(--bg); border: 1px solid var(--pp-line); border-radius: 20px; box-shadow: none; }
+.calendar { box-shadow: 0 16px 40px rgba(59, 31, 46, 0.16); }
+.card { padding: 18px; transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
+.card:hover { border-color: var(--pp-sand); transform: translateY(-2px); box-shadow: 0 10px 28px rgba(59, 31, 46, 0.08); }
+.suggestion { background: var(--pp-gold-soft); border: 1px solid #f0dca4; border-radius: 20px; box-shadow: none; }
+.alertNew { border-radius: 20px; border-color: var(--pp-honey); }
+.empty { background: rgba(255, 255, 255, 0.6); border: 1.5px dashed var(--pp-sand); border-radius: 20px; }
+.notice,
+.noticeGood,
+.infoPanel { border-radius: 16px; }
+.infoPanel { background: var(--pp-leaf-soft); color: #164f42; }
+.pillGood { background: var(--pp-leaf-soft); color: var(--pp-leaf); }
+.pill { background: var(--pp-gold-soft); color: var(--pp-gold-text); }
+
+.avatar,
+.avatarLarge { background: var(--pp-honey); color: var(--pp-plum); font-family: var(--pp-serif); font-weight: 700; border-radius: 18px; box-shadow: none; }
+.avatarLarge { border-radius: 26px; }
+
+/* ── Buttons: teal pills, sand for the quieter choice ── */
+.primary,
+.secondary { min-height: 52px; border-radius: 999px; padding: 0 26px; font-weight: 800; box-shadow: none; transition: background-color 0.15s ease, transform 0.12s ease; }
+.primary { background: var(--pp-teal); color: #ffffff; }
+.primary:hover:not(:disabled) { background: var(--pp-teal-dark); }
+.primary:active:not(:disabled) { transform: scale(0.98); }
+.primary:disabled { opacity: 0.4; }
+.secondary { background: var(--pp-sand); border: none; color: var(--pp-ink); }
+.secondary:hover:not(:disabled) { background: #dccfb9; }
+.link,
+.back,
+.editLink { color: var(--pp-plum); font-weight: 700; text-decoration: underline; text-decoration-color: var(--pp-honey); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+
+/* ── Choices ── */
+.tile,
+.rowOption,
+.chip { background: var(--bg); border: 1px solid var(--pp-line); box-shadow: none; color: var(--pp-ink); }
+.tile,
+.tileOn,
+.rowOption,
+.rowOptionOn { border-radius: 18px; }
+.tile:hover,
+.chip:hover,
+.rowOption:hover { border-color: var(--pp-plum); box-shadow: none; }
+.chipOn,
+.tileOn,
+.rowOptionOn { background: var(--pp-gold-soft); border: 1px solid var(--pp-plum); color: var(--pp-plum); box-shadow: inset 0 0 0 1px var(--pp-plum); }
+
+.input { background: var(--bg); border: 1px solid var(--pp-line); border-radius: 16px; color: var(--pp-ink); }
+.input:focus { border-color: var(--pp-teal); box-shadow: 0 0 0 4px rgba(29, 155, 133, 0.18); outline: none; }
+
+/* ── Chat: white notes from PennPaws, plum replies from you ── */
+.bot { background: var(--bg); border: 1px solid var(--pp-line); border-radius: 20px 20px 20px 6px; box-shadow: none; }
+.me { background: var(--pp-plum); color: #ffffff; border-radius: 20px 20px 6px 20px; box-shadow: none; }
+.answer { border-top-color: var(--pp-line); }
+.progress { height: 6px; border-radius: 999px; background: var(--pp-sand); }
+.progress span { border-radius: 999px; background: var(--pp-teal); }
+.progressLabel { color: var(--pp-muted); font-weight: 700; }
+.addPetMark { border: 1.5px dashed var(--pp-plum); color: var(--pp-plum); background: transparent; border-radius: 18px; }
+.typing i { background: var(--pp-muted); }
+
+.testToggle { background: var(--bg); border: 1px dashed #cdbfae; color: var(--pp-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .heroTitle,
+  .heroLead,
+  .heroPhoto img { animation: none; }
+  .scribble path,
+  .swoosh path { animation: none; stroke-dashoffset: 0; }
+  .card:hover { transform: none; }
+}
+
+/* ── After matching (AfterMatch.tsx) ── */
+.afterMatch { display: flex; flex-direction: column; gap: 16px; }
+.amCard { background: var(--bg); border: 1px solid var(--pp-line); border-radius: 22px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.amHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.amTitle { margin: 0; font-family: var(--pp-serif); font-weight: 700; font-variation-settings: "SOFT" 100; font-size: 1.3rem; color: var(--pp-plum); }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.steps li { display: flex; gap: 12px; align-items: flex-start; }
+.steps p { margin: 2px 0 0; color: var(--pp-muted); }
+.stepNum { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--pp-honey); color: var(--pp-plum); font-weight: 800; font-size: 0.85rem; }
+.checkIn { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 18px; background: var(--pp-gold-soft); }
+.visitList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; }
+.visit { display: flex; flex-direction: column; gap: 10px; padding-left: 18px; border-left: 2px solid var(--pp-line); }
+.visitLine { display: flex; align-items: center; gap: 10px; margin-left: -25px; }
+.visitDot,
+.visitDotDone { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--pp-teal); box-shadow: 0 0 0 4px var(--bg); }
+.visitDotDone { background: var(--pp-plum); }
+.visitPhoto { width: 100%; max-width: 360px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 16px; background: var(--pp-cream); }
+.visitNote { margin: 0; font-style: italic; color: var(--pp-ink); }
+.payBox { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 18px; background: var(--pp-cream); }
+.payAmount { display: flex; align-items: center; gap: 6px; max-width: 160px; font-weight: 800; }
+.payLinks { display: flex; flex-wrap: wrap; gap: 8px; }
+.payLinks .primary { display: inline-flex; align-items: center; text-decoration: none; }
+.payConfirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.payConfirm .input { width: auto; min-width: 120px; }
+
+/* A pet without a photo gets a sketch: a chubby doodle in plum ink on soft honey. */
+.avatarSketch { position: relative; overflow: hidden; padding: 0; background: var(--pp-gold-soft); box-shadow: inset 0 0 0 1.5px #f0dca4; }
+.avatarSketch svg { position: absolute; left: 4%; top: 6%; width: 92%; height: 92%; display: block; }
+.avatarSketch svg path,
+.avatarSketch svg ellipse,
+.avatarSketch svg circle { fill: none; stroke: var(--pp-plum); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.avatarSketch svg .sketchHead { fill: #fffdf8; }
+.avatarSketch svg .sketchEar { fill: #e3ad62; }
+.avatarSketch svg .sketchSpot { stroke: #e3ad62; stroke-width: 3.2; }
+.avatarSketch svg .sketchFill { fill: var(--pp-plum); }
+.avatarSketch svg .sketchNose { fill: #e8858a; }
+.avatarSketch svg .sketchTongue { fill: #f08f93; }
+.avatarSketch svg .sketchCheek { fill: #f6a9a4; stroke: none; opacity: 0.75; }
+.avatarSketch svg .sketchShine { fill: #ffffff; stroke: none; }
+.avatarSketch svg .sketchSoft { stroke-width: 1.5; opacity: 0.6; }

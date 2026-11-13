@@ -283,6 +283,19 @@ export const OwnerProfile = z
   });
 export type OwnerProfile = z.infer<typeof OwnerProfile>;
 
+/**
+ * A member's owner answers, whichever side they're on now. Switching sides
+ * swaps `profile` and `other_profile` (members.ts), so an owner looking after
+ * pets keeps their pet and home in `other_profile`.
+ */
+export function ownerSideOf(profile: unknown, otherProfile: unknown): OwnerProfile | null {
+  for (const candidate of [profile, otherProfile]) {
+    const parsed = OwnerProfile.safeParse(candidate);
+    if (parsed.success) return parsed.data;
+  }
+  return null;
+}
+
 export const SitterProfile = z
   .object({
     role: z.literal("sitter"),

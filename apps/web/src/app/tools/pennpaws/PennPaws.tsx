@@ -29,6 +29,7 @@ import {
 } from "@penntools/tool-pennpaws";
 import { aiMatches, readNotifications, switchSide, type AIMatch } from "./actions";
 import { MyPets } from "./MyPets";
+import { Circled, Hero, PHOTOS } from "./Hero";
 import { Onboarding } from "./Onboarding";
 import { RequestDetail } from "./RequestDetail";
 import { Completed, Earnings, MyTasks } from "./SitterViews";
@@ -164,6 +165,10 @@ export function PennPaws({
     else setRankError(result.error);
   };
   const activeTab = view.tab === "request" ? view.back : view.tab;
+  // Who the hero talks about: the owner's own pets, by name, and the first one with a photo.
+  const petNames = pets.map((p) => p.name);
+  const petsLabel = petNames.length === 0 ? "your pet" : petNames.length <= 2 ? petNames.join(" and ") : "your pets";
+  const heroPet = pets.find((p) => p.photo) ?? null;
 
   return (
     <div className={styles.app}>
@@ -210,6 +215,32 @@ export function PennPaws({
           </button>
         </div>
       </header>
+
+      {/* The welcome band sits on the lists, not inside a request or a form someone is filling in. */}
+      {(view.tab === "post" || view.tab === "mine" || view.tab === "find" || view.tab === "tasks") &&
+        (isSitter ? (
+          <Hero
+            title={
+              <>
+                Spend time with <Circled>pets</Circled> who need you, right near campus.
+              </>
+            }
+            lead="Pick jobs that fit your week, meet the owner, and get paid after every visit."
+            photo={PHOTOS.sitterBench}
+            photoAlt="A sitter petting a happy beagle at a dog park"
+          />
+        ) : (
+          <Hero
+            title={
+              <>
+                Loving care for <Circled>{petsLabel}</Circled> from Penn students nearby.
+              </>
+            }
+            lead="Post once. Verified students who fit your pet offer to help, and you choose who you trust."
+            photo={heroPet?.photo ?? PHOTOS.ownerHug}
+            photoAlt={heroPet?.photo ? `Photo of ${heroPet.name}` : "A woman hugging her happy dog in a park"}
+          />
+        ))}
 
       <nav className={isSitter ? styles.tabs4 : styles.tabs2} aria-label="PennPaws">
         {(isSitter ? SITTER_TABS : OWNER_TABS).map(([tab, short, full]) => (
@@ -384,8 +415,9 @@ export function PennPaws({
             school={member.school}
             initial={member.profile}
             {...(setupRole ? { startRole: setupRole } : {})}
-            onDone={() => {
-              const role = setupRole;
+            onDone={(saved) => {
+              // Cancelling a new side's setup leaves them on the side they were on.
+              const role = saved ? setupRole : null;
               setSetupRole(null);
               setView(homeFor(role ?? member.role));
             }}
@@ -415,7 +447,7 @@ export function RequestCard({
   return (
     <button type="button" className={styles.card} onClick={onOpen}>
       <span className={styles.cardTop}>
-        <PetAvatar name={request.draft.petName} photo={request.draft.photo} />
+        <PetAvatar name={request.draft.petName} photo={request.draft.photo} kind={request.draft.petKind} />
         <span className={styles.cardName}>
           <strong>{request.draft.petName}</strong>
           <span className={styles.muted}>{lines.pet}</span>
@@ -493,15 +525,72 @@ function matchLine(rules: Match | undefined, ai: AIMatch | undefined): MatchLine
   };
 }
 
-export function PetAvatar({ name, photo, large = false }: { name: string; photo: string | null; large?: boolean }) {
+/**
+ * A pet's headshot: their photo, or until there is one, a hand-drawn sketch
+ * of a cat or a dog (a paw for anything else), so every card has a face.
+ */
+export function PetAvatar({ name, photo, kind = null, large = false }: { name: string; photo: string | null; kind?: string | null; large?: boolean }) {
   const className = large ? styles.avatarLarge : styles.avatar;
   // Photos are small data URLs made by the survey, so next/image adds nothing here.
   // eslint-disable-next-line @next/next/no-img-element
   if (photo) return <img src={photo} alt={`Photo of ${name}`} className={className} />;
   return (
-    <span className={className} aria-hidden="true">
-      {name.charAt(0).toUpperCase() || "?"}
+    <span className={`${className} ${styles.avatarSketch}`} role="img" aria-label={`Sketch of ${kind === "cat" ? "a cat" : kind === "dog" || kind === "several" ? "a dog" : "a paw"} for ${name}`}>
+      <PetSketch kind={kind} />
     </span>
+  );
+}
+
+/** Chubby line drawings in the house ink: round faces, big shiny eyes, rosy cheeks. */
+function PetSketch({ kind }: { kind: string | null }) {
+  if (kind === "cat") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M13 30 C11.5 20 12.5 11 15 8.5 C18 9 24 13.5 27 17.5" className={styles.sketchHead} />
+        <path d="M51 30 C52.5 20 51.5 11 49 8.5 C46 9 40 13.5 37 17.5" className={styles.sketchHead} />
+        <path d="M16.5 13.5 C16 17 16.2 20 17 22.5 M47.5 13.5 C48 17 47.8 20 47 22.5" className={styles.sketchSoft} />
+        <path d="M8.5 38 C8 25 18 16.5 32 16.5 C46 16.5 56 25 55.5 38 C55 50 45 57 32 57 C19 57 9 50 8.5 38 Z" className={styles.sketchHead} />
+        <ellipse cx="17.5" cy="44" rx="4.2" ry="2.8" className={styles.sketchCheek} />
+        <ellipse cx="46.5" cy="44" rx="4.2" ry="2.8" className={styles.sketchCheek} />
+        <circle cx="23" cy="36" r="4.4" className={styles.sketchFill} />
+        <circle cx="41" cy="36" r="4.4" className={styles.sketchFill} />
+        <circle cx="24.6" cy="34.4" r="1.5" className={styles.sketchShine} />
+        <circle cx="42.6" cy="34.4" r="1.5" className={styles.sketchShine} />
+        <path d="M30 42.2 C30 41.2 34 41.2 34 42.2 C34 43.2 32 44.4 32 44.4 C32 44.4 30 43.2 30 42.2 Z" className={styles.sketchNose} />
+        <path d="M32 44.4 C31.2 47.4 27.8 47.6 27 45.4 M32 44.4 C32.8 47.4 36.2 47.6 37 45.4" />
+        <path d="M13 41 L3.5 39 M13 44.5 L4 46.5 M51 41 L60.5 39 M51 44.5 L60 46.5" className={styles.sketchSoft} />
+      </svg>
+    );
+  }
+  if (kind === "dog" || kind === "several") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M11 37 C11 23 19 15.5 32 15.5 C45 15.5 53 23 53 37 C53 49.5 44 57 32 57 C20 57 11 49.5 11 37 Z" className={styles.sketchHead} />
+        <path d="M17 19 C9.5 15.5 3 24 4 35.5 C4.6 42.5 10.5 43.5 13.5 37.5 C15 33 15.5 25 17 19 Z" className={styles.sketchEar} />
+        <path d="M47 19 C54.5 15.5 61 24 60 35.5 C59.4 42.5 53.5 43.5 50.5 37.5 C49 33 48.5 25 47 19 Z" className={styles.sketchEar} />
+        <path d="M40 18.5 C44.5 21 46.5 26 45.5 30.5" className={styles.sketchSpot} />
+        <ellipse cx="18.5" cy="44.5" rx="3.8" ry="2.6" className={styles.sketchCheek} />
+        <ellipse cx="45.5" cy="44.5" rx="3.8" ry="2.6" className={styles.sketchCheek} />
+        <circle cx="24" cy="35" r="4.2" className={styles.sketchFill} />
+        <circle cx="40" cy="35" r="4.2" className={styles.sketchFill} />
+        <circle cx="25.5" cy="33.5" r="1.4" className={styles.sketchShine} />
+        <circle cx="41.5" cy="33.5" r="1.4" className={styles.sketchShine} />
+        <path d="M27.5 41.8 C27.5 39.3 36.5 39.3 36.5 41.8 C36.5 44 32 45.6 32 45.6 C32 45.6 27.5 44 27.5 41.8 Z" className={styles.sketchFill} />
+        <path d="M29.2 49 C29.2 53.5 34.8 53.5 34.8 49 Z" className={styles.sketchTongue} />
+        <path d="M32 45.6 L32 48.2 M32 48.2 C30 50.6 26.4 50.2 25.2 47.6 M32 48.2 C34 50.6 37.6 50.2 38.8 47.6" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <ellipse cx="17" cy="27" rx="5.6" ry="7.2" className={styles.sketchHead} />
+      <ellipse cx="27" cy="16.5" rx="5.6" ry="7.2" className={styles.sketchHead} />
+      <ellipse cx="38.5" cy="16.5" rx="5.6" ry="7.2" className={styles.sketchHead} />
+      <ellipse cx="48" cy="27.5" rx="5.6" ry="7.2" className={styles.sketchHead} />
+      <path d="M32.5 31 C23.5 31 16.5 40.5 16.6 47.2 C16.7 52.2 20.6 54.6 24.6 54.4 C27.8 54.2 29.6 52.6 32.5 52.6 C35.4 52.6 37.2 54.2 40.4 54.4 C44.4 54.6 48.3 52.2 48.4 47.2 C48.5 40.5 41.5 31 32.5 31 Z" className={styles.sketchHead} />
+      <ellipse cx="25.5" cy="45" rx="3" ry="2" className={styles.sketchCheek} />
+      <ellipse cx="39.5" cy="45" rx="3" ry="2" className={styles.sketchCheek} />
+    </svg>
   );
 }
 

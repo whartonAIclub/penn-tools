@@ -167,8 +167,8 @@ export async function switchSide(): Promise<ActionResult<MemberRole | null>> {
 
 // ── My Pets ───────────────────────────────────────────────────────────────────
 
-/** Adds a pet to My Pets, or updates one when `petId` is given. Only the owner's own pets. */
-export async function savePet(petId: unknown, input: unknown): Promise<ActionResult> {
+/** Adds a pet to My Pets, or updates one when `petId` is given. Only the owner's own pets. Returns the pet's ID. */
+export async function savePet(petId: unknown, input: unknown): Promise<ActionResult<string>> {
   const user = await signedIn();
   if (!user) return signedOut;
   const checked = checkPet(input);
@@ -177,10 +177,9 @@ export async function savePet(petId: unknown, input: unknown): Promise<ActionRes
     if (typeof petId === "string" && petId) {
       const changed = await updatePet(db(), user.id, petId, checked.value);
       if (!changed) throw new PennPawsError("That pet isn't on your list.");
-    } else {
-      await addPet(db(), user.id, checked.value);
+      return petId;
     }
-    return null;
+    return addPet(db(), user.id, checked.value);
   });
 }
 

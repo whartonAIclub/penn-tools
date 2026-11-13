@@ -105,6 +105,9 @@ export const ACCESS = [
 ] as const satisfies readonly Option[];
 export type Access = (typeof ACCESS)[number]["value"];
 
+/** How long a drop-in visit or a walk lasts, so the per-visit price means something. */
+export const VISIT_MINUTES = 30;
+
 /** Suggested pay per visit, in dollars. Owners can also type their own. */
 export const PAY_PRESETS = [15, 20, 25] as const;
 export const SUGGESTED_PAY = 20;
