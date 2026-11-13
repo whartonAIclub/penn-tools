@@ -1,12 +1,18 @@
 // Community tools shown in the site sidebar and on the dashboard.
 //
 // These are apps built by Penn students that live outside this repo, so they
-// link out. Tools in the monorepo (tools/*) come from the tool registry, each
-// in the category its manifest names.
+// link out; clicks on those links are counted for the admin page. Tools in the
+// monorepo (tools/*) come from the tool registry, each in the category its
+// manifest names.
 
 import type { ToolCategory } from "@penntools/core/tools";
 
 export interface CommunityTool {
+  /**
+   * Keep it once the tool is listed: clicks on its link are recorded under it
+   * (communityVisitId), and its dashboard screenshot is named after it. To
+   * rename or remove a tool, see "Removing a tool" in the README.
+   */
   id: string;
   title: string;
   description: string;
@@ -95,3 +101,25 @@ export const communityTools: CommunityTool[] = [
     url: "https://akshitkalra.com/aicompass",
   },
 ];
+
+/** Registered tools can't use it (scripts/new-tool.mjs refuses it). */
+const VISIT_ID_PREFIX = "community-";
+
+/**
+ * The ID that clicks on a community tool's link are recorded under (POST
+ * /api/visits), next to registered tools' visits. The prefix keeps it apart
+ * from registered tools' IDs.
+ */
+export function communityVisitId(id: string): string {
+  return `${VISIT_ID_PREFIX}${id}`;
+}
+
+/** Whether a visit ID is a community tool's, including one since removed. */
+export function isCommunityVisitId(visitId: string): boolean {
+  return visitId.startsWith(VISIT_ID_PREFIX);
+}
+
+/** The community tool a visit ID names, if any. */
+export function communityToolByVisitId(visitId: string): CommunityTool | undefined {
+  return communityTools.find((t) => communityVisitId(t.id) === visitId);
+}

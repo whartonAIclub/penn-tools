@@ -1,6 +1,7 @@
-// AskPenn: chat with an AI assistant for Penn, on the user's own API key.
-// Signed-out visitors are asked to sign in, and users without a saved key are
-// sent to Settings; otherwise the chat loads with the user's chats.
+// AskPenn: chat with an AI assistant for Penn, on the platform's free AI
+// credit and then the user's own API key. Signed-out visitors are asked to
+// sign in, and users out of credit without a saved key are sent to Settings;
+// otherwise the chat loads with the user's chats.
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
@@ -20,7 +21,7 @@ export default async function AskPennPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="AskPenn" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("askpenn"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="AskPenn" />;
 
   const sql = toolSql("askpenn");
