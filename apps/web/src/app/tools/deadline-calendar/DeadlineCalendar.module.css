@@ -92,17 +92,66 @@
 
 /* ── Results ───────────────────────────────────────────────────────────────── */
 
+.summaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.summary {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
 .results {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.courseHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .course {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
+
+.fileName {
+  margin-top: -4px;
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+
+.remove {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.remove:hover { color: var(--text); }
 
 .grading {
   font-size: 0.8rem;

@@ -1,21 +1,26 @@
 "use client";
 
-// Upload one syllabus PDF and see its deadlines. The PDF goes to the tool's
-// route (extract/route.ts) as base64; the route reads it with the user's AI.
+// Upload syllabus PDFs and see their deadlines, course by course. Each PDF
+// goes to the tool's route (extract/route.ts) on its own, as base64, so one
+// that fails doesn't hold up the rest; the route reads it with the user's AI.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { Deadline, GradingCategory, Syllabus } from "@penntools/tool-deadline-calendar";
 import styles from "./DeadlineCalendar.module.css";
 
-type Status =
-  | { state: "idle" }
-  | { state: "loading" }
-  | { state: "done"; result: Syllabus; fileName: string }
-  | { state: "error"; message: string; kind?: string };
+/** The most syllabi at once: a full course load, with room to spare. */
+const MAX_SYLLABI = 8;
+/** How many syllabi are read at the same time, so a full load doesn't hit the provider's rate limits. */
+const CONCURRENT_READS = 3;
 
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+
+/** How reading a syllabus went. `kind` is the AIError's, when the AI API failed. */
+type Outcome = { state: "done"; result: Syllabus } | { state: "error"; message: string; kind?: string };
+type Status = { state: "ready" } | { state: "reading" } | Outcome;
+type Upload = { id: number; file: File } & Status;
 
 const TYPE_LABELS: Record<Deadline["type"], string> = {
   exam: "Exam",
@@ -34,6 +39,38 @@ function toBase64(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+/** Why the file can't be uploaded, or null: it must be a PDF of at most `maxBytes`. */
+function fileProblem(file: File, maxBytes: number): string | null {
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  if (!isPdf && /\.docx?$/i.test(file.name)) {
+    return "This is a Word file. Save it as a PDF first (in Word: File → Save As → PDF), then upload that.";
+  }
+  if (!isPdf) return "This isn't a PDF. Save it as a PDF, then upload that.";
+  if (file.size > maxBytes) return `This file is over ${maxBytes / 1024 / 1024} MB.`;
+  return null;
+}
+
+/** Sends one PDF to the route and returns how it went. */
+async function readSyllabus(file: File, provider: AIProvider): Promise<Outcome> {
+  try {
+    const res = await fetch("/tools/deadline-calendar/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, file: { name: file.name, data: await toBase64(file) } }),
+    });
+    if (res.status === 401) return { state: "error", message: "Your session ended. Sign in with the button at the top right." };
+    const body = (await res.json()) as { result?: Syllabus; error?: { message: string; kind?: string } };
+    if (body.result) return { state: "done", result: body.result };
+    return {
+      state: "error",
+      message: body.error?.message ?? "Something went wrong. Try again.",
+      ...(body.error?.kind && { kind: body.error.kind }),
+    };
+  } catch {
+    return { state: "error", message: "Something went wrong. Try again." };
+  }
 }
 
 /** Today's date in the browser as YYYY-MM-DD, for marking past deadlines. */
@@ -56,6 +93,14 @@ function formatTime(time: string): string {
   return minutes === 0 ? `${hour12}${suffix}` : `${hour12}:${String(minutes).padStart(2, "0")}${suffix}`;
 }
 
+/** "Quizzes 10% (best 5 of 7, 2 dropped)", "Homework 16% (all 4 count)" or "Final exam 34%". */
+function formatCategory({ category, percent, count, counted }: GradingCategory): string {
+  const share = `${category} ${percent}%`;
+  if (count === null || count < 2) return share;
+  if (counted === null) return `${share} (${count} items)`;
+  return counted === count ? `${share} (all ${count} count)` : `${share} (best ${counted} of ${count}, ${count - counted} dropped)`;
+}
+
 export function DeadlineCalendar({
   providers,
   labels,
@@ -67,73 +112,81 @@ export function DeadlineCalendar({
   maxPdfBytes: number;
 }) {
   const [provider, setProvider] = useState(providers[0]!);
-  const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<Status>({ state: "idle" });
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [onlyToCheck, setOnlyToCheck] = useState(false);
+  const nextId = useRef(1);
 
-  function choose(chosen: File | undefined) {
-    setStatus({ state: "idle" });
-    if (!chosen) return setFile(null);
-    const isPdf = chosen.type === "application/pdf" || chosen.name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      setFile(null);
-      const word = /\.docx?$/i.test(chosen.name);
-      return setStatus({
-        state: "error",
-        message: word
-          ? `${chosen.name} is a Word file. Save it as a PDF first (in Word: File → Save As → PDF), then upload that.`
-          : `${chosen.name} isn't a PDF. Save it as a PDF, then upload that.`,
-      });
-    }
-    if (chosen.size > maxPdfBytes) {
-      setFile(null);
-      return setStatus({ state: "error", message: `${chosen.name} is over ${maxPdfBytes / 1024 / 1024} MB.` });
-    }
-    setFile(chosen);
+  const reading = uploads.some((u) => u.state === "reading");
+  const ready = uploads.filter((u) => u.state === "ready");
+
+  function update(id: number, status: Status) {
+    setUploads((current) => current.map((u) => (u.id === id ? { id: u.id, file: u.file, ...status } : u)));
+  }
+
+  function add(files: File[]) {
+    setNotice(null);
+    // The same file chosen twice (same name and size) is added once.
+    const fresh = files.filter((f) => !uploads.some((u) => u.file.name === f.name && u.file.size === f.size));
+    const room = MAX_SYLLABI - uploads.length;
+    if (fresh.length > room) setNotice(`You can add up to ${MAX_SYLLABI} syllabi at a time, so ${fresh.length - room} weren't added.`);
+    const added = fresh.slice(0, Math.max(0, room)).map((file): Upload => {
+      const id = nextId.current++;
+      const problem = fileProblem(file, maxPdfBytes);
+      return problem ? { id, file, state: "error", message: problem } : { id, file, state: "ready" };
+    });
+    setUploads((current) => [...current, ...added]);
+  }
+
+  function remove(id: number) {
+    setNotice(null);
+    setUploads((current) => current.filter((u) => u.id !== id));
   }
 
   async function findDeadlines() {
-    if (!file) return;
-    setStatus({ state: "loading" });
-    try {
-      const res = await fetch("/tools/deadline-calendar/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, file: { name: file.name, data: await toBase64(file) } }),
-      });
-      if (res.status === 401) {
-        return setStatus({ state: "error", message: "Your session ended. Sign in with the button at the top right." });
+    const queue = [...ready];
+    for (const { id } of queue) update(id, { state: "reading" });
+    // CONCURRENT_READS workers take files off the queue until it's empty.
+    const worker = async () => {
+      for (let upload = queue.shift(); upload; upload = queue.shift()) {
+        update(upload.id, await readSyllabus(upload.file, provider));
       }
-      const body = (await res.json()) as { result?: Syllabus; error?: { message: string; kind?: string } };
-      if (body.result) return setStatus({ state: "done", result: body.result, fileName: file.name });
-      setStatus({ state: "error", message: body.error?.message ?? "Something went wrong. Try again.", ...(body.error?.kind && { kind: body.error.kind }) });
-    } catch {
-      setStatus({ state: "error", message: "Something went wrong. Try again." });
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENT_READS, queue.length) }, worker));
   }
+
+  const done = uploads.filter((u): u is Upload & { state: "done"; result: Syllabus } => u.state === "done");
+  const deadlineCount = done.reduce((sum, u) => sum + u.result.deadlines.length, 0);
+  const reviewCount = done.reduce((sum, u) => sum + u.result.deadlines.filter((d) => d.needsReview).length, 0);
 
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Deadline Calendar</h1>
       <p className={styles.intro}>
-        Upload a syllabus PDF to pull out its exams, quizzes, assignments and other deadlines. Check them against the
+        Upload your syllabi to pull out their exams, quizzes, assignments and other deadlines. Check them against each
         syllabus: items the AI wasn&apos;t sure about are highlighted.
       </p>
 
       <section className={styles.card}>
         <label className={styles.upload}>
-          <span className={styles.uploadLabel}>Syllabus (PDF)</span>
+          <span className={styles.uploadLabel}>Upload your syllabi (PDF format, up to {MAX_SYLLABI})</span>
           <input
             type="file"
             accept="application/pdf,.pdf"
-            onChange={(e) => choose(e.target.files?.[0])}
-            disabled={status.state === "loading"}
+            multiple
+            onChange={(e) => {
+              add(Array.from(e.target.files ?? []));
+              e.target.value = ""; // so the same file can be chosen again after removing it
+            }}
+            disabled={reading || uploads.length >= MAX_SYLLABI}
           />
         </label>
+        {notice && <p className={styles.note}>{notice}</p>}
 
         {providers.length > 1 ? (
           <label className={styles.provider}>
             AI provider
-            <select value={provider} onChange={(e) => setProvider(e.target.value as AIProvider)} disabled={status.state === "loading"}>
+            <select value={provider} onChange={(e) => setProvider(e.target.value as AIProvider)} disabled={reading}>
               {providers.map((p) => (
                 <option key={p} value={p}>
                   {labels[p]}
@@ -151,16 +204,64 @@ export function DeadlineCalendar({
           </p>
         )}
 
-        <button className={styles.button} onClick={() => void findDeadlines()} disabled={!file || status.state === "loading"}>
-          {status.state === "loading" ? "Reading your syllabus…" : "Find deadlines"}
+        <button className={styles.button} onClick={() => void findDeadlines()} disabled={ready.length === 0 || reading}>
+          {reading
+            ? "Generating your deadline calendar…"
+            : ready.length === 0
+              ? "Generate deadline calendar"
+              : `Generate deadline calendar for ${ready.length} ${ready.length === 1 ? "class" : "classes"}`}
         </button>
-        {status.state === "loading" && <p className={styles.note}>This usually takes 20–60 seconds.</p>}
+        {reading && <p className={styles.note}>Each syllabus usually takes 20–60 seconds.</p>}
       </section>
 
-      {status.state === "error" && (
+      {done.length > 0 && (
+        <div className={styles.summaryRow}>
+          <p className={styles.summary}>
+            {done.length} {done.length === 1 ? "syllabus" : "syllabi"} · {deadlineCount}{" "}
+            {deadlineCount === 1 ? "deadline" : "deadlines"}
+            {reviewCount > 0 && ` · ${reviewCount} to check`}
+          </p>
+          {reviewCount > 0 && (
+            <label className={styles.toggle}>
+              <input type="checkbox" checked={onlyToCheck} onChange={(e) => setOnlyToCheck(e.target.checked)} />
+              Show only items to check
+            </label>
+          )}
+        </div>
+      )}
+
+      {uploads.map((upload) => (
+        <UploadCard
+          key={upload.id}
+          upload={upload}
+          onlyToCheck={onlyToCheck && reviewCount > 0}
+          onRemove={() => remove(upload.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function UploadCard({ upload, onlyToCheck, onRemove }: { upload: Upload; onlyToCheck: boolean; onRemove: () => void }) {
+  const heading = upload.state === "done" ? (upload.result.course ?? upload.file.name) : upload.file.name;
+  return (
+    <section className={styles.results}>
+      <div className={styles.courseHeader}>
+        <h2 className={styles.course}>{heading}</h2>
+        {upload.state !== "reading" && (
+          <button className={styles.remove} onClick={onRemove} aria-label={`Remove ${upload.file.name}`}>
+            Remove
+          </button>
+        )}
+      </div>
+      {upload.state === "done" && upload.result.course && <p className={styles.fileName}>{upload.file.name}</p>}
+
+      {upload.state === "ready" && <p className={styles.note}>Ready to read.</p>}
+      {upload.state === "reading" && <p className={styles.note}>Reading…</p>}
+      {upload.state === "error" && (
         <p className={styles.error} role="alert">
-          {status.message}
-          {status.kind && KEY_PROBLEMS.has(status.kind) && (
+          {upload.message}
+          {upload.kind && KEY_PROBLEMS.has(upload.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>
@@ -170,35 +271,29 @@ export function DeadlineCalendar({
           )}
         </p>
       )}
-
-      {status.state === "done" && <Results result={status.result} fileName={status.fileName} />}
-    </div>
+      {upload.state === "done" && <Results result={upload.result} onlyToCheck={onlyToCheck} />}
+    </section>
   );
 }
 
-/** "Quizzes 10% (best 5 of 7)", "Homework 16% (all 4 count)" or "Final exam 34%". */
-function formatCategory({ category, percent, count, counted }: GradingCategory): string {
-  const share = `${category} ${percent}%`;
-  if (count === null || count < 2) return share;
-  if (counted === null) return `${share} (${count} items)`;
-  return counted === count ? `${share} (all ${count} count)` : `${share} (best ${counted} of ${count}, ${count - counted} dropped)`;
-}
-
-function Results({ result, fileName }: { result: Syllabus; fileName: string }) {
+function Results({ result, onlyToCheck }: { result: Syllabus; onlyToCheck: boolean }) {
   const now = today();
-  const dated = result.deadlines.filter((d) => d.date !== null);
-  const undated = result.deadlines.filter((d) => d.date === null);
   const toReview = result.deadlines.filter((d) => d.needsReview).length;
+  const shown = onlyToCheck ? result.deadlines.filter((d) => d.needsReview) : result.deadlines;
+  const dated = shown.filter((d) => d.date !== null);
+  const undated = shown.filter((d) => d.date === null);
 
   if (result.deadlines.length === 0) {
-    return <p className={styles.note}>No deadlines found in {fileName}. Check that it&apos;s the course syllabus.</p>;
+    return <p className={styles.note}>No deadlines found. Check that this is the course syllabus.</p>;
+  }
+  if (shown.length === 0) {
+    return <p className={styles.note}>Nothing to check in this course.</p>;
   }
 
   return (
-    <section className={styles.results}>
-      <h2 className={styles.course}>{result.course ?? fileName}</h2>
+    <>
       <p className={styles.note}>
-        {result.deadlines.length} {result.deadlines.length === 1 ? "deadline" : "deadlines"} found
+        {result.deadlines.length} {result.deadlines.length === 1 ? "deadline" : "deadlines"}
         {toReview > 0 && ` · ${toReview} to check`}
       </p>
       {result.grading.length > 0 && (
@@ -237,7 +332,7 @@ function Results({ result, fileName }: { result: Syllabus; fileName: string }) {
           </table>
         </>
       )}
-    </section>
+    </>
   );
 }
 

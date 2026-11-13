@@ -70,6 +70,8 @@ describe("extractDeadlines", () => {
     expect(request.provider).toBe("anthropic");
     expect(request.schema).toBe(SyllabusDeadlines);
     expect(request.system).toContain("Today is 2026-11-10");
+    // Course names in one format, whatever the syllabus's own heading looks like.
+    expect(request.system).toContain('"MKTG 612: Dynamic Marketing Strategy"');
     expect(request.messages[0]!.content).toContainEqual({ type: "pdf", filename: "ACCT6130.pdf", data: PDF_DATA });
   });
 

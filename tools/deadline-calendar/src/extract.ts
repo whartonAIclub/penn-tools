@@ -30,7 +30,7 @@ export const SyllabusDeadlines = z.object({
   course: z
     .string()
     .nullable()
-    .describe("The course's code and name, e.g. 'ACCT 6130: Fundamentals of Financial and Managerial Accounting'"),
+    .describe("The course as 'SUBJECT NUMBER: Title', e.g. 'MKTG 612: Dynamic Marketing Strategy'; null if the syllabus doesn't name it"),
   deadlines: z.array(
     z.object({
       title: z.string().describe("Short and specific, e.g. 'Homework #2' or 'Midterm exam'"),
@@ -114,6 +114,8 @@ export function todayInPhiladelphia(now: Date = new Date()): string {
 
 function instructions(today: string): string {
   return `You read a course syllabus and list its deadlines for a student's calendar. Today is ${today}.
+
+Name the course as its subject code, number, a colon and its title in title case, for example "MKTG 612: Dynamic Marketing Strategy" or "ACCT 6130: Fundamentals of Financial and Managerial Accounting". Leave out section numbers, the term and anything in parentheses; when the syllabus gives several course numbers, as with cross-listed courses, join them with a slash ("STAT 4230/7230: Applied Machine Learning in Business").
 
 List every graded deliverable that has a due date or a scheduled time: exams, quizzes, homework, problem sets, papers, projects, presentations and graded case write-ups. Leave out readings, lecture topics, office hours, review sessions and other ungraded events.
 
