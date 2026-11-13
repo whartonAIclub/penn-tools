@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ToolCategory, ToolManifest } from "@penntools/core/tools";
+import { isCommunityVisitId } from "../../data/communityTools";
 import type { CommunityTool } from "../../data/communityTools";
 import { fullWidthToolIds, toolCatalog, toolInfo } from "../toolCatalog";
 
@@ -45,11 +46,11 @@ describe("toolCatalog", () => {
       ],
       [community("q", "Other")],
     ).flatMap((s) => s.tools);
-    expect(Object.fromEntries(tools.map((t) => [t.key, t.beta]))).toEqual({
+    expect(Object.fromEntries(tools.map((t) => [t.visitId, t.beta]))).toEqual({
       "community-q": false,
-      "tool-done": false,
-      "tool-trying": true,
-      "tool-legacy": true,
+      done: false,
+      trying: true,
+      legacy: true,
     });
   });
 
@@ -74,6 +75,14 @@ describe("toolCatalog", () => {
     expect(tools.map((t) => [t.href, t.external])).toEqual([
       ["https://q.example", true],
       ["/tools/a", false],
+    ]);
+  });
+
+  it("records a registered tool's visits under its ID, and a community tool's clicks apart from them", () => {
+    const tools = toolCatalog([manifest("a", "Academics")], [community("a", "Academics")]).flatMap((s) => s.tools);
+    expect(tools.map((t) => [t.visitId, isCommunityVisitId(t.visitId)])).toEqual([
+      ["community-a", true],
+      ["a", false],
     ]);
   });
 });

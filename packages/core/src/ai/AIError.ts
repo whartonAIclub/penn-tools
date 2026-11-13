@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { PROVIDER_LABELS } from "./models.js";
+import { FREE_CREDIT_USD } from "./pricing.js";
 import type { AIProvider } from "./types.js";
 
 export type AIErrorKind =
@@ -16,6 +17,11 @@ export type AIErrorKind =
   | "invalid_key"
   /** The user's provider account has no credit. */
   | "no_credit"
+  /**
+   * The user has used the platform's free AI credit (FREE_CREDIT_USD) and has
+   * no saved key for this provider to continue with.
+   */
+  | "credit_used"
   | "rate_limited"
   /** The provider is down, overloaded or unreachable, or the request timed out. */
   | "unavailable"
@@ -42,6 +48,8 @@ function defaultMessage(kind: AIErrorKind, provider: AIProvider | null): string 
       return `${label} rejected your saved API key. Update it in Settings.`;
     case "no_credit":
       return `Your ${label} account is out of credit. Add credit with ${label}, or save a different key in Settings.`;
+    case "credit_used":
+      return `You've used your $${FREE_CREDIT_USD.toFixed(2)} of free AI credit. Add your own ${label} API key in Settings to keep going.`;
     case "rate_limited":
       return `${label} is limiting requests on your key. Wait a moment and try again.`;
     case "unavailable":
