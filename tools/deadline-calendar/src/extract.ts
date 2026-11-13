@@ -125,7 +125,7 @@ When a graded item has no specific date (for example, "due the evening after the
 
 When the syllabus gives different dates for different sections or course numbers, list each version separately and name its section.
 
-When in doubt, set needsReview: a student would rather confirm a correct date than miss a wrong one. Always set it, with a note, for a date you worked out rather than read (for example, "8 PM the day before Class 12"), for an item that applies only to some sections, and for an item whose date or time the syllabus states differently in two places.
+When in doubt, set needsReview: a student would rather confirm a correct date than miss a wrong one. Always set it, with a note, for a date you worked out rather than read (for example, "8 PM the day before Class 12"), for an item that applies only to some sections, and for an item whose date or time the syllabus states differently in two places. Review is about when something is due, not what it's called: don't set needsReview just because you named or numbered an item yourself (for example, numbering problem sets the syllabus lists only by due date) when its date and time are clear.
 
 Times are 24-hour HH:MM: 11:59pm is 23:59 and noon is 12:00. Give an exam's start as time and its end as endTime. Use null when no time is given.
 

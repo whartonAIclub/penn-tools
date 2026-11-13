@@ -74,6 +74,8 @@ describe("extractDeadlines", () => {
     expect(request.system).toContain('"MKTG 612: Dynamic Marketing Strategy"');
     // Errs toward asking the student to check.
     expect(request.system).toContain("When in doubt, set needsReview");
+    // ...about dates and times, not the names the model gives items.
+    expect(request.system).toContain("Review is about when something is due, not what it's called");
     expect(request.messages[0]!.content).toContainEqual({ type: "pdf", filename: "ACCT6130.pdf", data: PDF_DATA });
   });
 

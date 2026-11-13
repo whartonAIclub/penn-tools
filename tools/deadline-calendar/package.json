@@ -11,6 +11,10 @@
     "./calendar": {
       "types": "./dist/calendar.d.ts",
       "import": "./dist/calendar.js"
+    },
+    "./workload": {
+      "types": "./dist/workload.d.ts",
+      "import": "./dist/workload.js"
     }
   },
   "main": "./dist/index.js",

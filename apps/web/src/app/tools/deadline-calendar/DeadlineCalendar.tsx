@@ -19,6 +19,7 @@ import {
   formatTime,
   type CalendarCourse,
 } from "@penntools/tool-deadline-calendar/calendar";
+import { busyWeeks, type BusyWeek } from "@penntools/tool-deadline-calendar/workload";
 import styles from "./DeadlineCalendar.module.css";
 
 /** The most syllabi at once: a full course load, with room to spare. */
@@ -142,12 +143,24 @@ function formatSize(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-/** "Quizzes 10% (best 5 of 7, 2 dropped)", "Homework 16% (all 4 count)" or "Final exam 34%". */
-function formatCategory({ category, percent, count, counted }: GradingCategory): string {
-  const share = `${category} ${percent}%`;
-  if (count === null || count < 2) return share;
-  if (counted === null) return `${share} (${count} items)`;
-  return counted === count ? `${share} (all ${count} count)` : `${share} (best ${counted} of ${count}, ${count - counted} dropped)`;
+/** "Nov 16 – 22", or "Nov 30 – Dec 6" across a month end: a week, or the dates a deadline's sections fall on. */
+function formatRange(start: string, end: string): string {
+  const parse = (date: string) => {
+    const [year, month, day] = date.split("-").map(Number);
+    return new Date(year!, month! - 1, day!);
+  };
+  const [from, to] = [parse(start), parse(end)];
+  const month = (d: Date) => d.toLocaleDateString("en-US", { month: "short" });
+  return from.getMonth() === to.getMonth()
+    ? `${month(from)} ${from.getDate()} – ${to.getDate()}`
+    : `${month(from)} ${from.getDate()} – ${month(to)} ${to.getDate()}`;
+}
+
+/** How a category's items count: "best 5 of 7, 2 dropped", "all 4 count", "4 items", or null for a single item. */
+function categoryDetail({ count, counted }: GradingCategory): string | null {
+  if (count === null || count < 2) return null;
+  if (counted === null) return `${count} items`;
+  return counted === count ? `all ${count} count` : `best ${counted} of ${count}, ${count - counted} dropped`;
 }
 
 /** What's left in a class: dated items to confirm, and undated ones, which need a date to go in the calendar. */
@@ -229,6 +242,9 @@ export function DeadlineCalendar({
 
   const reading = uploads.some((u) => u.state === "reading");
   const ready = uploads.filter((u) => u.state === "ready");
+  // Syllabi that failed to read (out of credit, a network hiccup) go again with the next Generate.
+  const failed = uploads.filter((u) => u.state === "error");
+  const toRead = [...ready, ...failed];
 
   function update(id: number, status: Status) {
     setUploads((current) => current.map((u) => (u.id === id ? { id: u.id, file: u.file, ...status } : u)));
@@ -272,7 +288,7 @@ export function DeadlineCalendar({
   async function findDeadlines() {
     setGenerated(true);
     setRejected([]);
-    const queue = [...ready];
+    const queue = [...toRead];
     for (const { id } of queue) update(id, { state: "reading" });
     // CONCURRENT_READS workers take files off the queue until it's empty.
     const worker = async () => {
@@ -305,6 +321,7 @@ export function DeadlineCalendar({
     grading: u.course.grading,
   }));
   const eventCount = calendarEventCount(calendarCourses);
+  const busy = busyWeeks(calendarCourses, today());
 
   // Classes that have been sent to be read; the ones still waiting are listed in step 1.
   const sent = uploads.filter((u) => u.state !== "ready");
@@ -385,12 +402,14 @@ export function DeadlineCalendar({
           </ul>
         )}
 
-        <button className={styles.primary} onClick={() => void findDeadlines()} disabled={ready.length === 0 || reading}>
+        <button className={styles.primary} onClick={() => void findDeadlines()} disabled={toRead.length === 0 || reading}>
           {reading
             ? "Generating your deadline calendar…"
-            : ready.length === 0
+            : toRead.length === 0
               ? "Generate deadline calendar"
-              : `Generate deadline calendar for ${plural(ready.length, "class", "classes")}`}
+              : ready.length === 0
+                ? `Try again for ${plural(failed.length, "class", "classes")}`
+                : `Generate deadline calendar for ${plural(toRead.length, "class", "classes")}`}
         </button>
 
         {providers.length > 1 ? (
@@ -486,6 +505,7 @@ export function DeadlineCalendar({
               <button className={styles.primary} onClick={() => downloadCalendar(calendarCourses)} disabled={eventCount === 0}>
                 Download calendar ({plural(eventCount, "deadline", "deadlines")})
               </button>
+              {busy.length > 0 && <BusyWeeks weeks={busy} />}
               {left.toCheck > 0 && (
                 <p className={styles.muted}>
                   {left.toCheck} {left.toCheck === 1 ? "item still needs" : "items still need"} checking. You can
@@ -675,6 +695,60 @@ function Badges({ badges, small = false }: { badges: Badge[]; small?: boolean })
   );
 }
 
+/** Deadline types in the order a busy week's summary lists them, heaviest first, with their plurals. */
+const TYPE_PLURALS: [Deadline["type"], string, string][] = [
+  ["exam", "exam", "exams"],
+  ["project", "project", "projects"],
+  ["presentation", "presentation", "presentations"],
+  ["quiz", "quiz", "quizzes"],
+  ["assignment", "assignment", "assignments"],
+  ["other", "other", "others"],
+];
+
+/** The upcoming weeks with the most work, across every class: one line each, opening to their deadlines. */
+function BusyWeeks({ weeks }: { weeks: BusyWeek[] }) {
+  return (
+    <div className={styles.busy} role="note">
+      <p className={styles.busyTitle}>
+        <span className={styles.busyIcon} aria-hidden="true">
+          !
+        </span>
+        Busy {weeks.length === 1 ? "week" : "weeks"} ahead
+      </p>
+      {weeks.map((week) => (
+        <details key={week.start} className={styles.busyWeek}>
+          <summary className={styles.busyWeekSummary}>
+            <span className={styles.busyWeekDates}>{formatRange(week.start, week.end)}</span>
+            <span className={styles.busyWeekTypes}>
+              {TYPE_PLURALS.flatMap(([type, one, many]) => {
+                const count = week.items.filter((i) => i.deadline.type === type).length;
+                return count > 0 ? [plural(count, one, many)] : [];
+              }).join(", ")}
+            </span>
+            <svg className={styles.busyChevron} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </summary>
+          <ul className={styles.busyItems}>
+            {week.items.map(({ course, deadline, dates }, i) => (
+              <li key={i}>
+                <span className={styles.busyDate}>
+                  {dates.length > 1 ? formatRange(dates[0]!, dates[dates.length - 1]!) : formatDate(dates[0]!)}
+                </span>
+                <span className={styles.busyName}>
+                  {courseCode(course) ? `${courseCode(course)}: ` : ""}
+                  {deadline.title}
+                  {dates.length > 1 && <span className={styles.busyNote}>Date depends on your section</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 function StepTitle({ number, title }: { number: number; title: string }) {
   return (
     <h2 className={styles.stepTitle}>
@@ -743,7 +817,9 @@ function Results({
   const left = remaining(course.deadlines);
   const allClear = left.toCheck + left.needDates === 0;
   const shown = onlyToCheck ? course.deadlines.filter(needsAttention) : course.deadlines;
-  const dated = shown.filter((d) => d.date !== null);
+  // Inside "Show all assignments": items to check first, then the rest, then the ones that need a date.
+  const toCheckDated = shown.filter((d) => d.date !== null && d.needsReview);
+  const otherDated = shown.filter((d) => d.date !== null && !d.needsReview);
   const undated = shown.filter((d) => d.date === null);
 
   // Fixing or confirming an item means the student has checked it. A new start
@@ -764,13 +840,25 @@ function Results({
     <>
       <div className={styles.classMeta}>
         <span>{plural(course.deadlines.length, "deadline", "deadlines")}</span>
-        {!allClear && <Badges badges={remainingBadges(left)} />}
       </div>
       {course.grading.length > 0 && (
-        <p className={styles.grading}>
+        <div className={styles.grading}>
           <span className={styles.gradingLabel}>Grading</span>
-          {course.grading.map(formatCategory).join(" · ")}
-        </p>
+          <ul className={styles.gradingList}>
+            {course.grading.map((g) => {
+              const detail = categoryDetail(g);
+              return (
+                <li key={g.category}>
+                  <span>
+                    {g.category}
+                    {detail && <span className={styles.gradingDetail}> · {detail}</span>}
+                  </span>
+                  <span className={styles.gradingPercent}>{g.percent}%</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       {course.deadlines.length === 0 && <p className={styles.muted}>No deadlines found. Check that this is the course syllabus.</p>}
@@ -782,46 +870,97 @@ function Results({
           All clear: nothing to check in this course.
         </p>
       )}
-
-      {dated.length > 0 && (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Deadline</th>
-                <th>Type</th>
-                <th>
-                  <span className={styles.visuallyHidden}>Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {dated.map((d) => (
-                <Row key={d.key} deadline={d} past={d.date! < now} {...actions(d)} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {left.toCheck > 0 && (
+        <p className={`${styles.attention} ${styles.attentionWarn}`} role="status">
+          <span className={styles.attentionIcon} aria-hidden="true">
+            !
+          </span>
+          <span>
+            <strong>{left.toCheck} to check:</strong> compare {left.toCheck === 1 ? "it" : "them"} with the syllabus in
+            &ldquo;Show all assignments&rdquo; below.
+          </span>
+        </p>
+      )}
+      {left.needDates > 0 && (
+        <p className={`${styles.attention} ${styles.attentionError}`} role="status">
+          <span className={styles.attentionIcon} aria-hidden="true">
+            !
+          </span>
+          <span>
+            <strong>
+              {left.needDates} {left.needDates === 1 ? "needs a date" : "need dates"}:
+            </strong>{" "}
+            add {left.needDates === 1 ? "a date" : "dates"} to put {left.needDates === 1 ? "it" : "them"} in your calendar.
+          </span>
+        </p>
       )}
 
-      {undated.length > 0 && (
-        <>
-          <h4 className={styles.subheading}>Needs a date</h4>
-          <p className={styles.muted}>Add a date to put these in your calendar.</p>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <tbody>
-                {undated.map((d) => (
-                  <Row key={d.key} deadline={d} past={false} {...actions(d)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+      {/* Everything folds away under one line, undated items too; showing only items to check opens it to them. */}
+      {shown.length > 0 && (
+        <details className={styles.allDeadlines} open={onlyToCheck || undefined}>
+          <summary>
+            {onlyToCheck ? `Show items to check (${shown.length})` : `Show all assignments (${shown.length})`}
+          </summary>
+          {toCheckDated.length > 0 && (
+            <>
+              <h4 className={styles.subheading}>Check these</h4>
+              <p className={styles.muted}>Compare each with the syllabus: click Looks right, or fix it.</p>
+              <DatedTable items={toCheckDated} now={now} actions={actions} />
+            </>
+          )}
+          {otherDated.length > 0 && (
+            <>
+              {/* Only needs a heading to set it apart from the items to check. */}
+              {toCheckDated.length > 0 && <h4 className={styles.subheading}>Other deadlines</h4>}
+              <DatedTable items={otherDated} now={now} actions={actions} />
+            </>
+          )}
+          {undated.length > 0 && (
+            <>
+              <h4 className={styles.subheading}>Needs a date</h4>
+              <p className={styles.muted}>Add a date to put these in your calendar.</p>
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <tbody>
+                    {undated.map((d) => (
+                      <Row key={d.key} deadline={d} past={false} {...actions(d)} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </details>
       )}
     </>
+  );
+}
+
+type RowActions = { onFix: (change: Fix) => void; onConfirm: () => void; onDelete: () => void };
+
+/** Dated deadlines as a table; ones before `now` are greyed and tagged Past. */
+function DatedTable({ items, now, actions }: { items: Item[]; now: string; actions: (d: Item) => RowActions }) {
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Deadline</th>
+            <th>Type</th>
+            <th>
+              <span className={styles.visuallyHidden}>Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((d) => (
+            <Row key={d.key} deadline={d} past={d.date! < now} {...actions(d)} />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
