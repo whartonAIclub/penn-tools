@@ -65,6 +65,29 @@ describe.skipIf(!databaseUrl)("checklist schema", () => {
     expect([...(await read())].map((r) => ({ ...r }))).toEqual(expected);
   });
 
+  it("re-running schema.sql renames the plural 'Pub Leaders' and recomputes each event's stored leader", async () => {
+    const [e] = await sql<{ id: string }[]>`
+      INSERT INTO events (title, event_type, organizer_name, created_by, pub_leader)
+      VALUES ('Plural', 'pub', 'Diva', 'u', 'Diva') RETURNING id`;
+    const [f] = await sql<{ id: string }[]>`
+      INSERT INTO events (title, event_type, organizer_name, created_by, pub_leader)
+      VALUES ('Led', 'pub', 'Old', 'u', 'Old') RETURNING id`;
+    await sql`INSERT INTO event_roles (event_id, position, role, person) VALUES
+      (${e!.id}, 0, 'CoS Owner', 'Diva'), (${e!.id}, 1, 'Pub Leaders', NULL),
+      (${f!.id}, 0, 'Pub Leaders', 'Ivana')`;
+    const state = async (id: string) => {
+      const [ev] = await sql<{ pub_leader: string | null; organizer_name: string }[]>`
+        SELECT pub_leader, organizer_name FROM events WHERE id = ${id}`;
+      const roles = await sql<{ role: string }[]>`SELECT role FROM event_roles WHERE event_id = ${id} ORDER BY position`;
+      return { ...ev!, roles: roles.map((r) => r.role) };
+    };
+    for (let run = 0; run < 2; run++) {
+      await sql.unsafe(schemaSql);
+      expect(await state(e!.id)).toEqual({ pub_leader: null, organizer_name: "Unassigned", roles: ["CoS Owner", "Pub Leader 1"] });
+      expect(await state(f!.id)).toEqual({ pub_leader: "Ivana", organizer_name: "Ivana", roles: ["Pub Leader 1"] });
+    }
+  });
+
   it("rejects an item with both an offset and a weekday anchor", async () => {
     await expect(insertItem("both", -3, 1)).rejects.toThrow();
   });

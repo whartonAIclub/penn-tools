@@ -27,6 +27,11 @@ describe("canonicalRole", () => {
     expect(canonicalRole("Club contact")).toBe("Club contact"); // unknown: kept, trimmed
   });
 
+  it("reads the calendar's plural 'Pub Leaders' heading as an unnumbered Pub Leader", () => {
+    expect(canonicalRole("Pub Leaders")).toBe("Pub Leader");
+    expect(normalizeRoles([{ role: "Pub Leaders", person: "Diva" }])).toEqual([{ role: "Pub Leader 1", person: "Diva" }]);
+  });
+
   it("collapses spaces and leaves every slot name as itself", () => {
     expect(canonicalRole("  Finance   Lead ")).toBe("Finance Lead");
     for (const slot of ROLE_SLOTS) expect(canonicalRole(slot)).toBe(slot);

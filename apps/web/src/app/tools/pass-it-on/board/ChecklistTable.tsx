@@ -13,6 +13,15 @@ import type { TaskRow, TaskStatus } from "@penntools/tool-pass-it-on";
 import styles from "../PassItOn.module.css";
 import { deleteTaskAction, updateTaskAction, type TaskChange } from "./actions";
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Nov 26" for a YYYY-MM-DD date, with the year added when it isn't this year's. */
+function shortDate(date: string, today: string): string {
+  const [year, month, day] = date.split("-");
+  const label = `${MONTHS[Number(month) - 1]} ${Number(day)}`;
+  return year === today.slice(0, 4) ? label : `${label}, ${year}`;
+}
+
 export interface ChecklistRow {
   task: TaskRow;
   /** 0 for a task, 1 for a subtask shown under its parent. */
@@ -214,8 +223,8 @@ function Row({
             </div>
           )}
         </td>
-        <td data-label="Due" className={overdue ? styles.overdue : styles.muted}>
-          {task.dueDate ?? "No date"}
+        <td data-label="Due" className={`${overdue ? styles.overdue : styles.muted} ${styles.dueCell}`}>
+          {task.dueDate ? <time dateTime={task.dueDate} title={task.dueDate}>{shortDate(task.dueDate, today)}</time> : "No date"}
         </td>
         <td data-label="Owner">
           <input

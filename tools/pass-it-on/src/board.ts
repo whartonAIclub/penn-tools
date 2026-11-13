@@ -7,7 +7,7 @@ import type { Area } from "./checklist.js";
 import type { RoleInput } from "./planning.js";
 import { isPubLeaderRole } from "./roles.js";
 
-/** True when someone holds Pub Leader 1, 2 or 3 (or the old unnumbered "Pub Leader"). Unlike `leaderOf`, no other named person stands in. */
+/** True when someone holds Pub Leader 1, 2 or 3 (or the old unnumbered "Pub Leader"). */
 export function hasPubLeader(roles: RoleInput[]): boolean {
   return roles.some((r) => isPubLeaderRole(r.role) && (r.person ?? "").trim() !== "");
 }

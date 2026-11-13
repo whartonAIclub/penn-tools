@@ -1,0 +1,879 @@
+- generic [ref=f5e1]:
+  - banner [ref=f5e2]:
+    - generic [ref=f5e3]:
+      - button "Hide tools" [expanded] [ref=f5e4] [cursor=pointer]
+      - link "PennTools" [ref=f5e7] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f5e8]:
+        - generic [aria-hidden] [ref=f5e9]: /
+        - link "Pass It On" [ref=f5e10] [cursor=pointer]:
+          - /url: /tools/pass-it-on
+        - button "Tool information" [ref=f5e12] [cursor=pointer]
+    - generic [ref=f5e15]:
+      - link "PennTools on GitHub" [ref=f5e16] [cursor=pointer]:
+        - /url: https://github.com/whartonAIclub/penn-tools
+        - generic [ref=f5e19]: GitHub
+      - link "Account settings" [ref=f5e20] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=f5e21]: L
+      - button "Log out" [ref=f5e22] [cursor=pointer]
+  - generic [ref=f5e23]:
+    - navigation "Tools" [ref=f5e24]:
+      - link "Dashboard" [ref=f5e25] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f5e27]:
+        - button "Recruiting" [expanded] [ref=f5e28] [cursor=pointer]
+        - list [ref=f5e33]:
+          - listitem [ref=f5e34]:
+            - link "MBA Tech Internships" [ref=f5e35] [cursor=pointer]:
+              - /url: https://github.com/TrevorDohm/MBA-Tech-Internships-2027
+          - listitem [ref=f5e40]:
+            - link "PM Zero to One" [ref=f5e41] [cursor=pointer]:
+              - /url: https://pmzerotoone.netlify.app/
+      - generic [ref=f5e46]:
+        - button "Academics" [expanded] [ref=f5e47] [cursor=pointer]
+        - list [ref=f5e52]:
+          - listitem [ref=f5e53]:
+            - link "QuakerCal" [ref=f5e54] [cursor=pointer]:
+              - /url: https://quakercal.vercel.app/
+          - listitem [ref=f5e59]:
+            - link "ROIC Tree Generator" [ref=f5e60] [cursor=pointer]:
+              - /url: https://roic-tree-generator.vercel.app/
+      - generic [ref=f5e65]:
+        - button "Productivity" [expanded] [ref=f5e66] [cursor=pointer]
+        - list [ref=f5e71]:
+          - listitem [ref=f5e72]:
+            - link "Defluffer" [ref=f5e73] [cursor=pointer]:
+              - /url: https://itayzit.github.io/defluffer/
+          - listitem [ref=f5e78]:
+            - link "ThankYouGPT" [ref=f5e79] [cursor=pointer]:
+              - /url: https://thank-you-gpt.com
+          - listitem [ref=f5e84]:
+            - link "StacTab" [ref=f5e85] [cursor=pointer]:
+              - /url: https://chromewebstore.google.com/detail/stactab/hdfcdcoogjkdogmnhhopkekanpldoefh
+          - listitem [ref=f5e90]:
+            - link "AI Compass" [ref=f5e91] [cursor=pointer]:
+              - /url: https://akshitkalra.com/aicompass
+          - listitem [ref=f5e96]:
+            - link "Pass It On BETA" [ref=f5e97] [cursor=pointer]:
+              - /url: /tools/pass-it-on
+              - generic [ref=f5e98]: Pass It On
+              - generic [ref=f5e99]: BETA
+      - generic [ref=f5e100]:
+        - button "LLM Tools BETA" [expanded] [ref=f5e101] [cursor=pointer]:
+          - generic [ref=f5e102]: LLM Tools
+          - generic [ref=f5e103]: BETA
+        - list [ref=f5e107]:
+          - listitem [ref=f5e108]:
+            - link "Resume Customizer" [ref=f5e109] [cursor=pointer]:
+              - /url: /tools/resume-customizer
+          - listitem [ref=f5e111]:
+            - link "Career Canvas" [ref=f5e112] [cursor=pointer]:
+              - /url: /tools/career-canvas
+          - listitem [ref=f5e114]:
+            - link "Penn Planner" [ref=f5e115] [cursor=pointer]:
+              - /url: /tools/penn-planner
+          - listitem [ref=f5e117]:
+            - link "CourseMatch Assist" [ref=f5e118] [cursor=pointer]:
+              - /url: /tools/coursematch-assist
+          - listitem [ref=f5e120]:
+            - link "PitchCoach AI" [ref=f5e121] [cursor=pointer]:
+              - /url: /tools/pitch-coach
+      - generic [ref=f5e123]:
+        - button "Platform" [expanded] [ref=f5e124] [cursor=pointer]
+        - list [ref=f5e129]:
+          - listitem [ref=f5e130]:
+            - link "Platform Playground" [ref=f5e131] [cursor=pointer]:
+              - /url: /tools/platform-playground
+          - listitem [ref=f5e133]:
+            - link "AskPenn BETA" [ref=f5e134] [cursor=pointer]:
+              - /url: /tools/askpenn
+              - generic [ref=f5e135]: AskPenn
+              - generic [ref=f5e136]: BETA
+    - main [ref=f5e140]:
+      - generic [ref=f5e141]:
+        - heading "Pass It On" [level=1] [ref=f5e142]
+        - navigation "Pass It On" [ref=f5e143]:
+          - link "Events" [ref=f5e144] [cursor=pointer]:
+            - /url: /tools/pass-it-on
+          - link "Roles" [ref=f5e145] [cursor=pointer]:
+            - /url: /tools/pass-it-on/roles
+          - link "Checklist" [ref=f5e146] [cursor=pointer]:
+            - /url: /tools/pass-it-on/board
+          - link "Calendar" [ref=f5e147] [cursor=pointer]:
+            - /url: /tools/pass-it-on/calendar
+          - link "Template" [ref=f5e148] [cursor=pointer]:
+            - /url: /tools/pass-it-on/template
+          - link "Library" [ref=f5e149] [cursor=pointer]:
+            - /url: /tools/pass-it-on/library
+          - link "Ask" [ref=f5e150] [cursor=pointer]:
+            - /url: /tools/pass-it-on/ask
+        - generic [ref=f5e151]:
+          - generic [ref=f5e152]:
+            - text: Event
+            - combobox "Event" [ref=f5e153]:
+              - option "All events"
+              - option "Ongoing to-dos"
+              - option "Pre-Term Pub (2026-08-14)"
+              - option "Free Pub (2026-08-25)"
+              - option "Sports Pub (2026-09-10)"
+              - option "AMERICA 250 (2026-09-17)"
+              - option "Oktoberfest (2026-09-24)"
+              - option "International Pub (2026-10-22)"
+              - option "Big Gay Halloween (2026-10-29)"
+              - option "Single's Pub (2026-11-05)"
+              - option "Chili Cook Off (2026-11-12)"
+              - option "QA Test Pub (delete me) (2026-12-10)" [selected]
+              - option "Baguettes Beer and Bangers - Euroski Reunion (2027-01-21)"
+              - option "Allow me to re-introduce myself (2027-01-28)"
+              - option "Beer Pong x Kid's Club (2027-02-04)"
+              - option "Black History Month (2027-02-11)"
+              - option "Follies Pub (2027-02-18)"
+              - option "St Paddy's Singles (2027-03-18)"
+              - option "TBD (2027-03-25)"
+              - option "Fight Night Weigh In (2027-04-01)"
+              - option "Hockey Playoffs (2027-04-08)"
+              - option "BoTB Preview (2027-04-15)"
+              - option "Green Pub (2027-04-22)"
+              - option "Grad Pub (2027-05-20)"
+          - generic [ref=f5e154]:
+            - text: Owner
+            - combobox "Owner" [ref=f5e155]
+          - generic [ref=f5e156]:
+            - text: Due
+            - combobox "Due" [ref=f5e157]:
+              - option "Any date" [selected]
+              - option "Overdue"
+              - option "Next 7 days"
+              - option "Next 14 days"
+          - generic [ref=f5e159]:
+            - checkbox "Show done" [checked] [ref=f5e160]
+            - text: Show done
+          - button "Filter" [ref=f5e161] [cursor=pointer]
+          - link "Clear" [ref=f5e162] [cursor=pointer]:
+            - /url: /tools/pass-it-on/board
+        - region "QA Test Pub (delete me)" [ref=f5e163]:
+          - generic [ref=f5e164]:
+            - heading [level=2] [ref=f5e165]:
+              - link "QA Test Pub (delete me)" [ref=f5e166] [cursor=pointer]:
+                - /url: /tools/pass-it-on/events/420fe626-929e-429f-965e-c78cc111f203
+            - generic [ref=f5e167]: 2026-12-10 · 1 of 46 done
+            - 'progressbar "QA Test Pub (delete me): 1 of 46 tasks done" [ref=f5e714]'
+          - table [ref=f5e169]:
+            - rowgroup [ref=f5e170]:
+              - row [ref=f5e171]:
+                - columnheader "Done" [ref=f5e172]: ✓
+                - columnheader "Task" [ref=f5e174]
+                - columnheader "Due" [ref=f5e175]
+                - columnheader "Owner" [ref=f5e176]
+                - columnheader "Status" [ref=f5e177]
+            - rowgroup [ref=f5e178]:
+              - row [ref=f5e179]:
+                - columnheader "Planning" [ref=f5e180]
+              - row [ref=f5e715]:
+                - cell [ref=f5e182]:
+                  - checkbox "Mark \"Make a group chat with the Presidents and CFO\" done" [checked] [active] [ref=f5e184] [cursor=pointer]
+                - 'cell "Make a group chat with the Presidents and CFO Assumed: confirm" [ref=f5e185]':
+                  - generic [ref=f5e186]: Make a group chat with the Presidents and CFO
+                  - generic [ref=f5e187]: "Assumed: confirm"
+                - cell "2026-11-26" [ref=f5e188]
+                - cell [ref=f5e189]:
+                  - combobox "Owner of \"Make a group chat with the Presidents and CFO\"" [ref=f5e190]: Diva
+                - cell "Done" [ref=f5e716]:
+                  - combobox "Status of \"Make a group chat with the Presidents and CFO\"" [ref=f5e192]:
+                    - option "To do"
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done" [selected]
+                    - option "Skipped"
+              - row [ref=f5e193]:
+                - cell [ref=f5e194]:
+                  - checkbox "Mark \"Create the event folder and planning doc\" done" [ref=f5e196] [cursor=pointer]
+                - cell "Create the event folder and planning doc" [ref=f5e197]
+                - cell "2026-11-26" [ref=f5e199]
+                - cell [ref=f5e200]:
+                  - combobox "Owner of \"Create the event folder and planning doc\"" [ref=f5e201]: Diva
+                - cell "To do" [ref=f5e202]:
+                  - combobox "Status of \"Create the event folder and planning doc\"" [ref=f5e203]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e204]:
+                - cell [ref=f5e205]:
+                  - checkbox "Mark \"Get deadlines approved by the Chief of Staff and a Co-President\" done" [ref=f5e207] [cursor=pointer]
+                - cell "Get deadlines approved by the Chief of Staff and a Co-President" [ref=f5e208]
+                - cell "2026-11-26" [ref=f5e210]
+                - cell [ref=f5e211]:
+                  - combobox "Owner of \"Get deadlines approved by the Chief of Staff and a Co-President\"" [ref=f5e212]: Diva
+                - cell "To do" [ref=f5e213]:
+                  - combobox "Status of \"Get deadlines approved by the Chief of Staff and a Co-President\"" [ref=f5e214]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e215]:
+                - cell [ref=f5e216]:
+                  - checkbox "Mark \"Official event flyer, and post to Instagram\" done" [ref=f5e218] [cursor=pointer]
+                - cell "Official event flyer, and post to Instagram" [ref=f5e219]
+                - cell "2026-11-26" [ref=f5e221]
+                - cell [ref=f5e222]:
+                  - combobox "Owner of \"Official event flyer, and post to Instagram\"" [ref=f5e223]: Manisha
+                - cell "To do" [ref=f5e224]:
+                  - combobox "Status of \"Official event flyer, and post to Instagram\"" [ref=f5e225]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e226]:
+                - cell [ref=f5e227]:
+                  - checkbox "Mark \"Send the flyer and blurb to Ops for CampusGroups\" done" [ref=f5e229] [cursor=pointer]
+                - cell "Send the flyer and blurb to Ops for CampusGroups" [ref=f5e230]
+                - cell "2026-11-26" [ref=f5e232]
+                - cell [ref=f5e233]:
+                  - combobox "Owner of \"Send the flyer and blurb to Ops for CampusGroups\"" [ref=f5e234]: Manisha
+                - cell "To do" [ref=f5e235]:
+                  - combobox "Status of \"Send the flyer and blurb to Ops for CampusGroups\"" [ref=f5e236]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e237]:
+                - cell [ref=f5e238]:
+                  - checkbox "Mark \"Submit venue and food fees for restricted-fund PO payment\" done" [ref=f5e240] [cursor=pointer]
+                - cell "Submit venue and food fees for restricted-fund PO payment" [ref=f5e241]
+                - cell "2026-11-30" [ref=f5e243]
+                - cell [ref=f5e244]:
+                  - combobox "Owner of \"Submit venue and food fees for restricted-fund PO payment\"" [ref=f5e245]: Marcela
+                - cell "To do" [ref=f5e246]:
+                  - combobox "Status of \"Submit venue and food fees for restricted-fund PO payment\"" [ref=f5e247]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e248]:
+                - cell [ref=f5e249]:
+                  - 'checkbox "Mark \"Arrange: Fog machine\" done" [ref=f5e251] [cursor=pointer]'
+                - 'cell "Arrange: Fog machine Remove by editing the event''s equipment list." [ref=f5e252]':
+                  - generic [ref=f5e253]: "Arrange: Fog machine"
+                  - generic [ref=f5e254]: Remove by editing the event's equipment list.
+                - cell "2026-12-03" [ref=f5e255]
+                - cell [ref=f5e256]:
+                  - 'combobox "Owner of \"Arrange: Fog machine\"" [ref=f5e257]': Michael
+                - cell "To do" [ref=f5e258]:
+                  - 'combobox "Status of \"Arrange: Fog machine\"" [ref=f5e259]':
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e260]:
+                - cell [ref=f5e261]:
+                  - checkbox "Mark \"Decide on membership specials, if any\" done" [ref=f5e263] [cursor=pointer]
+                - cell "Decide on membership specials, if any" [ref=f5e264]
+                - cell "2026-12-03" [ref=f5e266]
+                - cell [ref=f5e267]:
+                  - combobox "Owner of \"Decide on membership specials, if any\"" [ref=f5e268]
+                - cell "To do" [ref=f5e269]:
+                  - combobox "Status of \"Decide on membership specials, if any\"" [ref=f5e270]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e271]:
+                - cell [ref=f5e272]:
+                  - checkbox "Mark \"Finalize the event budget\" done" [ref=f5e274] [cursor=pointer]
+                - cell "Finalize the event budget Budget changes over $1,500 need a majority of the Co-Presidents (bylaws 4.2)" [ref=f5e275]:
+                  - generic [ref=f5e276]: Finalize the event budget
+                  - generic [ref=f5e277]: Budget changes over $1,500 need a majority of the Co-Presidents (bylaws 4.2)
+                - cell "2026-12-03" [ref=f5e278]
+                - cell [ref=f5e279]:
+                  - combobox "Owner of \"Finalize the event budget\"" [ref=f5e280]: Marcela
+                - cell "To do" [ref=f5e281]:
+                  - combobox "Status of \"Finalize the event budget\"" [ref=f5e282]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e283]:
+                - cell [ref=f5e284]:
+                  - checkbox "Mark \"Make and distribute the Partiful\" done" [ref=f5e286] [cursor=pointer]
+                - cell "Make and distribute the Partiful At the latest" [ref=f5e287]:
+                  - generic [ref=f5e288]: Make and distribute the Partiful
+                  - generic [ref=f5e289]: At the latest
+                - cell "2026-12-03" [ref=f5e290]
+                - cell [ref=f5e291]:
+                  - combobox "Owner of \"Make and distribute the Partiful\"" [ref=f5e292]: Manisha
+                - cell "To do" [ref=f5e293]:
+                  - combobox "Status of \"Make and distribute the Partiful\"" [ref=f5e294]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e295]:
+                - cell [ref=f5e296]:
+                  - checkbox "Mark \"Publish the event on CampusGroups\" done" [ref=f5e298] [cursor=pointer]
+                - cell "Publish the event on CampusGroups At the latest" [ref=f5e299]:
+                  - generic [ref=f5e300]: Publish the event on CampusGroups
+                  - generic [ref=f5e301]: At the latest
+                - cell "2026-12-03" [ref=f5e302]
+                - cell [ref=f5e303]:
+                  - combobox "Owner of \"Publish the event on CampusGroups\"" [ref=f5e304]: Michael
+                - cell "To do" [ref=f5e305]:
+                  - combobox "Status of \"Publish the event on CampusGroups\"" [ref=f5e306]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e307]:
+                - cell [ref=f5e308]:
+                  - checkbox "Mark \"Place the food order\" done" [ref=f5e310] [cursor=pointer]
+                - cell "Place the food order" [ref=f5e311]
+                - cell "2026-12-03" [ref=f5e313]
+                - cell [ref=f5e314]:
+                  - combobox "Owner of \"Place the food order\"" [ref=f5e315]: Michael
+                - cell "To do" [ref=f5e316]:
+                  - combobox "Status of \"Place the food order\"" [ref=f5e317]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e318]:
+                - cell [ref=f5e319]:
+                  - checkbox "Mark \"Pizza\" done" [ref=f5e321] [cursor=pointer]
+                - cell "Pizza" [ref=f5e322]
+                - cell "2026-12-03" [ref=f5e324]
+                - cell [ref=f5e325]:
+                  - combobox "Owner of \"Pizza\"" [ref=f5e326]: Michael
+                - cell "To do" [ref=f5e327]:
+                  - combobox "Status of \"Pizza\"" [ref=f5e328]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e329]:
+                - cell [ref=f5e330]:
+                  - checkbox "Mark \"Non-pizza snacks\" done" [ref=f5e332] [cursor=pointer]
+                - 'cell "Non-pizza snacks Past order: chicken tenders; wings x2, 1 buffalo and 1 BBQ; veg quesadillas x2; cheesesteak spring rolls x2; pigs in a blanket x2; pretzel x1" [ref=f5e333]':
+                  - generic [ref=f5e334]: Non-pizza snacks
+                  - generic [ref=f5e335]: "Past order: chicken tenders; wings x2, 1 buffalo and 1 BBQ; veg quesadillas x2; cheesesteak spring rolls x2; pigs in a blanket x2; pretzel x1"
+                - cell "2026-12-03" [ref=f5e336]
+                - cell [ref=f5e337]:
+                  - combobox "Owner of \"Non-pizza snacks\"" [ref=f5e338]: Michael
+                - cell "To do" [ref=f5e339]:
+                  - combobox "Status of \"Non-pizza snacks\"" [ref=f5e340]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e341]:
+                - cell [ref=f5e342]:
+                  - checkbox "Mark \"Fill in the catering tracker for this event\" done" [ref=f5e344] [cursor=pointer]
+                - cell "Fill in the catering tracker for this event" [ref=f5e345]
+                - cell "2026-12-03" [ref=f5e347]
+                - cell [ref=f5e348]:
+                  - combobox "Owner of \"Fill in the catering tracker for this event\"" [ref=f5e349]: Michael
+                - cell "To do" [ref=f5e350]:
+                  - combobox "Status of \"Fill in the catering tracker for this event\"" [ref=f5e351]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e352]:
+                - cell [ref=f5e353]:
+                  - checkbox "Mark \"WhatsApp message (Monday of event week)\" done" [ref=f5e355] [cursor=pointer]
+                - cell "WhatsApp message (Monday of event week)" [ref=f5e356]
+                - cell "2026-12-07" [ref=f5e358]
+                - cell [ref=f5e359]:
+                  - combobox "Owner of \"WhatsApp message (Monday of event week)\"" [ref=f5e360]: Manisha
+                - cell "To do" [ref=f5e361]:
+                  - combobox "Status of \"WhatsApp message (Monday of event week)\"" [ref=f5e362]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e363]:
+                - cell [ref=f5e364]:
+                  - checkbox "Mark \"Send the event email to members (get it reviewed first)\" done" [ref=f5e366] [cursor=pointer]
+                - cell "Send the event email to members (get it reviewed first)" [ref=f5e367]
+                - cell "2026-12-08" [ref=f5e369]
+                - cell [ref=f5e370]:
+                  - combobox "Owner of \"Send the event email to members (get it reviewed first)\"" [ref=f5e371]: Manisha
+                - cell "To do" [ref=f5e372]:
+                  - combobox "Status of \"Send the event email to members (get it reviewed first)\"" [ref=f5e373]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e374]:
+                - cell [ref=f5e375]:
+                  - checkbox "Mark \"Remind the board about tabling and the setup call time\" done" [ref=f5e377] [cursor=pointer]
+                - cell "Remind the board about tabling and the setup call time" [ref=f5e378]
+                - cell "2026-12-08" [ref=f5e380]
+                - cell [ref=f5e381]:
+                  - combobox "Owner of \"Remind the board about tabling and the setup call time\"" [ref=f5e382]: Manisha
+                - cell "To do" [ref=f5e383]:
+                  - combobox "Status of \"Remind the board about tabling and the setup call time\"" [ref=f5e384]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e385]:
+                - cell [ref=f5e386]:
+                  - checkbox "Mark \"Pack merch, wristbands, laptop and power strips\" done" [ref=f5e388] [cursor=pointer]
+                - cell "Pack merch, wristbands, laptop and power strips" [ref=f5e389]
+                - cell "2026-12-09" [ref=f5e391]
+                - cell [ref=f5e392]:
+                  - combobox "Owner of \"Pack merch, wristbands, laptop and power strips\"" [ref=f5e393]: Michael
+                - cell "To do" [ref=f5e394]:
+                  - combobox "Status of \"Pack merch, wristbands, laptop and power strips\"" [ref=f5e395]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e396]:
+                - cell [ref=f5e397]:
+                  - checkbox "Mark \"Print QR codes for tabling (drop-in ticket and membership sign-up)\" done" [ref=f5e399] [cursor=pointer]
+                - cell "Print QR codes for tabling (drop-in ticket and membership sign-up)" [ref=f5e400]
+                - cell "2026-12-09" [ref=f5e402]
+                - cell [ref=f5e403]:
+                  - combobox "Owner of \"Print QR codes for tabling (drop-in ticket and membership sign-up)\"" [ref=f5e404]: Michael
+                - cell "To do" [ref=f5e405]:
+                  - combobox "Status of \"Print QR codes for tabling (drop-in ticket and membership sign-up)\"" [ref=f5e406]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e407]:
+                - cell [ref=f5e408]:
+                  - checkbox "Mark \"Align on event partnerships (start of semester)\" done" [ref=f5e410] [cursor=pointer]
+                - cell "Align on event partnerships (start of semester)" [ref=f5e411]
+                - cell "No date" [ref=f5e413]
+                - cell [ref=f5e414]:
+                  - combobox "Owner of \"Align on event partnerships (start of semester)\"" [ref=f5e415]
+                - cell "To do" [ref=f5e416]:
+                  - combobox "Status of \"Align on event partnerships (start of semester)\"" [ref=f5e417]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+            - rowgroup [ref=f5e418]:
+              - row [ref=f5e419]:
+                - columnheader "Run of show" [ref=f5e420]
+              - row [ref=f5e421]:
+                - cell [ref=f5e422]:
+                  - checkbox "Mark \"WhatsApp message (event day)\" done" [ref=f5e424] [cursor=pointer]
+                - cell "WhatsApp message (event day)" [ref=f5e425]
+                - cell "2026-12-10" [ref=f5e427]
+                - cell [ref=f5e428]:
+                  - combobox "Owner of \"WhatsApp message (event day)\"" [ref=f5e429]: Manisha
+                - cell "To do" [ref=f5e430]:
+                  - combobox "Status of \"WhatsApp message (event day)\"" [ref=f5e431]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e432]:
+                - cell [ref=f5e433]:
+                  - checkbox "Mark \"Tabling shift (see the Tabling sheet)\" done" [ref=f5e435] [cursor=pointer]
+                - 'cell "Tabling shift (see the Tabling sheet) Assumed: confirm (Chili tabled 12–3 on the day)" [ref=f5e436]':
+                  - generic [ref=f5e437]: Tabling shift (see the Tabling sheet)
+                  - generic [ref=f5e438]: "Assumed: confirm (Chili tabled 12–3 on the day)"
+                - cell "2026-12-10" [ref=f5e439]
+                - cell [ref=f5e440]:
+                  - combobox "Owner of \"Tabling shift (see the Tabling sheet)\"" [ref=f5e441]: Diva
+                - cell "To do" [ref=f5e442]:
+                  - combobox "Status of \"Tabling shift (see the Tabling sheet)\"" [ref=f5e443]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e444]:
+                - cell [ref=f5e445]:
+                  - checkbox "Mark \"Set up speakers\" done" [ref=f5e447] [cursor=pointer]
+                - cell "Set up speakers" [ref=f5e448]
+                - cell "2026-12-10" [ref=f5e450]
+                - cell [ref=f5e451]:
+                  - combobox "Owner of \"Set up speakers\"" [ref=f5e452]: Billy
+                - cell "To do" [ref=f5e453]:
+                  - combobox "Status of \"Set up speakers\"" [ref=f5e454]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e455]:
+                - cell [ref=f5e456]:
+                  - checkbox "Mark \"Allocate the DJ\" done" [ref=f5e458] [cursor=pointer]
+                - cell "Allocate the DJ" [ref=f5e459]
+                - cell "2026-12-10" [ref=f5e461]
+                - cell [ref=f5e462]:
+                  - combobox "Owner of \"Allocate the DJ\"" [ref=f5e463]: Billy
+                - cell "To do" [ref=f5e464]:
+                  - combobox "Status of \"Allocate the DJ\"" [ref=f5e465]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e466]:
+                - cell [ref=f5e467]:
+                  - checkbox "Mark \"Confirm the food order\" done" [ref=f5e469] [cursor=pointer]
+                - cell "Confirm the food order" [ref=f5e470]
+                - cell "2026-12-10" [ref=f5e472]
+                - cell [ref=f5e473]:
+                  - combobox "Owner of \"Confirm the food order\"" [ref=f5e474]: Diva
+                - cell "To do" [ref=f5e475]:
+                  - combobox "Status of \"Confirm the food order\"" [ref=f5e476]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e477]:
+                - cell [ref=f5e478]:
+                  - checkbox "Mark \"Confirm setup with Entertainment and the venue\" done" [ref=f5e480] [cursor=pointer]
+                - cell "Confirm setup with Entertainment and the venue" [ref=f5e481]
+                - cell "2026-12-10" [ref=f5e483]
+                - cell [ref=f5e484]:
+                  - combobox "Owner of \"Confirm setup with Entertainment and the venue\"" [ref=f5e485]: Diva
+                - cell "To do" [ref=f5e486]:
+                  - combobox "Status of \"Confirm setup with Entertainment and the venue\"" [ref=f5e487]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e488]:
+                - cell [ref=f5e489]:
+                  - checkbox "Mark \"Print check-in materials\" done" [ref=f5e491] [cursor=pointer]
+                - cell "Print check-in materials" [ref=f5e492]
+                - cell "2026-12-10" [ref=f5e494]
+                - cell [ref=f5e495]:
+                  - combobox "Owner of \"Print check-in materials\"" [ref=f5e496]: Diva
+                - cell "To do" [ref=f5e497]:
+                  - combobox "Status of \"Print check-in materials\"" [ref=f5e498]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e499]:
+                - cell [ref=f5e500]:
+                  - checkbox "Mark \"Drop-in ticket QR (Venmo QR on the back?)\" done" [ref=f5e502] [cursor=pointer]
+                - cell "Drop-in ticket QR (Venmo QR on the back?)" [ref=f5e503]
+                - cell "2026-12-10" [ref=f5e505]
+                - cell [ref=f5e506]:
+                  - combobox "Owner of \"Drop-in ticket QR (Venmo QR on the back?)\"" [ref=f5e507]: Diva
+                - cell "To do" [ref=f5e508]:
+                  - combobox "Status of \"Drop-in ticket QR (Venmo QR on the back?)\"" [ref=f5e509]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e510]:
+                - cell [ref=f5e511]:
+                  - checkbox "Mark \"Membership sign-up sheet with the latest pricing\" done" [ref=f5e513] [cursor=pointer]
+                - cell "Membership sign-up sheet with the latest pricing" [ref=f5e514]
+                - cell "2026-12-10" [ref=f5e516]
+                - cell [ref=f5e517]:
+                  - combobox "Owner of \"Membership sign-up sheet with the latest pricing\"" [ref=f5e518]: Diva
+                - cell "To do" [ref=f5e519]:
+                  - combobox "Status of \"Membership sign-up sheet with the latest pricing\"" [ref=f5e520]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e521]:
+                - cell [ref=f5e522]:
+                  - checkbox "Mark \"Set up the check-in table\" done" [ref=f5e524] [cursor=pointer]
+                - cell "Set up the check-in table" [ref=f5e525]
+                - cell "2026-12-10" [ref=f5e527]
+                - cell [ref=f5e528]:
+                  - combobox "Owner of \"Set up the check-in table\"" [ref=f5e529]: Diva
+                - cell "To do" [ref=f5e530]:
+                  - combobox "Status of \"Set up the check-in table\"" [ref=f5e531]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e532]:
+                - cell [ref=f5e533]:
+                  - checkbox "Mark \"Pub team arrives for setup (the call time is in the event's notes)\" done" [ref=f5e535] [cursor=pointer]
+                - cell "Pub team arrives for setup (the call time is in the event's notes)" [ref=f5e536]
+                - cell "2026-12-10" [ref=f5e538]
+                - cell [ref=f5e539]:
+                  - combobox "Owner of \"Pub team arrives for setup (the call time is in the event's notes)\"" [ref=f5e540]: Diva
+                - cell "To do" [ref=f5e541]:
+                  - combobox "Status of \"Pub team arrives for setup (the call time is in the event's notes)\"" [ref=f5e542]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e543]:
+                - cell [ref=f5e544]:
+                  - checkbox "Mark \"Manage merch and membership sign-ups\" done" [ref=f5e546] [cursor=pointer]
+                - cell "Manage merch and membership sign-ups" [ref=f5e547]
+                - cell "2026-12-10" [ref=f5e549]
+                - cell [ref=f5e550]:
+                  - combobox "Owner of \"Manage merch and membership sign-ups\"" [ref=f5e551]: Diva
+                - cell "To do" [ref=f5e552]:
+                  - combobox "Status of \"Manage merch and membership sign-ups\"" [ref=f5e553]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e554]:
+                - cell [ref=f5e555]:
+                  - checkbox "Mark \"Support the check-in desk with the Pub Leaders\" done" [ref=f5e557] [cursor=pointer]
+                - cell "Support the check-in desk with the Pub Leaders" [ref=f5e558]
+                - cell "2026-12-10" [ref=f5e560]
+                - cell [ref=f5e561]:
+                  - combobox "Owner of \"Support the check-in desk with the Pub Leaders\"" [ref=f5e562]: Diva
+                - cell "To do" [ref=f5e563]:
+                  - combobox "Status of \"Support the check-in desk with the Pub Leaders\"" [ref=f5e564]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e565]:
+                - cell [ref=f5e566]:
+                  - checkbox "Mark \"Encourage sign-ups to memberships and spread the word\" done" [ref=f5e568] [cursor=pointer]
+                - cell "Encourage sign-ups to memberships and spread the word" [ref=f5e569]
+                - cell "2026-12-10" [ref=f5e571]
+                - cell [ref=f5e572]:
+                  - combobox "Owner of \"Encourage sign-ups to memberships and spread the word\"" [ref=f5e573]: Diva
+                - cell "To do" [ref=f5e574]:
+                  - combobox "Status of \"Encourage sign-ups to memberships and spread the word\"" [ref=f5e575]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e576]:
+                - cell [ref=f5e577]:
+                  - checkbox "Mark \"Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)\" done" [ref=f5e579] [cursor=pointer]
+                - cell "Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)" [ref=f5e580]
+                - cell "2026-12-10" [ref=f5e582]
+                - cell [ref=f5e583]:
+                  - combobox "Owner of \"Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)\"" [ref=f5e584]: Diva
+                - cell "To do" [ref=f5e585]:
+                  - combobox "Status of \"Manage the venue relationship (confirm tab progress with bar staff; stay within the finance-approved budget)\"" [ref=f5e586]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e587]:
+                - cell [ref=f5e588]:
+                  - checkbox "Mark \"Receive and manage the food order\" done" [ref=f5e590] [cursor=pointer]
+                - cell "Receive and manage the food order" [ref=f5e591]
+                - cell "2026-12-10" [ref=f5e593]
+                - cell [ref=f5e594]:
+                  - combobox "Owner of \"Receive and manage the food order\"" [ref=f5e595]: Diva
+                - cell "To do" [ref=f5e596]:
+                  - combobox "Status of \"Receive and manage the food order\"" [ref=f5e597]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e598]:
+                - cell [ref=f5e599]:
+                  - checkbox "Mark \"Distribute merch to early-bird sign-ups\" done" [ref=f5e601] [cursor=pointer]
+                - cell "Distribute merch to early-bird sign-ups" [ref=f5e602]
+                - cell "2026-12-10" [ref=f5e604]
+                - cell [ref=f5e605]:
+                  - combobox "Owner of \"Distribute merch to early-bird sign-ups\"" [ref=f5e606]: Diva
+                - cell "To do" [ref=f5e607]:
+                  - combobox "Status of \"Distribute merch to early-bird sign-ups\"" [ref=f5e608]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e609]:
+                - cell [ref=f5e610]:
+                  - checkbox "Mark \"Collect merch and props at close\" done" [ref=f5e612] [cursor=pointer]
+                - cell "Collect merch and props at close" [ref=f5e613]
+                - cell "2026-12-10" [ref=f5e615]
+                - cell [ref=f5e616]:
+                  - combobox "Owner of \"Collect merch and props at close\"" [ref=f5e617]: Diva
+                - cell "To do" [ref=f5e618]:
+                  - combobox "Status of \"Collect merch and props at close\"" [ref=f5e619]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e620]:
+                - cell [ref=f5e621]:
+                  - checkbox "Mark \"Take photos and post to the Instagram story\" done" [ref=f5e623] [cursor=pointer]
+                - cell "Take photos and post to the Instagram story" [ref=f5e624]
+                - cell "2026-12-10" [ref=f5e626]
+                - cell [ref=f5e627]:
+                  - combobox "Owner of \"Take photos and post to the Instagram story\"" [ref=f5e628]: Manisha
+                - cell "To do" [ref=f5e629]:
+                  - combobox "Status of \"Take photos and post to the Instagram story\"" [ref=f5e630]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e631]:
+                - cell [ref=f5e632]:
+                  - checkbox "Mark \"Return rented or borrowed equipment\" done" [ref=f5e634] [cursor=pointer]
+                - cell "Return rented or borrowed equipment Remove by editing the event's equipment list." [ref=f5e635]:
+                  - generic [ref=f5e636]: Return rented or borrowed equipment
+                  - generic [ref=f5e637]: Remove by editing the event's equipment list.
+                - cell "2026-12-11" [ref=f5e638]
+                - cell [ref=f5e639]:
+                  - combobox "Owner of \"Return rented or borrowed equipment\"" [ref=f5e640]: Michael
+                - cell "To do" [ref=f5e641]:
+                  - combobox "Status of \"Return rented or borrowed equipment\"" [ref=f5e642]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e643]:
+                - cell [ref=f5e644]:
+                  - checkbox "Mark \"Log attendance in the After Action tracker\" done" [ref=f5e646] [cursor=pointer]
+                - cell "Log attendance in the After Action tracker Chili did this at T+1" [ref=f5e647]:
+                  - generic [ref=f5e648]: Log attendance in the After Action tracker
+                  - generic [ref=f5e649]: Chili did this at T+1
+                - cell "2026-12-15" [ref=f5e650]
+                - cell [ref=f5e651]:
+                  - combobox "Owner of \"Log attendance in the After Action tracker\"" [ref=f5e652]: Diva
+                - cell "To do" [ref=f5e653]:
+                  - combobox "Status of \"Log attendance in the After Action tracker\"" [ref=f5e654]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e655]:
+                - cell [ref=f5e656]:
+                  - checkbox "Mark \"Submit event feedback to the post-event form\" done" [ref=f5e658] [cursor=pointer]
+                - cell "Submit event feedback to the post-event form" [ref=f5e659]
+                - cell "2026-12-15" [ref=f5e661]
+                - cell [ref=f5e662]:
+                  - combobox "Owner of \"Submit event feedback to the post-event form\"" [ref=f5e663]: Diva
+                - cell "To do" [ref=f5e664]:
+                  - combobox "Status of \"Submit event feedback to the post-event form\"" [ref=f5e665]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e666]:
+                - cell [ref=f5e667]:
+                  - checkbox "Mark \"Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)\" done" [ref=f5e669] [cursor=pointer]
+                - cell "Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)" [ref=f5e670]
+                - cell "2026-12-15" [ref=f5e672]
+                - cell [ref=f5e673]:
+                  - combobox "Owner of \"Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)\"" [ref=f5e674]: Marcela
+                - cell "To do" [ref=f5e675]:
+                  - combobox "Status of \"Submit receipts to Finance for reimbursement (see the Reimbursement Instructions)\"" [ref=f5e676]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e677]:
+                - cell [ref=f5e678]:
+                  - 'checkbox "Mark \"Post-mortem: answer the five questions\" done" [ref=f5e680] [cursor=pointer]'
+                - 'cell "Post-mortem: answer the five questions" [ref=f5e681]'
+                - cell "2026-12-15" [ref=f5e683]
+                - cell [ref=f5e684]:
+                  - 'combobox "Owner of \"Post-mortem: answer the five questions\"" [ref=f5e685]': Diva
+                - cell "To do" [ref=f5e686]:
+                  - 'combobox "Status of \"Post-mortem: answer the five questions\"" [ref=f5e687]':
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+              - row [ref=f5e688]:
+                - cell [ref=f5e689]:
+                  - checkbox "Mark \"Check reimbursement status\" done" [ref=f5e691] [cursor=pointer]
+                - cell "Check reimbursement status About 4 weeks with WGA plus 1–2 weeks to be paid; errors restart the clock" [ref=f5e692]:
+                  - generic [ref=f5e693]: Check reimbursement status
+                  - generic [ref=f5e694]: About 4 weeks with WGA plus 1–2 weeks to be paid; errors restart the clock
+                - cell "2027-01-14" [ref=f5e695]
+                - cell [ref=f5e696]:
+                  - combobox "Owner of \"Check reimbursement status\"" [ref=f5e697]: Marcela
+                - cell "To do" [ref=f5e698]:
+                  - combobox "Status of \"Check reimbursement status\"" [ref=f5e699]:
+                    - option "To do" [selected]
+                    - option "Doing"
+                    - option "Blocked"
+                    - option "Done"
+                    - option "Skipped"
+        - generic [ref=f5e700]:
+          - heading "Add a to-do" [level=3] [ref=f5e701]
+          - paragraph [ref=f5e702]: "For things the template doesn't cover: a one-off for one event, or an ongoing job like merch inventory."
+          - generic [ref=f5e703]:
+            - text: What needs doing
+            - textbox "What needs doing" [ref=f5e704]
+          - generic [ref=f5e705]:
+            - text: Owner
+            - combobox "Owner" [ref=f5e706]
+          - generic [ref=f5e707]:
+            - text: For event
+            - combobox "For event" [ref=f5e708]:
+              - 'option "None: an ongoing to-do" [selected]'
+              - option "Pre-Term Pub (2026-08-14)"
+              - option "Free Pub (2026-08-25)"
+              - option "Sports Pub (2026-09-10)"
+              - option "AMERICA 250 (2026-09-17)"
+              - option "Oktoberfest (2026-09-24)"
+              - option "International Pub (2026-10-22)"
+              - option "Big Gay Halloween (2026-10-29)"
+              - option "Single's Pub (2026-11-05)"
+              - option "Chili Cook Off (2026-11-12)"
+              - option "QA Test Pub (delete me) (2026-12-10)"
+              - option "Baguettes Beer and Bangers - Euroski Reunion (2027-01-21)"
+              - option "Allow me to re-introduce myself (2027-01-28)"
+              - option "Beer Pong x Kid's Club (2027-02-04)"
+              - option "Black History Month (2027-02-11)"
+              - option "Follies Pub (2027-02-18)"
+              - option "St Paddy's Singles (2027-03-18)"
+              - option "TBD (2027-03-25)"
+              - option "Fight Night Weigh In (2027-04-01)"
+              - option "Hockey Playoffs (2027-04-08)"
+              - option "BoTB Preview (2027-04-15)"
+              - option "Green Pub (2027-04-22)"
+              - option "Grad Pub (2027-05-20)"
+          - generic [ref=f5e709]:
+            - text: Due date (optional)
+            - textbox "Due date (optional)" [ref=f5e710]
+          - button "Add to-do" [disabled] [ref=f5e712]
+  - alert [ref=f5e713]

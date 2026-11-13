@@ -359,7 +359,7 @@ WHERE lower(regexp_replace(btrim(r.role), '\s+', ' ', 'g')) = v.variant AND r.ro
 WITH unnumbered AS (
   SELECT r.id, row_number() OVER (PARTITION BY r.event_id ORDER BY r.position, r.id) AS n, r.event_id
   FROM event_roles r
-  WHERE lower(regexp_replace(btrim(r.role), '\s+', ' ', 'g')) IN ('pub leader', 'leader')
+  WHERE lower(regexp_replace(btrim(r.role), '\s+', ' ', 'g')) IN ('pub leader', 'pub leaders', 'leader')
 ), free AS (
   SELECT e.event_id, g.num, row_number() OVER (PARTITION BY e.event_id ORDER BY g.num) AS n
   FROM (SELECT DISTINCT event_id FROM unnumbered) e
@@ -372,7 +372,7 @@ UPDATE event_roles r SET role = 'Pub Leader ' || f.num
 FROM unnumbered u JOIN free f ON f.event_id = u.event_id AND f.n = u.n
 WHERE r.id = u.id;
 UPDATE event_roles SET role = 'Pub Leader'
-WHERE lower(regexp_replace(btrim(role), '\s+', ' ', 'g')) IN ('pub leader', 'leader') AND role <> 'Pub Leader';
+WHERE lower(regexp_replace(btrim(role), '\s+', ' ', 'g')) IN ('pub leader', 'pub leaders', 'leader') AND role <> 'Pub Leader';
 
 -- Club-wide defaults for the lead roles: who holds a slot when an event names
 -- no one. Seeded once; later edits are kept (ON CONFLICT DO NOTHING).
@@ -400,3 +400,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS template_versions_source_idx ON template_versi
 -- Specialized equipment: the checkbox, and the items one per line.
 ALTER TABLE events ADD COLUMN IF NOT EXISTS needs_equipment BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS equipment       TEXT;
+
+-- The stored leader is the first named Pub Leader 1, 2 or 3, and nobody else
+-- (another named person used to stand in). Only rows that differ are touched.
+UPDATE events e SET pub_leader = l.leader, organizer_name = COALESCE(l.leader, 'Unassigned')
+FROM (
+  SELECT ev.id, (
+    SELECT r.person FROM event_roles r
+    WHERE r.event_id = ev.id AND r.role IN ('Pub Leader 1', 'Pub Leader 2', 'Pub Leader 3') AND btrim(coalesce(r.person, '')) <> ''
+    ORDER BY r.role LIMIT 1
+  ) AS leader
+  FROM events ev
+) l
+WHERE l.id = e.id
+  AND (e.pub_leader IS DISTINCT FROM l.leader OR e.organizer_name IS DISTINCT FROM COALESCE(l.leader, 'Unassigned'));

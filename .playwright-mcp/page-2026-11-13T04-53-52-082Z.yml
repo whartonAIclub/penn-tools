@@ -1,0 +1,675 @@
+- generic [active] [ref=f7e1]:
+  - banner [ref=f7e2]:
+    - generic [ref=f7e3]:
+      - button "Hide tools" [expanded] [ref=f7e4] [cursor=pointer]
+      - link "PennTools" [ref=f7e7] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f7e8]:
+        - generic [aria-hidden] [ref=f7e9]: /
+        - link "Pass It On" [ref=f7e10] [cursor=pointer]:
+          - /url: /tools/pass-it-on
+        - button "Tool information" [ref=f7e12] [cursor=pointer]
+    - generic [ref=f7e15]:
+      - link "PennTools on GitHub" [ref=f7e16] [cursor=pointer]:
+        - /url: https://github.com/whartonAIclub/penn-tools
+        - generic [ref=f7e19]: GitHub
+      - link "Account settings" [ref=f7e20] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=f7e21]: L
+      - button "Log out" [ref=f7e22] [cursor=pointer]
+  - generic [ref=f7e23]:
+    - navigation "Tools" [ref=f7e24]:
+      - link "Dashboard" [ref=f7e25] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f7e27]:
+        - button "Recruiting" [expanded] [ref=f7e28] [cursor=pointer]
+        - list [ref=f7e33]:
+          - listitem [ref=f7e34]:
+            - link "MBA Tech Internships" [ref=f7e35] [cursor=pointer]:
+              - /url: https://github.com/TrevorDohm/MBA-Tech-Internships-2027
+          - listitem [ref=f7e40]:
+            - link "PM Zero to One" [ref=f7e41] [cursor=pointer]:
+              - /url: https://pmzerotoone.netlify.app/
+      - generic [ref=f7e46]:
+        - button "Academics" [expanded] [ref=f7e47] [cursor=pointer]
+        - list [ref=f7e52]:
+          - listitem [ref=f7e53]:
+            - link "QuakerCal" [ref=f7e54] [cursor=pointer]:
+              - /url: https://quakercal.vercel.app/
+          - listitem [ref=f7e59]:
+            - link "ROIC Tree Generator" [ref=f7e60] [cursor=pointer]:
+              - /url: https://roic-tree-generator.vercel.app/
+      - generic [ref=f7e65]:
+        - button "Productivity" [expanded] [ref=f7e66] [cursor=pointer]
+        - list [ref=f7e71]:
+          - listitem [ref=f7e72]:
+            - link "Defluffer" [ref=f7e73] [cursor=pointer]:
+              - /url: https://itayzit.github.io/defluffer/
+          - listitem [ref=f7e78]:
+            - link "ThankYouGPT" [ref=f7e79] [cursor=pointer]:
+              - /url: https://thank-you-gpt.com
+          - listitem [ref=f7e84]:
+            - link "StacTab" [ref=f7e85] [cursor=pointer]:
+              - /url: https://chromewebstore.google.com/detail/stactab/hdfcdcoogjkdogmnhhopkekanpldoefh
+          - listitem [ref=f7e90]:
+            - link "AI Compass" [ref=f7e91] [cursor=pointer]:
+              - /url: https://akshitkalra.com/aicompass
+          - listitem [ref=f7e96]:
+            - link "Pass It On BETA" [ref=f7e97] [cursor=pointer]:
+              - /url: /tools/pass-it-on
+              - generic [ref=f7e98]: Pass It On
+              - generic [ref=f7e99]: BETA
+      - generic [ref=f7e100]:
+        - button "LLM Tools BETA" [expanded] [ref=f7e101] [cursor=pointer]:
+          - generic [ref=f7e102]: LLM Tools
+          - generic [ref=f7e103]: BETA
+        - list [ref=f7e107]:
+          - listitem [ref=f7e108]:
+            - link "Resume Customizer" [ref=f7e109] [cursor=pointer]:
+              - /url: /tools/resume-customizer
+          - listitem [ref=f7e111]:
+            - link "Career Canvas" [ref=f7e112] [cursor=pointer]:
+              - /url: /tools/career-canvas
+          - listitem [ref=f7e114]:
+            - link "Penn Planner" [ref=f7e115] [cursor=pointer]:
+              - /url: /tools/penn-planner
+          - listitem [ref=f7e117]:
+            - link "CourseMatch Assist" [ref=f7e118] [cursor=pointer]:
+              - /url: /tools/coursematch-assist
+          - listitem [ref=f7e120]:
+            - link "PitchCoach AI" [ref=f7e121] [cursor=pointer]:
+              - /url: /tools/pitch-coach
+      - generic [ref=f7e123]:
+        - button "Platform" [expanded] [ref=f7e124] [cursor=pointer]
+        - list [ref=f7e129]:
+          - listitem [ref=f7e130]:
+            - link "Platform Playground" [ref=f7e131] [cursor=pointer]:
+              - /url: /tools/platform-playground
+          - listitem [ref=f7e133]:
+            - link "AskPenn BETA" [ref=f7e134] [cursor=pointer]:
+              - /url: /tools/askpenn
+              - generic [ref=f7e135]: AskPenn
+              - generic [ref=f7e136]: BETA
+    - main [ref=f7e140]:
+      - generic [ref=f7e141]:
+        - heading "Pass It On" [level=1] [ref=f7e142]
+        - navigation "Pass It On" [ref=f7e143]:
+          - link "Events" [ref=f7e144] [cursor=pointer]:
+            - /url: /tools/pass-it-on
+          - link "Roles" [ref=f7e145] [cursor=pointer]:
+            - /url: /tools/pass-it-on/roles
+          - link "Checklist" [ref=f7e146] [cursor=pointer]:
+            - /url: /tools/pass-it-on/board
+          - link "Calendar" [ref=f7e147] [cursor=pointer]:
+            - /url: /tools/pass-it-on/calendar
+          - link "Template" [ref=f7e148] [cursor=pointer]:
+            - /url: /tools/pass-it-on/template
+          - link "Library" [ref=f7e149] [cursor=pointer]:
+            - /url: /tools/pass-it-on/library
+          - link "Ask" [ref=f7e150] [cursor=pointer]:
+            - /url: /tools/pass-it-on/ask
+        - generic [ref=f7e151]:
+          - generic [ref=f7e152]:
+            - heading "Roles by event" [level=2] [ref=f7e153]
+            - link "Show past events" [ref=f7e154] [cursor=pointer]:
+              - /url: /tools/pass-it-on/roles?past=1
+          - paragraph [ref=f7e155]: Type a name and move on to save it. Two people can share a cell, like Diva/Arjun. Greyed names are the club default.
+          - table [ref=f7e157]:
+            - rowgroup [ref=f7e158]:
+              - row [ref=f7e159]:
+                - columnheader "Event" [ref=f7e160]
+                - columnheader "Date" [ref=f7e161]
+                - columnheader "CoS Owner" [ref=f7e162]
+                - columnheader "Pub Leader 1" [ref=f7e163]
+                - columnheader "Pub Leader 2" [ref=f7e164]
+                - columnheader "Pub Leader 3" [ref=f7e165]
+                - columnheader "Prez Owner" [ref=f7e166]
+                - columnheader "Ops Lead" [ref=f7e167]
+                - columnheader "Marketing Lead" [ref=f7e168]
+                - columnheader "Finance Lead" [ref=f7e169]
+                - columnheader "Entertainment Lead" [ref=f7e170]
+            - rowgroup [ref=f7e171]:
+              - row [ref=f7e172]:
+                - rowheader "Chili Cook Off" [ref=f7e173]
+                - cell "2026-11-12" [ref=f7e174]
+                - cell [ref=f7e175]:
+                  - textbox "CoS Owner for Chili Cook Off" [ref=f7e176]:
+                    - /placeholder: ""
+                    - text: Bridget
+                - cell [ref=f7e177]:
+                  - textbox "Pub Leader 1 for Chili Cook Off" [ref=f7e178]:
+                    - /placeholder: ""
+                    - text: Diva
+                - cell [ref=f7e179]:
+                  - textbox "Pub Leader 2 for Chili Cook Off" [ref=f7e180]:
+                    - /placeholder: ""
+                - cell [ref=f7e181]:
+                  - textbox "Pub Leader 3 for Chili Cook Off" [ref=f7e182]:
+                    - /placeholder: ""
+                - cell [ref=f7e183]:
+                  - textbox "Prez Owner for Chili Cook Off" [ref=f7e184]:
+                    - /placeholder: ""
+                - cell [ref=f7e185]:
+                  - textbox "Ops Lead for Chili Cook Off" [ref=f7e186]:
+                    - /placeholder: Michael
+                - cell [ref=f7e187]:
+                  - textbox "Marketing Lead for Chili Cook Off" [ref=f7e188]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e189]:
+                  - textbox "Finance Lead for Chili Cook Off" [ref=f7e190]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e191]:
+                  - textbox "Entertainment Lead for Chili Cook Off" [ref=f7e192]:
+                    - /placeholder: Billy
+              - row [ref=f7e193]:
+                - rowheader "QA Test Pub (delete me)" [ref=f7e194]
+                - cell "2026-12-10" [ref=f7e195]
+                - cell [ref=f7e196]:
+                  - textbox "CoS Owner for QA Test Pub (delete me)" [ref=f7e197]:
+                    - /placeholder: ""
+                - cell [ref=f7e198]:
+                  - textbox "Pub Leader 1 for QA Test Pub (delete me)" [ref=f7e199]:
+                    - /placeholder: ""
+                    - text: Diva
+                - cell [ref=f7e200]:
+                  - textbox "Pub Leader 2 for QA Test Pub (delete me)" [ref=f7e201]:
+                    - /placeholder: ""
+                - cell [ref=f7e202]:
+                  - textbox "Pub Leader 3 for QA Test Pub (delete me)" [ref=f7e203]:
+                    - /placeholder: ""
+                - cell [ref=f7e204]:
+                  - textbox "Prez Owner for QA Test Pub (delete me)" [ref=f7e205]:
+                    - /placeholder: ""
+                - cell [ref=f7e206]:
+                  - textbox "Ops Lead for QA Test Pub (delete me)" [ref=f7e207]:
+                    - /placeholder: Michael
+                - cell [ref=f7e208]:
+                  - textbox "Marketing Lead for QA Test Pub (delete me)" [ref=f7e209]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e210]:
+                  - textbox "Finance Lead for QA Test Pub (delete me)" [ref=f7e211]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e212]:
+                  - textbox "Entertainment Lead for QA Test Pub (delete me)" [ref=f7e213]:
+                    - /placeholder: Billy
+              - row [ref=f7e214]:
+                - rowheader "Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e215]
+                - cell "2027-01-21" [ref=f7e216]
+                - cell [ref=f7e217]:
+                  - textbox "CoS Owner for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e218]:
+                    - /placeholder: ""
+                    - text: Diva
+                - cell [ref=f7e219]:
+                  - textbox "Pub Leader 1 for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e220]:
+                    - /placeholder: ""
+                - cell [ref=f7e221]:
+                  - textbox "Pub Leader 2 for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e222]:
+                    - /placeholder: ""
+                - cell [ref=f7e223]:
+                  - textbox "Pub Leader 3 for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e224]:
+                    - /placeholder: ""
+                - cell [ref=f7e225]:
+                  - textbox "Prez Owner for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e226]:
+                    - /placeholder: ""
+                - cell [ref=f7e227]:
+                  - textbox "Ops Lead for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e228]:
+                    - /placeholder: Michael
+                - cell [ref=f7e229]:
+                  - textbox "Marketing Lead for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e230]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e231]:
+                  - textbox "Finance Lead for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e232]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e233]:
+                  - textbox "Entertainment Lead for Baguettes Beer and Bangers - Euroski Reunion" [ref=f7e234]:
+                    - /placeholder: Billy
+              - row [ref=f7e235]:
+                - rowheader "Allow me to re-introduce myself" [ref=f7e236]
+                - cell "2027-01-28" [ref=f7e237]
+                - cell [ref=f7e238]:
+                  - textbox "CoS Owner for Allow me to re-introduce myself" [ref=f7e239]:
+                    - /placeholder: ""
+                    - text: Arjun
+                - cell [ref=f7e240]:
+                  - textbox "Pub Leader 1 for Allow me to re-introduce myself" [ref=f7e241]:
+                    - /placeholder: ""
+                - cell [ref=f7e242]:
+                  - textbox "Pub Leader 2 for Allow me to re-introduce myself" [ref=f7e243]:
+                    - /placeholder: ""
+                - cell [ref=f7e244]:
+                  - textbox "Pub Leader 3 for Allow me to re-introduce myself" [ref=f7e245]:
+                    - /placeholder: ""
+                - cell [ref=f7e246]:
+                  - textbox "Prez Owner for Allow me to re-introduce myself" [ref=f7e247]:
+                    - /placeholder: ""
+                - cell [ref=f7e248]:
+                  - textbox "Ops Lead for Allow me to re-introduce myself" [ref=f7e249]:
+                    - /placeholder: Michael
+                - cell [ref=f7e250]:
+                  - textbox "Marketing Lead for Allow me to re-introduce myself" [ref=f7e251]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e252]:
+                  - textbox "Finance Lead for Allow me to re-introduce myself" [ref=f7e253]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e254]:
+                  - textbox "Entertainment Lead for Allow me to re-introduce myself" [ref=f7e255]:
+                    - /placeholder: Billy
+              - row [ref=f7e256]:
+                - rowheader "Beer Pong x Kid's Club" [ref=f7e257]
+                - cell "2027-02-04" [ref=f7e258]
+                - cell [ref=f7e259]:
+                  - textbox "CoS Owner for Beer Pong x Kid's Club" [ref=f7e260]:
+                    - /placeholder: ""
+                    - text: Benji
+                - cell [ref=f7e261]:
+                  - textbox "Pub Leader 1 for Beer Pong x Kid's Club" [ref=f7e262]:
+                    - /placeholder: ""
+                - cell [ref=f7e263]:
+                  - textbox "Pub Leader 2 for Beer Pong x Kid's Club" [ref=f7e264]:
+                    - /placeholder: ""
+                - cell [ref=f7e265]:
+                  - textbox "Pub Leader 3 for Beer Pong x Kid's Club" [ref=f7e266]:
+                    - /placeholder: ""
+                - cell [ref=f7e267]:
+                  - textbox "Prez Owner for Beer Pong x Kid's Club" [ref=f7e268]:
+                    - /placeholder: ""
+                - cell [ref=f7e269]:
+                  - textbox "Ops Lead for Beer Pong x Kid's Club" [ref=f7e270]:
+                    - /placeholder: Michael
+                - cell [ref=f7e271]:
+                  - textbox "Marketing Lead for Beer Pong x Kid's Club" [ref=f7e272]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e273]:
+                  - textbox "Finance Lead for Beer Pong x Kid's Club" [ref=f7e274]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e275]:
+                  - textbox "Entertainment Lead for Beer Pong x Kid's Club" [ref=f7e276]:
+                    - /placeholder: Billy
+              - row [ref=f7e277]:
+                - rowheader "Black History Month" [ref=f7e278]
+                - cell "2027-02-11" [ref=f7e279]
+                - cell [ref=f7e280]:
+                  - textbox "CoS Owner for Black History Month" [ref=f7e281]:
+                    - /placeholder: ""
+                    - text: Diva
+                - cell [ref=f7e282]:
+                  - textbox "Pub Leader 1 for Black History Month" [ref=f7e283]:
+                    - /placeholder: ""
+                - cell [ref=f7e284]:
+                  - textbox "Pub Leader 2 for Black History Month" [ref=f7e285]:
+                    - /placeholder: ""
+                - cell [ref=f7e286]:
+                  - textbox "Pub Leader 3 for Black History Month" [ref=f7e287]:
+                    - /placeholder: ""
+                - cell [ref=f7e288]:
+                  - textbox "Prez Owner for Black History Month" [ref=f7e289]:
+                    - /placeholder: ""
+                - cell [ref=f7e290]:
+                  - textbox "Ops Lead for Black History Month" [ref=f7e291]:
+                    - /placeholder: Michael
+                - cell [ref=f7e292]:
+                  - textbox "Marketing Lead for Black History Month" [ref=f7e293]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e294]:
+                  - textbox "Finance Lead for Black History Month" [ref=f7e295]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e296]:
+                  - textbox "Entertainment Lead for Black History Month" [ref=f7e297]:
+                    - /placeholder: Billy
+              - row [ref=f7e298]:
+                - rowheader "Follies Pub" [ref=f7e299]
+                - cell "2027-02-18" [ref=f7e300]
+                - cell [ref=f7e301]:
+                  - textbox "CoS Owner for Follies Pub" [ref=f7e302]:
+                    - /placeholder: ""
+                    - text: Diva
+                - cell [ref=f7e303]:
+                  - textbox "Pub Leader 1 for Follies Pub" [ref=f7e304]:
+                    - /placeholder: ""
+                - cell [ref=f7e305]:
+                  - textbox "Pub Leader 2 for Follies Pub" [ref=f7e306]:
+                    - /placeholder: ""
+                - cell [ref=f7e307]:
+                  - textbox "Pub Leader 3 for Follies Pub" [ref=f7e308]:
+                    - /placeholder: ""
+                - cell [ref=f7e309]:
+                  - textbox "Prez Owner for Follies Pub" [ref=f7e310]:
+                    - /placeholder: ""
+                - cell [ref=f7e311]:
+                  - textbox "Ops Lead for Follies Pub" [ref=f7e312]:
+                    - /placeholder: Michael
+                - cell [ref=f7e313]:
+                  - textbox "Marketing Lead for Follies Pub" [ref=f7e314]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e315]:
+                  - textbox "Finance Lead for Follies Pub" [ref=f7e316]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e317]:
+                  - textbox "Entertainment Lead for Follies Pub" [ref=f7e318]:
+                    - /placeholder: Billy
+              - row [ref=f7e319]:
+                - rowheader "St Paddy's Singles" [ref=f7e320]
+                - cell "2027-03-18" [ref=f7e321]
+                - cell [ref=f7e322]:
+                  - textbox "CoS Owner for St Paddy's Singles" [ref=f7e323]:
+                    - /placeholder: ""
+                    - text: Bridget
+                - cell [ref=f7e324]:
+                  - textbox "Pub Leader 1 for St Paddy's Singles" [ref=f7e325]:
+                    - /placeholder: ""
+                    - text: Ivana
+                - cell [ref=f7e326]:
+                  - textbox "Pub Leader 2 for St Paddy's Singles" [ref=f7e327]:
+                    - /placeholder: ""
+                    - text: Nihar
+                - cell [ref=f7e328]:
+                  - textbox "Pub Leader 3 for St Paddy's Singles" [ref=f7e329]:
+                    - /placeholder: ""
+                    - text: Jake
+                - cell [ref=f7e330]:
+                  - textbox "Prez Owner for St Paddy's Singles" [ref=f7e331]:
+                    - /placeholder: ""
+                    - text: Arjun
+                - cell [ref=f7e332]:
+                  - textbox "Ops Lead for St Paddy's Singles" [ref=f7e333]:
+                    - /placeholder: Michael
+                - cell [ref=f7e334]:
+                  - textbox "Marketing Lead for St Paddy's Singles" [ref=f7e335]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e336]:
+                  - textbox "Finance Lead for St Paddy's Singles" [ref=f7e337]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e338]:
+                  - textbox "Entertainment Lead for St Paddy's Singles" [ref=f7e339]:
+                    - /placeholder: Billy
+              - row [ref=f7e340]:
+                - rowheader "TBD" [ref=f7e341]
+                - cell "2027-03-25" [ref=f7e342]
+                - cell [ref=f7e343]:
+                  - textbox "CoS Owner for TBD" [ref=f7e344]:
+                    - /placeholder: ""
+                    - text: Justin
+                - cell [ref=f7e345]:
+                  - textbox "Pub Leader 1 for TBD" [ref=f7e346]:
+                    - /placeholder: ""
+                    - text: Mark
+                - cell [ref=f7e347]:
+                  - textbox "Pub Leader 2 for TBD" [ref=f7e348]:
+                    - /placeholder: ""
+                - cell [ref=f7e349]:
+                  - textbox "Pub Leader 3 for TBD" [ref=f7e350]:
+                    - /placeholder: ""
+                - cell [ref=f7e351]:
+                  - textbox "Prez Owner for TBD" [ref=f7e352]:
+                    - /placeholder: ""
+                - cell [ref=f7e353]:
+                  - textbox "Ops Lead for TBD" [ref=f7e354]:
+                    - /placeholder: Michael
+                - cell [ref=f7e355]:
+                  - textbox "Marketing Lead for TBD" [ref=f7e356]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e357]:
+                  - textbox "Finance Lead for TBD" [ref=f7e358]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e359]:
+                  - textbox "Entertainment Lead for TBD" [ref=f7e360]:
+                    - /placeholder: Billy
+              - row [ref=f7e361]:
+                - rowheader "Fight Night Weigh In" [ref=f7e362]
+                - cell "2027-04-01" [ref=f7e363]
+                - cell [ref=f7e364]:
+                  - textbox "CoS Owner for Fight Night Weigh In" [ref=f7e365]:
+                    - /placeholder: ""
+                    - text: Marcela
+                - cell [ref=f7e366]:
+                  - textbox "Pub Leader 1 for Fight Night Weigh In" [ref=f7e367]:
+                    - /placeholder: ""
+                - cell [ref=f7e368]:
+                  - textbox "Pub Leader 2 for Fight Night Weigh In" [ref=f7e369]:
+                    - /placeholder: ""
+                - cell [ref=f7e370]:
+                  - textbox "Pub Leader 3 for Fight Night Weigh In" [ref=f7e371]:
+                    - /placeholder: ""
+                - cell [ref=f7e372]:
+                  - textbox "Prez Owner for Fight Night Weigh In" [ref=f7e373]:
+                    - /placeholder: ""
+                - cell [ref=f7e374]:
+                  - textbox "Ops Lead for Fight Night Weigh In" [ref=f7e375]:
+                    - /placeholder: Michael
+                - cell [ref=f7e376]:
+                  - textbox "Marketing Lead for Fight Night Weigh In" [ref=f7e377]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e378]:
+                  - textbox "Finance Lead for Fight Night Weigh In" [ref=f7e379]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e380]:
+                  - textbox "Entertainment Lead for Fight Night Weigh In" [ref=f7e381]:
+                    - /placeholder: Billy
+              - row [ref=f7e382]:
+                - rowheader "Hockey Playoffs" [ref=f7e383]
+                - cell "2027-04-08" [ref=f7e384]
+                - cell [ref=f7e385]:
+                  - textbox "CoS Owner for Hockey Playoffs" [ref=f7e386]:
+                    - /placeholder: ""
+                    - text: Benju
+                - cell [ref=f7e387]:
+                  - textbox "Pub Leader 1 for Hockey Playoffs" [ref=f7e388]:
+                    - /placeholder: ""
+                - cell [ref=f7e389]:
+                  - textbox "Pub Leader 2 for Hockey Playoffs" [ref=f7e390]:
+                    - /placeholder: ""
+                - cell [ref=f7e391]:
+                  - textbox "Pub Leader 3 for Hockey Playoffs" [ref=f7e392]:
+                    - /placeholder: ""
+                - cell [ref=f7e393]:
+                  - textbox "Prez Owner for Hockey Playoffs" [ref=f7e394]:
+                    - /placeholder: ""
+                - cell [ref=f7e395]:
+                  - textbox "Ops Lead for Hockey Playoffs" [ref=f7e396]:
+                    - /placeholder: Michael
+                - cell [ref=f7e397]:
+                  - textbox "Marketing Lead for Hockey Playoffs" [ref=f7e398]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e399]:
+                  - textbox "Finance Lead for Hockey Playoffs" [ref=f7e400]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e401]:
+                  - textbox "Entertainment Lead for Hockey Playoffs" [ref=f7e402]:
+                    - /placeholder: Billy
+              - row [ref=f7e403]:
+                - rowheader "BoTB Preview" [ref=f7e404]
+                - cell "2027-04-15" [ref=f7e405]
+                - cell [ref=f7e406]:
+                  - textbox "CoS Owner for BoTB Preview" [ref=f7e407]:
+                    - /placeholder: ""
+                    - text: Arjun
+                - cell [ref=f7e408]:
+                  - textbox "Pub Leader 1 for BoTB Preview" [ref=f7e409]:
+                    - /placeholder: ""
+                - cell [ref=f7e410]:
+                  - textbox "Pub Leader 2 for BoTB Preview" [ref=f7e411]:
+                    - /placeholder: ""
+                - cell [ref=f7e412]:
+                  - textbox "Pub Leader 3 for BoTB Preview" [ref=f7e413]:
+                    - /placeholder: ""
+                - cell [ref=f7e414]:
+                  - textbox "Prez Owner for BoTB Preview" [ref=f7e415]:
+                    - /placeholder: ""
+                - cell [ref=f7e416]:
+                  - textbox "Ops Lead for BoTB Preview" [ref=f7e417]:
+                    - /placeholder: Michael
+                - cell [ref=f7e418]:
+                  - textbox "Marketing Lead for BoTB Preview" [ref=f7e419]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e420]:
+                  - textbox "Finance Lead for BoTB Preview" [ref=f7e421]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e422]:
+                  - textbox "Entertainment Lead for BoTB Preview" [ref=f7e423]:
+                    - /placeholder: Billy
+              - row [ref=f7e424]:
+                - rowheader "Green Pub" [ref=f7e425]
+                - cell "2027-04-22" [ref=f7e426]
+                - cell [ref=f7e427]:
+                  - textbox "CoS Owner for Green Pub" [ref=f7e428]:
+                    - /placeholder: ""
+                    - text: Bridget
+                - cell [ref=f7e429]:
+                  - textbox "Pub Leader 1 for Green Pub" [ref=f7e430]:
+                    - /placeholder: ""
+                    - text: Arjun
+                - cell [ref=f7e431]:
+                  - textbox "Pub Leader 2 for Green Pub" [ref=f7e432]:
+                    - /placeholder: ""
+                    - text: Arjun
+                - cell [ref=f7e433]:
+                  - textbox "Pub Leader 3 for Green Pub" [ref=f7e434]:
+                    - /placeholder: ""
+                - cell [ref=f7e435]:
+                  - textbox "Prez Owner for Green Pub" [ref=f7e436]:
+                    - /placeholder: ""
+                - cell [ref=f7e437]:
+                  - textbox "Ops Lead for Green Pub" [ref=f7e438]:
+                    - /placeholder: Michael
+                - cell [ref=f7e439]:
+                  - textbox "Marketing Lead for Green Pub" [ref=f7e440]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e441]:
+                  - textbox "Finance Lead for Green Pub" [ref=f7e442]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e443]:
+                  - textbox "Entertainment Lead for Green Pub" [ref=f7e444]:
+                    - /placeholder: Billy
+              - row [ref=f7e445]:
+                - rowheader "Grad Pub" [ref=f7e446]
+                - cell "2027-05-20" [ref=f7e447]
+                - cell [ref=f7e448]:
+                  - textbox "CoS Owner for Grad Pub" [ref=f7e449]:
+                    - /placeholder: ""
+                - cell [ref=f7e450]:
+                  - textbox "Pub Leader 1 for Grad Pub" [ref=f7e451]:
+                    - /placeholder: ""
+                - cell [ref=f7e452]:
+                  - textbox "Pub Leader 2 for Grad Pub" [ref=f7e453]:
+                    - /placeholder: ""
+                - cell [ref=f7e454]:
+                  - textbox "Pub Leader 3 for Grad Pub" [ref=f7e455]:
+                    - /placeholder: ""
+                - cell [ref=f7e456]:
+                  - textbox "Prez Owner for Grad Pub" [ref=f7e457]:
+                    - /placeholder: ""
+                - cell [ref=f7e458]:
+                  - textbox "Ops Lead for Grad Pub" [ref=f7e459]:
+                    - /placeholder: Michael
+                - cell [ref=f7e460]:
+                  - textbox "Marketing Lead for Grad Pub" [ref=f7e461]:
+                    - /placeholder: Manisha
+                - cell [ref=f7e462]:
+                  - textbox "Finance Lead for Grad Pub" [ref=f7e463]:
+                    - /placeholder: Marcela
+                - cell [ref=f7e464]:
+                  - textbox "Entertainment Lead for Grad Pub" [ref=f7e465]:
+                    - /placeholder: Billy
+        - generic [ref=f7e466]:
+          - heading "Who's doing what" [level=2] [ref=f7e467]
+          - table [ref=f7e469]:
+            - rowgroup [ref=f7e470]:
+              - row [ref=f7e471]:
+                - columnheader "Person" [ref=f7e472]
+                - columnheader "Upcoming events" [ref=f7e473]
+                - columnheader "Open tasks" [ref=f7e474]
+            - rowgroup [ref=f7e475]:
+              - row [ref=f7e476]:
+                - rowheader "Arjun" [ref=f7e477]
+                - cell "4" [ref=f7e478]
+                - cell "0" [ref=f7e479]
+              - row [ref=f7e480]:
+                - rowheader "Benji" [ref=f7e481]
+                - cell "1" [ref=f7e482]
+                - cell "0" [ref=f7e483]
+              - row [ref=f7e484]:
+                - rowheader "Benju" [ref=f7e485]
+                - cell "1" [ref=f7e486]
+                - cell "0" [ref=f7e487]
+              - row [ref=f7e488]:
+                - rowheader "Billy" [ref=f7e489]
+                - cell "0" [ref=f7e490]
+                - cell "2" [ref=f7e491]
+              - row [ref=f7e492]:
+                - rowheader "Bridget" [ref=f7e493]
+                - cell "3" [ref=f7e494]
+                - cell "0" [ref=f7e495]
+              - row [ref=f7e496]:
+                - rowheader "Diva" [ref=f7e497]
+                - cell "5" [ref=f7e498]
+                - cell "99" [ref=f7e499]
+              - row [ref=f7e500]:
+                - rowheader "Ivana" [ref=f7e501]
+                - cell "1" [ref=f7e502]
+                - cell "0" [ref=f7e503]
+              - row [ref=f7e504]:
+                - rowheader "Jake" [ref=f7e505]
+                - cell "1" [ref=f7e506]
+                - cell "0" [ref=f7e507]
+              - row [ref=f7e508]:
+                - rowheader "Justin" [ref=f7e509]
+                - cell "1" [ref=f7e510]
+                - cell "0" [ref=f7e511]
+              - row [ref=f7e512]:
+                - rowheader "Manisha" [ref=f7e513]
+                - cell "0" [ref=f7e514]
+                - cell "8" [ref=f7e515]
+              - row [ref=f7e516]:
+                - rowheader "Marcela" [ref=f7e517]
+                - cell "1" [ref=f7e518]
+                - cell "4" [ref=f7e519]
+              - row [ref=f7e520]:
+                - rowheader "Mark" [ref=f7e521]
+                - cell "1" [ref=f7e522]
+                - cell "0" [ref=f7e523]
+              - row [ref=f7e524]:
+                - rowheader "Michael" [ref=f7e525]
+                - cell "0" [ref=f7e526]
+                - cell "9" [ref=f7e527]
+              - row [ref=f7e528]:
+                - rowheader "Nihar" [ref=f7e529]
+                - cell "1" [ref=f7e530]
+                - cell "0" [ref=f7e531]
+        - generic [ref=f7e532]:
+          - heading "Club defaults" [level=2] [ref=f7e533]
+          - paragraph [ref=f7e534]: Used when an event has no one in that role. Alternates are other people who often cover it.
+          - generic [ref=f7e535]:
+            - generic [ref=f7e536]:
+              - strong [ref=f7e537]: Ops Lead
+              - generic [ref=f7e538]:
+                - text: Default
+                - textbox "Default" [ref=f7e539]: Michael
+              - generic [ref=f7e540]:
+                - text: Alternates (comma-separated)
+                - textbox "Alternates (comma-separated)" [ref=f7e541]
+            - generic [ref=f7e542]:
+              - strong [ref=f7e543]: Marketing Lead
+              - generic [ref=f7e544]:
+                - text: Default
+                - textbox "Default" [ref=f7e545]: Manisha
+              - generic [ref=f7e546]:
+                - text: Alternates (comma-separated)
+                - textbox "Alternates (comma-separated)" [ref=f7e547]: Kira, Himanshi
+            - generic [ref=f7e548]:
+              - strong [ref=f7e549]: Finance Lead
+              - generic [ref=f7e550]:
+                - text: Default
+                - textbox "Default" [ref=f7e551]: Marcela
+              - generic [ref=f7e552]:
+                - text: Alternates (comma-separated)
+                - textbox "Alternates (comma-separated)" [ref=f7e553]: Charlie
+            - generic [ref=f7e554]:
+              - strong [ref=f7e555]: Entertainment Lead
+              - generic [ref=f7e556]:
+                - text: Default
+                - textbox "Default" [ref=f7e557]: Billy
+              - generic [ref=f7e558]:
+                - text: Alternates (comma-separated)
+                - textbox "Alternates (comma-separated)" [ref=f7e559]
+            - button "Save defaults" [ref=f7e561] [cursor=pointer]
+  - alert [ref=f7e562]

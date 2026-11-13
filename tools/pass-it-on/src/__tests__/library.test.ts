@@ -86,7 +86,9 @@ describe("input checks", () => {
       },
     });
     expect(leaderOf([{ role: "Ops Lead", person: "Sam" }, { role: "Pub Leader", person: "Ada" }])).toBe("Ada");
-    expect(leaderOf([{ role: "Pub Leader", person: null }, { role: "Ops Lead", person: "Sam" }])).toBe("Sam");
+    // Nobody else stands in: an event without a named Pub Leader has no leader.
+    expect(leaderOf([{ role: "Pub Leader", person: null }, { role: "Ops Lead", person: "Sam" }])).toBeNull();
+    expect(leaderOf([{ role: "CoS Owner", person: "Diva" }])).toBeNull();
     expect(leaderOf([])).toBeNull();
   });
 

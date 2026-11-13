@@ -64,7 +64,7 @@ export interface PlannedEvent extends PlannedEventInput {
   id: string;
   /** The calendar import this event was approved from, if any. */
   importId: string | null;
-  /** The first Pub Leader named (or, failing that, the first person named). */
+  /** The first Pub Leader named, or null when the event has none. */
   pubLeader: string | null;
 }
 
@@ -125,14 +125,15 @@ function checkRoles(value: unknown): Checked<RoleInput[]> {
 /** Pub Leader names in the order leaderOf prefers them; the unnumbered one is the old spelling. */
 const LEADER_ORDER = ["pub leader 1", "pub leader 2", "pub leader 3", "pub leader"];
 
-/** The Pub Leader's name for lists: the first person in Pub Leader 1, then 2, then 3, then the old "Pub Leader", else the first person named. */
+/** The Pub Leader's name for lists: the first person in Pub Leader 1, then 2, then 3, then the old "Pub Leader"; null when none is named. */
 export function leaderOf(roles: RoleInput[]): string | null {
   const named = roles.filter((r) => r.person);
   for (const name of LEADER_ORDER) {
     const found = named.find((r) => r.role.trim().toLowerCase() === name);
     if (found) return found.person;
   }
-  return named[0]?.person ?? null;
+  // Nobody else stands in: showing the CoS Owner as "Leader" hid that the event has none.
+  return null;
 }
 
 function isRealDate(value: string): boolean {

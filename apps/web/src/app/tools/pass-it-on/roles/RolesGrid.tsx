@@ -42,7 +42,7 @@ export function RolesGrid({ rows, roles, defaults }: { rows: GridRow[]; roles: s
         <table className={styles.rolesTable}>
           <thead>
             <tr>
-              <th scope="col">Event</th>
+              <th scope="col" className={styles.rolesEvent}>Event</th>
               <th scope="col">Date</th>
               {roles.map((r) => (
                 <th key={r} scope="col">

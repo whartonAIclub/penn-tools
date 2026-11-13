@@ -1,0 +1,204 @@
+- generic [active] [ref=f4e1]:
+  - banner [ref=f4e2]:
+    - generic [ref=f4e3]:
+      - button "Hide tools" [expanded] [ref=f4e4] [cursor=pointer]
+      - link "PennTools" [ref=f4e7] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f4e8]:
+        - generic [aria-hidden] [ref=f4e9]: /
+        - link "Pass It On" [ref=f4e10] [cursor=pointer]:
+          - /url: /tools/pass-it-on
+        - button "Tool information" [ref=f4e12] [cursor=pointer]
+    - generic [ref=f4e15]:
+      - link "PennTools on GitHub" [ref=f4e16] [cursor=pointer]:
+        - /url: https://github.com/whartonAIclub/penn-tools
+        - generic [ref=f4e19]: GitHub
+      - link "Account settings" [ref=f4e20] [cursor=pointer]:
+        - /url: /settings
+        - generic [ref=f4e21]: L
+      - button "Log out" [ref=f4e22] [cursor=pointer]
+  - generic [ref=f4e23]:
+    - navigation "Tools" [ref=f4e24]:
+      - link "Dashboard" [ref=f4e25] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f4e27]:
+        - button "Recruiting" [expanded] [ref=f4e28] [cursor=pointer]
+        - list [ref=f4e33]:
+          - listitem [ref=f4e34]:
+            - link "MBA Tech Internships" [ref=f4e35] [cursor=pointer]:
+              - /url: https://github.com/TrevorDohm/MBA-Tech-Internships-2027
+          - listitem [ref=f4e40]:
+            - link "PM Zero to One" [ref=f4e41] [cursor=pointer]:
+              - /url: https://pmzerotoone.netlify.app/
+      - generic [ref=f4e46]:
+        - button "Academics" [expanded] [ref=f4e47] [cursor=pointer]
+        - list [ref=f4e52]:
+          - listitem [ref=f4e53]:
+            - link "QuakerCal" [ref=f4e54] [cursor=pointer]:
+              - /url: https://quakercal.vercel.app/
+          - listitem [ref=f4e59]:
+            - link "ROIC Tree Generator" [ref=f4e60] [cursor=pointer]:
+              - /url: https://roic-tree-generator.vercel.app/
+      - generic [ref=f4e65]:
+        - button "Productivity" [expanded] [ref=f4e66] [cursor=pointer]
+        - list [ref=f4e71]:
+          - listitem [ref=f4e72]:
+            - link "Defluffer" [ref=f4e73] [cursor=pointer]:
+              - /url: https://itayzit.github.io/defluffer/
+          - listitem [ref=f4e78]:
+            - link "ThankYouGPT" [ref=f4e79] [cursor=pointer]:
+              - /url: https://thank-you-gpt.com
+          - listitem [ref=f4e84]:
+            - link "StacTab" [ref=f4e85] [cursor=pointer]:
+              - /url: https://chromewebstore.google.com/detail/stactab/hdfcdcoogjkdogmnhhopkekanpldoefh
+          - listitem [ref=f4e90]:
+            - link "AI Compass" [ref=f4e91] [cursor=pointer]:
+              - /url: https://akshitkalra.com/aicompass
+          - listitem [ref=f4e96]:
+            - link "Pass It On BETA" [ref=f4e97] [cursor=pointer]:
+              - /url: /tools/pass-it-on
+              - generic [ref=f4e98]: Pass It On
+              - generic [ref=f4e99]: BETA
+      - generic [ref=f4e100]:
+        - button "LLM Tools BETA" [expanded] [ref=f4e101] [cursor=pointer]:
+          - generic [ref=f4e102]: LLM Tools
+          - generic [ref=f4e103]: BETA
+        - list [ref=f4e107]:
+          - listitem [ref=f4e108]:
+            - link "Resume Customizer" [ref=f4e109] [cursor=pointer]:
+              - /url: /tools/resume-customizer
+          - listitem [ref=f4e111]:
+            - link "Career Canvas" [ref=f4e112] [cursor=pointer]:
+              - /url: /tools/career-canvas
+          - listitem [ref=f4e114]:
+            - link "Penn Planner" [ref=f4e115] [cursor=pointer]:
+              - /url: /tools/penn-planner
+          - listitem [ref=f4e117]:
+            - link "CourseMatch Assist" [ref=f4e118] [cursor=pointer]:
+              - /url: /tools/coursematch-assist
+          - listitem [ref=f4e120]:
+            - link "PitchCoach AI" [ref=f4e121] [cursor=pointer]:
+              - /url: /tools/pitch-coach
+      - generic [ref=f4e123]:
+        - button "Platform" [expanded] [ref=f4e124] [cursor=pointer]
+        - list [ref=f4e129]:
+          - listitem [ref=f4e130]:
+            - link "Platform Playground" [ref=f4e131] [cursor=pointer]:
+              - /url: /tools/platform-playground
+          - listitem [ref=f4e133]:
+            - link "AskPenn BETA" [ref=f4e134] [cursor=pointer]:
+              - /url: /tools/askpenn
+              - generic [ref=f4e135]: AskPenn
+              - generic [ref=f4e136]: BETA
+    - main [ref=f4e140]:
+      - generic [ref=f4e141]:
+        - heading "Pass It On" [level=1] [ref=f4e142]
+        - navigation "Pass It On" [ref=f4e143]:
+          - link "Events" [ref=f4e144] [cursor=pointer]:
+            - /url: /tools/pass-it-on
+          - link "Roles" [ref=f4e145] [cursor=pointer]:
+            - /url: /tools/pass-it-on/roles
+          - link "Checklist" [ref=f4e146] [cursor=pointer]:
+            - /url: /tools/pass-it-on/board
+          - link "Calendar" [ref=f4e147] [cursor=pointer]:
+            - /url: /tools/pass-it-on/calendar
+          - link "Template" [ref=f4e148] [cursor=pointer]:
+            - /url: /tools/pass-it-on/template
+          - link "Library" [ref=f4e149] [cursor=pointer]:
+            - /url: /tools/pass-it-on/library
+          - link "Ask" [ref=f4e150] [cursor=pointer]:
+            - /url: /tools/pass-it-on/ask
+        - generic [ref=f4e221]:
+          - generic [ref=f4e222]:
+            - heading "Events" [level=2] [ref=f4e223]
+            - link "New event" [ref=f4e224] [cursor=pointer]:
+              - /url: /tools/pass-it-on/events/new
+          - generic [ref=f4e225]:
+            - heading "November 2026" [level=3] [ref=f4e226]
+            - list [ref=f4e227]:
+              - listitem [ref=f4e228]:
+                - link "Chili Cook Off" [ref=f4e229] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/0ad8cc6b-20ef-4d2a-959f-24d41d21cb63
+                - generic [ref=f4e230]: "2026-11-12 · 5.30-8.30pm · Chili · Armory · Leader: Diva · $12,000"
+          - generic [ref=f4e231]:
+            - heading "December 2026" [level=3] [ref=f4e232]
+            - list [ref=f4e233]:
+              - listitem [ref=f4e234]:
+                - link "QA Test Pub (delete me)" [ref=f4e235] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/420fe626-929e-429f-965e-c78cc111f203
+                - generic [ref=f4e236]: "2026-12-10 · Leader: Diva"
+          - generic [ref=f4e237]:
+            - heading "January 2027" [level=3] [ref=f4e238]
+            - list [ref=f4e239]:
+              - listitem [ref=f4e240]:
+                - link "Baguettes Beer and Bangers - Euroski Reunion" [ref=f4e241] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/1f9df071-8bdc-4e18-a86d-cae5834632f5
+                - generic [ref=f4e242]: No Pub Leader
+                - generic [ref=f4e243]: "2027-01-21 · Lucy's · Leader: Diva"
+              - listitem [ref=f4e244]:
+                - link "Allow me to re-introduce myself" [ref=f4e245] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/fc90e33b-fc22-48fb-80ba-96e4f5a87ef8
+                - generic [ref=f4e246]: No Pub Leader
+                - generic [ref=f4e247]: "2027-01-28 · Ladder 15 · Leader: Arjun"
+          - generic [ref=f4e248]:
+            - heading "February 2027" [level=3] [ref=f4e249]
+            - list [ref=f4e250]:
+              - listitem [ref=f4e251]:
+                - link "Beer Pong x Kid's Club" [ref=f4e252] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/51b37d02-c403-4fec-89f6-bcaa7ad2f139
+                - generic [ref=f4e253]: No Pub Leader
+                - generic [ref=f4e254]: "2027-02-04 · Armory · Leader: Benji"
+              - listitem [ref=f4e255]:
+                - link "Black History Month" [ref=f4e256] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/64a4e435-8f11-4688-afd0-4265878ead8c
+                - generic [ref=f4e257]: No Pub Leader
+                - generic [ref=f4e258]: "2027-02-11 · Lucy's · Leader: Diva"
+              - listitem [ref=f4e259]:
+                - link "Follies Pub" [ref=f4e260] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/bf7237cf-d3f4-4f22-aca8-478207bc354e
+                - generic [ref=f4e261]: No Pub Leader
+                - generic [ref=f4e262]: "2027-02-18 · Ladder 15 · Leader: Diva"
+          - generic [ref=f4e263]:
+            - heading "March 2027" [level=3] [ref=f4e264]
+            - list [ref=f4e265]:
+              - listitem [ref=f4e266]:
+                - link "St Paddy's Singles" [ref=f4e267] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/9ef9446d-9ce4-4e40-abac-c5ac5fac4999
+                - generic [ref=f4e268]: "2027-03-18 · 6:30 - 9:30 PM · Concourse · Leader: Bridget"
+              - listitem [ref=f4e269]:
+                - link "TBD" [ref=f4e270] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/8067e2d4-4001-48e5-9bc7-c4124f54369b
+                - generic [ref=f4e271]: "2027-03-25 · Garage · Leader: Justin"
+          - generic [ref=f4e272]:
+            - heading "April 2027" [level=3] [ref=f4e273]
+            - list [ref=f4e274]:
+              - listitem [ref=f4e275]:
+                - link "Fight Night Weigh In" [ref=f4e276] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/5b8248f4-699b-4c39-8e2a-f43e0f3d124e
+                - generic [ref=f4e277]: No Pub Leader
+                - generic [ref=f4e278]: "2027-04-01 · Armory · Leader: Marcela"
+              - listitem [ref=f4e279]:
+                - link "Hockey Playoffs" [ref=f4e280] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/515e7054-0780-4719-89bb-87fd72d7a3d9
+                - generic [ref=f4e281]: No Pub Leader
+                - generic [ref=f4e282]: "2027-04-08 · Lucy's · Leader: Benju"
+              - listitem [ref=f4e283]:
+                - link "BoTB Preview" [ref=f4e284] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/e0949ecd-1abd-4c4f-9dd8-9bda1fee7b9c
+                - generic [ref=f4e285]: No Pub Leader
+                - generic [ref=f4e286]: "2027-04-15 · Ladder 15 · Leader: Arjun"
+              - listitem [ref=f4e287]:
+                - link "Green Pub" [ref=f4e288] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/d185c713-7c61-42d8-bb5c-52164dc859e3
+                - generic [ref=f4e289]: "2027-04-22 · Walnut Garden · Leader: Bridget"
+          - generic [ref=f4e290]:
+            - heading "May 2027" [level=3] [ref=f4e291]
+            - list [ref=f4e292]:
+              - listitem [ref=f4e293]:
+                - link "Grad Pub" [ref=f4e294] [cursor=pointer]:
+                  - /url: /tools/pass-it-on/events/a0461113-db01-47de-91c0-05326fc9d4de
+                - generic [ref=f4e295]: No Pub Leader
+                - generic [ref=f4e296]: 2027-05-20 · Armory
+          - group [ref=f4e297]:
+            - generic "Past events (8)" [ref=f4e298] [cursor=pointer]
+  - alert [ref=f4e218]

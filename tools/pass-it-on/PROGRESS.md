@@ -58,7 +58,7 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 | 14 | Pub template version 1, from the playbook and the Big Gay Halloween checklist, with modules (club collab, international, singles/GAPSA) and the PO issue flagged. Also a Run of show category and per-club repeating items. 208 tool tests | **Done** |
 | 15 | Task and to-do storage; filters; members list (`listMembers`, `addMember`, `syncMembers`). 208 tool tests | **Done** |
 | 16 | Creating an event generates its checklist (also an Update checklist button on the event page); moving the date reschedules, via `updatePlannedEvent`. 231 tool tests | **Built, needs a manual check** |
-| 17 | Board tab: columns, owner/event/due-window filters, "waiting on", subtasks, per-area readiness, "No Pub Leader" flag (board and Events list), add to-dos by hand | **Built, needs a manual check** |
+| 17 | Board tab (now the Checklist tab): columns, owner/event/due-window filters, "waiting on", subtasks, per-area readiness, "No Pub Leader" flag (board and Events list), add to-dos by hand | **Built, needs a manual check** |
 | 18 | Template tab: Planning / Run of show, known issues (resolve), versions, revert | **Built, needs a manual check** |
 | 19 | **Exit test:** two overlapping events, correct dates and owners | Passes as an automated test (`eventWorkflow.test.ts`); not yet seen in the browser |
 | **Week 3: AI layer, post-mortem, pilot** | | |
@@ -70,25 +70,23 @@ The post-mortem is a **T+5 task** in the checklist, not a separate flow.
 
 ## 2026-11-12 changes: roles and checklist table
 
-Two new tabs: **Roles** (a grid of who holds each role, per event, plus club defaults) and **Checklist** (the old Board, same URL, now a table with one-click check-off). 283 tool tests.
+Two new tabs: **Roles** (a grid of who holds each role, per event, plus club defaults) and **Checklist** (the old Board, same URL, now a table with one-click check-off). 287 tool tests.
 
 | Req | What | Status |
 |---|---|---|
-| 1 | Roles tab: edit role holders per event and the club's default leads; default names seeded in `schema.sql` | **Built, needs a manual check** |
-| 2 | Task owners follow the owner chain (see Decisions); changing a role holder re-owns its tasks | **Built, needs a manual check** |
-| 3 | Template v2: each item gets a role by area and phase; events on v1 keep v1 | **Built, needs a manual check** |
-| 5 | Equipment on an event: Arrange at T-7 and Return at T+1 tasks, owned by the Ops Lead | **Built, needs a manual check** |
-| 6 | Checklist tab (was Board): table, one-click strike, Planning before Run of show, show-done toggle; Events tab soonest first with "Past events (N)" | **Built, needs a manual check** |
+| 1 | Checklist tab (was Board): a table grouped by event, then Planning and Run of show; one click checks a task off | **Done** (checked in the browser 2026-11-12) |
+| 2 | Template v2: International removed, Singles broadened to "Non-Wharton schools" (Eventbrite, GAPSA); older events no longer offer removed modules | **Done** (browser) |
+| 3 | Roles: nine slots per event (the calendar's six plus Marketing, Finance and Entertainment Lead), club defaults, Roles tab; task owners follow the role holder | **Done** (browser) |
+| 5 | Events tab: soonest first, past events in a "Past events (N)" drop-down | **Done** (browser) |
+| 6 | Specialized equipment: "Arrange: {item}" at T-7 and one return task at T+1, owned by the Ops Lead | **Done** (browser) |
 
-`db:deploy` ran twice against the local database with no errors (schema re-runs cleanly).
+`db:deploy` ran against the local database with no errors, repeatedly (the schema re-runs cleanly).
 
-**Manual checks for Joe (signed in):**
-- **New event:** Pub Leader 1 "Diva", Ops Lead blank, equipment "Fog machine". `food-order` is owned by Michael, an "Arrange: Fog machine" task exists, and there is no "No Pub Leader" flag.
-- **Changing Ops Lead:** set it to "Ivana"; `food-order` moves to Ivana.
-- **Older events:** a v1 event's page lists v1's modules.
-- **Roles tab:** typing a cell value and tabbing away saves it; changing the Marketing Lead default to Kira updates the placeholders; the grid scrolls sideways without the page scrolling.
-- **Checklist tab:** one click strikes a row and a reload keeps it in single-event view; five quick clicks end on the fifth click's state; a failed save reverts and shows an error; Planning comes before Run of show; at 400px wide rows stack with no sideways scroll.
-- **Events tab:** soonest first, past events in "Past events (N)".
+**Browser check, 2026-11-12** (signed in as the local development user): a new event with Pub Leader 1 "Diva", no Ops Lead and "Fog machine" got template v2 and the right owners (food order → Michael, flyer → Manisha, budget → Marcela, DJ → Billy, day-of tasks → Diva) and both equipment tasks; setting Ops Lead to Ivana on the Roles tab moved the food order and equipment tasks to her; one click checks a task off and survives a reload; five quick clicks end on the fifth click's state; saving an event unchanged keeps its equipment; no page scrolls sideways at 400px. Fixed along the way: "Pub Leaders" (the calendar's plural heading) is now read as a Pub Leader; the "Leader:" label no longer shows someone who isn't a Pub Leader; the "No Pub Leader" tag no longer stretches; due dates read "Nov 26" on one line; the tab bar scrolls on phones; the Roles grid keeps the event column in view.
+
+**Still to check by hand:** re-import a calendar over an event whose Marketing Lead is set, and confirm it survives (needs an AI key); a failed save on the Checklist shows an error and reverts.
+
+**Known gap:** a blank calendar cell for CoS, Pub Leader, Prez or Ops clears a name typed into that slot in the app when the re-import is approved.
 
 **Cut line, in this order:** meeting-notes extraction → proposed template changes → suggested modules → non-event to-dos → Drive zip and WhatsApp support. **Never cut:** cited search, event records, dated tasks with owners generated from the template, and human approval.
 

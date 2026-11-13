@@ -1,0 +1,96 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - button "Hide tools" [expanded] [ref=f1e4] [cursor=pointer]
+      - link "PennTools" [ref=f1e7] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f1e8]:
+        - generic [aria-hidden] [ref=f1e9]: /
+        - link "Pass It On" [ref=f1e10] [cursor=pointer]:
+          - /url: /tools/pass-it-on
+        - button "Tool information" [ref=f1e12] [cursor=pointer]
+    - generic [ref=f1e15]:
+      - link "PennTools on GitHub" [ref=f1e16] [cursor=pointer]:
+        - /url: https://github.com/whartonAIclub/penn-tools
+        - generic [ref=f1e19]: GitHub
+      - button "Sign in" [ref=f1e20] [cursor=pointer]
+  - generic [ref=f1e21]:
+    - navigation "Tools" [ref=f1e22]:
+      - link "Dashboard" [ref=f1e23] [cursor=pointer]:
+        - /url: /
+      - generic [ref=f1e25]:
+        - button "Recruiting" [expanded] [ref=f1e26] [cursor=pointer]
+        - list [ref=f1e31]:
+          - listitem [ref=f1e32]:
+            - link "MBA Tech Internships" [ref=f1e33] [cursor=pointer]:
+              - /url: https://github.com/TrevorDohm/MBA-Tech-Internships-2027
+          - listitem [ref=f1e38]:
+            - link "PM Zero to One" [ref=f1e39] [cursor=pointer]:
+              - /url: https://pmzerotoone.netlify.app/
+      - generic [ref=f1e44]:
+        - button "Academics" [expanded] [ref=f1e45] [cursor=pointer]
+        - list [ref=f1e50]:
+          - listitem [ref=f1e51]:
+            - link "QuakerCal" [ref=f1e52] [cursor=pointer]:
+              - /url: https://quakercal.vercel.app/
+          - listitem [ref=f1e57]:
+            - link "ROIC Tree Generator" [ref=f1e58] [cursor=pointer]:
+              - /url: https://roic-tree-generator.vercel.app/
+      - generic [ref=f1e63]:
+        - button "Productivity" [expanded] [ref=f1e64] [cursor=pointer]
+        - list [ref=f1e69]:
+          - listitem [ref=f1e70]:
+            - link "Defluffer" [ref=f1e71] [cursor=pointer]:
+              - /url: https://itayzit.github.io/defluffer/
+          - listitem [ref=f1e76]:
+            - link "ThankYouGPT" [ref=f1e77] [cursor=pointer]:
+              - /url: https://thank-you-gpt.com
+          - listitem [ref=f1e82]:
+            - link "StacTab" [ref=f1e83] [cursor=pointer]:
+              - /url: https://chromewebstore.google.com/detail/stactab/hdfcdcoogjkdogmnhhopkekanpldoefh
+          - listitem [ref=f1e88]:
+            - link "AI Compass" [ref=f1e89] [cursor=pointer]:
+              - /url: https://akshitkalra.com/aicompass
+          - listitem [ref=f1e94]:
+            - link "Pass It On BETA" [ref=f1e95] [cursor=pointer]:
+              - /url: /tools/pass-it-on
+              - generic [ref=f1e96]: Pass It On
+              - generic [ref=f1e97]: BETA
+      - generic [ref=f1e98]:
+        - button "LLM Tools BETA" [expanded] [ref=f1e99] [cursor=pointer]:
+          - generic [ref=f1e100]: LLM Tools
+          - generic [ref=f1e101]: BETA
+        - list [ref=f1e105]:
+          - listitem [ref=f1e106]:
+            - link "Resume Customizer" [ref=f1e107] [cursor=pointer]:
+              - /url: /tools/resume-customizer
+          - listitem [ref=f1e109]:
+            - link "Career Canvas" [ref=f1e110] [cursor=pointer]:
+              - /url: /tools/career-canvas
+          - listitem [ref=f1e112]:
+            - link "Penn Planner" [ref=f1e113] [cursor=pointer]:
+              - /url: /tools/penn-planner
+          - listitem [ref=f1e115]:
+            - link "CourseMatch Assist" [ref=f1e116] [cursor=pointer]:
+              - /url: /tools/coursematch-assist
+          - listitem [ref=f1e118]:
+            - link "PitchCoach AI" [ref=f1e119] [cursor=pointer]:
+              - /url: /tools/pitch-coach
+      - generic [ref=f1e121]:
+        - button "Platform" [expanded] [ref=f1e122] [cursor=pointer]
+        - list [ref=f1e127]:
+          - listitem [ref=f1e128]:
+            - link "Platform Playground" [ref=f1e129] [cursor=pointer]:
+              - /url: /tools/platform-playground
+          - listitem [ref=f1e131]:
+            - link "AskPenn BETA" [ref=f1e132] [cursor=pointer]:
+              - /url: /tools/askpenn
+              - generic [ref=f1e133]: AskPenn
+              - generic [ref=f1e134]: BETA
+    - main [ref=f1e138]:
+      - generic [ref=f1e139]:
+        - heading "Pass It On" [level=1] [ref=f1e140]
+        - generic [ref=f1e141]:
+          - paragraph [ref=f1e142]: Sign in to use Pass It On.
+          - button "Sign in" [ref=f1e144] [cursor=pointer]
+  - alert [ref=f1e145]

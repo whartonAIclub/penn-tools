@@ -23,12 +23,17 @@
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--border);
+  /* Seven tabs don't fit a phone: the bar scrolls on its own instead of widening the page. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
 
 .tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 8px 14px;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   font-size: 0.9rem;
   color: var(--section-label);
   text-decoration: none;
@@ -96,6 +101,7 @@
 .input,
 .textarea,
 .select {
+  max-width: 100%;
   border: 1px solid var(--input-border);
   border-radius: 8px;
   padding: 8px 10px;
@@ -273,6 +279,8 @@
 .compact {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
   gap: 4px;
   font-size: 0.8rem;
   color: var(--section-label);
@@ -609,4 +617,36 @@
   .subRow .taskCell {
     padding-left: 0;
   }
+}
+
+/* In a list item (a flex column), tags keep their own width instead of stretching across the row. */
+.item > .flag,
+.item > .tag {
+  align-self: flex-start;
+  margin-left: 0;
+}
+
+/* Due dates never wrap mid-date. */
+.dueCell {
+  white-space: nowrap;
+}
+
+/* Roles grid: the event column stays put while the role columns scroll. */
+.rolesTable .rolesEvent {
+  position: sticky;
+  /* -1px, not 0: the centered column can sit on a half pixel, and scrolled text showed through that sliver. */
+  left: -1px;
+  z-index: 1;
+  min-width: 9rem;
+  max-width: 12rem;
+  white-space: normal;
+  background: var(--bg);
+  /* Covers the sub-pixel gap at the left edge, and marks where the scrolling columns start. */
+  box-shadow: 1px 0 0 var(--border);
+}
+
+/* Collapsed borders leave a gap beside a sticky cell that scrolled text shows through. */
+.rolesTable {
+  border-collapse: separate;
+  border-spacing: 0;
 }

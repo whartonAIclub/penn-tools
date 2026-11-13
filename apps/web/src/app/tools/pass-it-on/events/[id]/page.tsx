@@ -10,13 +10,20 @@ export default async function EditEventPage({ params }: { params: { id: string }
 
   // The module list comes from the template version the event was built from, else the latest.
   const [versionRow] = await db()<{ version: string | null }[]>`SELECT template_version_id::text AS version FROM events WHERE id = ${event.id}`;
-  const [tasks, template, appliedRows, roleDefaults, members] = await Promise.all([
+  const [tasks, template, latest, appliedRows, roleDefaults, members] = await Promise.all([
     listTasks(db(), { eventIds: [event.id] }),
     getTemplate(db(), versionRow?.version ? Number(versionRow.version) : undefined),
+    getTemplate(db()),
     db()<{ module_key: string }[]>`SELECT module_key FROM event_modules WHERE event_id = ${event.id}`,
     listRoleDefaults(db()),
     listMembers(db(), { activeOnly: true }),
   ]);
+
+  // An older event keeps its own version's modules, but one the latest template dropped
+  // (e.g. International Pub) is no longer offered unless the event already has it.
+  const applied = appliedRows.map((r) => r.module_key);
+  const latestKeys = new Set((latest?.modules ?? []).map((m) => m.key));
+  const offeredModules = (template?.modules ?? []).filter((m) => latestKeys.has(m.key) || applied.includes(m.key));
 
   return (
     <>
@@ -50,8 +57,8 @@ export default async function EditEventPage({ params }: { params: { id: string }
     <ChecklistPanel
       eventId={event.id}
       taskCount={tasks.length}
-      modules={template?.modules ?? []}
-      applied={appliedRows.map((r) => r.module_key)}
+      modules={offeredModules}
+      applied={applied}
       suggested={suggestedModules(event)}
     />
     </>

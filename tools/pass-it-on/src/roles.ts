@@ -50,6 +50,7 @@ const VARIANTS: Record<string, string> = {
   "pub leader 2": "Pub Leader 2",
   "pub leader 3": "Pub Leader 3",
   "pub leader": UNNUMBERED_PUB_LEADER,
+  "pub leaders": UNNUMBERED_PUB_LEADER, // the club calendar's column heading
   "leader": UNNUMBERED_PUB_LEADER,
 };
 
