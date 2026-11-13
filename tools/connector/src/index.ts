@@ -6,4 +6,6 @@ export type { SharedAnswer } from "./matching/summary.js";
 export { SAMPLE_SIGNUPS } from "./matching/samples.js";
 export { checkSignup, listSignups, saveSignup, MAX_NAME_LENGTH } from "./signups.js";
 export type { SignupInput } from "./signups.js";
+export { getMatch, isTeamMember, listUnmatched, previewRelease, releaseMatches, TEAM_EMAILS } from "./releases.js";
+export type { Match, ReleaseResult } from "./releases.js";
 export type { AnswerOption, Cohort, Group, GroupingResult, Question, Signup } from "./types.js";

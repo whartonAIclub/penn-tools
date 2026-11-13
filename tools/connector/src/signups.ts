@@ -66,18 +66,31 @@ export async function saveSignup(sql: Sql, userId: string, email: string, input:
   `;
 }
 
-/** Everyone's sign-ups, oldest first, in the shape the matching reads. */
-export async function listSignups(sql: Sql): Promise<Signup[]> {
-  const rows = await sql<
-    { user_id: string; first_name: string; last_name: string; email: string; cohort: string; answers: Record<string, string> }[]
-  >`
-    SELECT user_id, first_name, last_name, email, cohort, answers FROM signups ORDER BY created_at, user_id
-  `;
-  return rows.map((row) => ({
+/** A row of the signups table, as SELECT s.* returns it. */
+export interface SignupRow {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  cohort: string;
+  answers: Record<string, string>;
+}
+
+/** A signups row in the shape the matching reads. */
+export function toSignup(row: SignupRow): Signup {
+  return {
     id: row.user_id,
     name: `${row.first_name} ${row.last_name}`,
     email: row.email,
     cohort: row.cohort,
     answers: row.answers,
-  }));
+  };
+}
+
+/** Everyone's sign-ups, oldest first, in the shape the matching reads. */
+export async function listSignups(sql: Sql): Promise<Signup[]> {
+  const rows = await sql<SignupRow[]>`
+    SELECT user_id, first_name, last_name, email, cohort, answers FROM signups ORDER BY created_at, user_id
+  `;
+  return rows.map(toSignup);
 }
