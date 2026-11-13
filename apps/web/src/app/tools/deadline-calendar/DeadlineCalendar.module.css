@@ -1,0 +1,986 @@
+.page {
+  --accent-soft: #f5f7ff;
+  --accent-line: #dce3ff;
+  --warn-bg: #fffbeb;
+  --warn-line: #fde68a;
+  --warn-text: #92400e;
+  --ok-bg: #f0fdf4;
+  --ok-line: #bbf7d0;
+  --ok-text: #166534;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.link {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.muted {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--section-label);
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.intro {
+  max-width: 560px;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--section-label);
+}
+
+/* ── Steps ─────────────────────────────────────────────────────────────────── */
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stepTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* ── Step 1: upload ────────────────────────────────────────────────────────── */
+
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 32px 20px;
+  border: 2px dashed var(--input-border);
+  border-radius: 14px;
+  background: var(--accent-soft);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone:hover,
+.dropzoneActive {
+  border-color: var(--penn-blue);
+  background: #eef2ff;
+}
+.dropzone:focus-within {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+.dropzoneDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dropzoneIcon {
+  color: var(--penn-blue);
+  margin-bottom: 4px;
+}
+
+.dropzoneTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.browse {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.dropzoneHint {
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+
+/* The real input covers the drop zone, so clicking anywhere opens the picker. */
+.fileInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.rejected {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  list-style: none;
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.875rem;
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  color: var(--penn-blue);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+
+.fileRemove {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--section-label);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.fileRemove:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.primary {
+  align-self: flex-start;
+  height: 42px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.primary:hover:not(:disabled) { background: #163983; }
+.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+
+.provider select {
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* ── Step 2: check ─────────────────────────────────────────────────────────── */
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 0.9rem;
+}
+
+.spinner {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent-line);
+  border-top-color: var(--penn-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 3s; }
+}
+
+.ready {
+  padding: 12px 16px;
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* A compact strip under the Download button. */
+.busy {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  border: 1px solid var(--warn-line);
+  border-radius: 10px;
+  background: var(--warn-bg);
+}
+
+.busyTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--warn-text);
+}
+
+.busyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.busyWeek {
+  margin-left: 26px;
+}
+
+.busyWeekSummary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.8rem;
+}
+.busyWeekSummary::-webkit-details-marker { display: none; }
+.busyWeekSummary:hover .busyWeekTypes { text-decoration: underline; }
+
+.busyWeekDates {
+  flex-shrink: 0;
+  width: 96px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.busyWeekTypes {
+  flex: 1;
+  min-width: 0;
+  color: var(--section-label);
+}
+
+.busyChevron {
+  flex-shrink: 0;
+  align-self: center;
+  width: 14px;
+  height: 14px;
+  color: var(--warn-text);
+  transition: transform 0.15s;
+}
+.busyWeek[open] .busyChevron { transform: rotate(90deg); }
+
+.busyItems {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 2px 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+.busyItems li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.busyDate {
+  flex-shrink: 0;
+  width: 84px;
+  color: var(--section-label);
+  white-space: nowrap;
+}
+
+.busyName {
+  min-width: 0;
+}
+
+.busyNote {
+  display: block;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--section-label);
+}
+
+@media (max-width: 520px) {
+  .busyWeek { margin-left: 0; }
+  .busyWeekDates { width: auto; }
+  .busyItems li { flex-wrap: wrap; }
+}
+
+.statsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statWarn {
+  border-color: var(--warn-line);
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.statOk {
+  border-color: var(--ok-line);
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.statError {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.classPicker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pickerTrigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 0.95rem;
+  color: var(--text);
+  text-align: left;
+}
+.pickerTrigger:hover { border-color: var(--section-label); }
+.pickerTrigger[aria-expanded="true"] { border-color: var(--penn-blue); }
+
+.chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--section-label);
+}
+
+.pickerList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.pickerOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.9rem;
+  color: var(--text);
+  text-align: left;
+}
+.pickerOption:hover,
+.pickerOption:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+.pickerOptionSelected {
+  font-weight: 600;
+}
+
+/* Long class names shorten with an ellipsis; the badge always shows. */
+.optionName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionBadge {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+}
+
+.classPickerLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--section-label);
+}
+
+/* ── A class ───────────────────────────────────────────────────────────────── */
+
+.classCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.classHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.classHeading {
+  min-width: 0;
+}
+
+.className {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.classFile {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--section-label);
+  overflow-wrap: anywhere;
+}
+
+.ghost {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.ghost:hover { color: var(--text); }
+
+.classMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+
+.grading {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.gradingList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gradingList li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+}
+.gradingList li + li {
+  border-top: 1px dashed var(--border);
+}
+
+.gradingDetail {
+  color: var(--section-label);
+}
+
+.gradingPercent {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.gradingLabel {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--section-label);
+}
+
+.allClear {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--ok-line);
+  border-radius: 10px;
+  background: var(--ok-bg);
+  color: var(--ok-text);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.allClearIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+/* Yellow and red banners in the same place and shape as All clear. */
+.attention {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.attentionWarn {
+  border-color: var(--warn-line);
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.attentionError {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.attentionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.attentionWarn .attentionIcon { background: #f59e0b; }
+.attentionError .attentionIcon { background: #dc2626; }
+
+.subheading {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.error {
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+/* ── Deadlines table ───────────────────────────────────────────────────────── */
+
+/* Narrow screens scroll the table sideways instead of squeezing it. */
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.table th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--section-label);
+}
+.table tbody tr:last-child td { border-bottom: none; }
+
+.date,
+.time {
+  white-space: nowrap;
+}
+
+.date {
+  font-weight: 600;
+}
+
+.deadlineTitle {
+  font-weight: 600;
+}
+
+.section,
+.reviewNote {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--section-label);
+}
+
+.tag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--border);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--section-label);
+  vertical-align: 1px;
+}
+
+.type {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+.type_exam { background: #fee2e2; color: #991b1b; }
+.type_quiz { background: #ede9fe; color: #5b21b6; }
+.type_assignment { background: #dbeafe; color: #1e40af; }
+.type_project { background: #dcfce7; color: #166534; }
+.type_presentation { background: #ffedd5; color: #9a3412; }
+
+.review td {
+  background: var(--warn-bg);
+}
+.review .reviewNote {
+  color: var(--warn-text);
+}
+
+.past td {
+  color: var(--section-label);
+}
+.past .type {
+  opacity: 0.6;
+}
+
+/* ── Fixing deadlines ──────────────────────────────────────────────────────── */
+
+/* The buttons stack when the column is narrow, instead of running off the edge. */
+.actions {
+  text-align: right;
+}
+.actions .action {
+  margin: 0 0 4px 4px;
+  white-space: nowrap;
+}
+
+.allDeadlines summary {
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+.allDeadlines summary:hover {
+  text-decoration: underline;
+}
+
+.action {
+  margin-left: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.action:hover { color: var(--text); border-color: var(--section-label); }
+
+.actionConfirm {
+  border-color: var(--ok-line);
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+.actionConfirm:hover { border-color: #16a34a; color: var(--ok-text); }
+
+.actionDelete:hover { border-color: #fca5a5; color: #b91c1c; }
+
+.editing td {
+  background: var(--accent-soft);
+}
+
+.editForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.field:first-child {
+  flex: 1 1 200px;
+}
+
+.field input {
+  padding: 7px 9px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.editForm .reviewNote {
+  flex-basis: 100%;
+}
+
+.editButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.small {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.small:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Step 3: download ──────────────────────────────────────────────────────── */
+
+.download {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--accent-line);
+  border-radius: 14px;
+  background: var(--accent-soft);
+}
+
+.downloadIcon {
+  flex-shrink: 0;
+  color: var(--penn-blue);
+}
+
+.downloadBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perClass {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--accent-line);
+  align-self: stretch;
+}
+
+.perClassTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.perClassButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.perClassButtons .action {
+  margin-left: 0;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+.perClassButtons .action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.howTo {
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+.howTo summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+.howTo ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .download { flex-direction: column; }
+  .classCard { padding: 16px; }
+}

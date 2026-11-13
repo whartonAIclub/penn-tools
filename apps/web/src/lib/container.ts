@@ -54,6 +54,8 @@ import { AskPennTool } from "@penntools/tool-askpenn";
 toolRegistry.register(new AskPennTool());
 import { RecruitingHelperTool } from "@penntools/tool-recruiting-helper";
 toolRegistry.register(new RecruitingHelperTool());
+import { DeadlineCalendarTool } from "@penntools/tool-deadline-calendar";
+toolRegistry.register(new DeadlineCalendarTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 
