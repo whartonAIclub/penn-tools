@@ -1,13 +1,14 @@
 // Connector's results: the signed-in student's group, as a tile per person,
-// and what the group has in common. Groups are made from every sign-up saved
-// in Connector's database.
+// and what the group has in common. Groups are the ones saved when the team
+// released matches (team/), so they never reshuffle. Students not matched yet
+// wait (../waiting), or are told they're first in line if the last release
+// had no room for them.
 
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { toolSql } from "@penntools/platform/db";
-import { COHORTS, formGroups, listSignups, sharedAnswers } from "@penntools/tool-connector";
-import type { Signup } from "@penntools/tool-connector";
+import { COHORTS, getStatus, sharedAnswers, type Status } from "@penntools/tool-connector";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import styles from "./Groups.module.css";
@@ -30,36 +31,29 @@ function initials(name: string): string {
     .join("");
 }
 
-/**
- * Whether the team has released matches. Until then students wait, since
- * groups worked out live would reshuffle with every new sign-up. Always false
- * for now: releasing (and saving the groups) comes next, and this will then
- * check for a release in the database.
- */
-async function matchesReleased(): Promise<boolean> {
-  return false;
-}
-
-/** Everyone's saved sign-ups, or null if Connector's database can't be read. */
-async function loadSignups(): Promise<Signup[] | null> {
+/** Where the student stands, or null if Connector's database can't be read. */
+async function loadStatus(userId: string): Promise<Status | null> {
   const sql = toolSql("connector");
   if (!sql) return null;
   try {
-    return await listSignups(sql);
+    return await getStatus(sql, userId);
   } catch (error) {
-    console.error("Connector: reading sign-ups failed", error);
+    console.error("Connector: reading a student's status failed", error);
     return null;
   }
 }
+
+// Always show the student's current status, never a cached page.
+export const dynamic = "force-dynamic";
 
 export default async function ConnectorGroupsPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Connector" />;
 
-  if (!(await matchesReleased())) redirect("/tools/connector/waiting");
+  const status = await loadStatus(user.id);
+  if (status?.kind === "waiting") redirect("/tools/connector/waiting");
 
-  const signups = await loadSignups();
-  if (!signups) {
+  if (!status) {
     return (
       <div className={styles.page}>
         <h1 className={styles.title}>Your group</h1>
@@ -68,7 +62,7 @@ export default async function ConnectorGroupsPage() {
     );
   }
 
-  if (!signups.some((s) => s.id === user.id)) {
+  if (status.kind === "not-signed-up") {
     return (
       <div className={styles.page}>
         <h1 className={styles.title}>Your group</h1>
@@ -82,20 +76,19 @@ export default async function ConnectorGroupsPage() {
     );
   }
 
-  const { groups } = formGroups(signups);
-  const group = groups.find((g) => g.members.some((m) => m.id === user.id));
-
-  if (!group) {
+  if (status.kind !== "matched") {
     return (
       <div className={styles.page}>
         <h1 className={styles.title}>You&apos;re on the waitlist</h1>
         <p className={styles.intro}>
-          No group had room for you this round, so you&apos;ll be first in line for the next one. We&apos;ll let you
-          know as soon as you&apos;re matched.
+          No group had room for you this round, so you&apos;ll be first in line for the next one. Check back here after
+          the next release to meet your group.
         </p>
       </div>
     );
   }
+
+  const group = status.match;
 
   // You first, then everyone else.
   const members = [...group.members].sort((a, b) => Number(b.id === user.id) - Number(a.id === user.id));

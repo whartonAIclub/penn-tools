@@ -65,6 +65,29 @@ export interface Match {
   members: Signup[];
 }
 
+/** Where a student stands. */
+export type Status =
+  | { kind: "not-signed-up" }
+  /** Signed up, and no release has happened since. */
+  | { kind: "waiting"; signup: Signup }
+  /** Signed up, but a release since then had no room for them: they're first in line next time. */
+  | { kind: "waitlisted"; signup: Signup }
+  | { kind: "matched"; signup: Signup; match: Match };
+
+export async function getStatus(sql: Sql, userId: string): Promise<Status> {
+  const [row] = await sql<(SignupRow & { missed_release: boolean })[]>`
+    SELECT s.user_id, s.first_name, s.last_name, s.email, s.cohort, s.answers,
+      EXISTS (SELECT 1 FROM releases r WHERE r.released_at > s.created_at) AS missed_release
+    FROM signups s
+    WHERE s.user_id = ${userId}
+  `;
+  if (!row) return { kind: "not-signed-up" };
+  const signup = toSignup(row);
+  const match = await getMatch(sql, userId);
+  if (match) return { kind: "matched", signup, match };
+  return { kind: row.missed_release ? "waitlisted" : "waiting", signup };
+}
+
 /** The student's group from the latest release they were matched in, or null if they haven't been matched. */
 export async function getMatch(sql: Sql, userId: string): Promise<Match | null> {
   const [mine] = await sql<{ release_id: string; group_number: number; released_at: Date }[]>`

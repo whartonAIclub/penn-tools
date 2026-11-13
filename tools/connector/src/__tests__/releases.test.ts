@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
 import { QUESTIONS } from "../questions.js";
-import { getMatch, isTeamMember, listUnmatched, previewRelease, releaseMatches } from "../releases.js";
+import { getMatch, getStatus, isTeamMember, listUnmatched, previewRelease, releaseMatches } from "../releases.js";
 import { saveSignup } from "../signups.js";
 
 describe("isTeamMember", () => {
@@ -67,6 +67,8 @@ describe.skipIf(!databaseUrl)("Connector releases (Postgres)", () => {
     expect(preview.groups.flatMap((g) => g.members.map((m) => m.id)).sort()).toEqual(["a", "b", "c", "d", "e"]);
     expect(await getMatch(sql, "a")).toBeNull();
     expect(await listUnmatched(sql)).toHaveLength(5);
+    expect((await getStatus(sql, "a")).kind).toBe("waiting");
+    expect((await getStatus(sql, "nobody")).kind).toBe("not-signed-up");
 
     const first = await releaseMatches(sql, "sayenko@upenn.edu");
     expect(first.groups).toHaveLength(1);
@@ -75,11 +77,14 @@ describe.skipIf(!databaseUrl)("Connector releases (Postgres)", () => {
     const match = await getMatch(sql, "c");
     expect(match?.releaseId).toBe(first.releaseId);
     expect(match?.members.map((m) => m.id).sort()).toEqual(["a", "b", "c", "d", "e"]);
+    const status = await getStatus(sql, "c");
+    expect(status.kind === "matched" && status.match.members).toHaveLength(5);
 
     // A newcomer after the release isn't matched yet, and the first group stays as it was.
     await signUp("f", "F");
     expect((await listUnmatched(sql)).map((s) => s.id)).toEqual(["f"]);
     expect((await getMatch(sql, "a"))?.members).toHaveLength(5);
+    expect((await getStatus(sql, "f")).kind).toBe("waiting");
 
     // One person can't make a group: the next release waitlists them, and they stay unmatched.
     const second = await releaseMatches(sql, "subasree@wharton.upenn.edu");
@@ -87,12 +92,14 @@ describe.skipIf(!databaseUrl)("Connector releases (Postgres)", () => {
     expect(second.waitlist.map((s) => s.id)).toEqual(["f"]);
     expect(await getMatch(sql, "f")).toBeNull();
     expect((await listUnmatched(sql)).map((s) => s.id)).toEqual(["f"]);
+    expect((await getStatus(sql, "f")).kind).toBe("waitlisted");
 
     // With three more, the waitlisted student is matched in the next release.
     for (const [id, cohort] of [["g", "G"], ["h", "H"], ["i", "I"]] as const) await signUp(id, cohort);
     const third = await releaseMatches(sql, "sayenko@upenn.edu");
     expect(third.groups.flatMap((g) => g.members.map((m) => m.id)).sort()).toEqual(["f", "g", "h", "i"]);
     expect((await getMatch(sql, "f"))?.releaseId).toBe(third.releaseId);
+    expect((await getStatus(sql, "f")).kind).toBe("matched");
     expect((await getMatch(sql, "a"))?.releaseId).toBe(first.releaseId);
   });
 });
