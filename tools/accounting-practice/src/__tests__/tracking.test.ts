@@ -9,8 +9,9 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
 import { getMetrics } from "../metrics.js";
-import { canViewStats, excludedFromMetrics, TEAM_USER_IDS } from "../team.js";
-import { recordAnswer, recordSessionComplete, recordSessionStart } from "../tracking.js";
+import { canOpenStats, canViewStats, excludedFromMetrics, TEAM_USER_IDS } from "../team.js";
+import { ANON_ROUND_CAP, completeAnonRound, recordAnonAnswer, startAnonRound } from "../anonymous.js";
+import { recordAnswer, recordSessionComplete, recordSessionStart, textArray } from "../tracking.js";
 import { correctChoice } from "../game.js";
 import { transactionEffects } from "../questions/transaction-effects.js";
 import type { Question } from "../questions/types.js";
@@ -32,7 +33,7 @@ let admin: Sql;
 let sql: Sql;
 
 /** A round where `correctCount` of the five answers are right, completed. */
-async function playRound(userId: string | null, correctCount: number): Promise<string> {
+async function playRound(userId: string, correctCount: number): Promise<string> {
   const sessionId = await recordSessionStart(sql, { userId, topicId: transactionEffects.id, questionIds: ids });
   for (const [i, question] of questions.entries()) {
     const chosen = i < correctCount ? right(question) : wrong(question);
@@ -40,6 +41,16 @@ async function playRound(userId: string | null, correctCount: number): Promise<s
   }
   await recordSessionComplete(sql, { sessionId, userId });
   return sessionId;
+}
+
+/** A signed-out round where `correctCount` of the five answers are right, completed. */
+async function playAnonRound(correctCount: number): Promise<string> {
+  const roundId = (await startAnonRound(sql, { topicId: transactionEffects.id, questionIds: ids })) as string;
+  for (const [i, question] of questions.entries()) {
+    await recordAnonAnswer(sql, { roundId, question, chosen: i < correctCount ? right(question) : wrong(question) });
+  }
+  await completeAnonRound(sql, roundId);
+  return roundId;
 }
 
 /** Moves a round into the past, keeping how long it took. */
@@ -77,6 +88,20 @@ describe.skipIf(!databaseUrl)("recording rounds (Postgres)", () => {
       WHERE table_schema = ${schema} ORDER BY table_name, ordinal_position
     `;
     expect(columns.map((c) => `${c.table_name}.${c.column_name}`)).toEqual([
+      "anon_daily_answers.day",
+      "anon_daily_answers.question_id",
+      "anon_daily_answers.answered",
+      "anon_daily_answers.correct",
+      "anon_daily_rounds.day",
+      "anon_daily_rounds.started",
+      "anon_daily_rounds.completed",
+      "anon_rounds.id",
+      "anon_rounds.slot",
+      "anon_rounds.topic_id",
+      "anon_rounds.question_ids",
+      "anon_rounds.answered",
+      "anon_rounds.correct",
+      "anon_rounds.started_at",
       "answers.session_id",
       "answers.question_id",
       "answers.chosen",
@@ -123,12 +148,6 @@ describe.skipIf(!databaseUrl)("recording rounds (Postgres)", () => {
     expect(row?.correct).toBe(false);
   });
 
-  it("lets a signed-out round continue after the student signs in", async () => {
-    const sessionId = await recordSessionStart(sql, { userId: null, topicId: "transaction-effects", questionIds: ids });
-    expect(await recordAnswer(sql, { sessionId, userId: null, question: q(0), chosen: right(q(0)) })).toBe(true);
-    expect(await recordAnswer(sql, { sessionId, userId: "u-late", question: q(1), chosen: right(q(1)) })).toBe(true);
-  });
-
   it("completes a round only when every question has an answer, scoring it on the server", async () => {
     const sessionId = await recordSessionStart(sql, { userId: "u-done", topicId: "transaction-effects", questionIds: ids });
     for (const question of questions.slice(0, 4)) {
@@ -160,8 +179,20 @@ describe.skipIf(!databaseUrl)("metrics (Postgres)", () => {
     await backdate(await playRound("bob", 4), 0, 4);
     const abandoned = await recordSessionStart(sql, { userId: "bob", topicId: "transaction-effects", questionIds: ids });
     await recordAnswer(sql, { sessionId: abandoned, userId: "bob", question: q(0), chosen: wrong(q(0)) });
-    // A signed-out round today, completed.
-    await backdate(await playRound(null, 2), 0, 10);
+    // A signed-out round today, completed: only in the signed-out daily totals.
+    await playAnonRound(2);
+    // An old-style signed-out round in sessions (from before the anon tables),
+    // all correct: the metrics must ignore it.
+    const [legacy] = await sql<{ id: string }[]>`
+      INSERT INTO sessions (user_id, topic_id, question_ids, completed_at, score)
+      VALUES (NULL, ${transactionEffects.id}, ${textArray(sql, ids)}, NOW(), 5) RETURNING id
+    `;
+    for (const question of questions) {
+      await sql`
+        INSERT INTO answers (session_id, question_id, chosen, correct)
+        VALUES (${legacy!.id}, ${question.id}, ${right(question)}, TRUE)
+      `;
+    }
     // Carol: one completed round 20 days ago, outside the last 7 days.
     await backdate(await playRound("carol", 5), 20, 3);
     // The team's own round, which the live metrics leave out.
@@ -174,16 +205,30 @@ describe.skipIf(!databaseUrl)("metrics (Postgres)", () => {
     await admin?.end();
   });
 
-  it("counts every round, signed in or not, apart from the excluded team's", async () => {
+  it("counts signed-in rounds only, apart from the excluded team's", async () => {
     const m = await getMetrics(sql, { window: "all", excludeUserIds: ["team-member"] });
-    expect(m.allRounds).toEqual({
-      started: 6,
-      completed: 5,
-      completionRate: 5 / 6,
-      questionsAnswered: 26,
-      questionsPerRound: 26 / 6,
-      medianMinutesPerCompletedRound: 4,
+    // Alice 2, Bob 2 (one abandoned), Carol 1; not the signed-out or legacy rounds.
+    expect(m.signedInRounds).toEqual({
+      started: 5,
+      completed: 4,
+      completionRate: 4 / 5,
+      questionsAnswered: 21,
+      questionsPerRound: 21 / 5,
+      medianMinutesPerCompletedRound: 3.5, // of 2, 3, 4 and 6 minutes
     });
+  });
+
+  it("reports signed-out activity separately, from the daily totals", async () => {
+    const m = await getMetrics(sql, { window: "all", excludeUserIds: ["team-member"] });
+    expect(m.signedOut).toEqual({
+      roundsStarted: 1,
+      roundsCompleted: 1,
+      completionRate: 1,
+      questionsAnswered: 5,
+      correct: 2,
+      accuracy: 2 / 5,
+    });
+    expect((await getMetrics(sql, { window: "7d", excludeUserIds: [] })).signedOut.roundsStarted).toBe(1);
   });
 
   it("counts signed-in students and who came back on another day", async () => {
@@ -201,37 +246,39 @@ describe.skipIf(!databaseUrl)("metrics (Postgres)", () => {
 
   it("limits the 7-day window to recent rounds", async () => {
     const m = await getMetrics(sql, { window: "7d", excludeUserIds: ["team-member"] });
-    expect(m.allRounds.started).toBe(5); // all but Carol's
+    expect(m.signedInRounds.started).toBe(4); // all but Carol's
     expect(m.signedIn.uniqueUsers).toBe(2); // Alice and Bob
     expect(m.signedIn.returningUsers).toBe(1); // Alice, 3 days ago and today
   });
 
   it("includes the team's rounds when nothing is excluded", async () => {
     const m = await getMetrics(sql, { window: "all", excludeUserIds: [] });
-    expect(m.allRounds.started).toBe(7);
+    expect(m.signedInRounds.started).toBe(6);
     expect(m.signedIn.uniqueUsers).toBe(4);
   });
 
-  it("reports accuracy by topic and by question, hardest question first", async () => {
+  it("reports accuracy by topic and by question from signed-in answers only, hardest first", async () => {
     const m = await getMetrics(sql, { window: "all", excludeUserIds: ["team-member"] });
-    // Correct answers: Alice 5 + 3, Bob 4 + 0, signed out 2, Carol 5 = 19 of 26.
+    // Signed-in correct answers: Alice 5 + 3, Bob 4 + 0, Carol 5 = 17 of 21.
     expect(m.accuracyByTopic).toEqual([
-      { topicId: "transaction-effects", questionId: null, answered: 26, correct: 19, accuracy: 19 / 26 },
+      { topicId: "transaction-effects", questionId: null, answered: 21, correct: 17, accuracy: 17 / 21 },
     ]);
     expect(m.accuracyByQuestion).toHaveLength(5);
     const accuracies = m.accuracyByQuestion.map((row) => row.accuracy ?? 0);
     expect(accuracies).toEqual([...accuracies].sort((a, b) => a - b));
-    // te-05 was right only in Alice's and Carol's perfect rounds; te-02 in every completed round.
-    expect(m.accuracyByQuestion[0]).toMatchObject({ questionId: "te-05", answered: 5, correct: 2 });
-    expect(m.accuracyByQuestion.at(-1)).toMatchObject({ questionId: "te-02", answered: 5, correct: 5 });
-    expect(m.accuracyByQuestion.find((row) => row.questionId === "te-01")).toMatchObject({ answered: 6, correct: 5 });
+    // te-05 was right only in Alice's and Carol's perfect rounds; te-03 in every completed one.
+    expect(m.accuracyByQuestion[0]).toMatchObject({ questionId: "te-05", answered: 4, correct: 2 });
+    expect(m.accuracyByQuestion.at(-1)).toMatchObject({ questionId: "te-03", answered: 4, correct: 4 });
+    expect(m.accuracyByQuestion.find((row) => row.questionId === "te-01")).toMatchObject({ answered: 5, correct: 4 });
   });
 
   it("returns empty metrics, not errors, before anyone has played", async () => {
-    await sql`TRUNCATE answers, sessions`;
+    await sql`TRUNCATE answers, sessions, anon_daily_rounds, anon_daily_answers`;
     const m = await getMetrics(sql, { window: "7d", excludeUserIds: [] });
-    expect(m.allRounds.completionRate).toBeNull();
-    expect(m.allRounds.medianMinutesPerCompletedRound).toBeNull();
+    expect(m.signedInRounds.completionRate).toBeNull();
+    expect(m.signedInRounds.medianMinutesPerCompletedRound).toBeNull();
+    expect(m.signedOut.completionRate).toBeNull();
+    expect(m.signedOut.accuracy).toBeNull();
     expect(m.signedIn.uniqueUsers).toBe(0);
     expect(m.accuracyByQuestion).toEqual([]);
   });
@@ -274,7 +321,7 @@ describe.skipIf(!databaseUrl)("on a brand-new connection (Postgres)", () => {
     try {
       const m = await getMetrics(db, { window: "all", excludeUserIds: ["u-fresh"] });
       expect(m.signedIn.uniqueUsers).toBe(0);
-      expect(m.allRounds.started).toBe(0);
+      expect(m.signedInRounds.started).toBe(0);
     } finally {
       await db.end();
     }
@@ -296,5 +343,160 @@ describe("who can see the stats page", () => {
   it("leaves the team's rounds out of live metrics only", () => {
     expect(excludedFromMetrics("live")).toEqual(TEAM_USER_IDS);
     expect(excludedFromMetrics("preview")).toEqual([]);
+  });
+});
+
+describe.skipIf(!databaseUrl)("signed-out rounds (Postgres)", () => {
+  const anonSchema = `${schema}_anon`;
+  // Up to 10 connections, so concurrent requests really run concurrently.
+  let db: Sql;
+  const rounds = async () => Number((await db<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM anon_rounds`)[0]?.n);
+  const daily = async () =>
+    (await db<{ started: number; completed: number }[]>`SELECT started, completed FROM anon_daily_rounds`)[0] ?? {
+      started: 0,
+      completed: 0,
+    };
+  const start = () => startAnonRound(db, { topicId: transactionEffects.id, questionIds: ids });
+  /** Fills slots 1..n directly, as if n signed-out rounds were in progress. */
+  const fill = (n: number) => db`
+    INSERT INTO anon_rounds (slot, topic_id, question_ids)
+    SELECT s, 'transaction-effects', ARRAY['te-01'] FROM generate_series(1, ${n}::int) AS s
+  `;
+
+  beforeAll(async () => {
+    admin = postgres(databaseUrl!, { max: 1, onnotice: () => {} });
+    await admin.unsafe(`CREATE SCHEMA ${anonSchema}`);
+    db = postgres(databaseUrl!, { max: 10, onnotice: () => {}, connection: { search_path: anonSchema } });
+    await db.unsafe(schemaSql);
+  });
+
+  afterAll(async () => {
+    await db?.end();
+    await admin?.unsafe(`DROP SCHEMA IF EXISTS ${anonSchema} CASCADE`);
+    await admin?.end();
+  });
+
+  it("keeps a round only while in progress, grading answers and counting daily totals", async () => {
+    await db`TRUNCATE anon_rounds, anon_daily_rounds, anon_daily_answers`;
+    const roundId = (await start()) as string;
+    expect(roundId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await daily()).toEqual({ started: 1, completed: 0 });
+
+    expect(await recordAnonAnswer(db, { roundId, question: q(0), chosen: right(q(0)) })).toBe(true);
+    expect(await recordAnonAnswer(db, { roundId, question: q(0), chosen: wrong(q(0)) })).toBe(false); // first answer counts
+    expect(await recordAnonAnswer(db, { roundId, question: q(1), chosen: "E" })).toBe(false); // not a choice
+    expect(await recordAnonAnswer(db, { roundId: "not-a-uuid", question: q(1), chosen: right(q(1)) })).toBe(false);
+    for (const question of questions.slice(1, 4)) await recordAnonAnswer(db, { roundId, question, chosen: right(question) });
+    expect(await completeAnonRound(db, roundId)).toBeNull(); // te-05 unanswered
+
+    await recordAnonAnswer(db, { roundId, question: q(4), chosen: wrong(q(4)) });
+    expect(await completeAnonRound(db, roundId)).toEqual({ score: 4, total: 5 });
+    expect(await rounds()).toBe(0); // deleted once completed
+    expect(await completeAnonRound(db, roundId)).toBeNull(); // only once
+    expect(await recordAnonAnswer(db, { roundId, question: q(0), chosen: right(q(0)) })).toBe(false);
+    expect(await daily()).toEqual({ started: 1, completed: 1 });
+
+    const answers = await db<{ question_id: string; answered: number; correct: number }[]>`
+      SELECT question_id, answered, correct FROM anon_daily_answers ORDER BY question_id
+    `;
+    expect(answers).toEqual([
+      { question_id: "te-01", answered: 1, correct: 1 },
+      { question_id: "te-02", answered: 1, correct: 1 },
+      { question_id: "te-03", answered: 1, correct: 1 },
+      { question_id: "te-04", answered: 1, correct: 1 },
+      { question_id: "te-05", answered: 1, correct: 0 },
+    ]);
+  });
+
+  it("accepts answers only for the round's own questions", async () => {
+    const roundId = (await startAnonRound(db, { topicId: "transaction-effects", questionIds: ["te-01"] })) as string;
+    expect(await recordAnonAnswer(db, { roundId, question: q(1), chosen: right(q(1)) })).toBe(false);
+    expect(await recordAnonAnswer(db, { roundId, question: q(0), chosen: right(q(0)) })).toBe(true);
+  });
+
+  it("expires abandoned rounds after 2 hours, and cleans them up", async () => {
+    await db`TRUNCATE anon_rounds`;
+    const roundId = (await start()) as string;
+    await db`UPDATE anon_rounds SET started_at = NOW() - INTERVAL '3 hours' WHERE id = ${roundId}`;
+    expect(await recordAnonAnswer(db, { roundId, question: q(0), chosen: right(q(0)) })).toBe(false);
+    expect(await completeAnonRound(db, roundId)).toBeNull();
+    await start(); // starting a round clears expired ones
+    expect(Number((await db`SELECT COUNT(*)::int AS n FROM anon_rounds WHERE id = ${roundId}`)[0]?.n)).toBe(0);
+  });
+
+  it("drops daily totals older than the retention period", async () => {
+    await db`INSERT INTO anon_daily_rounds (day, started) VALUES (CURRENT_DATE - 500, 7) ON CONFLICT DO NOTHING`;
+    await db`INSERT INTO anon_daily_answers (day, question_id, answered) VALUES (CURRENT_DATE - 500, 'te-01', 7) ON CONFLICT DO NOTHING`;
+    await start();
+    expect((await db`SELECT 1 FROM anon_daily_rounds WHERE day = CURRENT_DATE - 500`).length).toBe(0);
+    expect((await db`SELECT 1 FROM anon_daily_answers WHERE day = CURRENT_DATE - 500`).length).toBe(0);
+  });
+
+  it(`caps rounds in progress at ${ANON_ROUND_CAP}; past the cap a round is untracked and uncounted`, async () => {
+    await db`TRUNCATE anon_rounds, anon_daily_rounds`;
+    await fill(ANON_ROUND_CAP - 1);
+    expect(await start()).not.toBeNull(); // takes the last slot
+    expect(await rounds()).toBe(ANON_ROUND_CAP);
+    expect(await start()).toBeNull(); // full
+    expect(await daily()).toEqual({ started: 1, completed: 0 }); // the refused round isn't counted
+  });
+
+  it("enforces the cap in the database itself", async () => {
+    await expect(
+      db`INSERT INTO anon_rounds (slot, topic_id, question_ids) VALUES (5001, 't', ARRAY['te-01'])`,
+    ).rejects.toThrow();
+    await expect(
+      db`INSERT INTO anon_rounds (slot, topic_id, question_ids) VALUES (1, 't', ARRAY['te-01'])`,
+    ).rejects.toThrow(); // slot taken
+    expect(await rounds()).toBe(ANON_ROUND_CAP);
+  });
+
+  it("never exceeds the cap under concurrent requests", async () => {
+    await db`TRUNCATE anon_rounds, anon_daily_rounds`;
+    await fill(ANON_ROUND_CAP - 5);
+    const results = await Promise.all(Array.from({ length: 20 }, () => start()));
+    const started = results.filter((id) => id !== null).length;
+    expect(started).toBeGreaterThan(0);
+    expect(started).toBeLessThanOrEqual(5);
+    expect(await rounds()).toBe(ANON_ROUND_CAP - 5 + started);
+    expect((await daily()).started).toBe(started); // only stored rounds are counted
+  });
+});
+
+describe("who can open the stats page (team or site admin)", () => {
+  const adminCheck = (answer: boolean) => {
+    const calls: number[] = [];
+    return {
+      calls,
+      check: async () => {
+        calls.push(1);
+        return answer;
+      },
+    };
+  };
+
+  it("refuses signed-out visitors without asking the admin check", async () => {
+    const isAdmin = adminCheck(true);
+    expect(await canOpenStats(null, "live", isAdmin.check)).toBe(false);
+    expect(isAdmin.calls).toHaveLength(0);
+  });
+
+  it("lets site admins in on the live site", async () => {
+    expect(await canOpenStats("someone", "live", adminCheck(true).check)).toBe(true);
+  });
+
+  it("refuses a signed-in user who is neither on the team nor an admin", async () => {
+    expect(await canOpenStats("someone", "live", adminCheck(false).check)).toBe(false);
+  });
+
+  it("treats a failing admin check as no", async () => {
+    expect(await canOpenStats("someone", "live", () => Promise.reject(new Error("db down")))).toBe(false);
+  });
+
+  it("lets team members in without asking the admin check", async () => {
+    const isAdmin = adminCheck(false);
+    for (const id of TEAM_USER_IDS) expect(await canOpenStats(id, "live", isAdmin.check)).toBe(true);
+    expect(await canOpenStats("local-user", "preview", isAdmin.check)).toBe(true);
+    expect(isAdmin.calls).toHaveLength(0);
   });
 });

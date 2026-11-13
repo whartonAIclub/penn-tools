@@ -23,6 +23,21 @@ export function canViewStats(userId: string | null, mode: GameMode): boolean {
   return mode === "preview" || TEAM_USER_IDS.includes(userId);
 }
 
+/**
+ * Whether this user may open the stats page: a team member (see canViewStats)
+ * or a PennTools site admin. `isAdmin` is the platform's check from
+ * @/lib/admin, asked only when the team check fails; an error counts as no.
+ */
+export async function canOpenStats(
+  userId: string | null,
+  mode: GameMode,
+  isAdmin: () => Promise<boolean>,
+): Promise<boolean> {
+  if (userId === null) return false;
+  if (canViewStats(userId, mode)) return true;
+  return isAdmin().catch(() => false);
+}
+
 /** Accounts whose rounds the metrics leave out: the team's, on the live site only. */
 export function excludedFromMetrics(mode: GameMode): readonly string[] {
   return mode === "live" ? TEAM_USER_IDS : [];

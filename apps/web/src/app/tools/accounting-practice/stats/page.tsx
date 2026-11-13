@@ -1,13 +1,15 @@
 // The team's private stats page: aggregate product metrics, no per-student
 // data. Access is checked here on the server before any metrics are read, so a
-// visitor who isn't on the team gets no data, whatever link they follow.
-// Live: only TEAM_USER_IDS (tools/accounting-practice/src/team.ts). Local
-// preview: any signed-in user, since it's the team member's own database.
+// visitor who isn't allowed gets no data, whatever link they follow.
+// Live: TEAM_USER_IDS (tools/accounting-practice/src/team.ts) and PennTools site
+// admins (isAdmin, @/lib/admin). Local preview: any signed-in user, since it's
+// the team member's own database.
 
 import type { Metadata } from "next";
 import { toolSql } from "@penntools/platform/db";
-import { TOPICS, canViewStats, excludedFromMetrics, getMetrics } from "@penntools/tool-accounting-practice";
+import { TOPICS, canOpenStats, excludedFromMetrics, getMetrics } from "@penntools/tool-accounting-practice";
 import type { AccuracyRow, Metrics } from "@penntools/tool-accounting-practice";
+import { isAdmin } from "@/lib/admin";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { MODE } from "../mode";
@@ -25,7 +27,7 @@ const SMALL_SAMPLE = 10;
 export default async function StatsPage() {
   const user = await getCurrentUser().catch(() => null);
   if (!user) return <SignInPrompt title={TITLE} message="Sign in with a team account to see the stats." />;
-  if (!canViewStats(user.id, MODE)) {
+  if (!(await canOpenStats(user.id, MODE, () => isAdmin(user)))) {
     return (
       <div className={styles.page}>
         <h1 className={styles.title}>{TITLE}</h1>
@@ -127,21 +129,21 @@ function Dashboard({ week, all }: { week: Metrics; all: Metrics }) {
       </section>
 
       <MetricTable
-        title="All rounds"
-        note="Every round, signed in or not."
+        title="Signed-in rounds"
+        note="Rounds played while signed in. Signed-out activity is counted separately below."
         rows={[
-          ["Rounds started", ...rows((m) => String(m.allRounds.started))],
-          ["Rounds completed", ...rows((m) => String(m.allRounds.completed))],
-          ["Completion rate", ...rows((m) => percent(m.allRounds.completionRate))],
-          ["Questions answered", ...rows((m) => String(m.allRounds.questionsAnswered))],
-          ["Questions per round", ...rows((m) => decimal(m.allRounds.questionsPerRound))],
-          ["Median time per completed round", ...rows((m) => decimal(m.allRounds.medianMinutesPerCompletedRound, " min"))],
+          ["Rounds started", ...rows((m) => String(m.signedInRounds.started))],
+          ["Rounds completed", ...rows((m) => String(m.signedInRounds.completed))],
+          ["Completion rate", ...rows((m) => percent(m.signedInRounds.completionRate))],
+          ["Questions answered", ...rows((m) => String(m.signedInRounds.questionsAnswered))],
+          ["Questions per round", ...rows((m) => decimal(m.signedInRounds.questionsPerRound))],
+          ["Median time per completed round", ...rows((m) => decimal(m.signedInRounds.medianMinutesPerCompletedRound, " min"))],
         ]}
       />
 
       <MetricTable
         title="Signed-in students"
-        note="Only rounds played while signed in carry an account, so these count fewer rounds than above."
+        note="Students recognized by their PennTools account."
         rows={[
           ["Unique students", ...rows((m) => String(m.signedIn.uniqueUsers))],
           ["Rounds by signed-in students", ...rows((m) => String(m.signedIn.rounds))],
@@ -153,8 +155,21 @@ function Dashboard({ week, all }: { week: Metrics; all: Metrics }) {
         ]}
       />
 
+      <MetricTable
+        title="Signed-out activity (approximate)"
+        note="Daily totals only: signed-out rounds aren't kept, abandoned ones expire after 2 hours, and rounds started while 5,000 signed-out rounds were already in progress aren't counted. The 7-day column covers today and the 6 days before (Philadelphia time)."
+        rows={[
+          ["Rounds started", ...rows((m) => String(m.signedOut.roundsStarted))],
+          ["Rounds completed", ...rows((m) => String(m.signedOut.roundsCompleted))],
+          ["Completion rate", ...rows((m) => percent(m.signedOut.completionRate))],
+          ["Questions answered", ...rows((m) => String(m.signedOut.questionsAnswered))],
+          ["Accuracy", ...rows((m) => percent(m.signedOut.accuracy))],
+        ]}
+      />
+
       <AccuracyTable
         title="Accuracy by topic"
+        note="Signed-in answers only."
         week={week.accuracyByTopic}
         all={all.accuracyByTopic}
         label={(row) => topicTitle.get(row.topicId) ?? row.topicId}
@@ -162,7 +177,7 @@ function Dashboard({ week, all }: { week: Metrics; all: Metrics }) {
 
       <AccuracyTable
         title="Accuracy by question"
-        note="Hardest first. A question most students miss may be confusing, or wrong: worth a second look."
+        note="Signed-in answers only. Hardest first: a question most students miss may be confusing, or wrong, and worth a second look."
         week={week.accuracyByQuestion}
         all={all.accuracyByQuestion}
         label={(row) => `${row.questionId} · ${questionConcept.get(row.questionId ?? "") ?? "(retired question)"}`}

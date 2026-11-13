@@ -1,8 +1,8 @@
-// Recording practice rounds in the tool's own database (schema.sql). Callers
-// pass the database client (toolSql("accountingpractice")), the signed-in
-// user's id or null, and questions from the server's own question bank. Answers
-// are graded here, never trusted from the browser, and accepted only for the
-// questions the server drew for that round.
+// Recording signed-in practice rounds in the tool's own database (schema.sql).
+// Callers pass the database client (toolSql("accountingpractice")), the user's
+// id, and questions from the server's own question bank. Answers are graded
+// here, never trusted from the browser, and accepted only for the questions the
+// server drew for that round. Signed-out rounds are in anonymous.ts.
 
 import type { Sql } from "postgres";
 import { isCorrect } from "./game.js";
@@ -25,10 +25,10 @@ function ownedBy(sql: Sql, userId: string | null) {
   return userId === null ? sql`user_id IS NULL` : sql`(user_id IS NULL OR user_id = ${userId})`;
 }
 
-/** Starts a round of the given questions (drawn by the server) and returns its id. */
+/** Starts a signed-in round of the given questions (drawn by the server) and returns its id. */
 export async function recordSessionStart(
   sql: Sql,
-  round: { userId: string | null; topicId: string; questionIds: readonly string[] },
+  round: { userId: string; topicId: string; questionIds: readonly string[] },
 ): Promise<string> {
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO sessions (user_id, topic_id, question_ids)

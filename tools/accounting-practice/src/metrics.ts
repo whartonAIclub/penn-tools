@@ -1,8 +1,10 @@
 // Product metrics for the team's stats page, from the tool's own tables
 // (schema.sql). Everything is an aggregate: no per-student rows leave the
-// database. Two kinds of numbers, kept apart:
-// - all rounds: every round, signed in or not.
-// - signed-in students: unique users and returning users, which need an id.
+// database. Two sources, kept apart:
+// - signed-in rounds (sessions, answers): round counts, students, returning
+//   students and accuracy, including accuracy by question.
+// - signed-out activity (anon_daily_*): approximate daily totals only, since
+//   signed-out rounds aren't kept and some aren't counted (see anonymous.ts).
 // Days are counted in Philadelphia time, so "came back on another day" matches
 // a student's calendar.
 
@@ -11,7 +13,7 @@ import { textArray } from "./tracking.js";
 
 export type MetricsWindow = "7d" | "all";
 
-export interface AllRoundsMetrics {
+export interface SignedInRoundsMetrics {
   /** Rounds started. */
   readonly started: number;
   /** Rounds with every question answered. */
@@ -42,6 +44,22 @@ export interface SignedInMetrics {
   readonly completersWhoReturnedRate: number | null;
 }
 
+/**
+ * Approximate signed-out activity, from daily totals: windows are whole
+ * Philadelphia days, and rounds started while the anonymous cap was reached
+ * aren't counted.
+ */
+export interface SignedOutMetrics {
+  readonly roundsStarted: number;
+  readonly roundsCompleted: number;
+  /** roundsCompleted ÷ roundsStarted. */
+  readonly completionRate: number | null;
+  readonly questionsAnswered: number;
+  readonly correct: number;
+  /** correct ÷ questionsAnswered. */
+  readonly accuracy: number | null;
+}
+
 export interface AccuracyRow {
   readonly topicId: string;
   /** Null on topic rows; the question's id on question rows. */
@@ -54,10 +72,13 @@ export interface AccuracyRow {
 
 export interface Metrics {
   readonly window: MetricsWindow;
-  readonly allRounds: AllRoundsMetrics;
+  /** Signed-in rounds only. */
+  readonly signedInRounds: SignedInRoundsMetrics;
   readonly signedIn: SignedInMetrics;
+  readonly signedOut: SignedOutMetrics;
+  /** Signed-in answers only. */
   readonly accuracyByTopic: readonly AccuracyRow[];
-  /** Hardest first, so questions that may be confusing or wrong stand out. */
+  /** Signed-in answers only. Hardest first, so questions that may be confusing or wrong stand out. */
   readonly accuracyByQuestion: readonly AccuracyRow[];
 }
 
@@ -66,9 +87,9 @@ function ratio(part: number, whole: number): number | null {
 }
 
 /**
- * The metrics for one window. Rounds by `excludeUserIds` (the team's own
- * accounts) are left out; signed-out rounds can't be attributed to anyone, so
- * they are always counted.
+ * The metrics for one window. Signed-in rounds by `excludeUserIds` (the team's
+ * own accounts) are left out. Signed-out activity can't be attributed to anyone,
+ * so it's always counted, separately.
  */
 export async function getMetrics(
   sql: Sql,
@@ -80,7 +101,8 @@ export async function getMetrics(
   },
 ): Promise<Metrics> {
   const included = sql`
-    (s.user_id IS NULL OR NOT (s.user_id = ANY(${textArray(sql, options.excludeUserIds)})))
+    s.user_id IS NOT NULL
+    AND NOT (s.user_id = ANY(${textArray(sql, options.excludeUserIds)}))
     ${options.window === "7d" ? sql`AND s.started_at >= NOW() - INTERVAL '7 days'` : sql``}
   `;
 
@@ -152,6 +174,22 @@ export async function getMetrics(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([topic_id, total]) => ({ topic_id, ...total }));
 
+  // Signed-out daily totals: whole Philadelphia days (today and the 6 before for 7d).
+  const days =
+    options.window === "7d" ? sql`day >= (NOW() AT TIME ZONE 'America/New_York')::date - 6` : sql`TRUE`;
+  const [anonRounds] = await sql<{ started: number; completed: number }[]>`
+    SELECT COALESCE(SUM(started), 0)::int AS started, COALESCE(SUM(completed), 0)::int AS completed
+    FROM anon_daily_rounds WHERE ${days}
+  `;
+  const [anonAnswers] = await sql<{ answered: number; correct: number }[]>`
+    SELECT COALESCE(SUM(answered), 0)::int AS answered, COALESCE(SUM(correct), 0)::int AS correct
+    FROM anon_daily_answers WHERE ${days}
+  `;
+  const anonStarted = anonRounds?.started ?? 0;
+  const anonCompleted = anonRounds?.completed ?? 0;
+  const anonAnswered = anonAnswers?.answered ?? 0;
+  const anonCorrect = anonAnswers?.correct ?? 0;
+
   const started = rounds?.started ?? 0;
   const completed = rounds?.completed ?? 0;
   const questionsAnswered = answered?.count ?? 0;
@@ -160,7 +198,15 @@ export async function getMetrics(
 
   return {
     window: options.window,
-    allRounds: {
+    signedOut: {
+      roundsStarted: anonStarted,
+      roundsCompleted: anonCompleted,
+      completionRate: ratio(anonCompleted, anonStarted),
+      questionsAnswered: anonAnswered,
+      correct: anonCorrect,
+      accuracy: ratio(anonCorrect, anonAnswered),
+    },
+    signedInRounds: {
       started,
       completed,
       completionRate: ratio(completed, started),

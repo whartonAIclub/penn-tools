@@ -3,7 +3,9 @@
 // Saving practice rounds. The browser calls these in the background; saving
 // never blocks the game, and a failure only means the round isn't recorded.
 // Inputs come from the browser, so each is checked here, and answers are
-// graded against the server's own question bank (see tracking.ts).
+// graded against the server's own question bank. Signed-in rounds are kept
+// (tracking.ts); signed-out rounds only while in progress, capped, leaving
+// daily totals (anonymous.ts). A round id may be either kind.
 
 import { toolSql } from "@penntools/platform/db";
 import {
@@ -11,12 +13,15 @@ import {
   MIX,
   TOPICS,
   allowedCounts,
+  completeAnonRound,
   drawQuestions,
   playableTopics,
+  recordAnonAnswer,
   recordAnswer,
   recordSessionComplete,
   recordSessionStart,
   shuffle,
+  startAnonRound,
 } from "@penntools/tool-accounting-practice";
 import type { Question } from "@penntools/tool-accounting-practice";
 import { getCurrentUser } from "@/lib/auth";
@@ -114,8 +119,11 @@ export async function startRound(request: unknown): Promise<RoundStart | null> {
   }
 
   const userId = await currentUserId();
+  // Signed out: a temporary round, or null (played untracked) once the cap is reached.
   const sessionId = await save("a round start", null, (sql) =>
-    recordSessionStart(sql, { userId, topicId, questionIds }),
+    userId === null
+      ? startAnonRound(sql, { topicId, questionIds })
+      : recordSessionStart(sql, { userId, topicId, questionIds }),
   );
   return { questionIds, sessionId, signedIn: userId !== null };
 }
@@ -127,13 +135,20 @@ export async function submitAnswer(sessionId: unknown, questionId: unknown, chos
   if (!question) return false;
 
   const userId = await currentUserId();
-  return save("an answer", false, (sql) => recordAnswer(sql, { sessionId, userId, question, chosen }));
+  return save("an answer", false, async (sql) => {
+    if (await recordAnonAnswer(sql, { roundId: sessionId, question, chosen })) return true;
+    return userId !== null && recordAnswer(sql, { sessionId, userId, question, chosen });
+  });
 }
 
 /** Marks a round complete once all its answers are saved. True only if it was. */
 export async function finishRound(sessionId: unknown): Promise<boolean> {
   if (!isId(sessionId)) return false;
   const userId = await currentUserId();
-  const result = await save("a round's completion", null, (sql) => recordSessionComplete(sql, { sessionId, userId }));
+  const result = await save("a round's completion", null, async (sql) => {
+    const anonymous = await completeAnonRound(sql, sessionId);
+    if (anonymous !== null) return anonymous;
+    return userId === null ? null : recordSessionComplete(sql, { sessionId, userId });
+  });
   return result !== null;
 }
