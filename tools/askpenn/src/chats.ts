@@ -14,6 +14,8 @@ export interface ChatSummary {
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  /** Names of the files sent with a user message; only the names are kept. Absent when none. */
+  attachments?: string[];
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -34,10 +36,14 @@ export async function getMessages(sql: Sql, userId: string, chatId: string): Pro
   if (!UUID_RE.test(chatId)) return null;
   const [chat] = await sql`SELECT 1 FROM chats WHERE id = ${chatId} AND user_id = ${userId}`;
   if (!chat) return null;
-  const rows = await sql<ChatMessage[]>`
-    SELECT role, content FROM messages WHERE chat_id = ${chatId} ORDER BY id
+  const rows = await sql<(Omit<ChatMessage, "attachments"> & { attachment_names: string[] })[]>`
+    SELECT role, content, attachment_names FROM messages WHERE chat_id = ${chatId} ORDER BY id
   `;
-  return rows.map(({ role, content }) => ({ role, content }));
+  return rows.map(({ role, content, attachment_names }) => ({
+    role,
+    content,
+    ...(attachment_names.length > 0 && { attachments: attachment_names }),
+  }));
 }
 
 /** Starts a chat and returns its id. */
@@ -50,6 +56,9 @@ export async function createChat(sql: Sql, userId: string, title: string): Promi
 
 /** Appends a message and marks the chat as just active. */
 export async function addMessage(sql: Sql, chatId: string, message: ChatMessage): Promise<void> {
-  await sql`INSERT INTO messages (chat_id, role, content) VALUES (${chatId}, ${message.role}, ${message.content})`;
+  await sql`
+    INSERT INTO messages (chat_id, role, content, attachment_names)
+    VALUES (${chatId}, ${message.role}, ${message.content}, ${sql.array(message.attachments ?? [])}::text[])
+  `;
   await sql`UPDATE chats SET updated_at = NOW() WHERE id = ${chatId}`;
 }

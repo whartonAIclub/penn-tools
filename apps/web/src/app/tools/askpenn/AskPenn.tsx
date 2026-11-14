@@ -1,13 +1,15 @@
 "use client";
 
 // The AskPenn chat: a sidebar of the user's chats, the open chat's thread, and
-// the message box. Replies stream from stream/route.ts.
+// the message box, which takes attached, pasted or dropped files. Replies
+// stream from stream/route.ts.
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
 import type { AIProvider, AIReasoning, AIStreamEvent, AITier } from "@penntools/core/ai";
-import type { ChatMessage, ChatSummary } from "@penntools/tool-askpenn";
+import type { Attachment, AttachmentLimits, ChatMessage, ChatSummary } from "@penntools/tool-askpenn";
 import { loadChat, loadChats } from "./actions";
+import { ACCEPT, attachmentSize, readAttachment, uniqueName } from "./attachments";
 import styles from "./AskPenn.module.css";
 
 interface ShownError {
@@ -30,9 +32,19 @@ interface ReplySettings {
 const SPEEDS: Record<AITier, string> = { fast: "Fast", standard: "Balanced", best: "Best" };
 const THINKING: Record<AIReasoning, string> = { low: "Low", medium: "Medium", high: "High" };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 const SETTINGS_STORAGE_KEY = "askpenn_settings";
 const URL_RE = /(https?:\/\/[^\s)]+)/g;
+const MB = 1024 * 1024;
+
+/** A reply's error, said in terms of the files when the message had some. */
+function withAttachments(error: ShownError): ShownError {
+  if (error.kind === "bad_request") return { ...error, message: "Couldn't read one of your attachments. Try a different file." };
+  if (error.kind === "too_long") {
+    return { ...error, message: "Your attachments are too long for this model. Try a shorter file or fewer pages." };
+  }
+  return error;
+}
 
 export function AskPenn({
   initialChats,
@@ -41,15 +53,18 @@ export function AskPenn({
   defaultTier,
   defaultReasoning,
   maxMessageLength,
+  attachmentLimits: limits,
 }: {
   initialChats: ChatSummary[];
-  /** Providers the user has saved keys for; never empty. */
+  /** Providers the user can call (ai.providers()); never empty. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   defaultTier: AITier;
   defaultReasoning: AIReasoning;
   /** The server rejects longer messages, so the message box stops there. */
   maxMessageLength: number;
+  /** The server's limits on a message's attachments, checked here first. */
+  attachmentLimits: AttachmentLimits;
 }) {
   const [chats, setChats] = useState(initialChats);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -61,10 +76,21 @@ export function AskPenn({
   });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  /** Files ready to send with the next message. */
+  const [pending, setPending] = useState<Attachment[]>([]);
+  /** How many files are still being read. */
+  const [reading, setReading] = useState(0);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  /** Files are being dragged over the chat. */
+  const [dragging, setDragging] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const openingRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Files are read asynchronously, so adding them checks the latest list, not the one from when reading began.
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
 
   // Restore last time's choices, keeping only ones that are still valid (the
   // user may have removed a key since).
@@ -125,13 +151,92 @@ export function AskPenn({
     setMessages(loaded ?? [{ role: "assistant", content: "", error: { message: "Couldn't load this chat. Try again." } }]);
   }
 
+  /** Reads the files and adds them to the next message, saying why any can't be added. */
+  async function addFiles(files: File[]) {
+    if (files.length === 0) return;
+    setAttachError(null);
+    setReading((n) => n + files.length);
+    const results = await Promise.allSettled(files.map((file) => readAttachment(file, limits)));
+    setReading((n) => n - files.length);
+
+    const problems: string[] = [];
+    const next = [...pendingRef.current];
+    for (const result of results) {
+      if (result.status === "rejected") {
+        problems.push(result.reason instanceof Error ? result.reason.message : "A file couldn't be read.");
+        continue;
+      }
+      const attachment = result.value;
+      if (next.some((a) => a.data === attachment.data)) {
+        problems.push(`${attachment.name} is already attached.`);
+        continue;
+      }
+      if (next.length >= limits.count) {
+        problems.push(`Attach at most ${limits.count} files.`);
+        break;
+      }
+      const textLength = (a: Attachment) => (a.mediaType === "text/plain" ? a.data.length : 0);
+      if (next.reduce((total, a) => total + textLength(a), textLength(attachment)) > limits.textLength) {
+        problems.push(
+          `${attachment.name} would take your text files over ${limits.textLength / 1_000_000} million characters, more than any model reads.`,
+        );
+        continue;
+      }
+      if (next.reduce((total, a) => total + attachmentSize(a), attachmentSize(attachment)) > limits.bytes) {
+        problems.push(`${attachment.name} would take your attachments over ${limits.bytes / MB} MB.`);
+        continue;
+      }
+      next.push({ ...attachment, name: uniqueName(attachment.name, next.map((a) => a.name)) });
+    }
+    pendingRef.current = next;
+    setPending(next);
+    if (problems.length > 0) setAttachError(problems.join(" "));
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = Array.from(e.clipboardData.files);
+    // Copying from Word or Excel puts the text and a picture of it on the
+    // clipboard; paste the text as usual then.
+    if (files.length === 0 || e.clipboardData.getData("text/plain")) return;
+    e.preventDefault();
+    void addFiles(files);
+  }
+
+  // Files can be dropped anywhere on the chat. Every file drag is taken, even
+  // mid-reply when the drop is ignored, since a missed drop makes the browser
+  // open the file in place of the page.
+  const isFileDrag = (e: DragEvent) => e.dataTransfer.types.includes("Files");
+  function handleDragOver(e: DragEvent<HTMLElement>) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = busy ? "none" : "copy";
+    setDragging(!busy);
+  }
+  function handleDragLeave(e: DragEvent<HTMLElement>) {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+  }
+  function handleDrop(e: DragEvent<HTMLElement>) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    setDragging(false);
+    if (!busy) void addFiles(Array.from(e.dataTransfer.files));
+  }
+
   async function send() {
     const content = input.trim();
-    if (!content || busy) return;
+    const attachments = pending;
+    if ((!content && attachments.length === 0) || busy || reading > 0) return;
     setInput("");
+    setPending([]);
+    setAttachError(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setBusy(true);
-    setMessages((m) => [...m, { role: "user", content }, { role: "assistant", content: "" }]);
+    const names = attachments.map((a) => a.name);
+    setMessages((m) => [
+      ...m,
+      { role: "user", content, ...(names.length > 0 && { attachments: names }) },
+      { role: "assistant", content: "" },
+    ]);
 
     // The reply is the last message; text streams into it, or an error replaces it.
     const updateReply = (update: (reply: ShownMessage) => ShownMessage) =>
@@ -144,7 +249,7 @@ export function AskPenn({
       const res = await fetch("/tools/askpenn/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId: activeChatId, ...settings, content }),
+        body: JSON.stringify({ chatId: activeChatId, ...settings, content, ...(attachments.length > 0 && { attachments }) }),
         signal: controller.signal,
       });
       if (res.status === 401) return fail({ message: "Sign in with the button at the top right to keep chatting." });
@@ -177,7 +282,7 @@ export function AskPenn({
             if (!event.result.text.trim()) fail({ message: "AskPenn couldn't answer that. Try rephrasing." });
           } else {
             finished = true;
-            fail(event.error);
+            fail(attachments.length > 0 ? withAttachments(event.error) : event.error);
           }
         }
       }
@@ -205,9 +310,51 @@ export function AskPenn({
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }
 
+  const canSend = (input.trim() !== "" || pending.length > 0) && !busy && reading === 0;
+
   const composer = (
     <div className={styles.composer}>
-      <div className={styles.pill}>
+      {(pending.length > 0 || reading > 0) && (
+        <div className={styles.attachments}>
+          {pending.map((attachment, i) => (
+            <span key={i} className={styles.attachment}>
+              <span className={styles.attachmentName}>{attachment.name}</span>
+              <button
+                className={styles.removeAttachment}
+                onClick={() => setPending((current) => current.filter((_, j) => j !== i))}
+                disabled={busy}
+                aria-label={`Remove ${attachment.name}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {reading > 0 && <span className={styles.attachment}>Reading…</span>}
+        </div>
+      )}
+      <div className={[styles.pill, dragging ? styles.dragging : ""].join(" ")}>
+        <button
+          className={styles.attachBtn}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={busy}
+          aria-label="Attach files"
+          title="Attach images, PDFs or text files, or paste or drop them here"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={ACCEPT}
+          hidden
+          onChange={(e) => {
+            void addFiles(Array.from(e.target.files ?? []));
+            e.target.value = ""; // so picking the same file again still adds it
+          }}
+        />
         <textarea
           ref={textareaRef}
           className={styles.textarea}
@@ -215,15 +362,16 @@ export function AskPenn({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onInput={growTextarea}
+          onPaste={handlePaste}
           placeholder="Ask anything"
           maxLength={maxMessageLength}
           rows={1}
           disabled={busy}
         />
         <button
-          className={[styles.sendBtn, input.trim() && !busy ? styles.sendActive : ""].join(" ")}
+          className={[styles.sendBtn, canSend ? styles.sendActive : ""].join(" ")}
           onClick={() => void send()}
-          disabled={!input.trim() || busy}
+          disabled={!canSend}
           aria-label="Send message"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -231,6 +379,7 @@ export function AskPenn({
           </svg>
         </button>
       </div>
+      {attachError && <p className={styles.attachError}>{attachError}</p>}
       <div className={styles.settings}>
         {providers.length > 1 && (
           <Choice
@@ -262,7 +411,7 @@ export function AskPenn({
   );
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       <aside className={styles.sidebar}>
         <button className={styles.newChat} onClick={newChat} disabled={busy}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -371,9 +520,22 @@ function Bubble({ message, thinking }: { message: ShownMessage; thinking: boolea
             <span className={styles.dot} />
           </div>
         ) : (
-          <p className={styles.content}>
-            <Linkify text={message.content} />
-          </p>
+          <>
+            {message.attachments && message.attachments.length > 0 && (
+              <div className={styles.attachments}>
+                {message.attachments.map((name, i) => (
+                  <span key={i} className={styles.attachment} title="Sent with this message only">
+                    <span className={styles.attachmentName}>{name}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            {message.content && (
+              <p className={styles.content}>
+                <Linkify text={message.content} />
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>

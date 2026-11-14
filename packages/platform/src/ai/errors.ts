@@ -40,6 +40,8 @@ function kindFromStatus({ status, type, code, message }: StatusErrorInfo): AIErr
   if (status === 413 || code === "context_length_exceeded") return "too_long";
   // Anthropic reports an over-long prompt as a plain invalid_request_error.
   if (status === 400 && /prompt is too long/i.test(message)) return "too_long";
+  // And a PDF with more pages than it reads ("A maximum of 600 PDF pages may be provided.").
+  if (status === 400 && /maximum of \d+ PDF pages/i.test(message)) return "too_long";
   if (code === "invalid_prompt") return "refused";
   // No status means the provider accepted the request and it failed partway:
   // an error event in the stream, or OpenAI's "failed" response.

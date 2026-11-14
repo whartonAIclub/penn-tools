@@ -1,0 +1,117 @@
+/* The admin page: AI usage (summary figures, then wide tables that scroll sideways on narrow screens) and the admins. */
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--section-label);
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.atLimit {
+  color: #b42318;
+  font-weight: 600;
+}
+
+/* Admins */
+
+.admins {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adminList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adminRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.adminRow:last-child { border-bottom: 1px solid var(--border); }
+
+.addAdmin {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.emailInput {
+  flex: 1 1 240px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.error {
+  color: #b42318;
+  font-size: 0.875rem;
+}
