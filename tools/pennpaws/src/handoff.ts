@@ -17,7 +17,9 @@ export const Handoff = z.object({
     .string()
     .trim()
     .max(30)
-    .refine((p) => p.replace(/\D/g, "").length >= 10, "Add a phone number your sitter or owner can text."),
+    .refine((p) => p.replace(/\D/g, "").length >= 10, "Add a phone number your sitter or owner can text.")
+    // At most 15 digits, the longest a phone number can be, so two numbers run together are caught.
+    .refine((p) => p.replace(/\D/g, "").length <= 15, "That looks like more than one phone number. Check it and try again."),
   address: z.string().trim().max(LIMITS.shortText).nullable(),
 });
 export type Handoff = z.infer<typeof Handoff>;
