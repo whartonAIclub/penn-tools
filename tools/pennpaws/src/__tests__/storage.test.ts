@@ -304,6 +304,9 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     await expect(recordPayment(sql, sam.id, requestId, { amount: 20, method: "venmo", paidOn: "2099-11-15" })).rejects.toBeInstanceOf(PennPawsError);
     await expect(completeBooking(sql, sam.id, requestId)).rejects.toBeInstanceOf(PennPawsError);
 
+    // Not before the care starts, which would end check-ins for good.
+    await expect(completeBooking(sql, priya.id, requestId)).rejects.toThrow("once the care has started");
+    await sql`UPDATE requests SET starts_on = CURRENT_DATE WHERE id = ${requestId}`;
     await completeBooking(sql, priya.id, requestId);
     await expect(completeBooking(sql, lu.id, requestId)).rejects.toBeInstanceOf(PennPawsError);
     expect((await listNotifications(sql, lu.id))[0]?.message).toBe("Priya marked looking after Biscuit as done. How did it go? Leave a rating.");

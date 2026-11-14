@@ -146,7 +146,7 @@ interface RequestRow {
   pet_kind: RequestDraft["petKind"];
   pet_kind_other: string | null;
   pet_details: string | null;
-  photo: string | null;
+  has_photo: boolean;
   weekly: boolean;
   starts_on: string | null;
   ends_on: string | null;
@@ -179,7 +179,7 @@ interface RequestRow {
 function selectRequests(sql: Sql, viewerId: string) {
   return sql`
     SELECT r.id, r.owner_id, r.owner_name, r.owner_email, r.pet_name, r.pet_kind, r.pet_kind_other,
-           r.pet_details, r.photo, r.weekly,
+           r.pet_details, r.photo IS NOT NULL AS has_photo, r.weekly,
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
            r.pay, r.area, r.vet, r.notes, r.status, r.created_at, r.completed_at,
@@ -197,6 +197,28 @@ function selectRequests(sql: Sql, viewerId: string) {
   `;
 }
 
+/** Where the web app serves a request's photo (apps/web .../pennpaws/photo/[id]). */
+export function requestPhotoUrl(requestId: string): string {
+  return `/tools/pennpaws/photo/${requestId}`;
+}
+
+/**
+ * A request's photo as a data URL, for whoever may open the request: its
+ * owner, a sitter who offered, anyone while sitters can browse it, or the team
+ * (`asTeam`). Null otherwise, or when it has none.
+ */
+export async function requestPhoto(sql: Sql, viewerId: string, requestId: string, asTeam = false): Promise<string | null> {
+  if (!UUID_RE.test(requestId)) return null;
+  const [row] = await sql<{ photo: string | null }[]>`
+    SELECT r.photo FROM requests r
+    WHERE r.id = ${requestId} AND (
+      ${asTeam} OR r.owner_id = ${viewerId} OR ${browsable(sql)}
+      OR EXISTS (SELECT 1 FROM offers o WHERE o.request_id = r.id AND o.sitter_id = ${viewerId} AND o.status <> 'withdrawn')
+    )
+  `;
+  return row?.photo ?? null;
+}
+
 function toCard(row: RequestRow, viewerId: string): RequestCard {
   // What the owner agreed to pay is between them and the sitter they pick.
   // Everyone else browsing sees the band, so rates stay comparable without
@@ -209,7 +231,8 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       petKind: row.pet_kind,
       petKindOther: row.pet_kind_other,
       petDetails: row.pet_details,
-      photo: row.photo,
+      // A link rather than the photo itself, so a list of requests doesn't carry every picture.
+      photo: row.has_photo ? requestPhotoUrl(row.id) : null,
       weekly: row.weekly,
       startsOn: row.starts_on,
       endsOn: row.ends_on,
@@ -243,12 +266,30 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
   };
 }
 
+/**
+ * Whether sitters may see and offer on request `r`: open, not ended, not
+ * hidden by the team, and its owner not paused. One condition for the list,
+ * opening a request by its link, and offering.
+ */
+function browsable(sql: Sql) {
+  return sql`(
+    r.status = 'open' AND (r.weekly OR r.ends_on >= CURRENT_DATE) AND r.hidden_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM members m WHERE m.user_id = r.owner_id AND m.paused_at IS NOT NULL)
+  )`;
+}
+
+/** Whether a sitter who isn't part of the request may open it by its link. */
+export async function isBrowsable(sql: Sql, requestId: string): Promise<boolean> {
+  if (!UUID_RE.test(requestId)) return false;
+  const [row] = await sql<{ ok: boolean }[]>`SELECT ${browsable(sql)} AS ok FROM requests r WHERE r.id = ${requestId}`;
+  return row?.ok ?? false;
+}
+
 /** Open requests that haven't ended, soonest first. Weekly requests come after dated ones. */
 export async function listOpenRequests(sql: Sql, viewerId: string): Promise<RequestCard[]> {
   const rows = await sql<RequestRow[]>`
     ${selectRequests(sql, viewerId)}
-    WHERE r.status = 'open' AND (r.weekly OR r.ends_on >= CURRENT_DATE)
-      AND (r.owner_id = ${viewerId} OR (r.hidden_at IS NULL AND NOT EXISTS (SELECT 1 FROM members m WHERE m.user_id = r.owner_id AND m.paused_at IS NOT NULL)))
+    WHERE r.status = 'open' AND (r.weekly OR r.ends_on >= CURRENT_DATE) AND (r.owner_id = ${viewerId} OR ${browsable(sql)})
     ORDER BY r.weekly, r.starts_on, r.created_at DESC
     LIMIT 100
   `;
@@ -304,6 +345,13 @@ export async function listSitterJobs(sql: Sql, sitterId: string): Promise<Sitter
     completedAt: row.completed_at?.toISOString() ?? null,
     payment: row.amount && row.method && row.paid_on ? { amount: Number(row.amount), method: row.method, paidOn: row.paid_on } : null,
   }));
+}
+
+/** One request's card, without the offers and agreement, or null if it doesn't exist. */
+export async function getRequestCard(sql: Sql, viewerId: string, requestId: string): Promise<RequestCard | null> {
+  if (!UUID_RE.test(requestId)) return null;
+  const [row] = await sql<RequestRow[]>`${selectRequests(sql, viewerId)} WHERE r.id = ${requestId}`;
+  return row ? toCard(row, viewerId) : null;
 }
 
 /** One request as the viewer may see it, or null if it doesn't exist. */
@@ -468,6 +516,7 @@ export async function acceptOffer(
   channels: readonly NotificationChannel[] = [],
 ): Promise<string> {
   if (!UUID_RE.test(offerId)) throw new PennPawsError("That offer doesn't exist.");
+  await assertActive(sql, ownerId);
   const [offer] = await sql<{ request_id: string; sitter_id: string; message: string }[]>`
     SELECT o.request_id, o.sitter_id, o.message FROM offers o
     JOIN requests r ON r.id = o.request_id
@@ -489,7 +538,9 @@ export async function acceptOffer(
       RETURNING id
     `;
     if (moved.length === 0) throw new PennPawsError("This request already has a sitter.");
-    await tx`UPDATE offers SET status = 'accepted' WHERE id = ${offerId}`;
+    // The sitter may have taken the offer back while the agreement was drafted.
+    const picked = await tx`UPDATE offers SET status = 'accepted' WHERE id = ${offerId} AND status = 'pending' RETURNING id`;
+    if (picked.length === 0) throw new PennPawsError("That offer is no longer available.");
     const others = await tx<{ sitter_id: string }[]>`
       UPDATE offers SET status = 'declined'
       WHERE request_id = ${offer.request_id} AND id <> ${offerId} AND status = 'pending'
@@ -564,6 +615,9 @@ export async function withdrawOffer(
     if (picked) {
       await tx`DELETE FROM agreements WHERE request_id = ${requestId}`;
       await tx`DELETE FROM handoffs WHERE request_id = ${requestId}`;
+      // A visit left open would block the next sitter's check-in; the payment record follows the sitter.
+      await tx`UPDATE visits SET left_at = NOW() WHERE request_id = ${requestId} AND sitter_id = ${sitter.id} AND left_at IS NULL`;
+      await tx`DELETE FROM payments WHERE request_id = ${requestId} AND sitter_id = ${sitter.id}`;
       await tx`UPDATE requests SET status = 'open', updated_at = NOW() WHERE id = ${requestId}`;
       turnedDown = (await tx<{ sitter_id: string }[]>`SELECT sitter_id FROM offers WHERE request_id = ${requestId} AND status = 'declined'`).map((o) => o.sitter_id);
     }
@@ -600,12 +654,13 @@ export async function offerHelp(
   if (!text) throw new PennPawsError("Say a line about yourself so the owner can decide.");
   await assertActive(sql, sitter.id);
   if (!UUID_RE.test(requestId)) throw new PennPawsError("That request doesn't exist.");
-  const [request] = await sql<{ owner_id: string; pet_name: string; status: RequestStatus }[]>`
-    SELECT owner_id, pet_name, status FROM requests WHERE id = ${requestId}
+  const [request] = await sql<{ owner_id: string; pet_name: string; status: RequestStatus; browsable: boolean }[]>`
+    SELECT r.owner_id, r.pet_name, r.status, ${browsable(sql)} AS browsable FROM requests r WHERE r.id = ${requestId}
   `;
   if (!request) throw new PennPawsError("That request doesn't exist.");
   if (request.owner_id === sitter.id) throw new PennPawsError("This is your own request.");
   if (request.status !== "open") throw new PennPawsError("This request already has a sitter.");
+  if (!request.browsable) throw new PennPawsError("This request isn't taking offers anymore.");
 
   const inserted = await sql`
     INSERT INTO offers (request_id, sitter_id, sitter_name, sitter_email, message)
@@ -652,10 +707,18 @@ export async function approveAgreement(
 ): Promise<void> {
   const party = await partyOf(sql, userId, requestId);
   if (!party || party.status !== "matched") throw new PennPawsError("This agreement can't be approved now.");
+  await assertActive(sql, userId);
 
   const agreed = await sql.begin(async (transaction) => {
     // postgres.js types drop the call signature from TransactionSql, though it has one.
     const tx = transaction as unknown as Sql;
+    // Locks the request, so a cancel or a sitter backing out can't land between the check and the approval.
+    const [still] = await tx`
+      SELECT 1 FROM requests r JOIN offers o ON o.request_id = r.id AND o.status = 'accepted'
+      WHERE r.id = ${requestId} AND r.status = 'matched' AND (r.owner_id = ${userId} OR o.sitter_id = ${userId})
+      FOR UPDATE OF r
+    `;
+    if (!still) throw new PennPawsError("This agreement can't be approved now.");
     const [a] = await tx<{ owner_approved_at: Date | null; sitter_approved_at: Date | null }[]>`
       UPDATE agreements SET
         owner_approved_at  = CASE WHEN ${party.role} = 'owner'  THEN NOW() ELSE owner_approved_at END,
@@ -694,9 +757,11 @@ export async function completeBooking(sql: Sql, userId: string, requestId: strin
   const moved = await sql`
     UPDATE requests SET status = 'completed', completed_at = NOW(), updated_at = NOW()
     WHERE id = ${requestId} AND status = ANY(${sql.array([...allowedFrom("complete")])})
+      -- Care that hasn't started can't be done; marking it early would end check-ins for good.
+      AND (weekly OR starts_on <= CURRENT_DATE)
     RETURNING id
   `;
-  if (moved.length === 0) throw new PennPawsError("This booking can't be marked done now.");
+  if (moved.length === 0) throw new PennPawsError("This booking can be marked done once the care has started.");
   const message =
     party.role === "sitter"
       ? `${party.me} marked looking after ${party.pet} as done. How did it go? Leave a rating.`
@@ -715,6 +780,7 @@ export async function changeAgreement(
 ): Promise<void> {
   const party = await partyOf(sql, userId, requestId);
   if (!party || party.status !== "matched") throw new PennPawsError("This agreement can't be changed now.");
+  await assertActive(sql, userId);
   const checked = AgreementTerms.parse(terms);
   const [before] = await sql<{ terms: unknown }[]>`SELECT terms FROM agreements WHERE request_id = ${requestId}`;
   const old = before ? AgreementTerms.safeParse(before.terms) : null;

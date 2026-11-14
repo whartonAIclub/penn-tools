@@ -57,7 +57,9 @@ import {
   describe,
   draftMessage,
   getMember,
+  getRequestCard,
   getRequestView,
+  isBrowsable,
   switchRole,
   type MemberRole,
   getTerms,
@@ -200,6 +202,11 @@ export async function deletePet(petId: unknown): Promise<ActionResult> {
 export async function postRequest(input: unknown): Promise<ActionResult<string>> {
   const user = await signedIn();
   if (!user) return signedOut;
+  // Only members who finished setup on the owner side, with a school we verify, may post.
+  const member = await getMember(db(), user.id);
+  if (!member || member.role !== "owner" || !verifySchool(user.email, ALLOW_LOCAL_TEST_ACCOUNT)) {
+    return { ok: false, error: "Finish setting up as a pet owner before posting a request." };
+  }
   const checked = checkDraft(input);
   if (!checked.ok) return { ok: false, error: checked.error };
   const tooSoon = checkDates(checked.value, firstBookableDay(pennToday()));
@@ -338,7 +345,7 @@ export async function offer(requestId: string, message: string): Promise<ActionR
     await offerHelp(sql, user, String(requestId), String(message ?? ""));
     // Keep the match score, so the team can see whether sitters act on good matches.
     if (sitter.profile.role === "sitter") {
-      const request = (await listOpenRequests(sql, user.id)).find((r) => r.id === String(requestId));
+      const request = await getRequestCard(sql, user.id, String(requestId));
       const [match] = request ? await matchRequests(sql, sitter.profile, [request]) : [];
       if (match) await recordMatchScore(sql, match.requestId, user.id, match.score);
     }
@@ -380,8 +387,9 @@ export async function loadRequest(requestId: string): Promise<RequestPage | null
   if (!view) return null;
   // Other people's requests are for sitters (and the team, to check reports); owners only open their own and ones they're part of.
   if (!view.mine && view.role === null && !isTeamEmail(user.email, ALLOW_LOCAL_TEST_ACCOUNT)) {
+    // A sitter who isn't part of it sees only what they could find in the list: not hidden, ended or already booked.
     const member = await getMember(sql, user.id);
-    if (member?.role !== "sitter") return null;
+    if (member?.role !== "sitter" || !(await isBrowsable(sql, String(requestId)))) return null;
   }
   return { ...view, threads };
 }

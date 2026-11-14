@@ -9,6 +9,7 @@ import { toolSql } from "@penntools/platform/db";
 import {
   PennPawsError,
   TEST_ID_PREFIX,
+  afterMatchStamp,
   checkCheckIn,
   checkEntryGuide,
   checkIn,
@@ -48,10 +49,22 @@ async function run<T>(fn: () => Promise<T>): Promise<Result<T>> {
   }
 }
 
-export async function loadAfterMatch(requestId: string): Promise<AfterMatchView | null> {
+/**
+ * The after-match view with its fingerprint. Given the fingerprint the page
+ * already has, returns `view: undefined` when nothing changed, so polling
+ * doesn't send every visit photo again.
+ */
+export async function loadAfterMatch(
+  requestId: string,
+  known: string | null = null,
+): Promise<{ stamp: string | null; view: AfterMatchView | null | undefined }> {
   const user = await getCurrentUser();
-  if (!user) return null;
-  return getAfterMatch(db(), user.id, String(requestId));
+  if (!user) return { stamp: null, view: null };
+  const sql = db();
+  const stamp = await afterMatchStamp(sql, user.id, String(requestId));
+  if (stamp === null) return { stamp: null, view: null };
+  if (known !== null && stamp === known) return { stamp, view: undefined };
+  return { stamp, view: await getAfterMatch(sql, user.id, String(requestId)) };
 }
 
 export async function saveGuide(requestId: string, input: unknown): Promise<Result> {

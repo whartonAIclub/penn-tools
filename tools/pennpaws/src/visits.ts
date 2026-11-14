@@ -12,6 +12,7 @@
 import type { Sql } from "postgres";
 import { z } from "@penntools/core/ai";
 import { canSeeContacts, type RequestStatus } from "./booking.js";
+import { assertActive } from "./members.js";
 import { notify, type NotificationChannel } from "./notifications.js";
 import { parsePay } from "./pay.js";
 import type { Checked } from "./request.js";
@@ -217,9 +218,10 @@ export async function getAfterMatch(sql: Sql, viewerId: string, requestId: strin
   const showGuide = p.role === "owner" || booked;
   const [h] = await sql<{ venmo: string | null; paypal: string | null }[]>`SELECT venmo, paypal FROM pay_handles WHERE user_id = ${p.sitter_id}`;
   const showHandles = p.role === "sitter" || booked;
+  // Only the current sitter's visits: someone picked before them who backed out isn't part of this booking.
   const visits = await sql<VisitRow[]>`
     SELECT id, arrived_at, arrived_photo, arrived_note, left_at, left_photo, left_note, amount, paid_method, paid_at
-    FROM visits WHERE request_id = ${requestId} ORDER BY arrived_at DESC
+    FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id} ORDER BY arrived_at DESC
   `;
   return {
     role: p.role,
@@ -232,6 +234,25 @@ export async function getAfterMatch(sql: Sql, viewerId: string, requestId: strin
     visits: visits.map(toVisit),
     rate: parsePay(p.pay)?.dollars ?? null,
   };
+}
+
+/**
+ * A short fingerprint of everything getAfterMatch shows, so a page waiting for
+ * a check-in can ask cheaply whether anything changed before fetching the
+ * photos again. Null when the viewer isn't part of the booking.
+ */
+export async function afterMatchStamp(sql: Sql, viewerId: string, requestId: string): Promise<string | null> {
+  const p = await party(sql, viewerId, requestId);
+  if (!p) return null;
+  const [s] = await sql<{ stamp: string }[]>`
+    SELECT concat_ws('|',
+      ${p.status}::text, ${p.sitter_id}::text,
+      (SELECT concat_ws(',', COUNT(*), MAX(arrived_at), MAX(left_at), MAX(paid_at)) FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id}),
+      (SELECT updated_at::text FROM entry_guides WHERE request_id = ${requestId}),
+      (SELECT updated_at::text FROM pay_handles WHERE user_id = ${p.sitter_id})
+    ) AS stamp
+  `;
+  return s?.stamp ?? null;
 }
 
 /** The owner writes or updates how to get in, while the booking is being set up or running. */
@@ -268,7 +289,8 @@ export async function checkIn(
   const p = await party(sql, sitterId, requestId);
   if (!p || p.role !== "sitter" || p.status !== "agreed") throw new PennPawsError("You can check in once you're booked.");
   if (!input.photo) throw new PennPawsError("Add a photo of your pet friend so the owner can see they're OK.");
-  const [open] = await sql<{ id: string }[]>`SELECT id FROM visits WHERE request_id = ${requestId} AND left_at IS NULL`;
+  await assertActive(sql, sitterId);
+  const [open] = await sql<{ id: string }[]>`SELECT id FROM visits WHERE request_id = ${requestId} AND sitter_id = ${sitterId} AND left_at IS NULL`;
   if (open) throw new PennPawsError("You're already checked in. Tap Done when you leave.");
   const [row] = await sql<{ id: string }[]>`
     INSERT INTO visits (request_id, sitter_id, arrived_photo, arrived_note)
@@ -319,16 +341,18 @@ export async function markVisitPaid(
     const tx = transaction as unknown as Sql;
     const paid = await tx`
       UPDATE visits SET amount = ${payment.amount}, paid_method = ${payment.method}, paid_at = NOW()
-      WHERE id = ${visitId} AND request_id = ${requestId} AND left_at IS NOT NULL AND paid_at IS NULL
+      WHERE id = ${visitId} AND request_id = ${requestId} AND sitter_id = ${p.sitter_id} AND left_at IS NOT NULL AND paid_at IS NULL
       RETURNING id
     `;
     if (paid.length === 0) throw new PennPawsError("This visit is already paid, or isn't finished yet.");
-    const [sum] = await tx<{ total: string }[]>`SELECT COALESCE(SUM(amount), 0) AS total FROM visits WHERE request_id = ${requestId} AND paid_at IS NOT NULL`;
+    const [sum] = await tx<{ total: string }[]>`
+      SELECT COALESCE(SUM(amount), 0) AS total FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id} AND paid_at IS NOT NULL
+    `;
     const total = sum?.total ?? String(payment.amount);
     await tx`
       INSERT INTO payments (request_id, sitter_id, amount, method, paid_on)
       VALUES (${requestId}, ${p.sitter_id}, ${total}, ${payment.method}, CURRENT_DATE)
-      ON CONFLICT (request_id) DO UPDATE SET amount = EXCLUDED.amount, method = EXCLUDED.method, paid_on = EXCLUDED.paid_on
+      ON CONFLICT (request_id) DO UPDATE SET sitter_id = EXCLUDED.sitter_id, amount = EXCLUDED.amount, method = EXCLUDED.method, paid_on = EXCLUDED.paid_on
     `;
   });
   const dollars = payment.amount.toFixed(2).replace(/\.00$/, "");
@@ -357,7 +381,7 @@ export async function playFakeVisits(sql: Sql, ownerId: string, fakePrefix: stri
   for (const row of rows) {
     const who = firstWord(row.sitter_name);
     await savePayHandles(sql, row.sitter_id, { venmo: `${who.toLowerCase()}-pennpaws`, paypal: null });
-    const [open] = await sql<{ id: string }[]>`SELECT id FROM visits WHERE request_id = ${row.id} AND left_at IS NULL`;
+    const [open] = await sql<{ id: string }[]>`SELECT id FROM visits WHERE request_id = ${row.id} AND sitter_id = ${row.sitter_id} AND left_at IS NULL`;
     if (open) {
       await checkOut(sql, row.sitter_id, row.id, { photo: null, note: `All good. ${row.pet_name} ate everything and had a nap.` });
       done.push(`${who} finished the visit with ${row.pet_name}. Pay for it in the request.`);

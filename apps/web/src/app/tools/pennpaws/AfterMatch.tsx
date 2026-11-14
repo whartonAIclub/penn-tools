@@ -4,7 +4,7 @@
 // checked in with a photo, and the owner paying for each visit. The data
 // comes from visits.ts through visitActions.ts.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   KEY_METHODS,
   VISIT_PAY_METHODS,
@@ -39,12 +39,21 @@ export function AfterMatch({ requestId, onChanged }: { requestId: string; onChan
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => setView(await loadAfterMatch(requestId)), [requestId]);
+  // What the page last loaded, so polling only fetches the photos again when something changed.
+  const stamp = useRef<string | null>(null);
+  const reload = useCallback(
+    async (onlyIfChanged = false) => {
+      const result = await loadAfterMatch(requestId, onlyIfChanged ? stamp.current : null);
+      stamp.current = result.stamp;
+      if (result.view !== undefined) setView(result.view);
+    },
+    [requestId],
+  );
   useEffect(() => {
     void reload();
     // A check-in should show up without a refresh, while someone waits for one.
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void reload();
+      if (document.visibilityState === "visible") void reload(true);
     }, 10_000);
     return () => window.clearInterval(timer);
   }, [reload]);

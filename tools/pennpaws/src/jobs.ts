@@ -164,17 +164,25 @@ export async function recordPayment(sql: Sql, sitterId: string, requestId: strin
   if (!row || (row.status !== "agreed" && row.status !== "completed")) {
     throw new PennPawsError("You can record a payment once you're booked.");
   }
+  // When the owner pays visit by visit, the record is their running total, so the sitter can't overwrite it.
+  if (await ownerPaidVisits(sql, requestId, sitterId)) throw new PennPawsError("Your owner is paying visit by visit, so the total here updates by itself.");
   await sql`
     INSERT INTO payments (request_id, sitter_id, amount, method, paid_on)
     VALUES (${requestId}, ${sitterId}, ${payment.amount}, ${payment.method}, ${payment.paidOn})
-    ON CONFLICT (request_id) DO UPDATE SET amount = EXCLUDED.amount, method = EXCLUDED.method, paid_on = EXCLUDED.paid_on
+    ON CONFLICT (request_id) DO UPDATE SET sitter_id = EXCLUDED.sitter_id, amount = EXCLUDED.amount, method = EXCLUDED.method, paid_on = EXCLUDED.paid_on
   `;
 }
 
 /** Removes a payment the sitter recorded by mistake. */
 export async function clearPayment(sql: Sql, sitterId: string, requestId: string): Promise<void> {
   if (!UUID_RE.test(requestId)) return;
+  if (await ownerPaidVisits(sql, requestId, sitterId)) throw new PennPawsError("Your owner recorded paying for visits, so this total can't be removed.");
   await sql`DELETE FROM payments WHERE request_id = ${requestId} AND sitter_id = ${sitterId}`;
+}
+
+async function ownerPaidVisits(sql: Sql, requestId: string, sitterId: string): Promise<boolean> {
+  const [row] = await sql`SELECT 1 FROM visits WHERE request_id = ${requestId} AND sitter_id = ${sitterId} AND paid_at IS NOT NULL LIMIT 1`;
+  return row !== undefined;
 }
 
 /** The owner rates a finished booking, once. The sitter is told without any link to the booking. */
