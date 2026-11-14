@@ -35,12 +35,18 @@ importers:
       '@penntools/tool-3':
         specifier: workspace:*
         version: link:../../tools/3
+      '@penntools/tool-accounting-practice':
+        specifier: workspace:*
+        version: link:../../tools/accounting-practice
       '@penntools/tool-askpenn':
         specifier: workspace:*
         version: link:../../tools/askpenn
       '@penntools/tool-career-canvas':
         specifier: workspace:*
         version: link:../../tools/career-canvas
+      '@penntools/tool-choose-mba-major':
+        specifier: workspace:*
+        version: link:../../tools/choose-mba-major
       '@penntools/tool-coursematch-assist':
         specifier: workspace:*
         version: link:../../tools/coursematch-assist
@@ -189,6 +195,22 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@22.20.5)
 
+  tools/accounting-practice:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
   tools/askpenn:
     dependencies:
       '@penntools/core':
@@ -214,6 +236,19 @@ importers:
       postgres:
         specifier: ^3.4.5
         version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/choose-mba-major:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
