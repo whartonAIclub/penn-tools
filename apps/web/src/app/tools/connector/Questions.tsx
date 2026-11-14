@@ -1,10 +1,12 @@
 "use client";
 
 // Asks the questions one at a time. Picking an option moves to the next
-// question; after the last one, onDone gets all the answers.
+// question; after the last one, onDone gets all the answers. The sky behind
+// fades a wave of stars with each answer.
 
 import { useState } from "react";
 import type { Question } from "@penntools/tool-connector";
+import { useSkyScene } from "./sky/SkyContext";
 import styles from "./Connector.module.css";
 
 /** Question ID → the ID of the chosen option, e.g. { "friday-midnight": "rooftop-talk" }. */
@@ -21,6 +23,7 @@ export function Questions({ questions, onDone, onBack }: Props) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const question = questions[index]!;
+  useSkyScene(index / questions.length);
 
   function pick(optionId: string) {
     const next = { ...answers, [question.id]: optionId };

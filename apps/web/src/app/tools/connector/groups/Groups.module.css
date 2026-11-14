@@ -53,7 +53,7 @@
 
 .you {
   border-color: var(--penn-blue);
-  background: #f3f6fc;
+  background: var(--tint);
 }
 
 .avatar {
@@ -65,7 +65,7 @@
   margin-bottom: 4px;
   border-radius: 50%;
   background: var(--penn-blue);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -121,11 +121,11 @@
   padding: 0 16px;
   border-radius: 999px;
   background: var(--penn-blue);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.875rem;
   font-weight: 600;
 }
-.button:hover { background: #163983; }
+.button:hover { background: var(--accent-hover); }
 
 .reachOut {
   display: flex;
@@ -135,7 +135,7 @@
   gap: 12px 20px;
   padding: 20px;
   border-radius: 12px;
-  background: #f3f6fc;
+  background: var(--tint);
 }
 
 .reachOutTitle {

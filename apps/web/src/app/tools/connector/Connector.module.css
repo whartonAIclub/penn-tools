@@ -64,11 +64,11 @@
   padding: 0 16px;
   border-radius: 999px;
   background: var(--penn-blue);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0.875rem;
   font-weight: 600;
 }
-.button:hover:not(:disabled) { background: #163983; }
+.button:hover:not(:disabled) { background: var(--accent-hover); }
 .button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Questions ─────────────────────────────────────────────────────────────── */
@@ -105,8 +105,8 @@
   text-align: center;
   transition: border-color 0.15s, background 0.15s;
 }
-.option:hover { border-color: var(--penn-blue); background: #f3f6fb; }
-.selected { border-color: var(--penn-blue); background: #e8eef8; color: var(--penn-blue); }
+.option:hover { border-color: var(--penn-blue); background: var(--tint); }
+.selected { border-color: var(--penn-blue); background: var(--tint-strong); color: var(--penn-blue); }
 
 .back {
   padding: 0;

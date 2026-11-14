@@ -1,0 +1,31 @@
+/* Connector's night: the site's color tokens, redefined light-on-dark for
+   every Connector page, so text stays readable over the sky. */
+.night {
+  --bg: rgba(10, 15, 38, 0.66);
+  --text: #eef1fb;
+  --section-label: #a3abcf;
+  --muted: #8a93bb;
+  --border: rgba(163, 171, 207, 0.22);
+  --input-border: rgba(163, 171, 207, 0.35);
+  --penn-blue: #ffd27a;
+  --sidebar-bg: rgba(233, 238, 255, 0.06);
+  /* Connector's own: text on the gold accent, its hover, soft gold tints, and errors. */
+  --on-accent: #1a1406;
+  --accent-hover: #ffe0a3;
+  --tint: rgba(255, 210, 122, 0.12);
+  --tint-strong: rgba(255, 210, 122, 0.2);
+  --danger: #ff9b9b;
+
+  position: relative;
+  min-height: 100%;
+  color: var(--text);
+  color-scheme: dark;
+}
+
+/* The pages' centered column, above the sky. */
+.column {
+  position: relative;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}

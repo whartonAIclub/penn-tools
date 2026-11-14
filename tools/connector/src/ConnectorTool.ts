@@ -14,6 +14,8 @@ export class ConnectorTool extends Tool {
     // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
     // in @penntools/core/tools. To add a category, ask the Platform team.
     category: "Lifestyle",
+    // The whole page area, so the starry sky behind Connector's pages fills it.
+    fullWidth: true,
     // Shown as BETA until the tool is ready; delete this line then.
     beta: true,
   };

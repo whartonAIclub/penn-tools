@@ -1,15 +1,25 @@
 // Shown to students who have signed up, until matches are released: matching
 // runs once, when the team releases it (../team), not as each student signs
 // up. Once a release has matched or waitlisted them, they go to ../groups.
+// The sky shows the ending: only "your" stars are left, linked to as many
+// matches as the student asked to meet.
 
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { toolSql } from "@penntools/platform/db";
-import { getStatus, type Status } from "@penntools/tool-connector";
+import { getStatus, meetFormat, type MeetFormat, type Status } from "@penntools/tool-connector";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
+import { SkyScene } from "../sky/SkyContext";
 import styles from "../Connector.module.css";
+
+/** How many stars to link to, and who the student will meet, by how they'd like to meet. */
+const ENDING: Record<MeetFormat, { stars: number; who: string }> = {
+  "one-on-one": { stars: 1, who: "one person" },
+  "small-group": { stars: 3, who: "a small group" },
+  either: { stars: 2, who: "your people" },
+};
 
 export const metadata: Metadata = {
   title: "Connector",
@@ -60,12 +70,14 @@ export default async function ConnectorWaitingPage() {
     );
   }
 
+  const ending = ENDING[meetFormat(status.signup)];
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>You&apos;re in, {status.signup.name.split(" ")[0]}!</h1>
+      <SkyScene progress={1} matches={ending.stars} />
+      <h1 className={styles.title}>You&apos;re in. Now we find your people.</h1>
       <p className={styles.intro}>
-        We&apos;re gathering sign-ups so we can find people you&apos;ll genuinely click with. Matches will be released
-        soon. Check back here to meet them.
+        Thanks for answering, {status.signup.name.split(" ")[0]}. When matches are released, you&apos;ll meet{" "}
+        {ending.who} from beyond your usual circle. Check back here to meet them.
       </p>
     </div>
   );

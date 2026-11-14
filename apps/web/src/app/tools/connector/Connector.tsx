@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import type { Cohort, Question } from "@penntools/tool-connector";
 import { ProfileForm, type Profile } from "./ProfileForm";
 import { Questions, type Answers } from "./Questions";
+import { SkyScene } from "./sky/SkyContext";
 import { saveSignup } from "./actions";
 import styles from "./Connector.module.css";
 
@@ -67,6 +68,8 @@ export function Connector({ questions, cohorts }: Props) {
 
   return (
     <div className={styles.page}>
+      {/* Every question answered: only "your" stars are left. */}
+      <SkyScene progress={1} />
       <h1 className={styles.title}>Review your answers</h1>
       <p className={styles.intro}>
         Looking good, {profile.firstName}? Once you&apos;re matched, your answers are locked in.
