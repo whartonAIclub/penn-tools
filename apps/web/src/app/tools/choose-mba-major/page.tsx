@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 async function suggestionAccess(): Promise<SuggestionAccess> {
-  const ai = await getAI();
+  const ai = await getAI("choose-mba-major");
   if (!ai) return "signed_out";
   return (await ai.providers()).includes(SUGGESTION_PROVIDER) ? "ready" : "no_key";
 }

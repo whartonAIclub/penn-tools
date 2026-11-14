@@ -88,6 +88,9 @@ const contributors = answers.contributors.split(",").map((name) => name.trim()).
 if (!ID_PATTERN.test(id)) {
   fail(`Tool ID "${id}" must be lowercase letters and digits, words joined by hyphens (e.g. course-finder).`);
 }
+// Clicks on community tools' links are counted as visits to community-<id>
+// (apps/web/src/data/communityTools.ts), so registered tools can't use that.
+if (id.startsWith("community-")) fail(`Tool IDs can't start with "community-". Pick another tool ID.`);
 if (contributors.length === 0) fail("Name at least one contributor.");
 const category = categories.find((name) => name.toLowerCase() === answers.category.toLowerCase());
 if (!category) {
@@ -114,6 +117,12 @@ if (existsSync(nextConfigPath)) {
   if (redirected.includes(id)) {
     fail(`/tools/${id} redirects elsewhere (apps/web/next.config.mjs): the ID belonged to a tool that was renamed or removed. Pick another tool ID.`);
   }
+}
+// A removed tool's data is cleared on every deploy, under its ID
+// (packages/platform/scripts/setup-tools.mjs), so a new tool can't take it.
+const removedToolsPath = join(root, "packages", "platform", "scripts", "removed-tools.json");
+if (existsSync(removedToolsPath) && JSON.parse(readFileSync(removedToolsPath, "utf8")).some((tool) => tool.id === id)) {
+  fail(`"${id}" belonged to a removed tool (packages/platform/scripts/removed-tools.json). Pick another tool ID.`);
 }
 
 const words = id.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join("");

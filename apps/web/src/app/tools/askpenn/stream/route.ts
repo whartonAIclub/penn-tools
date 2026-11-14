@@ -98,7 +98,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const events = sendMessage({
     sql,
-    ai: (await getAI())!,
+    ai: (await getAI("askpenn"))!,
     userId: user.id,
     chatId: chatId ?? null,
     provider,

@@ -16,7 +16,7 @@ type Status<T> =
   | { state: "done"; data: T }
   | { state: "error"; error: DemoError };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 /** Runs a server action and tracks its status. If the call itself fails (e.g. offline), that's an error too. */
 function useDemo<T>() {
@@ -39,7 +39,7 @@ export function Playground({
   sampleSyllabus,
   limits,
 }: {
-  /** Providers the user has saved keys for; never empty. */
+  /** Providers the user can call (ai.providers()); never empty. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   sampleSyllabus: string;
@@ -51,7 +51,8 @@ export function Playground({
     <div className={styles.page}>
       <h1 className={styles.title}>Platform Playground</h1>
       <p className={styles.intro}>
-        Working examples of the platform APIs, running with your own API keys. Each card&apos;s logic is in{" "}
+        Working examples of the platform APIs, running on your free AI credit and then your own API keys. Each
+        card&apos;s logic is in{" "}
         <code>tools/platform-playground/src/demos.ts</code> and its server action in <code>actions.ts</code>. For
         streaming, chat history and a tool&apos;s own database, see{" "}
         <Link href="/tools/askpenn" className={styles.link}>

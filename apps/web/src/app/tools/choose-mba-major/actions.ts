@@ -62,7 +62,7 @@ export async function suggestThemesAction(
   taken: unknown,
   hideHcmOnly: unknown = false,
 ): Promise<SuggestionResult<ThemeSuggestion[]>> {
-  const ai = await getAI();
+  const ai = await getAI("choose-mba-major");
   if (!ai) return signedOut;
   // Students who aren't HCM majors don't see HCM-majors-only courses.
   const courses =
@@ -80,7 +80,7 @@ export async function suggestAlignmentsAction(
   codes: unknown,
   only?: unknown,
 ): Promise<SuggestionResult<Record<string, string>>> {
-  const ai = await getAI();
+  const ai = await getAI("choose-mba-major");
   if (!ai) return signedOut;
   if (typeof theme !== "string" || !theme.trim()) return invalid("Choose or write a theme first.");
   if (theme.length > MAX_THEME_LENGTH) return invalid(`Keep your theme to at most ${MAX_THEME_LENGTH} characters.`);
