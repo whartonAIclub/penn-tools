@@ -231,11 +231,15 @@ export const PostingReview = z.object({
   searchKeywords: z
     .array(z.string())
     .describe("4-6 short LinkedIn people-search phrases for finding people on that team, each including the company name"),
+  salary: z
+    .string()
+    .nullable()
+    .describe("The base pay range exactly as the posting states it, shortened to the range with currency and period, e.g. '$140,000-$175,000 a year'; null if the posting doesn't state pay. Never estimate"),
 });
 export type PostingReview = z.infer<typeof PostingReview>;
 
-/** Fields added after the first postings were saved; those postings have none of them. */
-type PostingExtras = "summary" | "team" | "teamStated" | "searchKeywords";
+/** Fields added after the first postings were saved; older postings lack them. */
+type PostingExtras = "summary" | "team" | "teamStated" | "searchKeywords" | "salary";
 
 export interface ScoredPosting extends Omit<PostingReview, PostingExtras> {
   /** What the role would do; null for postings scored before summaries were written. */
@@ -245,6 +249,8 @@ export interface ScoredPosting extends Omit<PostingReview, PostingExtras> {
   teamStated: boolean | null;
   /** LinkedIn people-search phrases for the team; empty if none. */
   searchKeywords: string[];
+  /** Base pay range as the posting states it, e.g. "$140,000-$175,000 a year"; null if it doesn't, or was scored before pay was read. */
+  salary: string | null;
   kind: "posting";
   score: number;
   tier: CompanyTier | "off-list";
@@ -270,6 +276,7 @@ export function scorePostingReview(
     team: review.team?.trim() || null,
     teamStated: review.team?.trim() ? (review.teamStated ?? null) : null,
     searchKeywords: (review.searchKeywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 6),
+    salary: review.salary?.trim() || null,
     roleFit: clamp(review.roleFit),
     leadWith: review.leadWith.slice(0, 3),
     score: clamp(review.roleFit + points),
@@ -450,6 +457,7 @@ Also summarize the role and name its team. Say teamStated is false whenever the 
 outright and you are inferring it from the work, product or org described; never present a guess as fact.
 For searchKeywords, write phrases a student could type into LinkedIn's people search to find people on that
 team or doing similar work there (e.g. "Google Cloud partner manager", "Google ISV partnerships").
+For salary, copy the base pay range only if the posting states one; if it doesn't, return null. Never estimate pay.
 
 For a person, use ONLY what is stated on their profile: never infer nationality, language, school or
 anything else from a name or photo. If their name isn't clearly stated, return null for it.
