@@ -1,0 +1,975 @@
+/* The tool's own ground: a soft grey, so the white cards and tables stand out from it. */
+.shell {
+  --ground: #f1f3f6;
+  --surface: #ffffff;
+  --rule: #dfe3e9;
+  --stripe: #f8f9fb;
+  min-height: 100%;
+  background: var(--ground);
+}
+
+.page {
+  --bad: #b42318;
+  --bad-bg: #fef3f2;
+  --warn: #93370d;
+  --warn-bg: #fffaeb;
+  --good: #067647;
+  --good-bg: #ecfdf3;
+  --info-bg: #eef2f9;
+  --track: #e6e9ee;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 24px 56px;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.surveyName {
+  margin: 2px 0 0;
+  color: var(--section-label);
+  overflow-wrap: anywhere;
+}
+
+.intro {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--section-label);
+  font-size: 1rem;
+}
+
+.h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  margin: 0;
+  color: var(--section-label);
+  font-size: 0.85rem;
+}
+
+.empty {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed var(--input-border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--section-label);
+}
+
+.hidden {
+  display: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.link,
+.linkButton {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.countLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--input-border);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.countLink:hover {
+  color: var(--penn-blue);
+  text-decoration-color: currentColor;
+}
+
+.help {
+  width: 100%;
+  max-width: 560px;
+  text-align: left;
+}
+
+.help summary {
+  color: var(--penn-blue);
+  text-align: center;
+  cursor: pointer;
+}
+
+/* ── Buttons and fields ────────────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.button,
+.buttonPrimary,
+.buttonDanger,
+.buttonSmall {
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.button:hover,
+.buttonSmall:hover {
+  background: var(--nav-hover);
+}
+
+.buttonPrimary {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue);
+  color: #fff;
+}
+
+.buttonDanger {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.buttonDanger:hover {
+  background: var(--bad-bg);
+}
+
+.buttonSmall {
+  padding: 3px 9px;
+  font-size: 0.82rem;
+}
+
+.button:disabled,
+.buttonPrimary:disabled,
+.buttonSmall:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page button:focus-visible,
+.page input:focus-visible,
+.page select:focus-visible,
+.page textarea:focus-visible,
+.page summary:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+  text-align: left;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  align-items: end;
+  margin-top: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--section-label);
+}
+
+.inlineField,
+.checkField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+
+.input,
+.select,
+.textarea {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+/* ── Start screen ──────────────────────────────────────────────────────────── */
+
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 20px;
+  border: 2px dashed var(--input-border);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.drop .actions {
+  justify-content: center;
+}
+
+.dropTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+/* ── Notices and checks ────────────────────────────────────────────────────── */
+
+.notice,
+.noticeBad {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--info-bg);
+}
+
+.noticeBad {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+  list-style: none;
+}
+
+.check {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  display: inline-block;
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgeBad {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+.badgeWarn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.badgeInfo {
+  background: var(--info-bg);
+  color: var(--penn-blue);
+}
+
+.badgeGood {
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+/* ── Sections: a list down the left, the chosen one beside it ──────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.tabs {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.tab,
+.tabActive {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--section-label);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--ground);
+  color: var(--text);
+}
+
+.tabActive {
+  background: var(--penn-blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+.panel,
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel {
+  gap: 28px;
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.callout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+/* ── Tiles ─────────────────────────────────────────────────────────────────── */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.tile,
+.tileGood,
+.card {
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.tileGood {
+  border-color: #abefc6;
+  background: var(--good-bg);
+}
+
+.tileGood .tileValue {
+  color: var(--good);
+}
+
+.tileLabel {
+  margin: 0;
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+
+.tileValue {
+  margin: 2px 0;
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.tileSub {
+  margin: 0;
+  color: var(--section-label);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────────── */
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--rule);
+  line-height: 1.5;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.table th {
+  padding-block: 10px;
+  background: var(--stripe);
+  color: var(--section-label);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table tbody tr:nth-child(even) td {
+  background: var(--stripe);
+}
+
+/* The comment is what people read; give it the room and keep its line a readable length. */
+.table td[data-label="Comment"] {
+  min-width: 280px;
+  max-width: 60ch;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowMuted td {
+  color: var(--muted);
+}
+
+.rowActions {
+  white-space: nowrap;
+}
+
+.rowActions button + button {
+  margin-left: 6px;
+}
+
+.quote {
+  display: block;
+  margin-top: 5px;
+  color: var(--section-label);
+  font-size: 0.85rem;
+}
+
+.mentions {
+  color: var(--section-label);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+/* ── Ranked cards (what to change, what to keep) ───────────────────────────── */
+
+.ranked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rankCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.rankNumber,
+.rankNumberGood {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--penn-blue);
+  color: #fff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankNumberGood {
+  background: var(--good);
+}
+
+.rankBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.rankHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+
+.rankTitle {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.rankStats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  color: var(--section-label);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankStats strong {
+  color: var(--text);
+}
+
+.pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px 28px;
+  margin: 0;
+}
+
+.pairs dt {
+  margin-bottom: 2px;
+  color: var(--section-label);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pairs dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.stackHead,
+.stackCell {
+  width: 22%;
+  min-width: 90px;
+}
+
+.stack {
+  display: flex;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.stackPain {
+  background: var(--bad);
+}
+
+.stackWorking {
+  background: var(--good);
+}
+
+.stackIdea {
+  background: var(--penn-blue);
+}
+
+/* ── Bars ──────────────────────────────────────────────────────────────────── */
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 240px) 1fr 200px;
+  align-items: center;
+  gap: 12px;
+}
+
+.optionRow {
+  display: grid;
+  grid-template-columns: minmax(90px, 45%) 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.barLabel,
+.optionLabel {
+  overflow-wrap: anywhere;
+}
+
+.barTrack {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.barFill,
+.barFillLow {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--penn-blue);
+}
+
+.barFillLow {
+  background: var(--bad);
+}
+
+.barValue,
+.optionValue {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.barCount {
+  margin-left: 8px;
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+
+/* ── Lists ─────────────────────────────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.answerList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.answerMeta {
+  margin: 0;
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+
+.answerText {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.details summary {
+  color: var(--penn-blue);
+  cursor: pointer;
+}
+
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.answers dt {
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+
+.answers dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.chipRemove {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--section-label);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chipRemove:hover {
+  background: var(--nav-hover);
+  color: var(--bad);
+}
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 78ch;
+  padding: 22px 24px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  margin: 0;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 20px;
+}
+
+.prose h2 {
+  margin-top: 10px;
+}
+
+/* ── Narrow screens: the section list becomes a scrolling row ──────────────── */
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .tabs {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .tab,
+  .tabActive {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+/* ── Phones: tables become stacked cards ───────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .page {
+    padding: 16px 16px 40px;
+  }
+
+  .table tr {
+    background: var(--surface);
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table tr {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table tr:last-child {
+    border-bottom: 0;
+  }
+
+  .table tbody tr:nth-child(even) td {
+    background: none;
+  }
+
+  .table td[data-label="Comment"] {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .rankCard {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .table td,
+  .table .num {
+    padding: 3px 12px;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .table td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--section-label);
+    font-size: 0.78rem;
+  }
+
+  .stackCell {
+    display: none !important;
+  }
+
+  .barRow {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .optionRow {
+    grid-template-columns: 1fr auto;
+  }
+
+  .optionRow .barTrack {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}

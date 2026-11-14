@@ -1,0 +1,21 @@
+import { Tool } from "@penntools/core/tools";
+import type { ToolManifest } from "@penntools/core/tools";
+
+// The tool's title (listed in the site sidebar) and details (shown by the
+// info button on its page). Its logic goes in other files in this folder,
+// called from its page, routes and server actions in
+// apps/web/src/app/tools/feedback-insights/ (see section 4 of CLAUDE.md).
+export class FeedbackInsightsTool extends Tool {
+  readonly manifest: ToolManifest = {
+    id: "feedback-insights",
+    title: "Feedback Insights",
+    description: "Turn survey responses into ranked themes, flagged problems and recommended changes.",
+    contributors: ["Andrew Luo"],
+    // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
+    // in @penntools/core/tools. To add a category, ask the Platform team.
+    category: "Productivity",
+    // Shown as BETA until the tool is ready; delete this line then.
+    beta: true,
+    fullWidth: true,
+  };
+}
