@@ -1,0 +1,516 @@
+<!doctype html>
+<!-- Connector starry-sky prototype: a standalone, visual-only mock-up of the sign-up questions. Not part of the tool; open this file in a browser. -->
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body { margin: 0; }</style>
+<title>Connector Starfield</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Layout: a full-bleed night sky (Milky Way, haze, horizon) drawn on canvas; one translucent question card floats above it. */
+  :root {
+    --sky-top: #03050f;
+    --sky-low: #0e1736;
+    --horizon: #1b2450;
+    --glow: #ffd27a;
+    --ink: #eef1fb;
+    --ink-soft: #a3abcf;
+    --card: rgba(10, 15, 38, 0.66);
+    --card-line: rgba(163, 171, 207, 0.22);
+    --option: rgba(233, 238, 255, 0.06);
+    --option-hover: rgba(255, 210, 122, 0.14);
+    --font-display: "Space Grotesk", "Avenir Next", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--sky-top);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  #sky { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .stage {
+    position: relative;
+    min-height: 100%;
+    display: grid;
+    place-items: center;
+    padding-block: 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .card {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 28px;
+    border: 1px solid var(--card-line);
+    border-radius: 20px;
+    background: var(--card);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .meter { display: flex; gap: 6px; }
+  .meter span {
+    flex: 1;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--card-line);
+    transition: background 0.6s ease;
+  }
+  .meter span.done { background: var(--glow); }
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 4.5vw, 2.1rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .sub { margin: 0; color: var(--ink-soft); max-width: 46ch; }
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .options.three { grid-template-columns: 1fr; }
+  @media (max-width: 480px) { .options { grid-template-columns: 1fr; } }
+  .option {
+    min-width: 0;
+    padding: 16px 14px;
+    border: 1px solid var(--card-line);
+    border-radius: 14px;
+    background: var(--option);
+    color: var(--ink);
+    font: 500 0.95rem/1.35 var(--font-body);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+  .option:hover { background: var(--option-hover); border-color: var(--glow); }
+  .option:focus-visible, .link:focus-visible, .primary:focus-visible {
+    outline: 2px solid var(--glow);
+    outline-offset: 2px;
+  }
+  .option:active { transform: scale(0.98); }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink-soft);
+    font: 500 0.875rem var(--font-body);
+    cursor: pointer;
+  }
+  .link:hover { color: var(--ink); }
+  .link[disabled] { visibility: hidden; }
+  .primary {
+    padding: 10px 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--glow);
+    color: #1a1406;
+    font: 600 0.9rem var(--font-body);
+    cursor: pointer;
+  }
+  .note { margin: 0; font-size: 0.8rem; color: var(--ink-soft); }
+  .tag {
+    margin-left: 6px;
+    padding: 1px 7px;
+    border: 1px solid var(--card-line);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    vertical-align: middle;
+  }
+  .fade-in { animation: rise 0.5s ease both; }
+  @keyframes rise { from { opacity: 0.4; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in { animation: none; }
+    .meter span, .option { transition: none; }
+  }
+</style>
+
+<canvas id="sky" aria-hidden="true"></canvas>
+
+<main class="stage">
+  <section class="card" id="card" aria-live="polite"></section>
+</main>
+
+<script>
+(() => {
+  // Connector's sign-up questions (tools/connector/src/questions.ts): the format
+  // question, then six fun ones. The last two are placeholders until the team's
+  // new questions are in.
+  const QUESTIONS = [
+    { prompt: "How would you like to meet people?", options: ["One-on-one", "Small group (3–4)", "Either works for me"] },
+    { prompt: "Friday midnight plan", options: ["Out dancing", "Deep talk on a rooftop", "Board games with friends", "Already asleep, I'm a morning person"] },
+    { prompt: "A free day in Philly", options: ["Eating my way through a food crawl", "Out on a hike or a long walk", "Museum or gallery hopping", "Cozy movie day at home"] },
+    { prompt: "At a party, you're usually…", options: ["Hosting and making intros", "In a deep 1:1 in the kitchen", "On the dance floor", "Heading out early"] },
+    { prompt: "What matters most in a friend?", options: ["Honest with me, even when it's hard", "Shows up when it counts", "Makes me laugh no matter what", "Pushes me to grow"] },
+    { prompt: "Your ideal weekend trip", placeholder: true, options: ["A new city", "Somewhere with mountains", "A beach and a book", "Staying put"] },
+    { prompt: "Your go-to lunch on campus", placeholder: true, options: ["Whatever's fastest", "A long sit-down with friends", "Trying somewhere new", "Packed from home"] },
+  ];
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const canvas = document.getElementById("sky");
+  const ctx = canvas.getContext("2d");
+  const card = document.getElementById("card");
+  const backdrop = document.createElement("canvas");
+  const bctx = backdrop.getContext("2d");
+
+  const HORIZON = 0.86;      // where the hills begin, as a share of the height
+  let width = 0, height = 0, dpr = 1;
+  let stars = [];
+  let answered = 0;          // questions answered so far
+  let format = null;         // answer to the first question
+  let linkProgress = 0;      // 0..1, how much of the constellation is drawn
+  let showConstellation = false;
+  let dim = 0;               // how much the whole sky has darkened, 0..1
+  let meteor = null, nextMeteor = 4;
+
+  // A seeded random, so the sky looks the same for everyone.
+  let seed = 1;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const gauss = () => (rand() + rand() + rand() - 1.5) / 1.5;
+
+  // Star colors, from hot blue-white to warm yellow.
+  const TINTS = [[200, 215, 255], [233, 238, 255], [255, 255, 255], [255, 240, 214], [255, 222, 180]];
+
+  // The Milky Way runs diagonally across the sky, through this point at this angle.
+  const BAND = { x: 0.55, y: 0.42, angle: -0.55 };
+  const toBand = (u, v) => {
+    const c = Math.cos(BAND.angle), s = Math.sin(BAND.angle);
+    return [BAND.x * width + u * c - v * s, BAND.y * height + u * s + v * c];
+  };
+
+  function paintBackdrop() {
+    seed = 7;
+    backdrop.width = canvas.width;
+    backdrop.height = canvas.height;
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const sky = bctx.createLinearGradient(0, 0, 0, height);
+    sky.addColorStop(0, "#03050f");
+    sky.addColorStop(0.62, "#0b1330");
+    sky.addColorStop(HORIZON, "#1b2450");
+    sky.addColorStop(1, "#1b2450");
+    bctx.fillStyle = sky;
+    bctx.fillRect(0, 0, width, height);
+
+    // Faint nebula haze in a few places.
+    [[0.22, 0.28, 0.32, "120, 70, 170"], [0.8, 0.22, 0.28, "40, 110, 150"], [0.62, 0.55, 0.3, "150, 60, 110"]].forEach(([x, y, r, c]) => {
+      const rr = r * Math.max(width, height);
+      const g = bctx.createRadialGradient(x * width, y * height, 0, x * width, y * height, rr);
+      g.addColorStop(0, `rgba(${c}, 0.16)`);
+      g.addColorStop(1, `rgba(${c}, 0)`);
+      bctx.fillStyle = g;
+      bctx.fillRect(0, 0, width, height);
+    });
+
+    // The Milky Way: a soft glowing band...
+    const span = Math.hypot(width, height);
+    const thick = Math.max(70, Math.min(width, height) * 0.16);
+    bctx.save();
+    bctx.translate(BAND.x * width, BAND.y * height);
+    bctx.rotate(BAND.angle);
+    const band = bctx.createLinearGradient(0, -thick * 1.6, 0, thick * 1.6);
+    band.addColorStop(0, "rgba(190, 200, 255, 0)");
+    band.addColorStop(0.5, "rgba(190, 200, 255, 0.10)");
+    band.addColorStop(1, "rgba(190, 200, 255, 0)");
+    bctx.fillStyle = band;
+    bctx.fillRect(-span, -thick * 1.6, span * 2, thick * 3.2);
+    bctx.restore();
+    // ...packed with very faint stars...
+    const dust = Math.round((width * height) / 260);
+    for (let i = 0; i < dust; i++) {
+      const [x, y] = toBand((rand() - 0.5) * span * 1.4, gauss() * thick);
+      if (y > HORIZON * height) continue;
+      bctx.fillStyle = `rgba(225, 230, 255, ${0.08 + rand() * 0.28})`;
+      bctx.fillRect(x, y, rand() < 0.85 ? 0.6 : 1.1, rand() < 0.85 ? 0.6 : 1.1);
+    }
+    // ...with darker dust lanes running through it.
+    for (let i = 0; i < 26; i++) {
+      const [x, y] = toBand((rand() - 0.5) * span * 1.2, gauss() * thick * 0.35);
+      const r = thick * (0.25 + rand() * 0.45);
+      const g = bctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, "rgba(3, 5, 15, 0.38)");
+      g.addColorStop(1, "rgba(3, 5, 15, 0)");
+      bctx.fillStyle = g;
+      bctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+
+    // A faint glow above the horizon, then rolling hills with a tree line.
+    const glow = bctx.createLinearGradient(0, HORIZON * height - 90, 0, HORIZON * height);
+    glow.addColorStop(0, "rgba(70, 90, 160, 0)");
+    glow.addColorStop(1, "rgba(70, 90, 160, 0.22)");
+    bctx.fillStyle = glow;
+    bctx.fillRect(0, HORIZON * height - 90, width, 90);
+
+    const ridge = (base, amp, color) => {
+      bctx.fillStyle = color;
+      bctx.beginPath();
+      bctx.moveTo(0, height);
+      for (let x = 0; x <= width + 8; x += 8) {
+        const y = base * height - amp * (Math.sin(x / 210 + base * 9) * 0.6 + Math.sin(x / 77 + base * 3) * 0.25 + 0.5) - (rand() < 0.35 ? rand() * 7 : 0);
+        bctx.lineTo(x, y);
+      }
+      bctx.lineTo(width, height);
+      bctx.closePath();
+      bctx.fill();
+    };
+    ridge(HORIZON + 0.015, 34, "#0a0f24");
+    ridge(HORIZON + 0.06, 26, "#05081a");
+  }
+
+  function buildSky() {
+    seed = 20261114;
+    const count = Math.round(Math.min(560, Math.max(200, (width * height) / 2600)));
+    stars = Array.from({ length: count }, () => {
+      const bright = rand() < 0.07;
+      // Stars cluster a little toward the Milky Way.
+      let x = rand(), y = rand() * HORIZON;
+      if (rand() < 0.35) {
+        const [bx, by] = toBand((rand() - 0.5) * Math.hypot(width, height), gauss() * 90);
+        x = bx / width; y = by / height;
+      }
+      return {
+        x, y,
+        r: bright ? 1.3 + rand() * 0.9 : 0.4 + rand() * 0.8,
+        bright,
+        tint: TINTS[Math.floor(rand() * TINTS.length)],
+        base: bright ? 0.85 : 0.35 + rand() * 0.55,
+        phase: rand() * Math.PI * 2,
+        speed: 0.4 + rand() * 1.4,
+        fadeAt: rand(),           // how early in the questions this star fades
+        alpha: 0, scale: 1, warm: 0, special: false,
+      };
+    }).filter((s) => s.x > 0 && s.x < 1 && s.y > 0 && s.y < HORIZON - 0.02);
+    // Six stars spread around the sky become "your" stars and grow brighter.
+    const anchors = [[0.5, 0.18], [0.22, 0.3], [0.8, 0.27], [0.14, 0.62], [0.86, 0.6], [0.5, 0.74]];
+    anchors.forEach(([x, y], i) => {
+      stars.unshift({
+        x: x + (rand() - 0.5) * 0.05, y: y + (rand() - 0.5) * 0.04, r: 1.4, bright: true,
+        tint: [255, 248, 230], base: 0.8, phase: rand() * 6, speed: 0.6, fadeAt: 2,
+        alpha: 0, scale: 1, warm: 0, special: true, rank: i,
+      });
+    });
+  }
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    paintBackdrop();
+    buildSky();
+    draw(performance.now(), true);
+  }
+
+  // How many matches light up at the end, by how they'd like to meet.
+  const matchCount = () => (format === 0 ? 1 : format === 1 ? 3 : 2);
+  const progress = () => answered / QUESTIONS.length;
+
+  function targets(s) {
+    const p = progress();
+    if (s.special) {
+      const lit = !showConstellation || s.rank < matchCount() + 1;
+      return { alpha: lit ? Math.min(1, 0.6 + p * 0.5) : 0.06, scale: lit ? 1 + p * 2.6 : 0.6, warm: lit ? p : 0 };
+    }
+    // A wave of ordinary stars goes out with each answer; by the end almost all are gone.
+    const gone = s.fadeAt < p * 0.97;
+    return { alpha: gone ? 0.015 : s.base, scale: gone ? 0.5 : 1, warm: 0 };
+  }
+
+  function drawMeteor(dt) {
+    if (reduceMotion) return;
+    nextMeteor -= dt;
+    if (!meteor && nextMeteor <= 0) {
+      const x = 0.15 + Math.random() * 0.7, y = 0.05 + Math.random() * 0.3;
+      meteor = { x: x * width, y: y * height, vx: -(260 + Math.random() * 160), vy: 140 + Math.random() * 80, life: 0 };
+      nextMeteor = 6 + Math.random() * 6;
+    }
+    if (!meteor) return;
+    meteor.life += dt;
+    meteor.x += meteor.vx * dt;
+    meteor.y += meteor.vy * dt;
+    const a = Math.max(0, 1 - meteor.life / 0.9) * (1 - dim * 0.5);
+    const tail = 0.18;
+    const g = ctx.createLinearGradient(meteor.x, meteor.y, meteor.x - meteor.vx * tail, meteor.y - meteor.vy * tail);
+    g.addColorStop(0, `rgba(255, 255, 255, ${0.9 * a})`);
+    g.addColorStop(1, "rgba(255, 255, 255, 0)");
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(meteor.x, meteor.y);
+    ctx.lineTo(meteor.x - meteor.vx * tail, meteor.y - meteor.vy * tail);
+    ctx.stroke();
+    if (meteor.life > 0.9) meteor = null;
+  }
+
+  let last = 0;
+  function draw(time, instant) {
+    const dt = Math.min(0.05, (time - last) / 1000 || 0);
+    last = time;
+    const t = time / 1000;
+    const ease = instant ? 1 : 0.06;
+
+    ctx.drawImage(backdrop, 0, 0, width, height);
+    // The whole sky darkens as you answer, so your stars stand out.
+    dim += (progress() * 0.7 - dim) * ease;
+    ctx.fillStyle = `rgba(2, 3, 10, ${dim})`;
+    ctx.fillRect(0, 0, width, HORIZON * height + 40);
+
+    for (const s of stars) {
+      const tg = targets(s);
+      s.alpha += (tg.alpha - s.alpha) * ease;
+      s.scale += (tg.scale - s.scale) * ease;
+      s.warm += (tg.warm - s.warm) * ease;
+    }
+
+    // Constellation lines between "you" (the first special star) and your matches.
+    if (showConstellation) {
+      if (!instant) linkProgress = Math.min(1, linkProgress + 0.008);
+      const lit = stars.filter((s) => s.special && s.rank < matchCount() + 1).sort((a, b) => a.rank - b.rank);
+      const you = lit[0];
+      ctx.lineWidth = 1.2;
+      lit.slice(1).forEach((s, i) => {
+        const local = Math.max(0, Math.min(1, (linkProgress - i / lit.length) * lit.length));
+        if (local <= 0) return;
+        const x1 = you.x * width, y1 = you.y * height, x2 = s.x * width, y2 = s.y * height;
+        ctx.strokeStyle = `rgba(255, 210, 122, ${0.6 * local})`;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 + (x2 - x1) * local, y1 + (y2 - y1) * local);
+        ctx.stroke();
+      });
+    }
+
+    for (const s of stars) {
+      const twinkle = reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * s.speed + s.phase);
+      const a = Math.max(0, Math.min(1, s.alpha * twinkle));
+      if (a < 0.01) continue;
+      const x = s.x * width, y = s.y * height, r = s.r * s.scale;
+      const [tr, tgc, tb] = s.tint;
+      const red = Math.round(tr + (255 - tr) * s.warm), green = Math.round(tgc + (210 - tgc) * s.warm), blue = Math.round(tb + (122 - tb) * s.warm);
+      if (s.bright) {
+        const haloR = r * (s.special ? 8 : 4.5);
+        const halo = ctx.createRadialGradient(x, y, 0, x, y, haloR);
+        halo.addColorStop(0, `rgba(${red}, ${green}, ${blue}, ${(s.special ? 0.5 : 0.22) * a})`);
+        halo.addColorStop(1, `rgba(${red}, ${green}, ${blue}, 0)`);
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(x, y, haloR, 0, Math.PI * 2);
+        ctx.fill();
+        // A faint four-point sparkle on the brightest stars.
+        const spike = r * (s.special ? 5 + s.warm * 4 : 3.5);
+        ctx.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${0.35 * a})`;
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(x - spike, y); ctx.lineTo(x + spike, y);
+        ctx.moveTo(x, y - spike); ctx.lineTo(x, y + spike);
+        ctx.stroke();
+      }
+      ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${a})`;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (!instant) drawMeteor(dt);
+  }
+
+  function loop(time) {
+    draw(time, false);
+    requestAnimationFrame(loop);
+  }
+
+  function meter() {
+    return `<div class="meter" aria-hidden="true">${QUESTIONS.map((_, i) => `<span class="${i < answered ? "done" : ""}"></span>`).join("")}</div>`;
+  }
+
+  function render() {
+    if (answered >= QUESTIONS.length) {
+      const who = format === 0 ? "one person" : format === 1 ? "a small group" : "your people";
+      card.innerHTML = `
+        ${meter()}
+        <p class="eyebrow">All set</p>
+        <h1 class="fade-in">You're in. Now we find your people.</h1>
+        <p class="sub">Thanks for answering. When matches are released, you'll meet ${who} from beyond your usual circle.</p>
+        <div class="row">
+          <button class="link" id="back" type="button">← Change answers</button>
+          <button class="primary" id="restart" type="button">Start over</button>
+        </div>`;
+      document.getElementById("restart").onclick = restart;
+      document.getElementById("back").onclick = back;
+      if (reduceMotion) { linkProgress = 1; draw(performance.now(), true); }
+      return;
+    }
+    const q = QUESTIONS[answered];
+    card.innerHTML = `
+      ${meter()}
+      <p class="eyebrow">Question ${answered + 1} of ${QUESTIONS.length}${q.placeholder ? '<span class="tag">Placeholder</span>' : ""}</p>
+      <h1 class="fade-in">${q.prompt}</h1>
+      <div class="options ${q.options.length === 3 ? "three" : ""}">
+        ${q.options.map((o, i) => `<button class="option" type="button" data-i="${i}">${o}</button>`).join("")}
+      </div>
+      <div class="row">
+        <button class="link" id="back" type="button" ${answered === 0 ? "disabled" : ""}>← Back</button>
+        ${answered === 0 ? '<span class="note">Watch the sky as you answer</span>' : ""}
+      </div>`;
+    card.querySelectorAll(".option").forEach((b) => (b.onclick = () => pick(Number(b.dataset.i))));
+    document.getElementById("back").onclick = back;
+  }
+
+  function pick(i) {
+    if (answered === 0) format = i;
+    answered += 1;
+    if (answered >= QUESTIONS.length) { showConstellation = true; linkProgress = 0; }
+    render();
+    if (reduceMotion) draw(performance.now(), true);
+  }
+
+  function back() {
+    if (answered === 0) return;
+    answered -= 1;
+    showConstellation = false;
+    linkProgress = 0;
+    render();
+    if (reduceMotion) draw(performance.now(), true);
+  }
+
+  function restart() {
+    answered = 0; format = null; showConstellation = false; linkProgress = 0;
+    render();
+    if (reduceMotion) draw(performance.now(), true);
+  }
+
+  window.addEventListener("resize", resize);
+  resize();
+  render();
+  if (!reduceMotion) requestAnimationFrame(loop);
+})();
+</script>
