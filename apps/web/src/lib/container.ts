@@ -56,6 +56,8 @@ import { RecruitingHelperTool } from "@penntools/tool-recruiting-helper";
 toolRegistry.register(new RecruitingHelperTool());
 import { AccountingPracticeTool } from "@penntools/tool-accounting-practice";
 toolRegistry.register(new AccountingPracticeTool());
+import { ChooseMbaMajorTool } from "@penntools/tool-choose-mba-major";
+toolRegistry.register(new ChooseMbaMajorTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 
