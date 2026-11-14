@@ -1,0 +1,776 @@
+.page {
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.intro {
+  margin: 0;
+  color: var(--section-label);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────────── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+
+.note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--section-label);
+  line-height: 1.5;
+}
+
+
+
+
+
+.secondary {
+  border-radius: 8px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 1px solid var(--input-border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.secondary:hover {
+  background: var(--nav-hover);
+}
+
+/* ── Rating ────────────────────────────────────────────────────────────────── */
+
+.progressText {
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+
+.progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--nav-active);
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--penn-blue);
+  transition: width 0.2s;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.toolbar input,
+.toolbar select {
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.empty {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.course {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.courseInfo {
+  min-width: 0;
+}
+
+.courseHead {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+  white-space: nowrap;
+}
+
+.courseTitle {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.meta {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+  overflow-wrap: anywhere;
+}
+
+.rating {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.rate {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.rate:hover {
+  background: var(--nav-hover);
+}
+
+.rateOn,
+.rateOn:hover {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue);
+  color: #fff;
+}
+
+.description {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+
+.description summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.description p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+@media (max-width: 520px) {
+  .course {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ── Ranking ───────────────────────────────────────────────────────────────── */
+
+.ranking {
+  margin: 0;
+  padding-left: 28px;
+  font-size: 0.9rem;
+  line-height: 2;
+}
+
+.rankRating {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  border-radius: 6px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+/* ── Recommended majors ────────────────────────────────────────────────────── */
+
+.link {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.major,
+.pair {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.pair {
+  background: var(--sidebar-bg);
+}
+
+.majorHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.majorName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.majorRank {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.fit {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+  white-space: nowrap;
+}
+
+.planList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.planItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.planTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planMeta {
+  font-size: 0.8rem;
+  color: var(--section-label);
+  white-space: nowrap;
+}
+
+.unrated {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  border: 1px dashed var(--input-border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.gaps {
+  font-size: 0.85rem;
+  color: #8a4b00;
+}
+
+.gaps ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.notes {
+  margin: 6px 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.pairText {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.allMajors {
+  margin: 8px 0 0;
+  padding-left: 24px;
+  font-size: 0.85rem;
+}
+
+.allMajors li {
+  padding: 3px 0;
+}
+
+.allMajors li > * {
+  vertical-align: middle;
+}
+
+.allName {
+  display: inline-block;
+  width: 45%;
+  color: var(--text);
+}
+
+.allBar {
+  display: inline-block;
+  width: 35%;
+}
+
+.allScore {
+  display: inline-block;
+  width: 15%;
+  text-align: right;
+}
+
+.secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.secondary:disabled:hover {
+  background: var(--bg);
+}
+
+.primary {
+  border: 1px solid var(--penn-blue);
+  border-radius: 8px;
+  padding: 9px 18px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: var(--penn-blue);
+  color: #fff;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* ── Individualized major question ─────────────────────────────────────────── */
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.question legend {
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+.choices {
+  display: flex;
+  gap: 8px;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.choice:hover {
+  background: var(--nav-hover);
+}
+
+.choiceOn,
+.choiceOn:hover {
+  border-color: var(--penn-blue);
+  background: var(--nav-active);
+  font-weight: 600;
+}
+
+.choice input {
+  accent-color: var(--penn-blue);
+  margin: 0;
+}
+
+/* ── Individualized major builder ──────────────────────────────────────────── */
+
+.part {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.partTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fieldHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.textButton {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--penn-blue);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+/* Claude's suggestions: visibly apart from the student's own writing. */
+.claudeBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px dashed var(--input-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--sidebar-bg);
+}
+
+.claudeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.claudeLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.claudeText {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  font-style: italic;
+  color: var(--section-label);
+}
+
+.claudeNote {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--nav-active);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.themeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.theme {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg);
+}
+
+.themeChosen {
+  border-color: var(--penn-blue);
+  box-shadow: 0 0 0 1px var(--penn-blue);
+}
+
+.themeName {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.themeSummary {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--section-label);
+}
+
+.over {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #b42318;
+}
+
+.progressOver {
+  height: 100%;
+  background: #b42318;
+}
+
+.warning {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #f0c27b;
+  background: #fff7e6;
+  color: #8a4b00;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #b42318;
+}
+
+.planPicker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+  max-height: 360px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.planPicker li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.planPicker input {
+  accent-color: var(--penn-blue);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.pickLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.pickLabel .rankRating {
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.alignmentList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.alignment {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.9;
+}
+
+.met {
+  color: var(--text);
+}
+
+.met > span:first-child {
+  color: #1a7f37;
+  font-weight: 700;
+}
+
+.unmet {
+  color: var(--section-label);
+}
+
+.checkDetail {
+  color: var(--muted);
+}
+
+/* ── Scope qualifier and taking/taken ──────────────────────────────────────── */
+
+.qualifier {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--penn-blue);
+  border-radius: 4px;
+  background: var(--sidebar-bg);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.courseActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.takenToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+  cursor: pointer;
+  user-select: none;
+}
+
+.takenToggle input {
+  accent-color: var(--penn-blue);
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .courseActions {
+    align-items: flex-start;
+  }
+}
+
+/* ── Course rating (Course Match's 3-year average) ─────────────────────────── */
+
+.courseRating {
+  font-weight: 600;
+  color: var(--penn-blue);
+  white-space: nowrap;
+}
+
+.noRating {
+  color: var(--muted);
+  white-space: nowrap;
+}

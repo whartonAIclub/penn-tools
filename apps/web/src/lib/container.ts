@@ -54,6 +54,10 @@ import { AskPennTool } from "@penntools/tool-askpenn";
 toolRegistry.register(new AskPennTool());
 import { RecruitingHelperTool } from "@penntools/tool-recruiting-helper";
 toolRegistry.register(new RecruitingHelperTool());
+import { AccountingPracticeTool } from "@penntools/tool-accounting-practice";
+toolRegistry.register(new AccountingPracticeTool());
+import { ChooseMbaMajorTool } from "@penntools/tool-choose-mba-major";
+toolRegistry.register(new ChooseMbaMajorTool());
 import { PennpawsTool } from "@penntools/tool-pennpaws";
 toolRegistry.register(new PennpawsTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
