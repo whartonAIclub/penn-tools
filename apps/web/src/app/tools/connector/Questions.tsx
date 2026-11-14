@@ -34,12 +34,17 @@ export function Questions({ questions, onDone, onBack }: Props) {
 
   return (
     <div className={styles.page}>
+      <div className={styles.meter} aria-hidden="true">
+        {questions.map((q, i) => (
+          <span key={q.id} className={i < index ? styles.done : undefined} />
+        ))}
+      </div>
       <p className={styles.progress}>
         Question {index + 1} of {questions.length}
       </p>
       <h1 className={styles.title}>{question.prompt}</h1>
 
-      <div className={styles.options}>
+      <div className={question.options.length === 3 ? `${styles.options} ${styles.optionsList}` : styles.options}>
         {question.options.map((option) => (
           <button
             key={option.id}

@@ -15,10 +15,15 @@
   --tint: rgba(255, 210, 122, 0.12);
   --tint-strong: rgba(255, 210, 122, 0.2);
   --danger: #ff9b9b;
+  /* The frosted panel each screen sits in, and the answer buttons inside it. */
+  --panel: rgba(10, 15, 38, 0.66);
+  --panel-line: rgba(163, 171, 207, 0.22);
+  --option: rgba(233, 238, 255, 0.06);
 
   position: relative;
   min-height: 100%;
   color: var(--text);
+  font-family: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: dark;
 }
 

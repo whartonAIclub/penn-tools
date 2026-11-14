@@ -1,30 +1,51 @@
+/* Each screen is one frosted panel floating over the sky. */
 .page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 28px;
+  border: 1px solid var(--panel-line);
+  border-radius: 20px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding: 22px 18px;
+  }
 }
 
 .title {
   margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--penn-blue);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: clamp(1.6rem, 4.5vw, 2.1rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  color: var(--text);
 }
 
 .intro {
   color: var(--section-label);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   line-height: 1.6;
 }
 
+/* A block inside the panel, such as the form or the answers to review. */
 .card {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin: 0;
   padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  background: var(--option);
 }
 
 .row {
@@ -51,17 +72,27 @@
 .field input,
 .field select {
   border: 1px solid var(--input-border);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 10px 12px;
   font: inherit;
   font-weight: 400;
   color: var(--text);
-  background: var(--bg);
+  background: rgba(3, 5, 15, 0.45);
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.option:focus-visible,
+.button:focus-visible,
+.secondary:focus-visible,
+.back:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
 }
 
 .button {
-  height: 34px;
-  padding: 0 16px;
+  height: 38px;
+  padding: 0 18px;
   border-radius: 999px;
   background: var(--penn-blue);
   color: var(--on-accent);
@@ -73,19 +104,40 @@
 
 /* ── Questions ─────────────────────────────────────────────────────────────── */
 
+/* One segment per question, gold once answered. */
+.meter {
+  display: flex;
+  gap: 6px;
+}
+.meter span {
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--panel-line);
+  transition: background 0.6s ease;
+}
+.meter .done {
+  background: var(--penn-blue);
+}
+
 .progress {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
   color: var(--section-label);
 }
 
 .options {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
+}
+
+/* Three options (the meeting format) read better as a list. */
+.optionsList {
+  grid-template-columns: 1fr;
 }
 
 @media (max-width: 520px) {
@@ -95,15 +147,28 @@
 }
 
 .option {
-  padding: 24px 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg);
+  min-width: 0;
+  padding: 16px 14px;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  background: var(--option);
   color: var(--text);
-  font-size: 1rem;
-  font-weight: 600;
-  text-align: center;
-  transition: border-color 0.15s, background 0.15s;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.option:active { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  .meter span,
+  .option {
+    transition: none;
+  }
+  .option:active {
+    transform: none;
+  }
 }
 .option:hover { border-color: var(--penn-blue); background: var(--tint); }
 .selected { border-color: var(--penn-blue); background: var(--tint-strong); color: var(--penn-blue); }
