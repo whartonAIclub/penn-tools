@@ -22,3 +22,24 @@ CREATE TABLE IF NOT EXISTS chat_events (
 );
 
 CREATE INDEX IF NOT EXISTS chat_events_user_idx ON chat_events (user_id);
+
+-- One row per follow-up a signed-in user marks done (a thank-you or a check-in):
+-- the follow-through numbers are counted from these. Counts only, like
+-- chat_events: no names or notes, just opaque keys, the kind of follow-up and
+-- how many days after the chat it was done.
+--
+--   follow_up_key    `<person_key>:<step number>`, so the same follow-up is
+--                    counted once even if it's un-done and done again
+--   kind             'thankYou' or 'followUp' (a check-in)
+--   days_after_chat  whole days from the chat to completion, never negative
+CREATE TABLE IF NOT EXISTS follow_up_events (
+  id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id         TEXT        NOT NULL,
+  follow_up_key   TEXT        NOT NULL,
+  kind            TEXT        NOT NULL CHECK (kind IN ('thankYou', 'followUp')),
+  days_after_chat INTEGER     NOT NULL CHECK (days_after_chat >= 0),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, follow_up_key)
+);
+
+CREATE INDEX IF NOT EXISTS follow_up_events_user_idx ON follow_up_events (user_id);

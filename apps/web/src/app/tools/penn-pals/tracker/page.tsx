@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
 import { getAI } from "@/lib/ai";
+import { AdminAccessLink } from "../AdminAccessLink";
 import { Tracker } from "./Tracker";
 
 export const metadata: Metadata = {
@@ -14,5 +15,10 @@ export const metadata: Metadata = {
 export default async function PennPalsTrackerPage() {
   const ai = await getAI(); // null when signed out
   const providers = ai ? await ai.providers() : [];
-  return <Tracker ai={{ signedIn: Boolean(ai), providers, labels: PROVIDER_LABELS }} />;
+  return (
+    <>
+      <Tracker ai={{ signedIn: Boolean(ai), providers, labels: PROVIDER_LABELS }} />
+      <AdminAccessLink />
+    </>
+  );
 }

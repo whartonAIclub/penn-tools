@@ -77,9 +77,15 @@ export {
 export {
   canViewMetrics,
   checkChatEvent,
+  checkFollowUpEvent,
+  followUpEventFor,
   getMetrics,
   recordChat,
+  recordFollowUp,
+  THANK_YOU_ON_TIME_DAYS,
   type ChatEvent,
+  type FollowUpEvent,
+  type FollowUpEventKind,
   type PennPalsMetrics,
 } from "./metrics.js";
 export {

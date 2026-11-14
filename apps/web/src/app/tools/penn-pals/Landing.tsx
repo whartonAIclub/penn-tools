@@ -14,6 +14,7 @@ import {
   CONTACTS_STORAGE_KEY,
   countByKind,
   daysFrom,
+  followUpEventFor,
   followUpStatus,
   followUpsFor,
   markFollowUpDone,
@@ -25,6 +26,7 @@ import {
   SENIORITY_LABELS,
 } from "@penntools/tool-penn-pals";
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
+import { recordFollowUp } from "./metricsActions";
 import styles from "./Landing.module.css";
 
 // The three timeline buckets, in the order the lane shows them
@@ -391,8 +393,15 @@ export function Landing({ today: todayIso }: { today: string }) {
     }
   };
 
-  const markDone = (followUp: FollowUp) =>
+  const markDone = (followUp: FollowUp) => {
+    const contact = allContacts.find((c) => c.id === followUp.contactId);
+    if (contact) {
+      // Counts toward the team's follow-through numbers (signed-in users only); never holds up or breaks marking it done.
+      const event = followUpEventFor(followUp, contact.meetingDate, todayIso);
+      void recordFollowUp(event.followUpKey, event.kind, event.daysAfterChat).catch(() => undefined);
+    }
     save(allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c)));
+  };
 
   const reschedule = (followUp: FollowUp, date: string) =>
     save(allContacts.map((c) => (c.id === followUp.contactId ? rescheduleStep(c, followUp.stepIndex, date) : c)));
