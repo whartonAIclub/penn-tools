@@ -51,6 +51,10 @@ test("flags each kind of violation on its own line", () => {
       `const zod = await import("@anthropic-ai/sdk/helpers/zod");`,
       `await fetch("https://api.anthropic.com/v1/messages");`,
       `const keys = userApiKeys;`,
+      `const spend = await aiUsage.platformSpend(id);`,
+      `import { logger, admins } from "@/lib/container";`,
+      `import {\n  toolVisits,\n} from "@/lib/container";`,
+      `const note = "Ask the admins";`,
     ].join("\n"),
   });
   assert.equal(code, 1);
@@ -63,10 +67,14 @@ test("flags each kind of violation on its own line", () => {
     "bad.ts:7  vendor SDK",
     "bad.ts:8  provider API URL",
     "bad.ts:9  users' API keys",
+    "bad.ts:10  users' API keys",
+    "bad.ts:11  platform data",
+    "bad.ts:12  platform data",
   ]) {
     assert.ok(output.includes(expected), `missing "${expected}" in:\n${output}`);
   }
   assert.ok(!output.includes("bad.ts:1 "), "the next/server import must not be flagged");
+  assert.ok(!output.includes("bad.ts:15 "), "the word admins in text must not be flagged");
 });
 
 test("doesn't stretch one import match across several import statements", () => {
@@ -93,7 +101,7 @@ const LEGACY_MANIFEST = (flag) =>
     `export class Demo extends Tool {`,
     `  readonly manifest: ToolManifest = {`,
     `    id: "demo",`,
-    `    category: "LLM Tools",`,
+    `    category: "Other",`,
     ...(flag ? [`    notYetMigrated: true,`] : []),
     `  };`,
     `}`,

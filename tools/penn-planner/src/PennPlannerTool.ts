@@ -8,7 +8,7 @@ export class PennPlannerTool extends Tool {
     description: "AI-powered time-planning assistant that integrates with Canvas and your calendar to estimate effort and suggest study blocks.",
     contributors: ["Sam Lazarus", "Ana Akra", "Krishna Vadera", "Shreya Khetan"],
     mentor: "Alex Sulimanov",
-    category: "LLM Tools",
+    category: "Other",
     notYetMigrated: true,
   };
 }

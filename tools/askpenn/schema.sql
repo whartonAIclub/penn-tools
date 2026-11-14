@@ -25,3 +25,7 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS messages_chat_idx ON messages (chat_id, id);
+
+-- The names of the files sent with a user message. The files themselves are
+-- sent to the model once and never stored.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_names TEXT[] NOT NULL DEFAULT '{}';

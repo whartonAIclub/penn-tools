@@ -8,6 +8,6 @@ export class Tool3 extends Tool {
     description: "The planning tool centralizes a Wharton student's deadlines and commitments across academics and recruiting into a single prioritized to-do list.",
     contributors: ["Alec Roslin", "Nyla Thompson", "Travon Martin", "Nikunj Agrawal"],
     mentor: "Steven Adelberg",
-    category: "LLM Tools",
+    category: "Other",
   };
 }

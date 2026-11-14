@@ -17,7 +17,15 @@ toolRegistry.register(new AskPennTool());
 // ── Repositories ──
 `;
 
-/** A temporary repo with the script, apps/web/package.json and container.ts, deleted after the test. */
+// The script reads the categories from TOOL_CATEGORIES in core's Tool.ts.
+const TOOL_TS = `export const TOOL_CATEGORIES = [
+  "Recruiting",
+  "Academics",
+  "Other",
+] as const;
+`;
+
+/** A temporary repo with the script, core's Tool.ts, apps/web/package.json and container.ts, deleted after the test. */
 function repo(t, container = CONTAINER) {
   const root = mkdtempSync(join(tmpdir(), "new-tool-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -32,6 +40,7 @@ function repo(t, container = CONTAINER) {
     JSON.stringify({ name: "@penntools/web", dependencies: { "@penntools/core": "workspace:*", next: "14" } }, null, 2) + "\n",
   );
   write("apps/web/src/lib/container.ts", container);
+  write("packages/core/src/tools/Tool.ts", TOOL_TS);
   return {
     root,
     read: (path) => readFileSync(join(root, path), "utf8"),
@@ -40,7 +49,14 @@ function repo(t, container = CONTAINER) {
   };
 }
 
-const ARGS = ["--id", "course-finder", "--title", "Course Finder", "--description", "Find courses.", "--contributors", "Ada, Bob", "--yes"];
+const ARGS = [
+  "--id", "course-finder",
+  "--title", "Course Finder",
+  "--description", "Find courses.",
+  "--contributors", "Ada, Bob",
+  "--category", "Academics",
+  "--yes",
+];
 
 test("creates the tool package and page, and registers the tool", (t) => {
   const r = repo(t);
@@ -52,8 +68,8 @@ test("creates the tool package and page, and registers the tool", (t) => {
   assert.match(tool, /id: "course-finder",/);
   assert.match(tool, /contributors: \["Ada", "Bob"\],/);
   assert.match(tool, /mentor: "Grace",/);
-  // New tools start in the catch-all category, in beta, and on the AI API.
-  assert.match(tool, /category: "LLM Tools",/);
+  // New tools start in the category they name, in beta, and on the AI API.
+  assert.match(tool, /category: "Academics",/);
   assert.match(tool, /beta: true,/);
   assert.doesNotMatch(tool, /notYetMigrated/);
   assert.equal(r.read("tools/course-finder/src/index.ts"), 'export { CourseFinderTool } from "./CourseFinderTool.js";\n');
@@ -93,6 +109,34 @@ test("quotes titles and descriptions safely", (t) => {
   assert.match(tool, /description: "Uses `backticks` and \$\{braces\}\.",/);
 });
 
+test("takes a category in any case, writing it as TOOL_CATEGORIES spells it", (t) => {
+  const r = repo(t);
+  const args = [...ARGS];
+  args[9] = "academics";
+  assert.equal(r.run(...args).status, 0);
+  assert.match(r.read("tools/course-finder/src/CourseFinderTool.ts"), /category: "Academics",/);
+});
+
+test("rejects a category that isn't in TOOL_CATEGORIES, pointing to the Platform team", (t) => {
+  const r = repo(t);
+  const args = [...ARGS];
+  args[9] = "Gaming";
+  const result = r.run(...args);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /"Gaming" isn't a category\. Pick one of: Recruiting, Academics, Other\./);
+  assert.match(result.stderr, /ask the Platform team/);
+  assert.ok(!r.exists("tools"));
+});
+
+test("writes nothing when it can't read TOOL_CATEGORIES", (t) => {
+  const r = repo(t);
+  writeFileSync(join(r.root, "packages/core/src/tools/Tool.ts"), "// no categories\n");
+  const result = r.run(...ARGS);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /TOOL_CATEGORIES/);
+  assert.ok(!r.exists("tools"));
+});
+
 for (const [label, id] of [
   ["a numeric ID", "42"],
   ["capitals", "CourseFinder"],
@@ -109,6 +153,33 @@ for (const [label, id] of [
     assert.ok(!r.exists("tools"));
   });
 }
+
+test("rejects an ID that community tools' click counts use", (t) => {
+  const r = repo(t);
+  const args = [...ARGS];
+  args[1] = "community-finder";
+  const result = r.run(...args);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /can't start with "community-"/);
+  assert.ok(!r.exists("tools"));
+});
+
+test("rejects a removed tool's ID, and only that one", (t) => {
+  const r = repo(t);
+  mkdirSync(join(r.root, "packages/platform/scripts"), { recursive: true });
+  writeFileSync(
+    join(r.root, "packages/platform/scripts/removed-tools.json"),
+    JSON.stringify([{ id: "course-finder", name: "coursefinder" }, { id: "community-other" }]),
+  );
+  const result = r.run(...ARGS);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /"course-finder" belonged to a removed tool/);
+  assert.ok(!r.exists("tools"));
+
+  const args = [...ARGS];
+  args[1] = "course-search";
+  assert.equal(r.run(...args).status, 0);
+});
 
 test("rejects an ID that's already taken", (t) => {
   const r = repo(t);
@@ -139,7 +210,7 @@ test("names missing options instead of asking, when not run in a terminal", (t) 
   const r = repo(t);
   const result = r.run("--id", "course-finder", "--yes");
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /Missing --title, --description, --contributors\./);
+  assert.match(result.stderr, /Missing --title, --description, --contributors, --category\./);
   assert.match(result.stderr, /pnpm new-tool --id course-finder --title/);
 });
 
@@ -147,7 +218,7 @@ test("explains that this terminal can't answer questions", (t) => {
   const r = repo(t);
   const result = r.run();
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /Missing --id, --title, --description, --contributors\. This terminal can't answer questions/);
+  assert.match(result.stderr, /Missing --id, --title, --description, --contributors, --category\. This terminal can't answer questions/);
 });
 
 test("rejects an ID whose class name another tool already uses", (t) => {

@@ -10,7 +10,7 @@ import { db } from "../db";
 import { AskLibrary } from "./AskLibrary";
 
 export default async function AskPage() {
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("pass-it-on"))!.providers();
   const tags = [...new Set((await listSources(db())).flatMap((s) => s.tags))].sort();
   return <AskLibrary providers={providers} labels={PROVIDER_LABELS} tags={tags} maxLength={MAX_SEARCH_QUERY_LENGTH} />;
 }

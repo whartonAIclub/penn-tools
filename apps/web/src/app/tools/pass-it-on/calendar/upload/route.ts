@@ -27,7 +27,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!user) return signInRequired();
   const sql = maybeDb();
   if (!sql) return Response.json({ error: "Pass It On's database is not configured." }, { status: 500 });
-  const ai = await getAI();
+  const ai = await getAI("pass-it-on");
   if (!ai) return signInRequired();
 
   const form = await req.formData().catch(() => null);

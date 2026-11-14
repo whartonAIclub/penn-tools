@@ -148,13 +148,42 @@ existing tools keep the legacy LLM API (`/api/llm/complete`)
 until they migrate, after which it is deleted. How to call it is in CLAUDE.md
 section 4; this section covers the design.
 
-- **Keys stay server-side.** `createUserAI(userId)` in `container.ts` builds an
-  `AI` whose calls use that user's saved key for the requested provider, and
-  fail with `missing_key` when there is none; the platform's keys are never
-  used for generation. Tools get it from `getAI()` (`apps/web/src/lib/ai.ts`,
-  bound to the signed-in user). Keys stay inside the
-  adapters' closures, and `AIError` messages are written by the platform, so no
-  key reaches tool code or logs.
+- **Keys stay server-side.** `createUserAI(userId, toolId)` in `container.ts`
+  builds an `AI` bound to one user and tool. Tools get it from
+  `getAI(toolId)` (`apps/web/src/lib/ai.ts`, bound to the signed-in user). Keys
+  stay inside the adapters' closures, and `AIError` messages are written by the
+  platform, so no key reaches tool code or logs.
+- **Free credit, then the user's key.** Each call uses the platform's key for
+  its provider (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) while the user's
+  `FREE_CREDIT_USD` ($0.50, ever, across both providers;
+  `packages/core/src/ai/pricing.ts`) covers it, then the user's saved key.
+  With neither, it fails with `credit_used` (or `missing_key` when the platform
+  has no key for that provider). If the platform's key itself is rejected or
+  out of credit, users see `unavailable` and the error is logged, since the
+  fix is ours, not theirs.
+- **Reserve, then settle.** Before a call on the platform's key, the
+  provider's token counting endpoint counts its input (Anthropic's
+  `count_tokens`, OpenAI's `responses/input_tokens`; a local estimate stands in
+  if counting fails), and the call reserves its expected cost: that input
+  plus `EXPECTED_REPLY_TOKENS` (4,000) of reply, or its `maxOutputTokens` if
+  lower. The reservation is a pending `ai_usage` row, taken under a per-user
+  Postgres advisory lock so calls started together can't overrun the credit
+  together; the call settles it with what it used, or releases it if the
+  provider billed nothing. So input never takes a user past the credit, and
+  only a reply longer than 4,000 tokens can, by at most the rest of its reply
+  cap. Reserving the whole cap instead would leave much of the credit
+  unusable on the larger models (16,000 tokens of Opus 5.5 reply is $0.32).
+  Since calls stop a little short of the credit, less left than the cheapest
+  call reserves (`MIN_CALL_USD`, $0.002) counts as used: `providers()` drops
+  the platform's providers and Settings shows none left.
+  The legacy LLM API reserves the same way, from a local estimate.
+- **Every call is recorded.** `createAI` reports each billed call's tokens,
+  cost (from `MODEL_PRICES` in `pricing.ts`) and whose key paid; `container.ts`
+  saves it in `ai_usage` with the user and tool. A stream cut short after the
+  provider started answering is recorded with estimated tokens. Search-query
+  embeddings and the legacy LLM API are recorded the same way, and the legacy
+  API spends the same free credit. `/admin`, for admins only, shows spend by
+  tool and by user.
 - **One model catalog.** The tool picks the provider; models and their default
   reasoning come from `packages/core/src/ai/models.ts`, so changing a model is
   a one-file change. Requests are checked against a Zod schema in `createAI`,
@@ -166,14 +195,31 @@ section 4; this section covers the design.
   `generateObject`, the adapter sends the Zod schema as structured output and
   returns the raw text; `createAI` checks the stop reason (refused, cut off)
   before parsing and validating.
+- **Images and PDFs.** A user message's content can be a list of parts (text,
+  image, PDF; `AIContentPart`), sent inline as base64 in the request: nothing
+  is uploaded to the provider's Files API, which would leave files in the
+  user's own provider account and tie them to one provider. Those are the only
+  files the AI API takes, in the image types both providers read, and
+  `createAI` checks each one really is its type from its first bytes, so a
+  mislabelled file never reaches a provider; tools convert anything else first,
+  to text or to a supported image. The limits, `fileType()` and
+  `imageFitSize()` (the largest size Claude reads, for shrinking images in the
+  browser first) are in `packages/core/src/ai/attachments.ts`, also exported
+  without zod as `@penntools/core/ai/attachments` for browser code. Office
+  files aren't supported: Anthropic doesn't read them, so a tool would have to
+  extract their text first. Pages send files to a route in the tool's folder
+  (AskPenn's `stream/route.ts`), since Next.js refuses server action requests
+  over 1 MB. PDFs are the costly part: Claude reads each page as text and an
+  image, about 1,500 tokens a page, up to 600 pages, so AskPenn allows 20.
 - **Errors.** Every failure reaching a tool is an `AIError` (aborts excepted):
   provider errors map to a kind, and anything else (a connection dropped
   mid-stream, a bug) becomes `unavailable` and is logged in full.
 - **Embeddings.** Always OpenAI with `EMBEDDING_MODEL`. Seeds (`db:deploy`) use
   the platform's key. Search queries (`getEmbeddings`)
-  use the user's OpenAI key, or `OPENAI_API_KEY` when they haven't saved one;
-  each platform-key call logs `embeddings.platform_key`, and its cost shows on
-  that key in OpenAI's usage dashboard.
+  use the user's OpenAI key, or `OPENAI_API_KEY` when they haven't saved one.
+  Each call is recorded in `ai_usage`; calls on the platform's key count
+  toward the user's free credit but aren't reserved or refused, since they
+  cost so little (text-embedding-3-small is $0.02 per million tokens).
 - **Enforcement.** `pnpm check:tools` (`scripts/check-tool-imports.mjs`) fails
   if tool code imports a vendor SDK, calls a provider API, or touches users'
   keys or platform internals.
@@ -221,15 +267,17 @@ tool pages. It is a server component that calls `getCurrentUser()`:
   and Google always shows its account picker so they can choose their Penn
   account next time.
 - **Signed in:** the profile picture (or initial), linking to account settings
-  at `/settings` (the Google profile, and the user's own OpenAI and Anthropic
-  API keys; see `user_api_keys` under **Data model**), and **Log out**, which
-  signs out and stays on the page.
+  at `/settings` (the Google profile, how much of the free AI credit is left,
+  and the user's own OpenAI and Anthropic API keys, used once that credit is
+  spent; see `ai_usage` and `user_api_keys` under **Data model**), and
+  **Log out**, which signs out and stays on the page.
 
 Pages that need a user render `SignInPrompt` for signed-out visitors instead of
 their content (`/settings`, AskPenn and the Platform Playground do). Tools that
 need a user for everything use the standard screens: `SignInPrompt` with just
 their title ("Sign in to use AskPenn."), and, if they run on the AI API,
-`ApiKeyPrompt` when the user hasn't saved a key, pointing to Settings. Because
+`ApiKeyPrompt` when the user has used their free AI credit and hasn't saved a
+key (`ai.providers()` is empty), pointing to Settings. Because
 `getCurrentUser()` reads the request's cookies, every page renders per request
 rather than being prerendered; it is cached per request, so the header and the
 page share one user lookup.
@@ -239,8 +287,10 @@ page share one user lookup.
 `toolCatalog()` (`apps/web/src/lib/toolCatalog.ts`) sorts every tool on the
 site into sections, for both the site sidebar and the dashboard. The sections
 are `TOOL_CATEGORIES` (`packages/core/src/tools/Tool.ts`), in that order:
-Recruiting, Academics, Productivity, LLM Tools (the catch-all) and Platform.
-Each holds:
+Recruiting, Academics, Finance, Entrepreneurship, Productivity, Lifestyle,
+Other (the catch-all) and Platform. A comment there says what each covers;
+`pnpm new-tool` requires one and reads the list from that file. Only the
+Platform team adds categories. Each holds:
 
 - **Community tools** in that category: apps that live outside this repo and
   open in a new tab, listed by hand in `apps/web/src/data/communityTools.ts`.
@@ -316,15 +366,49 @@ Key design choices:
   four characters. The repository is `userApiKeys` in `container.ts`; tool code
   must not import it (enforced by `pnpm check:tools`). The AI API reads keys on
   the tool's behalf.
+- `ai_usage` has one row per AI call: user, tool, API (AI, embeddings or
+  legacy), model, tokens, cost in USD, and whose key paid. A user's free credit
+  is the sum of their `PLATFORM` rows, so costs are stored at the price when
+  the call was made and a later price change doesn't rewrite them. A
+  `pending` row is a reservation for a call in progress (its cost is the
+  expected cost until settled); one older than 30 minutes stops counting, as
+  its call was probably abandoned, but is kept so a slow call can still settle
+  it.
+  Reports leave pending rows out. A removed tool's rows are kept, since they
+  count toward users' credit (see **Removing a tool** in the README). The
+  repository is `aiUsage` in `container.ts`; tool code must not import it.
+- `tool_visits` has one row per visit to a tool: the tool, when, and the user
+  if signed in. The tools frame (`ToolsShell`) sends it to `POST /api/visits`
+  with `navigator.sendBeacon` (`lib/visits.ts`) each time a tool is opened;
+  moving between pages within a tool isn't another visit. A community tool's
+  visit is a click on its link in the sidebar or on the dashboard (a click,
+  with or without a modifier key, a tap, or a middle-click; "Open in new tab"
+  from the right-click or long-press menu can't be seen), recorded as
+  `community-<id>` (`communityVisitId`) so it stays apart from registered
+  tools' IDs. People who reach its site any other way aren't counted. `/admin`
+  shows visits and distinct signed-in users per tool, for the last 30 days and
+  all time. Anyone can call the route, and some ad blockers stop the beacon, so
+  the counts are a guide, not an audit. A removed tool's rows are deleted on
+  every deploy once it's listed in `removed-tools.json` (see **Removing a
+  tool** in the README). Tool code must not import `toolVisits` or `admins`.
+- `admins` lists, by email, who can open `/admin` (AI usage, tool visits, and
+  the admins themselves, who add and remove each other there; no one can remove
+  themselves). `db:deploy` adds the first admins
+  (`packages/platform/scripts/seed-platform.mjs`) only while the table is
+  empty, so a removed admin stays removed. In development without Google
+  sign-in, the local user is an admin.
 - Tools that need real tables (queries across users, relations, search) get their
   own Postgres role and schema in the same database, never tables in `public`,
   which `prisma db push` manages and would drop. `db:deploy` (`prisma db push`,
-  then `packages/platform/scripts/setup-tools.mjs`) creates each role and schema
+  `packages/platform/scripts/seed-platform.mjs`, then
+  `packages/platform/scripts/setup-tools.mjs`) creates each role and schema
   and, as that role, applies `tools/{id}/schema.sql` and runs the optional
   `tools/{id}/seed.mjs`. Like `prisma db push` for the platform, both run on
   every deploy and must be safe to re-run; there are no migrations. A tool role
   cannot read platform or other tools' tables. AskPenn (schema `askpenn`) is
-  the reference.
+  the reference. Removing a tool from `TOOLS` leaves its role and schema;
+  listing it in `packages/platform/scripts/removed-tools.json` drops them on
+  the next deploy.
 - Tools use pgvector from `public`, where the platform installs it. That schema is
   not on a tool role's `search_path`, so tool SQL schema-qualifies the type and
   operators (`public.vector`, `OPERATOR(public.<=>)`). Each vector is stored
@@ -348,8 +432,8 @@ variables in their pages and routes: Compass (`COMPASS_ICS_FEED_URL`,
 | Variable | Used by | Purpose |
 |----------|---------|---------|
 | `DATABASE_URL` | platform/prisma, `db:deploy` | Postgres admin connection; tool role passwords are derived from it |
-| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy`, platform/llm | Embeddings: tool seeds (e.g. Career Canvas course embeddings; skipped when unset) and search queries from users without their own OpenAI key. Also the legacy LLM API |
-| `ANTHROPIC_API_KEY` | platform/llm | Legacy LLM API only; the AI API uses users' own keys |
+| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy`, platform/llm | The AI API's OpenAI calls while a user has free credit; embeddings: tool seeds (e.g. Career Canvas course embeddings; skipped when unset) and search queries from users without their own OpenAI key. Also the legacy LLM API |
+| `ANTHROPIC_API_KEY` | web/lib/container, platform/llm | The AI API's Anthropic calls while a user has free credit, and the legacy LLM API |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | web/lib/auth | Google sign-in (OAuth client); without them, development signs in as a local user and production disables sign-in |
 | `NEXTAUTH_SECRET` | web/lib/auth | Signs session cookies; required with the Google credentials |
 | `NEXTAUTH_URL` | web/lib/auth | The site's public URL; required in production |

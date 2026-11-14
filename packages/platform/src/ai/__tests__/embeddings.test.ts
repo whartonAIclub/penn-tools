@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { EMBEDDING_MODEL } from "@penntools/core/ai";
 import { createUserEmbeddings } from "../embeddings.js";
+import type { CallUsage } from "../usage.js";
 import { installFakeFetch } from "./fakeFetch.js";
 import { openaiErrorReply } from "./replies.js";
 
@@ -19,38 +20,43 @@ const embeddingsReply = {
 
 let net: ReturnType<typeof installFakeFetch>;
 let logger: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+let recordUsage: Mock<[CallUsage], Promise<void>>;
 beforeEach(() => {
   net = installFakeFetch();
   logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+  recordUsage = vi.fn(async (_usage: CallUsage) => {});
 });
 
 function embeddings(userKey: string | null, platformKey: string | null) {
-  return createUserEmbeddings({ userKey, platformKey, model: EMBEDDING_MODEL, logger, logFields: { userId: "u1", toolId: "demo" } });
+  return createUserEmbeddings({ userKey, platformKey, model: EMBEDDING_MODEL, recordUsage, logger });
 }
 
+const usage = {
+  provider: "openai",
+  model: EMBEDDING_MODEL,
+  inputTokens: 6,
+  outputTokens: 0,
+  costUsd: (6 * 0.02) / 1_000_000,
+  estimated: false,
+};
+
 describe("createUserEmbeddings", () => {
-  it("uses the user's key when they have one, without logging", async () => {
+  it("uses the user's key when they have one, and records it as theirs", async () => {
     net.reply(embeddingsReply);
     const vectors = await embeddings("sk-user", "sk-platform")!.embedMany(["a", "b"]);
 
     expect(vectors).toEqual([[1, 0], [0, 1]]);
     expect(net.last().headers.get("authorization")).toBe("Bearer sk-user");
     expect(net.last().body).toMatchObject({ model: EMBEDDING_MODEL, input: ["a", "b"] });
-    expect(logger.info).not.toHaveBeenCalled();
+    expect(recordUsage).toHaveBeenCalledWith({ ...usage, keySource: "user" });
   });
 
-  it("uses the platform's key when the user has none, and logs it", async () => {
+  it("uses the platform's key when the user has none, and records it as the platform's", async () => {
     net.reply(embeddingsReply);
     await embeddings(null, "sk-platform")!.embedMany(["a", "b"]);
 
     expect(net.last().headers.get("authorization")).toBe("Bearer sk-platform");
-    expect(logger.info).toHaveBeenCalledWith("embeddings.platform_key", {
-      userId: "u1",
-      toolId: "demo",
-      model: EMBEDDING_MODEL,
-      inputs: 2,
-      tokens: 6,
-    });
+    expect(recordUsage).toHaveBeenCalledWith({ ...usage, keySource: "platform" });
   });
 
   it("is null when there is no key at all", () => {

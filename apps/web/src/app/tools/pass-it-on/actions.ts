@@ -114,7 +114,7 @@ export async function deleteEvents(ids: string[]): Promise<ActionResult<{ delete
 
 /** Answers a question from the library, with citations, or says it couldn't find one. */
 export async function askLibrary(provider: AIProvider, question: string, tags: string[]): Promise<ActionResult<CitedAnswer>> {
-  const ai = await getAI();
+  const ai = await getAI("pass-it-on");
   if (!ai) return signedOut;
   const problem = checkSearchQuery(question);
   if (problem) return fail(problem);

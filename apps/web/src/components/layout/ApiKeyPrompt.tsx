@@ -1,9 +1,10 @@
-// Shown in place of a tool's content when it runs on the user's own AI API key
-// (the AI API) and they haven't saved one: page.tsx returns it when
-// `ai.providers()` is empty. The matching screen for signed-out visitors is
-// SignInPrompt.
+// Shown in place of a tool's content when it runs on the AI API and the user
+// can't call any provider: they've used their free AI credit and haven't saved
+// a key. page.tsx returns it when `ai.providers()` is empty. The matching
+// screen for signed-out visitors is SignInPrompt.
 
 import Link from "next/link";
+import { FREE_CREDIT_USD } from "@penntools/core/ai";
 import styles from "./CardPage.module.css";
 
 export function ApiKeyPrompt({ title }: { title: string }) {
@@ -12,11 +13,12 @@ export function ApiKeyPrompt({ title }: { title: string }) {
       <h1 className={styles.title}>{title}</h1>
       <section className={styles.card}>
         <p className={styles.muted}>
-          {title} runs on your own AI API key. Add an OpenAI or Anthropic key in{" "}
+          PennTools covers the first ${FREE_CREDIT_USD.toFixed(2)} of AI use for everyone; after that, tools run on
+          your own AI API key. Add an OpenAI or Anthropic key in{" "}
           <Link href="/settings" className={styles.link}>
             Settings
           </Link>{" "}
-          to use it.
+          to keep using {title}.
         </p>
       </section>
     </div>

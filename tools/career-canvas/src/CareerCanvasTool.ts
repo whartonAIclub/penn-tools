@@ -14,7 +14,7 @@ export class CareerCanvasTool extends Tool {
       "Malvika Sinha",
     ],
     mentor: "Itay Zitvar",
-    category: "LLM Tools",
+    category: "Other",
     fullWidth: true,
     notYetMigrated: true,
   };

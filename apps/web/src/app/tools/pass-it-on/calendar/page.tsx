@@ -11,7 +11,7 @@ import styles from "../PassItOn.module.css";
 import { CalendarUpload } from "./CalendarUpload";
 
 export default async function CalendarPage() {
-  const ai = await getAI();
+  const ai = await getAI("pass-it-on");
   const providers = ai ? await ai.providers() : [];
   if (providers.length === 0) return <ApiKeyPrompt title="Calendar" />;
   const imports = await listCalendarImports(db());

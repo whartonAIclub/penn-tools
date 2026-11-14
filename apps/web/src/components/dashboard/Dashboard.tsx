@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CatalogSection, CatalogTool } from "@/lib/toolCatalog";
+import { trackClicks } from "@/lib/visits";
 import styles from "./Dashboard.module.css";
 
 function hostOf(url: string): string {
@@ -33,7 +34,6 @@ export function Dashboard({ sections }: { sections: CatalogSection[] }) {
                 {section.name} <span className={styles.betaSticker}>BETA</span>
               </h2>
               <p className={styles.betaNote}>
-                {section.id === "llm-tools" && "LLM-powered tools built on the PennTools platform. "}
                 Tools in beta are still under development and may not be fully functional.
               </p>
             </div>
@@ -42,11 +42,24 @@ export function Dashboard({ sections }: { sections: CatalogSection[] }) {
           )}
           <div className={styles.grid}>
             {section.tools.map((tool) => (
-              <ToolTile key={tool.key} tool={tool} />
+              <ToolTile key={tool.visitId} tool={tool} />
             ))}
           </div>
         </section>
       ))}
+
+      {/* Google's OAuth verification needs the privacy policy linked from the home page. */}
+      <footer className={styles.footer}>
+        <p>
+          PennTools is a student project of the Wharton AI &amp; Analytics Club. It is not an official service of
+          the University of Pennsylvania.
+        </p>
+        <p>
+          <Link href="/privacy" className={styles.footerLink}>Privacy policy</Link>
+          {" · "}
+          <a href="mailto:waiac.platform@gmail.com" className={styles.footerLink}>Contact</a>
+        </p>
+      </footer>
     </div>
   );
 }
@@ -90,10 +103,11 @@ function ToolTile({ tool }: { tool: CatalogTool }) {
     </>
   );
 
-  // Community tools open in a new tab; registered tools navigate within the app,
-  // as the sidebar's links do, so the page doesn't fully reload.
+  // Community tools open in a new tab, counting the click; registered tools
+  // navigate within the app, as the sidebar's links do, so the page doesn't
+  // fully reload (ToolsShell records those visits).
   return tool.external ? (
-    <a href={tool.href} className={styles.tile} target="_blank" rel="noopener noreferrer">
+    <a href={tool.href} className={styles.tile} target="_blank" rel="noopener noreferrer" {...trackClicks(tool.visitId)}>
       {content}
     </a>
   ) : (

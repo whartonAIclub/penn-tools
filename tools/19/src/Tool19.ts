@@ -9,6 +9,6 @@ export class Tool19 extends Tool {
       "Compass MVP backend for ingesting Penn/Wharton ICS events and serving a read-only events API.",
     contributors: ["Pak Kanjanakosit", "Iris Liu"],
     mentor: "Manas Sharma",
-    category: "LLM Tools",
+    category: "Other",
   };
 }

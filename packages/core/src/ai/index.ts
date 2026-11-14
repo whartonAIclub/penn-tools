@@ -5,6 +5,9 @@ export { z } from "zod";
 export { AIError, isAIError } from "./AIError.js";
 export type { AIErrorKind, AIErrorInfo } from "./AIError.js";
 export {
+  AI_PROVIDERS,
+  AI_TIERS,
+  AI_REASONING_LEVELS,
   MODELS,
   DEFAULT_TIER,
   DEFAULT_MAX_OUTPUT_TOKENS,
@@ -13,11 +16,35 @@ export {
   PROVIDER_LABELS,
 } from "./models.js";
 export type { ModelSpec, ModelId } from "./models.js";
+export {
+  FREE_CREDIT_USD,
+  EXPECTED_REPLY_TOKENS,
+  MIN_CALL_USD,
+  MODEL_PRICES,
+  UNKNOWN_MODEL_PRICE,
+  priceOf,
+  costUsd,
+} from "./pricing.js";
+export type { ModelPrice } from "./pricing.js";
+export {
+  AI_IMAGE_TYPES,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_EDGE,
+  MAX_IMAGE_PATCHES,
+  IMAGE_PATCH_SIZE,
+  imageFitSize,
+  fileType,
+  base64FileType,
+  isBase64,
+  base64Bytes,
+} from "./attachments.js";
+export type { AIImageType } from "./attachments.js";
 export type {
   AI,
   AIProvider,
   AITier,
   AIReasoning,
+  AIContentPart,
   AIMessage,
   AISchema,
   AIStopReason,
