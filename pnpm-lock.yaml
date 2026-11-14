@@ -203,7 +203,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/askpenn:
     dependencies:
