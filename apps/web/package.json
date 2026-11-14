@@ -20,6 +20,7 @@
     "@penntools/tool-career-canvas": "workspace:*",
     "@penntools/tool-choose-mba-major": "workspace:*",
     "@penntools/tool-coursematch-assist": "workspace:*",
+    "@penntools/tool-pass-it-on": "workspace:*",
     "@penntools/tool-penn-planner": "workspace:*",
     "@penntools/tool-pitch-coach": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
