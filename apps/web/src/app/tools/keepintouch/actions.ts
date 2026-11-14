@@ -28,6 +28,8 @@ import {
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 
+const TOOL_ID = "keepintouch";
+
 export type ActionResult<T> =
   | { ok: true; data: T }
   | {
@@ -93,13 +95,14 @@ export async function addInteraction(
 }
 
 /**
- * Turns a quick note about someone into a draft for the add form, with the
- * user's own API key. Nothing is saved: the user checks the draft and saves it
- * with saveContact. `today` is the browser's date, for words like "yesterday".
+ * Turns a quick note about someone into a draft for the add form, on the
+ * user's free AI credit or their own key. Nothing is saved: the user checks the
+ * draft and saves it with saveContact. `today` is the browser's date, for words
+ * like "yesterday".
  */
 export async function draftFromNote(provider: AIProvider, note: string, today: string): Promise<ActionResult<ContactDraft>> {
   const user = await getCurrentUser();
-  const ai = user && (await getAI());
+  const ai = user && (await getAI(TOOL_ID));
   if (!user || !ai) return signedOut;
   if (typeof note !== "string" || !note.trim()) return { ok: false, error: "Write a few words about who you met." };
   if (note.length > LIMITS.quickNote) return { ok: false, error: `Keep the note to at most ${LIMITS.quickNote} characters.` };

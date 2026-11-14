@@ -13,7 +13,7 @@ import { localToday } from "./helpers";
 import styles from "./KeepInTouch.module.css";
 
 /** AI errors the user fixes in Settings. */
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 const EXAMPLE =
   "e.g. Met Sarah Chen at the Goldman TMT coffee chat. VP, Wharton '15, into climate tech. Offered to intro me to her team, follow up in 2 weeks.";
@@ -24,7 +24,7 @@ export function QuickCapture({
   maxLength,
   onDraft,
 }: {
-  /** Providers the user has saved a key for; without any, this suggests Settings. */
+  /** Providers the user can call; empty once their free credit is used and they've saved no key. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   maxLength: number;
@@ -39,11 +39,11 @@ export function QuickCapture({
   if (providers.length === 0) {
     return (
       <p className={styles.hint}>
-        Save an OpenAI or Anthropic API key in{" "}
+        You&apos;ve used your free AI credit. Save an OpenAI or Anthropic API key in{" "}
         <Link href="/settings" className={styles.link}>
           Settings
         </Link>{" "}
-        to fill in this form from a quick note.
+        to fill in this form from a quick note again.
       </p>
     );
   }
@@ -110,7 +110,7 @@ export function QuickCapture({
           </select>
         )}
         <span className={styles.hint} role="status">
-          {filled ? "Filled in below. Check it, then save." : `Uses your ${labels[provider]} key · Ctrl+Enter`}
+          {filled ? "Filled in below. Check it, then save." : `Uses ${labels[provider]} · Ctrl+Enter`}
         </span>
       </div>
       {error && (

@@ -12,7 +12,7 @@ export interface FormOptions {
   metHow: typeof MET_HOW;
   defaultCadenceDays: number;
   limits: typeof LIMITS;
-  /** Providers the user has saved an API key for, for quick capture; empty without one. */
+  /** Providers the user can call for quick capture (free credit, then their own keys); empty when neither is left. */
   providers: AIProvider[];
   providerLabels: Record<AIProvider, string>;
 }

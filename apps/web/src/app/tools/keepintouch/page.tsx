@@ -1,7 +1,7 @@
 // Keep in Touch: remember the people you meet, and see who needs attention
 // soonest. Contacts are personal, so signed-out visitors are asked to sign in.
-// The AI API is optional: with a saved key, a quick note can fill in the add
-// form; without one, people fill it in themselves.
+// The AI API is optional: while the user has free AI credit or a saved key, a
+// quick note can fill in the add form; otherwise people fill it in themselves.
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
@@ -27,7 +27,7 @@ export default async function KeepintouchPage() {
   // The page switches to the browser's own date once it loads.
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
 
-  const ai = await getAI();
+  const ai = await getAI("keepintouch");
   const [contacts, providers] = await Promise.all([listContacts(sql, user.id), ai ? ai.providers() : []]);
 
   return (
