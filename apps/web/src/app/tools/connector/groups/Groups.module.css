@@ -1,21 +1,39 @@
+/* One frosted panel over the sky, like Connector's other screens. */
 .page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 28px;
+  border: 1px solid var(--panel-line);
+  border-radius: 20px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding: 22px 18px;
+  }
 }
 
 .title {
   margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--penn-blue);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: clamp(1.6rem, 4.5vw, 2.1rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  color: var(--text);
 }
 
 .intro {
   margin: 0;
   color: var(--section-label);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   line-height: 1.6;
 }
 
@@ -46,8 +64,9 @@
   align-items: center;
   gap: 6px;
   padding: 20px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  background: var(--option);
   text-align: center;
 }
 
@@ -81,6 +100,15 @@
   color: var(--section-label);
 }
 
+/* Selectable, and allowed to wrap anywhere so a long address never overflows the tile. */
+.email {
+  max-width: 100%;
+  font-size: 0.8rem;
+  color: var(--penn-blue);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 /* ── What you have in common ──────────────────────────────────────────────── */
 
 .card {
@@ -88,8 +116,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  background: var(--option);
 }
 
 .label {
@@ -117,15 +146,20 @@
 .button {
   display: inline-flex;
   align-items: center;
-  height: 34px;
-  padding: 0 16px;
+  height: 38px;
+  padding: 0 18px;
   border-radius: 999px;
   background: var(--penn-blue);
   color: var(--on-accent);
   font-size: 0.875rem;
   font-weight: 600;
+  text-decoration: none;
 }
 .button:hover { background: var(--accent-hover); }
+.button:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
 
 .reachOut {
   display: flex;
@@ -134,13 +168,14 @@
   justify-content: space-between;
   gap: 12px 20px;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--tint);
 }
 
 .reachOutTitle {
   margin: 0 0 4px;
-  font-size: 1rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--penn-blue);
 }

@@ -1,16 +1,18 @@
-// Connector's results: the signed-in student's group, as a tile per person,
-// and what the group has in common. Groups are the ones saved when the team
+// Connector's results: the signed-in student's group, as a tile per person
+// with their email, so they can reach out. Groups are the ones saved when the team
 // released matches (team/), so they never reshuffle. Students not matched yet
 // wait (../waiting), or are told they're first in line if the last release
-// had no room for them.
+// had no room for them. For a matched student, the sky links their star to
+// one star per person they were matched with.
 
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { toolSql } from "@penntools/platform/db";
-import { COHORTS, getStatus, sharedAnswers, type Status } from "@penntools/tool-connector";
+import { COHORTS, getStatus, type Status } from "@penntools/tool-connector";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
+import { SkyScene } from "../sky/SkyContext";
 import styles from "./Groups.module.css";
 
 export const metadata: Metadata = {
@@ -94,24 +96,13 @@ export default async function ConnectorGroupsPage() {
 
   // You first, then everyone else.
   const members = [...group.members].sort((a, b) => Number(b.id === user.id) - Number(a.id === user.id));
-  const shared = sharedAnswers(group.members);
-  const others = members.filter((m) => m.id !== user.id);
-  const email =
-    `mailto:${others.map((m) => m.email).join(",")}` +
-    `?subject=${encodeURIComponent(isPair ? "Hello from your Connector match!" : "Hello from your Connector group!")}` +
-    `&body=${encodeURIComponent(
-      isPair
-        ? `Hi ${others[0]!.name.split(" ")[0]}! Connector matched us. Want to grab lunch or coffee this week? When are you free?\n\n`
-        : "Hi all! Connector matched us into a group. Want to grab lunch or coffee this week? When are you free?\n\n",
-    )}`;
 
   return (
     <div className={styles.page}>
+      <SkyScene progress={1} matches={members.length - 1} />
       <h1 className={styles.title}>{isPair ? "Meet your match" : "Meet your group"}</h1>
       <p className={styles.intro}>
-        {isPair
-          ? "Someone from another cohort, matched on how you like to spend your time."
-          : `${members.length} people from ${members.length} different cohorts, matched on how you like to spend your time.`}
+        {isPair ? "Someone we think you should meet." : "A few people we think you should meet."}
       </p>
 
       <ul className={styles.tiles}>
@@ -124,39 +115,21 @@ export default async function ConnectorGroupsPage() {
               </span>
               <span className={styles.name}>{isYou ? "You" : member.name}</span>
               <span className={styles.cohort}>{cohortLabel(member.cohort)}</span>
+              {!isYou && <span className={styles.email}>{member.email}</span>}
             </li>
           );
         })}
       </ul>
 
-      <section className={styles.card}>
-        <h2 className={styles.label}>What you have in common</h2>
-        {shared.length === 0 ? (
-          <p className={styles.intro}>Nothing yet. Time to find out!</p>
-        ) : (
-          <ul className={styles.shared}>
-            {shared.map((s) => (
-              <li key={`${s.question}-${s.answer}`}>
-                {s.question}: <strong>{s.answer}</strong>{" "}
-                <span className={styles.count}>
-                  ({s.count} of {members.length})
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <section className={styles.reachOut}>
         <div>
           <h2 className={styles.reachOutTitle}>Make the first move</h2>
           <p className={styles.intro}>
-            {isPair ? "Say hello and pick a time to meet." : "Send your group a hello and pick a time to meet."}
+            {isPair
+              ? "Send a quick email to say hello and pick a time to meet."
+              : "Send your group a quick email to say hello and pick a time to meet."}
           </p>
         </div>
-        <a href={email} className={styles.button}>
-          {isPair ? `Email ${others[0]!.name.split(" ")[0]}` : "Email your group"}
-        </a>
       </section>
     </div>
   );
