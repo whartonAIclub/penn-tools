@@ -62,6 +62,8 @@ import { NonWhartonCourseManagerTool } from "@penntools/tool-non-wharton-course-
 toolRegistry.register(new NonWhartonCourseManagerTool());
 import { KeepintouchTool } from "@penntools/tool-keepintouch";
 toolRegistry.register(new KeepintouchTool());
+import { DeadlineCalendarTool } from "@penntools/tool-deadline-calendar";
+toolRegistry.register(new DeadlineCalendarTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 
