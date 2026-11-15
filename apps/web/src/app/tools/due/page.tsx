@@ -1,12 +1,15 @@
-// A placeholder page. To build the tool, see section 4 of CLAUDE.md: AskPenn
-// (tools/askpenn) and the Platform Playground (tools/platform-playground) are
-// the reference tools.
+// Due: turn a course outline into calendar events with reminders. For now the
+// page runs on made-up sample deadlines; reading the PDF with the AI API comes
+// next (see tools/due/PLAN.md).
+
+import type { Metadata } from "next";
+import { SAMPLE_COURSE, SAMPLE_DEADLINES } from "@penntools/tool-due";
+import { Due } from "./Due";
+
+export const metadata: Metadata = {
+  title: "Due",
+};
 
 export default function DuePage() {
-  return (
-    <div>
-      <h1>{"Due"}</h1>
-      <p>{"Track DUE dates across your courses to never miss a deadline!"}</p>
-    </div>
-  );
+  return <Due sampleCourse={SAMPLE_COURSE} sampleDeadlines={SAMPLE_DEADLINES} />;
 }

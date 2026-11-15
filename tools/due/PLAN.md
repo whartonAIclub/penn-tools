@@ -63,7 +63,7 @@ One course outline in, one calendar file out.
    - All-day deadlines: **9 AM that day**.
 
    To confirm, possibly after looking at what students prefer.
-2. **Updating a calendar the student already imported.** Google can't update events by re-importing, so the download step should tell students to import into a dedicated "Due" calendar and, to update, delete it and import the new file. Open: should each download use new event IDs, so a mistaken re-import duplicates events instead of failing outright? A later phase could offer a subscription link that updates itself, which needs a database and the Platform team.
+2. **Updating a calendar the student already imported.** Google can't update events by re-importing, so the download step should tell students to import into a dedicated "Due" calendar and, to update, delete it and import the new file. Decided: each deadline keeps the same event ID in every download, so a mistaken re-import fails clearly instead of creating duplicates. A later phase could offer a subscription link that updates itself, which needs a database and the Platform team.
 3. **What a timed deadline looks like on the calendar.** Proposed: a short event ending at the due time, titled like "DUE: Problem Set 3 (FNCE 6110)".
 4. **The review screen.** The table design is a first guess. Judge it once it's visible and simplify if needed.
 5. **The AI key.** Raise with the Platform team or workshop leads whether there's any way to make this step easier for students before launch.
