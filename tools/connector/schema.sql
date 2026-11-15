@@ -41,3 +41,22 @@ CREATE TABLE IF NOT EXISTS matches (
 
 -- Finding a student's match, and who hasn't been matched yet.
 CREATE INDEX IF NOT EXISTS matches_user_idx ON matches (user_id);
+
+-- Multiple rounds. A student is in the next release if they've been ready
+-- (signed up, or asked to be matched again) since they were last matched:
+-- ready_since is when that was. Students signed up before rounds existed
+-- were ready from when they signed up.
+ALTER TABLE signups ADD COLUMN IF NOT EXISTS ready_since TIMESTAMPTZ;
+UPDATE signups SET ready_since = created_at WHERE ready_since IS NULL;
+ALTER TABLE signups ALTER COLUMN ready_since SET DEFAULT NOW();
+ALTER TABLE signups ALTER COLUMN ready_since SET NOT NULL;
+
+-- Whether each student met their match from a release, which they answer
+-- before asking to be matched again. Answering again replaces the answer.
+CREATE TABLE IF NOT EXISTS checkins (
+  release_id BIGINT      NOT NULL REFERENCES releases (id) ON DELETE CASCADE,
+  user_id    TEXT        NOT NULL,
+  met        BOOLEAN     NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (release_id, user_id)
+);

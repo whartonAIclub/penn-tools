@@ -5,6 +5,11 @@ import type { Group, GroupingResult, Signup } from "../types.js";
 export const MIN_GROUP_SIZE = 3;
 export const MAX_GROUP_SIZE = 4;
 
+/** Whether two students have been matched before, in any release. Nobody is ever matched with the same person twice. */
+export type MetBefore = (a: Signup, b: Signup) => boolean;
+
+export const NEVER_MET: MetBefore = () => false;
+
 /** How well two people match on the personality questions, from 0 to 90 (see scoring.ts). */
 export function matchScore(a: Signup, b: Signup): number {
   return compatibility(a, b);
@@ -22,15 +27,17 @@ export function groupScore(members: readonly Signup[]): number {
 }
 
 /**
- * Splits sign-ups into groups of 3–4 where nobody shares a cohort, keeping
- * people who answered alike together. Anyone who can't be placed goes on the
- * waitlist for the next round.
+ * Splits sign-ups into groups of 3–4 where nobody shares a cohort or has been
+ * matched with anyone else in the group before, keeping people who answered
+ * alike together. Anyone who can't be placed goes on the waitlist for the
+ * next round.
  *
  * Builds one group at a time, always adding the person who matches the group
  * best, then places leftovers in the groups with room. This isn't guaranteed
  * to find the best possible grouping, but it's close and fast.
  */
-export function formGroups(signups: readonly Signup[]): GroupingResult {
+export function formGroups(signups: readonly Signup[], metBefore: MetBefore = NEVER_MET): GroupingResult {
+  const fits = (group: readonly Signup[], person: Signup) => fitsGroup(group, person, metBefore);
   const pool = [...signups];
   const groups: Signup[][] = [];
   const groupCount = Math.floor(pool.length / MIN_GROUP_SIZE);
@@ -41,12 +48,12 @@ export function formGroups(signups: readonly Signup[]): GroupingResult {
     // first or they won't fit.
     const group = [takeFromLargestCohort(pool)];
     while (group.length < MIN_GROUP_SIZE) {
-      const next = takeBestFit(pool, group);
+      const next = takeBestFit(pool, group, fits);
       if (!next) break;
       group.push(next);
     }
     if (group.length < MIN_GROUP_SIZE) {
-      // Not enough different cohorts left to fill a group.
+      // Not enough people left who fit together to fill a group.
       pool.push(...group);
       break;
     }
@@ -57,7 +64,7 @@ export function formGroups(signups: readonly Signup[]): GroupingResult {
   // fit doesn't take the only spot someone else could have had.
   const waitlist: Signup[] = [];
   while (pool.length > 0) {
-    const options = pool.map((person) => groups.filter((g) => g.length < MAX_GROUP_SIZE && fitsCohorts(g, person)).length);
+    const options = pool.map((person) => groups.filter((g) => g.length < MAX_GROUP_SIZE && fits(g, person)).length);
     const placeable = options.map((n, i) => [n, i] as const).filter(([n]) => n > 0);
     if (placeable.length === 0) {
       waitlist.push(...pool);
@@ -65,7 +72,7 @@ export function formGroups(signups: readonly Signup[]): GroupingResult {
     }
     const [, index] = placeable.reduce((best, next) => (next[0] < best[0] ? next : best));
     const [person] = pool.splice(index, 1);
-    bestGroupWithRoom(groups, person!)!.push(person!);
+    bestGroupWithRoom(groups, person!, fits)!.push(person!);
   }
 
   return {
@@ -84,12 +91,14 @@ function takeFromLargestCohort(pool: Signup[]): Signup {
   return pool.splice(index, 1)[0]!;
 }
 
-/** Removes and returns the person from another cohort who matches the group best, if any. */
-function takeBestFit(pool: Signup[], group: readonly Signup[]): Signup | undefined {
+type Fits = (group: readonly Signup[], person: Signup) => boolean;
+
+/** Removes and returns the person who fits the group and matches it best, if any. */
+function takeBestFit(pool: Signup[], group: readonly Signup[], fits: Fits): Signup | undefined {
   let bestIndex = -1;
   let bestScore = -1;
   pool.forEach((person, i) => {
-    if (!fitsCohorts(group, person)) return;
+    if (!fits(group, person)) return;
     const score = scoreWith(group, person);
     if (score > bestScore) {
       bestIndex = i;
@@ -99,11 +108,11 @@ function takeBestFit(pool: Signup[], group: readonly Signup[]): Signup | undefin
   return bestIndex === -1 ? undefined : pool.splice(bestIndex, 1)[0];
 }
 
-function bestGroupWithRoom(groups: Signup[][], person: Signup): Signup[] | undefined {
+function bestGroupWithRoom(groups: Signup[][], person: Signup, fits: Fits): Signup[] | undefined {
   let best: Signup[] | undefined;
   let bestScore = -1;
   for (const group of groups) {
-    if (group.length >= MAX_GROUP_SIZE || !fitsCohorts(group, person)) continue;
+    if (group.length >= MAX_GROUP_SIZE || !fits(group, person)) continue;
     const score = scoreWith(group, person);
     if (score > bestScore) {
       best = group;
@@ -113,8 +122,9 @@ function bestGroupWithRoom(groups: Signup[][], person: Signup): Signup[] | undef
   return best;
 }
 
-function fitsCohorts(group: readonly Signup[], person: Signup): boolean {
-  return group.every((member) => member.cohort !== person.cohort);
+/** Whether the person can join the group: nobody in it shares their cohort or has been matched with them before. */
+function fitsGroup(group: readonly Signup[], person: Signup, metBefore: MetBefore): boolean {
+  return group.every((member) => member.cohort !== person.cohort && !metBefore(member, person));
 }
 
 function scoreWith(group: readonly Signup[], person: Signup): number {

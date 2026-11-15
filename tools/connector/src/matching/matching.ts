@@ -1,4 +1,4 @@
-import { formGroups, groupScore, matchScore, MAX_GROUP_SIZE, MIN_GROUP_SIZE } from "./grouping.js";
+import { formGroups, groupScore, matchScore, MAX_GROUP_SIZE, MIN_GROUP_SIZE, NEVER_MET, type MetBefore } from "./grouping.js";
 import { hasPlanner, matchQuality, planning } from "./scoring.js";
 import type { Group, GroupingResult, Signup } from "../types.js";
 
@@ -26,6 +26,39 @@ export function cohortClashes(members: readonly Signup[]): number {
   return [...counts.values()].filter((n) => n > 1).length;
 }
 
+/** A MetBefore for the given past matches, each a pair of student IDs who were matched together. */
+export function metBeforeFrom(pastPairs: Iterable<readonly [string, string]>): MetBefore {
+  const met = new Set<string>();
+  for (const [a, b] of pastPairs) met.add(`${a}\n${b}`).add(`${b}\n${a}`);
+  return (a, b) => met.has(`${a.id}\n${b.id}`);
+}
+
+/** Who may be matched together: the rules every pair and group follows. */
+interface Rules {
+  /** Two people may be a pair: different cohorts, and not matched before. */
+  canPair: (a: Signup, b: Signup) => boolean;
+  /**
+   * The person may join the group: it has room, nobody in it has been matched
+   * with them before, and either nobody shares their cohort or, with
+   * `allowClash`, exactly one person does and the group has no clash yet.
+   */
+  canJoin: (group: readonly Signup[], person: Signup, allowClash: boolean) => boolean;
+  metBefore: MetBefore;
+}
+
+function rulesFor(metBefore: MetBefore): Rules {
+  return {
+    metBefore,
+    canPair: (a, b) => a.cohort !== b.cohort && !metBefore(a, b),
+    canJoin: (group, person, allowClash) => {
+      if (group.length >= MAX_GROUP_SIZE || group.some((m) => metBefore(m, person))) return false;
+      const same = group.filter((m) => m.cohort === person.cohort).length;
+      if (same === 0) return true;
+      return allowClash && same === 1 && cohortClashes(group) === 0;
+    },
+  };
+}
+
 /**
  * Matches everyone into one-on-one pairs and small groups (3–4). The aim is
  * that everyone is matched; match quality decides where flexible people go.
@@ -41,9 +74,10 @@ export function cohortClashes(members: readonly Signup[]): number {
  *     weak ones), and only then, as a last resort, in a group with one cohort
  *     clash. Whoever still can't be placed is waitlisted, as is any one-on-one
  *     person without a partner (they asked not to be in a group).
- *  6. Any group without a planner gets one from a group with a planner to spare.
+ *  6. Any pair or group without a planner gets one from a match with a planner to spare.
  *
- * Nobody is ever paired with someone from their own cohort. A group has
+ * Nobody is ever matched with someone they've been matched with before
+ * (`metBefore`), or paired with someone from their own cohort. A group has
  * nobody from the same cohort, except for the last-resort clash: at most one
  * per group, and never three from one cohort. Every match should have someone
  * who'll make the plan: a pair with no planner is made only as a last resort,
@@ -52,18 +86,19 @@ export function cohortClashes(members: readonly Signup[]): number {
  *
  * Pairs come first in `groups`, then groups.
  */
-export function makeMatches(signups: readonly Signup[]): GroupingResult {
+export function makeMatches(signups: readonly Signup[], metBefore: MetBefore = NEVER_MET): GroupingResult {
+  const rules = rulesFor(metBefore);
   const oneOnOne = signups.filter((s) => meetFormat(s) === "one-on-one");
   const smallGroup = signups.filter((s) => meetFormat(s) === "small-group");
   let either = signups.filter((s) => meetFormat(s) === "either");
   const waitlist: Signup[] = [];
 
   // 1. One-on-one people pair with each other.
-  const { pairs, unpaired } = pairOff(oneOnOne);
+  const { pairs, unpaired } = pairOff(oneOnOne, rules);
 
   // 2. Unpaired one-on-one people get the best-matching "either" person.
   for (const person of unpaired) {
-    const partner = takeBest(either, (other) => pairValue(person, other), (other) => other.cohort !== person.cohort);
+    const partner = takeBest(either, (other) => pairValue(person, other), (other) => rules.canPair(person, other));
     if (partner) {
       pairs.push([person, partner]);
       either = either.filter((e) => e !== partner);
@@ -74,13 +109,13 @@ export function makeMatches(signups: readonly Signup[]): GroupingResult {
 
   // 3. Group the small-group people, adding "either" people while some of them can't be placed.
   let fillers: Signup[] = [];
-  let grouped = formGroups(smallGroup);
+  let grouped = formGroups(smallGroup, metBefore);
   while (grouped.waitlist.some((s) => meetFormat(s) === "small-group") && either.length > fillers.length) {
     const left = grouped.waitlist.filter((s) => meetFormat(s) === "small-group");
     const spare = either.filter((e) => !fillers.includes(e));
     const next = takeBest(spare, (e) => left.reduce((total, s) => total + matchScore(s, e), 0));
     fillers = [...fillers, next!];
-    grouped = formGroups([...smallGroup, ...fillers]);
+    grouped = formGroups([...smallGroup, ...fillers], metBefore);
   }
   const groups = grouped.groups.map((g) => g.members);
   // Fillers that still didn't fit go back with the other "either" people.
@@ -90,10 +125,10 @@ export function makeMatches(signups: readonly Signup[]): GroupingResult {
   // 4. The other "either" people: a pair where that's the better match, otherwise a group
   //    (one that already exists, or one they could make with other "either" people).
   const placed = new Set<Signup>();
-  for (const [a, b] of candidatePairs(either)) {
+  for (const [a, b] of candidatePairs(either, rules)) {
     if (placed.has(a) || placed.has(b)) continue;
     const others = either.filter((e) => e !== a && e !== b && !placed.has(e));
-    const groupFit = (p: Signup) => Math.max(bestGroupFit(groups, p, false), newGroupFit(p, others));
+    const groupFit = (p: Signup) => Math.max(bestGroupFit(groups, p, false, rules), newGroupFit(p, others, rules));
     const score = pairValue(a, b);
     if (score > groupFit(a) && score > groupFit(b)) {
       pairs.push([a, b]);
@@ -103,14 +138,14 @@ export function makeMatches(signups: readonly Signup[]): GroupingResult {
   rest.push(
     ...either.filter((person) => {
       if (placed.has(person)) return false;
-      const home = bestGroupWithRoom(groups, person, false);
+      const home = bestGroupWithRoom(groups, person, false, rules);
       if (home) home.push(person);
       return !home;
     }),
   );
 
   // 5. Whoever's left: new groups among themselves, then pairs, then a group with one clash.
-  const extra = formGroups(rest);
+  const extra = formGroups(rest, metBefore);
   groups.push(...extra.groups.map((g) => g.members));
   rest = extra.waitlist;
   const unplaced: Signup[] = [];
@@ -119,8 +154,8 @@ export function makeMatches(signups: readonly Signup[]): GroupingResult {
     // Small-group people only pair as a last resort, after a group with a clash.
     const partner =
       meetFormat(person) === "either"
-        ? (takeBest(rest, (o) => pairValue(person, o), (o) => o.cohort !== person.cohort && meetFormat(o) === "either") ??
-          takeFromFullGroup(groups, person))
+        ? (takeBest(rest, (o) => pairValue(person, o), (o) => rules.canPair(person, o) && meetFormat(o) === "either") ??
+          takeFromFullGroup(groups, person, rules))
         : undefined;
     if (partner) {
       pairs.push([person, partner]);
@@ -130,14 +165,14 @@ export function makeMatches(signups: readonly Signup[]): GroupingResult {
     }
   }
   for (const person of unplaced) {
-    const home = bestGroupWithRoom(groups, person, true);
+    const home = bestGroupWithRoom(groups, person, true, rules);
     if (home) home.push(person);
     else waitlist.push(person);
   }
 
   // 6. Every pair and group should have someone who'll make the plan.
-  givePairsPlanners(pairs);
-  givePlanners(groups);
+  givePairsPlanners(pairs, rules);
+  givePlanners(groups, rules);
 
   return {
     groups: [...pairs, ...groups].map((members): Group => ({ members, score: groupScore(members) })),
@@ -149,9 +184,9 @@ export function makeMatches(signups: readonly Signup[]): GroupingResult {
  * Gives each pair without a planner one, by swapping partners with a pair
  * that has two: (quiet1, quiet2) and (planner1, planner2) become (quiet1,
  * planner) and (quiet2, other planner), whichever way matches better, as long
- * as nobody ends up with someone from their own cohort.
+ * as both new pairs follow the rules (no shared cohort, no repeats).
  */
-function givePairsPlanners(pairs: Signup[][]): void {
+function givePairsPlanners(pairs: Signup[][], rules: Rules): void {
   for (const [i, needy] of pairs.entries()) {
     if (hasPlanner(needy)) continue;
     const [u, v] = needy as [Signup, Signup];
@@ -160,7 +195,7 @@ function givePairsPlanners(pairs: Signup[][]): void {
       if (j === i || !donor.every((m) => planning(m) > 0)) continue;
       const [x, y] = donor as [Signup, Signup];
       for (const [p, q] of [[x, y], [y, x]] as const) {
-        if (u.cohort === p.cohort || v.cohort === q.cohort) continue;
+        if (!rules.canPair(u, p) || !rules.canPair(v, q)) continue;
         const score = matchScore(u, p) + matchScore(v, q);
         if (!best || score > best.score) best = { index: j, swap: [[u, p], [v, q]], score };
       }
@@ -176,11 +211,11 @@ function givePairsPlanners(pairs: Signup[][]): void {
  * Gives each group without a planner one, from a group with a planner to
  * spare: by moving them, if the group they leave stays big enough, or else by
  * swapping them for someone in the group without one. Only moves that keep
- * every cohort rule are made, choosing the one that leaves both groups best
- * matched. A group that still has no planner (there weren't enough) is left
- * as it is, and the team page flags it.
+ * every rule (cohorts, no repeats) are made, choosing the one that leaves
+ * both groups best matched. A group that still has no planner (there weren't
+ * enough) is left as it is, and the team page flags it.
  */
-function givePlanners(groups: Signup[][]): void {
+function givePlanners(groups: Signup[][], rules: Rules): void {
   for (const needy of groups) {
     if (hasPlanner(needy)) continue;
     let best: { apply: () => void; quality: number } | undefined;
@@ -189,7 +224,7 @@ function givePlanners(groups: Signup[][]): void {
       for (const planner of donor.filter((m) => planning(m) > 0)) {
         const donorLeft = donor.filter((m) => m !== planner);
         // Move the planner over.
-        if (donorLeft.length >= MIN_GROUP_SIZE && canJoin(needy, planner, false)) {
+        if (donorLeft.length >= MIN_GROUP_SIZE && rules.canJoin(needy, planner, false)) {
           const quality = matchQuality([...needy, planner]) + matchQuality(donorLeft);
           if (!best || quality > best.quality) {
             best = { quality, apply: () => { donor.splice(donor.indexOf(planner), 1); needy.push(planner); } };
@@ -198,7 +233,7 @@ function givePlanners(groups: Signup[][]): void {
         // Or swap them for someone in the group without a planner.
         for (const other of needy) {
           const needyLeft = needy.filter((m) => m !== other);
-          if (!canJoin(needyLeft, planner, false) || !canJoin(donorLeft, other, false)) continue;
+          if (!rules.canJoin(needyLeft, planner, false) || !rules.canJoin(donorLeft, other, false)) continue;
           const quality = matchQuality([...needyLeft, planner]) + matchQuality([...donorLeft, other]);
           if (!best || quality > best.quality) {
             best = {
@@ -216,71 +251,96 @@ function givePlanners(groups: Signup[][]): void {
   }
 }
 
-/** Pairs people best match first; anyone who can't be paired (e.g. no one from another cohort) is left over. */
-function pairOff(people: readonly Signup[]): { pairs: Signup[][]; unpaired: Signup[] } {
-  const pairs: Signup[][] = [];
+/**
+ * Pairs people best match first, then swaps partners where that lets two
+ * people who couldn't be paired with each other both be paired. Anyone still
+ * left over (e.g. no one from another cohort they haven't met) is returned
+ * unpaired.
+ */
+function pairOff(people: readonly Signup[], rules: Rules): { pairs: Signup[][]; unpaired: Signup[] } {
+  const pairs: [Signup, Signup][] = [];
   const paired = new Set<Signup>();
-  for (const [a, b] of candidatePairs(people)) {
+  for (const [a, b] of candidatePairs(people, rules)) {
     if (paired.has(a) || paired.has(b)) continue;
     pairs.push([a, b]);
     paired.add(a).add(b);
   }
-  return { pairs, unpaired: people.filter((p) => !paired.has(p)) };
+
+  let unpaired = people.filter((p) => !paired.has(p));
+  let swapped = true;
+  while (swapped && unpaired.length >= 2) {
+    swapped = false;
+    search: for (let i = 0; i < unpaired.length; i++) {
+      for (let j = i + 1; j < unpaired.length; j++) {
+        const u = unpaired[i]!;
+        const v = unpaired[j]!;
+        // Split a pair (x, y) into (u, x) and (v, y), best-matching split first.
+        let best: { index: number; pairs: [[Signup, Signup], [Signup, Signup]]; score: number } | undefined;
+        pairs.forEach(([x, y], index) => {
+          for (const [p, q] of [[x, y], [y, x]] as const) {
+            if (!rules.canPair(u, p) || !rules.canPair(v, q)) continue;
+            const score = pairValue(u, p) + pairValue(v, q);
+            if (!best || score > best.score) best = { index, pairs: [[u, p], [v, q]], score };
+          }
+        });
+        if (best) {
+          pairs.splice(best.index, 1, ...best.pairs);
+          unpaired = unpaired.filter((p) => p !== u && p !== v);
+          swapped = true;
+          break search;
+        }
+      }
+    }
+  }
+  return { pairs, unpaired };
 }
 
-/** Every pair of people from different cohorts, best match first (earlier sign-ups first on a tie). */
-function candidatePairs(people: readonly Signup[]): [Signup, Signup][] {
+/** Every pair of people who may be paired, best match first (earlier sign-ups first on a tie). */
+function candidatePairs(people: readonly Signup[], rules: Rules): [Signup, Signup][] {
   const candidates: { a: Signup; b: Signup; score: number }[] = [];
   for (let i = 0; i < people.length; i++) {
     for (let j = i + 1; j < people.length; j++) {
       const a = people[i]!;
       const b = people[j]!;
-      if (a.cohort !== b.cohort) candidates.push({ a, b, score: pairValue(a, b) });
+      if (rules.canPair(a, b)) candidates.push({ a, b, score: pairValue(a, b) });
     }
   }
   // A stable sort, so equal scores keep sign-up order.
   return candidates.sort((x, y) => y.score - x.score).map(({ a, b }) => [a, b]);
 }
 
-/**
- * Whether the person can join the group: it has room, and either nobody
- * shares their cohort or, with `allowClash`, exactly one person does and the
- * group has no clash yet.
- */
-function canJoin(group: readonly Signup[], person: Signup, allowClash: boolean): boolean {
-  if (group.length >= MAX_GROUP_SIZE) return false;
-  const same = group.filter((m) => m.cohort === person.cohort).length;
-  if (same === 0) return true;
-  return allowClash && same === 1 && cohortClashes(group) === 0;
-}
-
 /** How well the person would fit the best group they can join: their average match with its members, or -1 if none. */
-function bestGroupFit(groups: readonly Signup[][], person: Signup, allowClash: boolean): number {
+function bestGroupFit(groups: readonly Signup[][], person: Signup, allowClash: boolean, rules: Rules): number {
   let best = -1;
   for (const group of groups) {
-    if (canJoin(group, person, allowClash)) best = Math.max(best, averageMatch(group, person));
+    if (rules.canJoin(group, person, allowClash)) best = Math.max(best, averageMatch(group, person));
   }
   return best;
 }
 
 /**
  * How well the person would fit a new group made with their best matches
- * among `others` (from other cohorts): their average match with the best two,
- * or -1 if there aren't two.
+ * among `others` (people they may be matched with): their average match with
+ * the best two, or -1 if there aren't two.
  */
-function newGroupFit(person: Signup, others: readonly Signup[]): number {
+function newGroupFit(person: Signup, others: readonly Signup[], rules: Rules): number {
   const scores = others
-    .filter((o) => o.cohort !== person.cohort)
+    .filter((o) => rules.canPair(person, o))
     .map((o) => matchScore(person, o))
     .sort((x, y) => y - x);
   return scores.length < MIN_GROUP_SIZE - 1 ? -1 : (scores[0]! + scores[1]!) / 2;
 }
 
-function bestGroupWithRoom(groups: Signup[][], person: Signup, allowClash: boolean): Signup[] | undefined {
+function bestGroupWithRoom(
+  groups: Signup[][],
+  person: Signup,
+  allowClash: boolean,
+  rules: Rules,
+): Signup[] | undefined {
   let best: Signup[] | undefined;
   let bestFit = -1;
   for (const group of groups) {
-    if (!canJoin(group, person, allowClash)) continue;
+    if (!rules.canJoin(group, person, allowClash)) continue;
     const fit = averageMatch(group, person);
     if (fit > bestFit) {
       best = group;
@@ -294,12 +354,12 @@ function bestGroupWithRoom(groups: Signup[][], person: Signup, allowClash: boole
  * Takes an "either" person out of a full group (which stays big enough without
  * them) to pair with someone who'd otherwise be left out, best match first.
  */
-function takeFromFullGroup(groups: Signup[][], person: Signup): Signup | undefined {
+function takeFromFullGroup(groups: Signup[][], person: Signup, rules: Rules): Signup | undefined {
   let best: { group: Signup[]; member: Signup; score: number } | undefined;
   for (const group of groups) {
     if (group.length <= MIN_GROUP_SIZE) continue;
     for (const member of group) {
-      if (meetFormat(member) !== "either" || member.cohort === person.cohort) continue;
+      if (meetFormat(member) !== "either" || !rules.canPair(person, member)) continue;
       const score = pairValue(person, member);
       if (!best || score > best.score) best = { group, member, score };
     }

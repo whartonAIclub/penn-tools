@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cohortClashes, makeMatches, meetFormat } from "../matching.js";
+import { cohortClashes, makeMatches, meetFormat, metBeforeFrom } from "../matching.js";
 import { hasPlanner } from "../scoring.js";
 import { SAMPLE_SIGNUPS } from "../samples.js";
 import type { GroupingResult, Signup } from "../../types.js";
@@ -242,6 +242,59 @@ describe("makeMatches", () => {
     expectValid(result, signups);
     expect(result.groups).toHaveLength(2);
     for (const group of result.groups) expect(hasPlanner(group.members)).toBe(true);
+  });
+
+  it("never pairs two people who've been matched before, even if they're each other's best match", () => {
+    const a = person("A", "one-on-one", "twin", "twin");
+    const b = person("B", "one-on-one", "twin", "twin");
+    const c = person("C", "one-on-one", "other", "other");
+    const d = person("D", "one-on-one", "other", "other");
+    const signups = [a, b, c, d];
+
+    const result = makeMatches(signups, metBeforeFrom([[a.id, b.id]]));
+
+    expectValid(result, signups);
+    expect(pairsOf(result)).toEqual([ids([a, c]), ids([b, d])]);
+  });
+
+  it("never puts two people who've been matched before in the same group", () => {
+    // a, b and c were in a group together, so each needs a different group now.
+    const signups = ["A", "B", "C", "D", "E", "F", "G", "H", "I"].map((c) => person(c, "small-group", "x", "x"));
+    const [a, b, c] = signups as [Signup, Signup, Signup];
+
+    const result = makeMatches(signups, metBeforeFrom([[a.id, b.id], [a.id, c.id], [b.id, c.id]]));
+
+    expectValid(result, signups);
+    expect(result.waitlist).toEqual([]);
+    for (const group of result.groups) {
+      expect(group.members.filter((m) => [a, b, c].includes(m))).toHaveLength(1);
+    }
+  });
+
+  it("would rather waitlist someone than repeat a match", () => {
+    const a = person("A", "one-on-one", "x", "x");
+    const b = person("B", "one-on-one", "x", "x");
+    const signups = [a, b];
+
+    const result = makeMatches(signups, metBeforeFrom([[a.id, b.id]]));
+
+    expect(result.groups).toEqual([]);
+    expect(result.waitlist).toHaveLength(2);
+  });
+
+  it("never gives a match a planner by repeating a match", () => {
+    // The two quiet people's only possible planner partners are people they've met.
+    const quietA = person("A", "one-on-one", "q", "q", false);
+    const quietB = person("B", "one-on-one", "q", "q", false);
+    const plannerC = person("C", "one-on-one", "p", "p");
+    const plannerD = person("D", "one-on-one", "p", "p");
+    const signups = [quietA, quietB, plannerC, plannerD];
+    const met = [[quietA.id, plannerC.id], [quietA.id, plannerD.id], [quietB.id, plannerC.id], [quietB.id, plannerD.id]] as const;
+
+    const result = makeMatches(signups, metBeforeFrom(met));
+
+    expectValid(result, signups);
+    expect(pairsOf(result)).toEqual([ids([plannerC, plannerD]), ids([quietA, quietB])]);
   });
 
   it("matches everyone in a realistic mix, and every match has a planner", () => {
