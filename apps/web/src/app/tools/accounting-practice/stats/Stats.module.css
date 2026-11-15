@@ -1,0 +1,145 @@
+/* The team's stats page. Same colours and card style as the game. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 32px;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.muted {
+  color: var(--section-label);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.notice {
+  padding: 12px 14px;
+  border: 1px solid #fedf89;
+  border-radius: 8px;
+  background: #fffaeb;
+  color: #93370d;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ── Primary metric ────────────────────────────────────────────────────────── */
+
+.primary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #f5f7ff;
+}
+
+.primaryLabel {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.primaryValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+}
+
+.primaryValues > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.big {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────────── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  font-size: 0.75rem;
+  color: var(--section-label);
+  white-space: nowrap;
+}
+
+.table tbody th {
+  font-weight: 500;
+}
+
+.table td {
+  white-space: nowrap;
+}
+
+.table tr:last-child th,
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.count {
+  color: var(--muted);
+}
+
+.small {
+  color: #93370d;
+  font-size: 0.6875rem;
+}

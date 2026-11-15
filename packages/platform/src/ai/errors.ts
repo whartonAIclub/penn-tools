@@ -35,7 +35,15 @@ function statusErrorInfo(provider: AIProvider, error: unknown): StatusErrorInfo 
 
 function kindFromStatus({ status, type, code, message }: StatusErrorInfo): AIErrorKind {
   if (status === 401 || status === 403 || type === "authentication_error") return "invalid_key";
-  if (status === 402 || type === "billing_error" || code === "insufficient_quota") return "no_credit";
+  if (status === 402 || type === "billing_error") return "no_credit";
+  // OpenAI sends every billing failure as a 429 with type "insufficient_quota";
+  // the code names the cause (credit_balance_exhausted,
+  // organization_spend_limit_exceeded, …), or is "insufficient_quota" itself
+  // on older accounts. Checked before 429, which would read it as a rate limit.
+  if (type === "insufficient_quota" || code === "insufficient_quota") return "no_credit";
+  // Anthropic reports an empty credit balance as a plain invalid_request_error
+  // ("Your credit balance is too low to access the Anthropic API…").
+  if (status === 400 && /credit balance is too low/i.test(message)) return "no_credit";
   if (status === 429 || type === "rate_limit_error" || code === "rate_limit_exceeded") return "rate_limited";
   if (status === 413 || code === "context_length_exceeded") return "too_long";
   // Anthropic reports an over-long prompt as a plain invalid_request_error.

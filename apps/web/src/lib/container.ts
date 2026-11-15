@@ -54,6 +54,14 @@ import { AskPennTool } from "@penntools/tool-askpenn";
 toolRegistry.register(new AskPennTool());
 import { RecruitingHelperTool } from "@penntools/tool-recruiting-helper";
 toolRegistry.register(new RecruitingHelperTool());
+import { AccountingPracticeTool } from "@penntools/tool-accounting-practice";
+toolRegistry.register(new AccountingPracticeTool());
+import { ChooseMbaMajorTool } from "@penntools/tool-choose-mba-major";
+toolRegistry.register(new ChooseMbaMajorTool());
+import { NonWhartonCourseManagerTool } from "@penntools/tool-non-wharton-course-manager";
+toolRegistry.register(new NonWhartonCourseManagerTool());
+import { KeepintouchTool } from "@penntools/tool-keepintouch";
+toolRegistry.register(new KeepintouchTool());
 import { DeadlineCalendarTool } from "@penntools/tool-deadline-calendar";
 toolRegistry.register(new DeadlineCalendarTool());
 // ── Repositories ──────────────────────────────────────────────────────────────

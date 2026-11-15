@@ -35,18 +35,30 @@ importers:
       '@penntools/tool-3':
         specifier: workspace:*
         version: link:../../tools/3
+      '@penntools/tool-accounting-practice':
+        specifier: workspace:*
+        version: link:../../tools/accounting-practice
       '@penntools/tool-askpenn':
         specifier: workspace:*
         version: link:../../tools/askpenn
       '@penntools/tool-career-canvas':
         specifier: workspace:*
         version: link:../../tools/career-canvas
+      '@penntools/tool-choose-mba-major':
+        specifier: workspace:*
+        version: link:../../tools/choose-mba-major
       '@penntools/tool-coursematch-assist':
         specifier: workspace:*
         version: link:../../tools/coursematch-assist
       '@penntools/tool-deadline-calendar':
         specifier: workspace:*
         version: link:../../tools/deadline-calendar
+      '@penntools/tool-keepintouch':
+        specifier: workspace:*
+        version: link:../../tools/keepintouch
+      '@penntools/tool-non-wharton-course-manager':
+        specifier: workspace:*
+        version: link:../../tools/non-wharton-course-manager
       '@penntools/tool-penn-planner':
         specifier: workspace:*
         version: link:../../tools/penn-planner
@@ -189,6 +201,22 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@22.20.5)
 
+  tools/accounting-practice:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
   tools/askpenn:
     dependencies:
       '@penntools/core':
@@ -221,6 +249,19 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@22.20.5)
 
+  tools/choose-mba-major:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
   tools/coursematch-assist:
     dependencies:
       '@penntools/core':
@@ -238,6 +279,35 @@ importers:
         version: 1.6.1(@types/node@22.20.5)
 
   tools/deadline-calendar:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/keepintouch:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/non-wharton-course-manager:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
