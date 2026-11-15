@@ -1,6 +1,7 @@
 // WEMBA Sync: upload a class weekend's schedule PDF and see the weekend as a
 // calendar, keep each course's syllabus for the semester, and add events
-// outside class; all are saved to the student's account. Signed-out visitors are asked to sign in, and users without a
+// outside class. Weekends and syllabi are shared with the class; events are
+// the student's own. Signed-out visitors are asked to sign in, and users without a
 // saved key are sent to Settings, as in the Platform Playground.
 
 import type { Metadata } from "next";
@@ -49,7 +50,7 @@ interface Saved {
 }
 
 /**
- * The student's saved weekends, syllabi and events, or nulls if storage isn't
+ * The class's weekends and syllabi and the student's events, or nulls if storage isn't
  * set up; reading a weekend's schedule works either way.
  */
 async function saved(userId: string): Promise<Saved> {

@@ -1,6 +1,6 @@
 "use client";
 
-// The Courses tab: the student's saved syllabi. Uploading one (a PDF or Word
+// The Courses tab: the class's shared syllabi. Uploading one (a PDF or Word
 // document) sends it to syllabus/route.ts, which reads it with extractSyllabus
 // (tools/wemba-sync/src/syllabus.ts) and saves it. The tab shows upcoming
 // deadlines across courses, then one course at a time, in the same sections
@@ -31,7 +31,25 @@ interface Upload {
   error?: UploadError;
 }
 
-const courseName = (syllabus: Syllabus) => syllabus.courseCode ?? syllabus.title;
+/**
+ * The course's code without what a syllabus adds after it, e.g. "FNCE 6130"
+ * from "FNCE 6130 – 52 EAST"; codes in another form are kept as they are.
+ */
+const shortCode = (code: string) => code.match(/^[A-Za-z]{2,5}\s*\d{3,4}\b/)?.[0] ?? code;
+
+/**
+ * The title's first part, e.g. "Macroeconomics" from "Macroeconomics and the
+ * Global Economic Environment", or "Regression Analysis" from "Regression
+ * Analysis for Management".
+ */
+const shortTitle = (title: string) => title.split(/\s+(?:and|&|for)\s+|:\s+|\s+[–—-]\s+/)[0] || title;
+
+/** The course's short name, e.g. "FNCE 6130 – Macroeconomics", for its tab. */
+/** How many course colors there are (courseColor0… in Courses.module.css); later courses repeat them. */
+const COURSE_COLORS = 5;
+
+const courseName = (syllabus: Syllabus) =>
+  syllabus.courseCode ? `${shortCode(syllabus.courseCode)} – ${shortTitle(syllabus.title)}` : syllabus.title;
 
 export function Courses({
   provider,
@@ -41,7 +59,7 @@ export function Courses({
 }: {
   provider: AIProvider;
   maxBytes: number;
-  /** The student's saved syllabi, or null if storage isn't set up. */
+  /** The class's shared syllabi, or null if storage isn't set up. */
   syllabi: SavedSyllabus[] | null;
   onSyllabi: (update: (syllabi: SavedSyllabus[]) => SavedSyllabus[]) => void;
 }) {
@@ -117,23 +135,23 @@ export function Courses({
   const course = saved.find((s) => s.id === selected) ?? saved[0];
   const today = todayInPhiladelphia();
 
+  // Each course has its own brick color, in the order of the strip along the
+  // page's top, on its tab and beside its deadlines.
+  const colorOf = (syllabus: Syllabus) =>
+    styles[`courseColor${saved.findIndex((s) => s.syllabus === syllabus) % COURSE_COLORS}`];
+  const colorByCourse = new Map(saved.map((s) => [s.syllabus.courseCode ?? s.syllabus.title, colorOf(s.syllabus)]));
+
   return (
     <div className={styles.courses}>
-      <SyllabusUpload busy={busy} compact={saved.length > 0} onFiles={(files) => void upload(files)} />
-      {uploads.length > 0 && <UploadList uploads={uploads} onDismiss={() => setUploads([])} busy={busy} />}
-      {error && <ErrorNote error={error} />}
-
       {saved.length > 0 && (
         <>
-          <Deadlines syllabi={saved.map((s) => s.syllabus)} today={today} />
-
           <div className={styles.picker} role="tablist" aria-label="Your courses">
             {saved.map((s) => (
               <button
                 key={s.id}
                 role="tab"
                 aria-selected={s.id === course?.id}
-                className={styles.chip}
+                className={`${styles.chip} ${colorOf(s.syllabus)}`}
                 onClick={() => setSelected(s.id)}
                 title={s.syllabus.title}
               >
@@ -142,9 +160,24 @@ export function Courses({
             ))}
           </div>
 
-          {course && <Course key={course.id} item={course} today={today} onRemove={() => void remove(course)} />}
+          <Deadlines syllabi={saved.map((s) => s.syllabus)} today={today} colorOf={(c) => colorByCourse.get(c)} />
+
+          {course && (
+            <Course
+              key={course.id}
+              item={course}
+              today={today}
+              color={colorOf(course.syllabus)}
+              onRemove={() => void remove(course)}
+            />
+          )}
         </>
       )}
+
+      {/* At the bottom, as on the Class Weekend tab. */}
+      <SyllabusUpload busy={busy} compact={saved.length > 0} onFiles={(files) => void upload(files)} />
+      {uploads.length > 0 && <UploadList uploads={uploads} onDismiss={() => setUploads([])} busy={busy} />}
+      {error && <ErrorNote error={error} />}
     </div>
   );
 }
@@ -193,7 +226,7 @@ function SyllabusUpload({
         }}
       />
       <button className={shared.button} onClick={() => input.current?.click()} disabled={busy}>
-        {compact ? "Upload more syllabi" : "Upload your syllabi"}
+        {compact ? "Upload more syllabi" : "Upload a syllabus"}
       </button>
       <p className={shared.dropText}>
         {compact
@@ -248,7 +281,16 @@ function UploadList({ uploads, busy, onDismiss }: { uploads: Upload[]; busy: boo
 
 // ── Deadlines across courses ───────────────────────────────────────────────────
 
-function Deadlines({ syllabi, today }: { syllabi: Syllabus[]; today: string }) {
+function Deadlines({
+  syllabi,
+  today,
+  colorOf,
+}: {
+  syllabi: Syllabus[];
+  today: string;
+  /** The course's color class, by its code (or title, without one). */
+  colorOf: (course: string) => string | undefined;
+}) {
   const deadlines = upcomingDeadlines(syllabi, today).slice(0, DEADLINES_SHOWN);
   return (
     <div className={shared.panel}>
@@ -264,7 +306,7 @@ function Deadlines({ syllabi, today }: { syllabi: Syllabus[]; today: string }) {
                 {d.dueTime && `, ${formatTime(d.dueTime)}`}
               </span>
               <span>
-                <span className={styles.deadlineCourse}>{d.course}</span> {d.title}
+                <span className={`${styles.deadlineCourse} ${colorOf(d.course) ? `${styles.withBrick} ${colorOf(d.course)}` : ""}`}>{shortCode(d.course)}</span> {d.title}
                 {d.weight && <span className={shared.details}> · {d.weight}</span>}
               </span>
             </li>
@@ -277,7 +319,18 @@ function Deadlines({ syllabi, today }: { syllabi: Syllabus[]; today: string }) {
 
 // ── One course ─────────────────────────────────────────────────────────────────
 
-function Course({ item, today, onRemove }: { item: SavedSyllabus; today: string; onRemove: () => void }) {
+function Course({
+  item,
+  today,
+  color,
+  onRemove,
+}: {
+  item: SavedSyllabus;
+  today: string;
+  /** The course's color class, as on its tab. */
+  color: string | undefined;
+  onRemove: () => void;
+}) {
   const [section, setSection] = useState<Section>("Overview");
   const { syllabus } = item;
   const counts: Partial<Record<Section, number>> = {
@@ -291,9 +344,12 @@ function Course({ item, today, onRemove }: { item: SavedSyllabus; today: string;
   return (
     <section className={styles.course}>
       <div className={styles.courseHeader}>
-        <div>
-          <h2 className={shared.weekendTitle}>
-            {syllabus.courseCode && <span className={styles.code}>{syllabus.courseCode}</span>}
+        <div className={styles.courseHeading}>
+          {/* The code and full title, on one line. */}
+          <h2 className={`${shared.weekendTitle} ${styles.courseTitle}`} title={syllabus.title}>
+            {syllabus.courseCode && (
+              <span className={`${styles.code} ${styles.codeTag} ${color ?? ""}`}>{shortCode(syllabus.courseCode)}</span>
+            )}
             {syllabus.title}
           </h2>
           <p className={shared.meta}>
@@ -302,9 +358,12 @@ function Course({ item, today, onRemove }: { item: SavedSyllabus; today: string;
               .join(" · ")}
           </p>
         </div>
-        <button className={styles.remove} onClick={onRemove}>
-          Remove
-        </button>
+        {/* Shared with the class: only the student who uploaded this copy can remove it. */}
+        {item.mine && (
+          <button className={styles.remove} onClick={onRemove}>
+            Remove
+          </button>
+        )}
       </div>
 
       <nav className={styles.sectionTabs} aria-label={`${courseName(syllabus)} sections`}>
@@ -317,7 +376,7 @@ function Course({ item, today, onRemove }: { item: SavedSyllabus; today: string;
       </nav>
 
       <div className={styles.sectionBody}>
-        {section === "Overview" && <Overview syllabus={syllabus} />}
+        {section === "Overview" && <Overview syllabus={syllabus} mine={item.mine} />}
         {section === "Sessions" && <Sessions syllabus={syllabus} today={today} />}
         {section === "Assignments" && <Assignments syllabus={syllabus} today={today} />}
         {section === "Grading" && <Grading syllabus={syllabus} />}
@@ -330,7 +389,7 @@ function Course({ item, today, onRemove }: { item: SavedSyllabus; today: string;
 
 const Empty = ({ what }: { what: string }) => <p className={shared.meta}>The syllabus doesn&apos;t list {what}.</p>;
 
-function Overview({ syllabus }: { syllabus: Syllabus }) {
+function Overview({ syllabus, mine }: { syllabus: Syllabus; mine: boolean }) {
   return (
     <div className={styles.stack}>
       {syllabus.summary && <p className={styles.summary}>{syllabus.summary}</p>}
@@ -352,7 +411,8 @@ function Overview({ syllabus }: { syllabus: Syllabus }) {
           ))}
         </ul>
       )}
-      {syllabus.warnings.length > 0 && (
+      {/* For the student who uploaded this copy, to check against the syllabus; classmates don't see it. */}
+      {mine && syllabus.warnings.length > 0 && (
         <div className={shared.warnings}>
           <strong>Check these against the syllabus:</strong>
           <ul>

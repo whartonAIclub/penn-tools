@@ -138,6 +138,16 @@
   gap: 12px;
 }
 
+/* The weekend's title, with the weekend menu beside it. */
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 4px;
+}
+.titleRow .weekendTitle { margin: 0; }
+
 .weekendTitle {
   margin: 0 0 4px;
   font-size: 1.25rem;
@@ -244,6 +254,7 @@
   font-size: 0.8rem;
   line-height: 1.5;
   color: var(--section-label);
+  overflow-wrap: anywhere; /* long links, e.g. an invite's */
 }
 
 .tags {
@@ -539,3 +550,264 @@
   text-decoration: underline;
 }
 .textButton:hover { color: var(--text); }
+
+/* ── Theme: building bricks ──────────────────────────────────────────────────
+   Muted brick colors on a light baseplate: tabs, buttons and AMA are bricks
+   with studs on top, and cards are white tiles with a solid navy edge. The
+   page is always light. Rules here come last, so they win over the ones above. */
+
+.brick {
+  --ink: #1b2a3a;
+  --brick-red: #b5473d;
+  --brick-red-dark: #8e362e;
+  --brick-yellow: #e3b85a;
+  --brick-yellow-dark: #b8913c;
+  --brick-blue: #33618c;
+  --brick-blue-dark: #264b6e;
+  --brick-green: #5f8c63;
+  --brick-orange: #cf8a52;
+  --plate: #e6ebf0;
+  --paper: #f7f2e4;
+  /* The schedule's colors: a brick for each kind, and darker text to match. */
+  --class: var(--brick-blue);
+  --meal: var(--brick-orange);
+  --event: var(--brick-green);
+  --class-text: #264b6e;
+  --meal-text: #a14a07;
+  --event-text: #046a4c;
+  --text: var(--ink);
+  --section-label: #4f5f72;
+  --border: #cfd6de;
+  --bg: #ffffff;
+  --sidebar-bg: var(--paper);
+  --nav-active: var(--paper);
+  --input-border: #9aa6b4;
+  --penn-blue: var(--brick-blue);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  /* Its own stacking context, so the baseplate (z-index: -1) sits above the
+     tools shell's white background but under the page. */
+  position: relative;
+  z-index: 0;
+}
+
+/* The baseplate, behind the whole page area beside the sidebar (fixed inside
+   .app-viewport, see globals.css), with a strip of bricks along the top. */
+.brick::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--plate);
+  background-image:
+    linear-gradient(90deg,
+      var(--brick-red) 0 22%, transparent 22% 22.4%,
+      var(--brick-yellow) 22.4% 34%, transparent 34% 34.4%,
+      var(--brick-blue) 34.4% 52%, transparent 52% 52.4%,
+      var(--brick-green) 52.4% 64%, transparent 64% 64.4%,
+      var(--brick-orange) 64.4% 86%, transparent 86% 86.4%,
+      var(--brick-yellow) 86.4% 100%),
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.9) 0 4px, rgba(27, 42, 58, 0.06) 5px, transparent 6.5px);
+  background-size: 100% 12px, 26px 26px;
+  background-repeat: no-repeat, repeat;
+  opacity: 0.95;
+}
+
+.brick .title {
+  font-family: var(--font-brick), "Arial Black", sans-serif;
+  font-size: 2.6rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--ink);
+  text-shadow: 3px 3px 0 var(--brick-yellow);
+}
+.brick .intro { color: #3a4b60; font-weight: 500; }
+.brick .link { color: var(--brick-blue); }
+
+/* Tabs: bricks with two studs; the open one is yellow. */
+.brick .tabs { gap: 10px; padding-top: 8px; border-bottom: none; }
+.brick .tab {
+  position: relative;
+  height: 40px;
+  margin: 0;
+  padding: 0 18px;
+  border: 2.5px solid var(--ink);
+  border-radius: 4px;
+  font-family: var(--font-brick), sans-serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--ink);
+  background: #ffffff;
+  box-shadow: inset 0 -5px 0 var(--border);
+}
+.brick .tab::before,
+.brick .tab::after,
+.brick .amaLauncher::before,
+.brick .amaLauncher::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  width: 18px;
+  height: 9px;
+  border: 2.5px solid var(--ink);
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+  background: inherit;
+}
+.brick .tab::before { left: 14px; }
+.brick .tab::after { right: 14px; }
+.brick .tab:hover { background: var(--paper); }
+.brick .tab[aria-selected="true"] {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--brick-yellow);
+  box-shadow: inset 0 -5px 0 var(--brick-yellow-dark);
+}
+.brick .tab:focus-visible { outline: 3px solid var(--brick-blue); outline-offset: 3px; }
+
+/* Buttons: slate-blue bricks. */
+.brick .button {
+  height: 38px;
+  border: 2.5px solid var(--ink);
+  border-radius: 4px;
+  background: var(--brick-blue);
+  box-shadow: inset 0 -4px 0 var(--brick-blue-dark);
+  font-weight: 700;
+}
+.brick .button:hover:not(:disabled) { background: var(--brick-blue-dark); }
+
+.brick .provider select,
+.brick .askInput { border: 2px solid var(--ink); border-radius: 4px; }
+
+.brick .drop {
+  border: 2.5px dashed var(--ink);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.brick .dropActive { background: var(--paper); }
+
+/* Section picker: a brick color per section. */
+.brick .sections { padding: 3px; border: 2.5px solid var(--ink); border-radius: 6px; background: #ffffff; }
+.brick .sectionOn,
+.brick .sectionOff { border-radius: 3px; }
+.brick .sectionColor0 { --section-color: var(--brick-blue); }
+.brick .sectionColor1 { --section-color: var(--brick-red); }
+.brick .sectionColor2 { --section-color: var(--brick-green); }
+.brick .sectionColor3 { --section-color: #8a6a2f; }
+
+/* Cards: white tiles with a solid navy edge. */
+.brick .day,
+.brick .panel {
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 6px 0 var(--ink);
+}
+.brick .panel { border-width: 2.5px; box-shadow: 0 4px 0 var(--ink); }
+.brick .weekendTitle,
+.brick .panelTitle {
+  font-family: var(--font-brick), sans-serif;
+  font-weight: 400;
+}
+.brick .weekendTitle { font-size: 1.5rem; }
+.brick .panelTitle { font-size: 1.1rem; }
+.brick .dayTitle {
+  font-family: var(--font-brick), sans-serif;
+  font-size: 1.15rem;
+  font-weight: 400;
+  color: #ffffff;
+  background: var(--section-color, var(--brick-blue));
+  border-bottom: 3px solid var(--ink);
+}
+
+/* Each item gets a little brick in its kind's color, in place of the side bar. */
+.brick .item {
+  position: relative;
+  padding: 11px 14px 11px 34px;
+  border-left: none;
+}
+.brick .item::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 12px;
+  width: 10px;
+  height: 26px;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: var(--kind);
+}
+.brick .item + .item { border-top: 2px solid var(--plate); }
+.brick .class .time { color: var(--class-text); }
+.brick .meal .time { color: var(--meal-text); }
+.brick .event .time { color: var(--event-text); }
+.brick .time { font-weight: 700; }
+.brick .upcomingDate { color: var(--class-text); }
+
+.brick .tag {
+  padding: 1px 7px;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.brick .warnings { border: 2px solid var(--brick-yellow-dark); border-radius: 6px; background: #fbf3dc; color: #6b4f12; }
+.brick .error { border: 2px solid var(--brick-red); border-radius: 6px; background: #fbeceb; color: var(--brick-red-dark); }
+
+/* AMA: a red brick with two studs, and a panel that's a tile. */
+.brick .amaLauncher {
+  /* Small enough to stay off the page's cards on most screens. */
+  right: 16px;
+  bottom: 16px;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px 0 11px;
+  border: 2.5px solid var(--ink);
+  border-radius: 4px;
+  font-family: var(--font-brick), sans-serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  background: var(--brick-red);
+  box-shadow: inset 0 -5px 0 var(--brick-red-dark), 0 4px 0 var(--ink);
+}
+.brick .amaLauncher::before,
+.brick .amaLauncher::after { top: -8px; width: 14px; height: 8px; border-width: 2px; }
+.brick .amaLauncher::before { left: 12px; }
+.brick .amaLauncher::after { right: 12px; }
+.brick .amaLauncher svg { width: 16px; height: 16px; }
+.brick .amaLauncher:hover { background: var(--brick-red-dark); }
+.brick .amaLauncher:focus-visible { outline: 3px solid var(--brick-blue); }
+.brick .amaUnread { background: var(--brick-yellow); border-color: var(--ink); }
+.brick .amaPanel {
+  bottom: 74px;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 0 6px 0 var(--ink);
+}
+.brick .amaHeader { background: var(--paper); border-bottom: 2.5px solid var(--ink); }
+.brick .amaTitle { font-family: var(--font-brick), sans-serif; font-size: 1.2rem; font-weight: 400; }
+.brick .question { background: var(--brick-blue); border-radius: 8px; }
+.brick .answer { border-radius: 8px; }
+.brick .suggestion { border: 2px solid var(--ink); border-radius: 4px; }
+.brick .suggestion:hover:not(:disabled) { border-color: var(--brick-blue); color: var(--brick-blue); }
+
+/* The footer's warning label. */
+.caution {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #3a4b60;
+}
+.cautionLabel {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: var(--brick-yellow);
+}
