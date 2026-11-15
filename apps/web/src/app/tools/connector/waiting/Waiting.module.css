@@ -31,6 +31,14 @@
   overflow-wrap: anywhere;
 }
 
+.link {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+
 /* A sealed envelope: a gold card with a folded flap and a star seal, floating
    gently. Still, not "loading": it's on its way, and nothing to wait for. */
 .envelope {

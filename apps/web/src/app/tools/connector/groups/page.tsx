@@ -1,5 +1,7 @@
 // Connector's results: the signed-in student's group, as cards to flip over
-// one by one (RevealCards), each with the person's email, so they can reach out. Groups are the ones saved when the team
+// one by one (RevealCards), each with the person's email, so they can reach out.
+// Below the match, the student says whether they met, then can join the next
+// round (NextRound). Earlier rounds are in ../history. Groups are the ones saved when the team
 // released matches (team/), so they never reshuffle. Students not matched yet
 // wait (../waiting), or are told they're first in line if the last release
 // had no room for them. For a matched student, the sky links their star to
@@ -15,6 +17,7 @@ import { COHORTS, commonThreads, getStatus, planning, type Signup, type Status }
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { SkyScene } from "../sky/SkyContext";
+import { NextRound } from "./NextRound";
 import { RevealCards, type Card } from "./RevealCards";
 import styles from "./Groups.module.css";
 
@@ -96,9 +99,10 @@ export default async function ConnectorGroupsPage() {
       <div className={styles.page}>
         <h1 className={styles.title}>You&apos;re on the waitlist</h1>
         <p className={styles.intro}>
-          We couldn&apos;t find you a good match this round, so you&apos;ll be first in line for the next one. Check back
-          here after the next release.
+          We couldn&apos;t find you a good match this round, so you&apos;re first in line for round {status.nextRound}.
+          We&apos;ll email you when it&apos;s released.
         </p>
+        <PastMatchesLink />
       </div>
     );
   }
@@ -125,6 +129,7 @@ export default async function ConnectorGroupsPage() {
   return (
     <div className={styles.page}>
       <SkyScene progress={1} matches={members.length - 1} />
+      <p className={styles.round}>Round {group.round}</p>
       <h1 className={styles.title}>{isPair ? "Meet your match" : "Meet your group"}</h1>
       <p className={styles.intro}>
         {isPair ? "Someone we think you should meet." : "A few people we think you should meet."}
@@ -162,6 +167,20 @@ export default async function ConnectorGroupsPage() {
           {isPair ? `Email ${others[0]!.name.split(" ")[0]}` : "Email your group"}
         </a>
       </section>
+
+      <NextRound met={group.met} nextRound={status.nextRound} isPair={isPair} />
+
+      {group.round > 1 && <PastMatchesLink />}
+    </div>
+  );
+}
+
+function PastMatchesLink() {
+  return (
+    <div>
+      <Link href="/tools/connector/history" className={styles.link}>
+        See your past matches →
+      </Link>
     </div>
   );
 }

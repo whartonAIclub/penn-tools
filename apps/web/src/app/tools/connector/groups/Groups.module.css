@@ -288,6 +288,62 @@
   .flipCard:hover:not(:disabled) .cardBack { transform: none; }
 }
 
+/* ── Rounds: the round label, "Did you meet up?" and "Match me again" ────── */
+
+.round {
+  margin: 0 0 -14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--penn-blue);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.choice {
+  padding: 10px 16px;
+  border: 1px solid var(--panel-line);
+  border-radius: 999px;
+  background: var(--option);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.choice:hover:not(:disabled) { border-color: var(--penn-blue); }
+.choice:active:not(:disabled) { transform: scale(0.97); }
+.choice:disabled { opacity: 0.6; cursor: not-allowed; }
+.choice:focus-visible { outline: 2px solid var(--penn-blue); outline-offset: 2px; }
+.chosen { border-color: var(--penn-blue); background: var(--tint-strong); color: var(--penn-blue); }
+
+@media (prefers-reduced-motion: reduce) {
+  .choice { transition: none; }
+  .choice:active:not(:disabled) { transform: none; }
+}
+
+.again {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--panel-line);
+}
+
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.link {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+
 /* What the whole match has in common, as a first plan. */
 .thread {
   display: flex;

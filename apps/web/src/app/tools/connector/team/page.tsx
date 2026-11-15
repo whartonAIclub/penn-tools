@@ -7,11 +7,13 @@ import { toolSql } from "@penntools/platform/db";
 import {
   cohortClashes,
   commonThreads,
+  getRoundStats,
   hasPlanner,
   matchQuality,
   previewRelease,
   qualityLabel,
   type GroupingResult,
+  type RoundStats,
 } from "@penntools/tool-connector";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
@@ -27,11 +29,12 @@ export const metadata: Metadata = {
 // Always show the current sign-ups, never a cached page.
 export const dynamic = "force-dynamic";
 
-async function loadPreview(): Promise<GroupingResult | null> {
+async function loadPreview(): Promise<(GroupingResult & { stats: RoundStats }) | null> {
   const sql = toolSql("connector");
   if (!sql) return null;
   try {
-    return await previewRelease(sql);
+    const [preview, stats] = await Promise.all([previewRelease(sql), getRoundStats(sql)]);
+    return { ...preview, stats };
   } catch (error) {
     console.error("Connector: previewing a release failed", error);
     return null;
@@ -60,7 +63,7 @@ export default async function ConnectorTeamPage() {
     );
   }
 
-  const { groups, waitlist } = preview;
+  const { groups, waitlist, stats } = preview;
   const rows = groups.map((group, i) => {
     const quality = matchQuality(group.members);
     return {
@@ -94,6 +97,19 @@ export default async function ConnectorTeamPage() {
       </p>
 
       <ul className={team.summary}>
+        <li>
+          <strong>Round {stats.nextRound}:</strong> {stats.newcomers} new, {stats.returning} returning and{" "}
+          {stats.waitlisted} from the waitlist ready to be matched.
+        </li>
+        {stats.lastRound && (
+          <li>
+            <strong>Round {stats.lastRound.round} check-ins:</strong> {stats.lastRound.checkedIn} of{" "}
+            {plural(stats.lastRound.matched, "student")} answered, and {stats.lastRound.met} said they met
+            {stats.lastRound.checkedIn > 0 &&
+              ` (${Math.round((100 * stats.lastRound.met) / stats.lastRound.checkedIn)}% of those who answered)`}
+            .
+          </li>
+        )}
         <li>
           <strong>Matches:</strong> {plural(waiting, "student")} waiting, making {plural(pairCount, "one-on-one pair")}{" "}
           and {plural(groupCount, "group")}, with {waitlist.length} on the waitlist.

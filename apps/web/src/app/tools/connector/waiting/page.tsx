@@ -77,12 +77,24 @@ export default async function ConnectorWaitingPage() {
       <SkyScene progress={1} matches={ending.stars} />
       <div className={waiting.hero}>
         <Envelope />
-        <p className={waiting.eyebrow}>You&apos;re in, {status.signup.name.split(" ")[0]} ✨</p>
-        <h1 className={styles.title}>Your matches are being picked</h1>
+        <p className={waiting.eyebrow}>
+          {status.returning
+            ? `You're in for round ${status.nextRound}, ${status.signup.name.split(" ")[0]} ✨`
+            : `You're in, ${status.signup.name.split(" ")[0]} ✨`}
+        </p>
+        <h1 className={styles.title}>
+          {status.returning ? "Your new matches are being picked" : "Your matches are being picked"}
+        </h1>
         <p className={waiting.promise}>
+          {status.returning && "Never anyone you've met through Connector before. "}
           We&apos;ll email you at <span className={waiting.email}>{status.signup.email}</span> when they&apos;re ready.
           Until then, you&apos;re free to go!
         </p>
+        {status.returning && (
+          <Link href="/tools/connector/history" className={waiting.link}>
+            See your past matches →
+          </Link>
+        )}
       </div>
 
       <ol className={waiting.steps}>
