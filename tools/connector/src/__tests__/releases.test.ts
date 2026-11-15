@@ -33,7 +33,12 @@ let sql: Sql;
 
 /** Everyone wants a small group and answers the first option of every other question. */
 const sameAnswers = {
-  ...Object.fromEntries(QUESTIONS.map((q) => [q.id, q.options[0]!.id])),
+  ...Object.fromEntries(
+    QUESTIONS.map((q) => {
+      const ids = q.options.map((o) => o.id);
+      return [q.id, q.kind === "pick" ? ids.slice(0, q.picks) : q.kind === "rank" ? ids : ids[0]!];
+    }),
+  ),
   "meet-format": "small-group",
 };
 

@@ -3,15 +3,19 @@ import { formGroups, matchScore, MAX_GROUP_SIZE, MIN_GROUP_SIZE } from "../group
 import type { GroupingResult, Signup } from "../../types.js";
 
 let nextId = 1;
-/** A made-up sign-up who answered the first two questions. */
-function person(cohort: string, friday: string, freeDay: string): Signup {
+/**
+ * A made-up sign-up who answered two questions. The answers are plain words
+ * rather than real options, so two people match on a question only if they
+ * gave the same word (18 points each), with no partial credit.
+ */
+function person(cohort: string, party: string, hopingFor: string): Signup {
   const id = String(nextId++);
   return {
     id,
     name: `Student ${id}`,
     email: `student${id}@wharton.upenn.edu`,
     cohort,
-    answers: { "friday-midnight": friday, "free-day": freeDay },
+    answers: { "party-style": party, "hoping-for": hopingFor, "follow-through": "suggest-time" },
   };
 }
 
@@ -29,10 +33,10 @@ function expectValid(result: GroupingResult, signups: Signup[]) {
 }
 
 describe("matchScore", () => {
-  it("counts questions answered the same way", () => {
+  it("gives 18 points for each question answered the same way", () => {
     const a = person("A", "out-dancing", "hike");
-    expect(matchScore(a, person("B", "out-dancing", "hike"))).toBe(2);
-    expect(matchScore(a, person("B", "out-dancing", "museum"))).toBe(1);
+    expect(matchScore(a, person("B", "out-dancing", "hike"))).toBe(36);
+    expect(matchScore(a, person("B", "out-dancing", "museum"))).toBe(18);
     expect(matchScore(a, person("B", "morning-person", "museum"))).toBe(0);
   });
 
@@ -63,7 +67,8 @@ describe("formGroups", () => {
     const groupIds = result.groups.map((g) => g.members.map((m) => m.id).sort());
     expect(groupIds).toContainEqual(nightOwls.map((p) => p.id).sort());
     expect(groupIds).toContainEqual(homebodies.map((p) => p.id).sort());
-    expect(result.groups.every((g) => g.score === 12)).toBe(true);
+    // Each group of 4 has 6 pairs, each matching on both questions (2 × 18).
+    expect(result.groups.every((g) => g.score === 6 * 36)).toBe(true);
   });
 
   it("never puts two people from the same cohort together, even if they match perfectly", () => {

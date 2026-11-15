@@ -1,19 +1,13 @@
-import { QUESTIONS } from "../questions.js";
+import { compatibility } from "./scoring.js";
 import type { Group, GroupingResult, Signup } from "../types.js";
 
 // Groups of 3, with some of 4 so leftovers aren't waitlisted.
 export const MIN_GROUP_SIZE = 3;
 export const MAX_GROUP_SIZE = 4;
 
-/** How many questions two people answered the same way. The meeting format doesn't count. */
+/** How well two people match on the personality questions, from 0 to 90 (see scoring.ts). */
 export function matchScore(a: Signup, b: Signup): number {
-  let score = 0;
-  for (const question of QUESTIONS) {
-    if (question.scored === false) continue;
-    const answer = a.answers[question.id];
-    if (answer !== undefined && answer === b.answers[question.id]) score++;
-  }
-  return score;
+  return compatibility(a, b);
 }
 
 /** Matching answers, totalled over every pair in the group. */

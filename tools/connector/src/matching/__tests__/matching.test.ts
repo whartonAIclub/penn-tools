@@ -1,18 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { cohortClashes, makeMatches, matchQuality, meetFormat } from "../matching.js";
+import { cohortClashes, makeMatches, meetFormat } from "../matching.js";
+import { hasPlanner } from "../scoring.js";
 import { SAMPLE_SIGNUPS } from "../samples.js";
 import type { GroupingResult, Signup } from "../../types.js";
 
 let nextId = 1;
-/** A made-up sign-up with a meeting format, who answered the first two questions. */
-function person(cohort: string, format: string, friday: string, freeDay: string): Signup {
+/**
+ * A made-up sign-up with a meeting format, who answered two questions. The
+ * answers are plain words rather than real options, so two people match on a
+ * question only if they gave the same word, with no partial credit. Everyone
+ * plans unless `plans` is false.
+ */
+function person(cohort: string, format: string, party: string, hopingFor: string, plans = true): Signup {
   const id = String(nextId++);
   return {
     id,
     name: `Student ${id}`,
     email: `student${id}@wharton.upenn.edu`,
     cohort,
-    answers: { "meet-format": format, "friday-midnight": friday, "free-day": freeDay },
+    answers: {
+      "meet-format": format,
+      "party-style": party,
+      "hoping-for": hopingFor,
+      "follow-through": plans ? "suggest-time" : "say-yes",
+    },
   };
 }
 
@@ -40,17 +51,6 @@ function expectValid(result: GroupingResult, signups: Signup[]) {
   const placed = [...result.groups.flatMap((g) => g.members), ...result.waitlist].map((p) => p.id);
   expect(placed.sort()).toEqual(ids(signups));
 }
-
-describe("matchQuality", () => {
-  it("is the average number of answers each two people have in common", () => {
-    const a = person("A", "either", "out-dancing", "hike");
-    const b = person("B", "either", "out-dancing", "hike");
-    const c = person("C", "either", "out-dancing", "museum");
-    expect(matchQuality([a, b])).toBe(2);
-    // a–b share 2, a–c share 1, b–c share 1.
-    expect(matchQuality([a, b, c])).toBeCloseTo(4 / 3);
-  });
-});
 
 describe("cohortClashes", () => {
   it("counts cohorts with more than one person", () => {
@@ -207,7 +207,44 @@ describe("makeMatches", () => {
     expect(groupsOf(result)).toEqual([ids(alike)]);
   });
 
-  it("matches everyone in a realistic mix", () => {
+  it("avoids pairing two people who won't plan, even when they match best", () => {
+    const quietA = person("A", "one-on-one", "twin", "twin", false);
+    const quietB = person("B", "one-on-one", "twin", "twin", false);
+    const plannerC = person("C", "one-on-one", "other", "other");
+    const plannerD = person("D", "one-on-one", "other", "other");
+    const signups = [quietA, quietB, plannerC, plannerD];
+
+    const result = makeMatches(signups);
+
+    expectValid(result, signups);
+    expect(result.groups).toHaveLength(2);
+    for (const pair of result.groups) expect(hasPlanner(pair.members)).toBe(true);
+  });
+
+  it("still pairs two non-planners as a last resort, rather than leave them out", () => {
+    const signups = [person("A", "one-on-one", "x", "x", false), person("B", "one-on-one", "x", "x", false)];
+
+    const result = makeMatches(signups);
+
+    expect(result.groups).toHaveLength(1);
+    expect(hasPlanner(result.groups[0]!.members)).toBe(false);
+  });
+
+  it("gives a group without a planner one from a group with a planner to spare", () => {
+    // Two groups form by answers: one with both planners, one with none.
+    const planners = ["A", "B"].map((c) => person(c, "small-group", "loud", "loud"));
+    const loudQuiet = person("C", "small-group", "loud", "loud", false);
+    const quiet = ["D", "E", "F"].map((c) => person(c, "small-group", "calm", "calm", false));
+    const signups = [...planners, loudQuiet, ...quiet];
+
+    const result = makeMatches(signups);
+
+    expectValid(result, signups);
+    expect(result.groups).toHaveLength(2);
+    for (const group of result.groups) expect(hasPlanner(group.members)).toBe(true);
+  });
+
+  it("matches everyone in a realistic mix, and every match has a planner", () => {
     const formats = ["one-on-one", "small-group", "either"];
     const signups = SAMPLE_SIGNUPS.map((s, i) => ({ ...s, answers: { ...s.answers, "meet-format": formats[i % 3]! } }));
 
@@ -215,5 +252,6 @@ describe("makeMatches", () => {
 
     expectValid(result, signups);
     expect(result.waitlist).toEqual([]);
+    for (const match of result.groups) expect(hasPlanner(match.members)).toBe(true);
   });
 });

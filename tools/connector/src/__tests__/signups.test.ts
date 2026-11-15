@@ -12,10 +12,12 @@ import { checkSignup, listSignups, saveSignup } from "../signups.js";
 
 const answers = {
   "meet-format": "either",
-  "friday-midnight": "rooftop-talk",
-  "free-day": "hike",
-  "party-style": "kitchen-chat",
-  "friend-value": "honest",
+  "party-style": "host",
+  "free-day": ["outdoors", "culture"],
+  "hoping-for": "real-talk",
+  "friend-values": ["honest", "shows-up", "makes-me-laugh", "pushes-me"],
+  pace: "warm-up",
+  "follow-through": "happy-to-plan",
 };
 
 describe("checkSignup", () => {
@@ -38,11 +40,25 @@ describe("checkSignup", () => {
     expect(checkSignup({ ...ok, lastName: "" })).toEqual({ ok: false, error: "Enter your last name." });
     expect(checkSignup({ ...ok, firstName: "A".repeat(101) }).ok).toBe(false);
     expect(checkSignup({ ...ok, cohort: "Z" })).toEqual({ ok: false, error: "Choose your cohort." });
-    expect(checkSignup({ ...ok, answers: { "meet-format": "either", "friday-midnight": "rooftop-talk" } })).toEqual({
+    expect(checkSignup({ ...ok, answers: { "meet-format": "either", "party-style": "host" } })).toEqual({
       ok: false,
-      error: 'Answer "A free day in Philly".',
+      error: 'Answer "The perfect day with a friend looks like…" (pick 2).',
     });
-    expect(checkSignup({ ...ok, answers: { ...answers, "friday-midnight": "Deep talk on a rooftop" } }).ok).toBe(false);
+    expect(checkSignup({ ...ok, answers: { ...answers, "party-style": "Playing host and making intros" } }).ok).toBe(false);
+  });
+
+  it("checks pick-two and ranking answers", () => {
+    const withAnswer = (id: string, answer: unknown) => checkSignup({ firstName: "A", lastName: "L", cohort: "A", answers: { ...answers, [id]: answer } });
+    expect(withAnswer("free-day", ["outdoors"]).ok).toBe(false);
+    expect(withAnswer("free-day", ["outdoors", "outdoors"]).ok).toBe(false);
+    expect(withAnswer("free-day", ["outdoors", "culture", "sports"]).ok).toBe(false);
+    expect(withAnswer("free-day", "outdoors").ok).toBe(false);
+    expect(withAnswer("friend-values", ["honest", "shows-up", "makes-me-laugh"])).toEqual({
+      ok: false,
+      error: 'Answer "Rank what matters most in a friend" (put them all in order).',
+    });
+    expect(withAnswer("friend-values", ["honest", "honest", "makes-me-laugh", "pushes-me"]).ok).toBe(false);
+    expect(withAnswer("friend-values", ["pushes-me", "makes-me-laugh", "shows-up", "honest"]).ok).toBe(true);
   });
 });
 
@@ -75,8 +91,8 @@ describe.skipIf(!databaseUrl)("Connector sign-ups (Postgres)", () => {
   });
 
   it("saves sign-ups, replaces a student's earlier one, and lists everyone's", async () => {
-    const bobAnswers = { "friday-midnight": "out-dancing", "free-day": "museum", "party-style": "dance-floor", "friend-value": "makes-me-laugh" };
-    const aliceAnswers = { "friday-midnight": "morning-person", "free-day": "movie-day", "party-style": "heading-out", "friend-value": "shows-up" };
+    const bobAnswers = { ...answers, "party-style": "dance-floor", "free-day": ["night-out", "sports"] };
+    const aliceAnswers = { ...answers, pace: "go-deep", "friend-values": ["shows-up", "honest", "pushes-me", "makes-me-laugh"] };
     expect(await listSignups(sql)).toEqual([]);
 
     await saveSignup(sql, "alice", "alice@wharton.upenn.edu", { firstName: "Alice", lastName: "A", cohort: "A", answers });

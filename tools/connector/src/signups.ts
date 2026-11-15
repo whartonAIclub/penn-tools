@@ -4,7 +4,7 @@
 
 import type { Sql } from "postgres";
 import { COHORTS, QUESTIONS } from "./questions.js";
-import type { Signup } from "./types.js";
+import type { Answer, Question, Signup } from "./types.js";
 
 export const MAX_NAME_LENGTH = 100;
 
@@ -14,8 +14,28 @@ export interface SignupInput {
   lastName: string;
   /** The ID of one of COHORTS, e.g. "F". */
   cohort: string;
-  /** Question ID → the ID of the chosen option, for every question in QUESTIONS. */
-  answers: Record<string, string>;
+  /** Question ID → the answer (see Answer), for every question in QUESTIONS. */
+  answers: Record<string, Answer>;
+}
+
+/** The answer if it's a valid one for the question, otherwise null. */
+function validAnswer(question: Question, answer: unknown): Answer | null {
+  const ids = question.options.map((o) => o.id);
+  switch (question.kind ?? "single") {
+    case "single":
+      return typeof answer === "string" && ids.includes(answer) ? answer : null;
+    case "pick": {
+      if (!Array.isArray(answer) || answer.length !== question.picks) return null;
+      const picked = answer.filter((a): a is string => typeof a === "string" && ids.includes(a));
+      return new Set(picked).size === question.picks ? picked : null;
+    }
+    case "rank": {
+      // Every option exactly once.
+      if (!Array.isArray(answer) || answer.length !== ids.length) return null;
+      const ranked = answer.filter((a): a is string => typeof a === "string" && ids.includes(a));
+      return new Set(ranked).size === ids.length ? ranked : null;
+    }
+  }
 }
 
 /**
@@ -39,11 +59,13 @@ export function checkSignup(input: unknown): { ok: true; input: SignupInput } | 
   }
 
   const given = typeof answers === "object" && answers !== null ? (answers as Record<string, unknown>) : {};
-  const clean: Record<string, string> = {};
+  const clean: Record<string, Answer> = {};
   for (const question of QUESTIONS) {
-    const answer = given[question.id];
-    if (typeof answer !== "string" || !question.options.some((o) => o.id === answer)) {
-      return { ok: false, error: `Answer "${question.prompt}".` };
+    const answer = validAnswer(question, given[question.id]);
+    if (answer === null) {
+      const what =
+        question.kind === "pick" ? ` (pick ${question.picks})` : question.kind === "rank" ? " (put them all in order)" : "";
+      return { ok: false, error: `Answer "${question.prompt}"${what}.` };
     }
     clean[question.id] = answer;
   }
@@ -73,7 +95,7 @@ export interface SignupRow {
   last_name: string;
   email: string;
   cohort: string;
-  answers: Record<string, string>;
+  answers: Record<string, Answer>;
 }
 
 /** A signups row in the shape the matching reads. */
