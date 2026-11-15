@@ -6,7 +6,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Cohort, Question } from "@penntools/tool-connector";
+import { answerIds, type Cohort, type Question } from "@penntools/tool-connector";
 import { ProfileForm, type Profile } from "./ProfileForm";
 import { Questions, type Answers } from "./Questions";
 import { SkyScene } from "./sky/SkyContext";
@@ -56,6 +56,7 @@ export function Connector({ questions, cohorts }: Props) {
     return (
       <Questions
         questions={questions}
+        initial={answers}
         onBack={() => setStep("profile")}
         onDone={(a) => {
           setAnswers(a);
@@ -74,17 +75,29 @@ export function Connector({ questions, cohorts }: Props) {
       <p className={styles.intro}>
         Looking good, {profile.firstName}? Once you&apos;re matched, your answers are locked in.
       </p>
-      <dl className={styles.card}>
-        <div className={styles.answer}>
+      <dl className={styles.review}>
+        <div className={styles.reviewRow}>
           <dt>Cohort</dt>
-          <dd>{profile.cohort}</dd>
+          <dd>
+            <span className={styles.chip}>Cohort {profile.cohort}</span>
+          </dd>
         </div>
-        {questions.map((q) => (
-          <div key={q.id} className={styles.answer}>
-            <dt>{q.prompt}</dt>
-            <dd>{q.options.find((o) => o.id === answers[q.id])?.label}</dd>
-          </div>
-        ))}
+        {questions.map((q) => {
+          const labels = answerIds(answers[q.id]).map((id) => q.options.find((o) => o.id === id)?.label ?? id);
+          return (
+            <div key={q.id} className={styles.reviewRow}>
+              <dt>{q.short}</dt>
+              <dd>
+                {labels.map((label, i) => (
+                  <span key={label} className={styles.chip}>
+                    {q.kind === "rank" && <span className={styles.chipRank}>{i + 1}</span>}
+                    {label}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          );
+        })}
       </dl>
 
       {saveError && <p className={styles.error}>{saveError}</p>}

@@ -13,12 +13,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { SkyScene } from "../sky/SkyContext";
 import styles from "../Connector.module.css";
+import waiting from "./Waiting.module.css";
 
 /** How many stars to link to, and who the student will meet, by how they'd like to meet. */
 const ENDING: Record<MeetFormat, { stars: number; who: string }> = {
-  "one-on-one": { stars: 1, who: "one person" },
-  "small-group": { stars: 3, who: "a small group" },
-  either: { stars: 2, who: "your people" },
+  "one-on-one": { stars: 1, who: "someone" },
+  "small-group": { stars: 3, who: "a few people" },
+  either: { stars: 2, who: "people" },
 };
 
 export const metadata: Metadata = {
@@ -74,11 +75,47 @@ export default async function ConnectorWaitingPage() {
   return (
     <div className={styles.page}>
       <SkyScene progress={1} matches={ending.stars} />
-      <h1 className={styles.title}>You&apos;re in. Now we find your people.</h1>
-      <p className={styles.intro}>
-        Thanks for answering, {status.signup.name.split(" ")[0]}. When matches are released, you&apos;ll meet{" "}
-        {ending.who} from beyond your usual circle. Check back here to meet them.
-      </p>
+      <div className={waiting.hero}>
+        <Envelope />
+        <p className={waiting.eyebrow}>You&apos;re in, {status.signup.name.split(" ")[0]} ✨</p>
+        <h1 className={styles.title}>Your matches are being picked</h1>
+        <p className={waiting.promise}>
+          We&apos;ll email you at <span className={waiting.email}>{status.signup.email}</span> when they&apos;re ready.
+          Until then, you&apos;re free to go!
+        </p>
+      </div>
+
+      <ol className={waiting.steps}>
+        <li>
+          <span className={waiting.stepNumber}>1</span>
+          <span>
+            <strong>We look across every cohort</strong> for {ending.who} with your energy, your idea of a good time,
+            and what you value in a friend.
+          </span>
+        </li>
+        <li>
+          <span className={waiting.stepNumber}>2</span>
+          <span>
+            <strong>You get an email</strong> the moment your matches are ready.
+          </span>
+        </li>
+        <li>
+          <span className={waiting.stepNumber}>3</span>
+          <span>
+            <strong>You say hi</strong> and pick a time to meet. We&apos;ll even suggest what to do.
+          </span>
+        </li>
+      </ol>
+    </div>
+  );
+}
+
+/** A sealed gold envelope that floats gently: your matches, on their way. */
+function Envelope() {
+  return (
+    <div className={waiting.envelope} aria-hidden="true">
+      <span className={waiting.envelopeFlap} />
+      <span className={waiting.envelopeSeal}>✦</span>
     </div>
   );
 }

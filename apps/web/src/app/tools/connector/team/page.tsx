@@ -6,10 +6,11 @@ import type { Metadata } from "next";
 import { toolSql } from "@penntools/platform/db";
 import {
   cohortClashes,
+  commonThreads,
+  hasPlanner,
   matchQuality,
   previewRelease,
-  SCORED_QUESTIONS,
-  WEAK_MATCH_QUALITY,
+  qualityLabel,
   type GroupingResult,
 } from "@penntools/tool-connector";
 import { getCurrentUser } from "@/lib/auth";
@@ -60,20 +61,29 @@ export default async function ConnectorTeamPage() {
   }
 
   const { groups, waitlist } = preview;
-  const rows = groups.map((group, i) => ({
-    number: i + 1,
-    isPair: group.members.length === 2,
-    members: group.members,
-    quality: matchQuality(group.members),
-    clashes: cohortClashes(group.members),
-  }));
+  const rows = groups.map((group, i) => {
+    const quality = matchQuality(group.members);
+    return {
+      number: i + 1,
+      isPair: group.members.length === 2,
+      members: group.members,
+      quality,
+      label: qualityLabel(quality),
+      clashes: cohortClashes(group.members),
+      planner: hasPlanner(group.members),
+      thread: commonThreads(group.members)[0]?.answer ?? null,
+    };
+  });
   const waiting = groups.reduce((n, g) => n + g.members.length, 0) + waitlist.length;
   const pairCount = rows.filter((r) => r.isPair).length;
   const groupCount = rows.length - pairCount;
   const clashed = rows.filter((r) => r.clashes > 0);
-  const weak = rows.filter((r) => r.quality < WEAK_MATCH_QUALITY);
+  const byLabel = (label: string) => rows.filter((r) => r.label === label);
+  const noPlanner = rows.filter((r) => !r.planner);
+  const noThread = rows.filter((r) => !r.isPair && r.thread === null);
   const average = rows.length === 0 ? 0 : rows.reduce((total, r) => total + r.quality, 0) / rows.length;
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const numbers = (list: typeof rows) => list.map((r) => `#${r.number}`).join(", ");
 
   return (
     <div className={styles.page}>
@@ -100,11 +110,25 @@ export default async function ConnectorTeamPage() {
           <strong>Match quality:</strong>{" "}
           {rows.length === 0
             ? "no matches yet."
-            : `${average.toFixed(1)} of ${SCORED_QUESTIONS} answers in common on average; ${
-                weak.length === 0
-                  ? "no weak matches."
-                  : `${plural(weak.length, "weak match")} (${weak.map((r) => `#${r.number}`).join(", ")}) with fewer than ${WEAK_MATCH_QUALITY} in common.`
-              }`}
+            : `${Math.round(average)}/100 on average: ${byLabel("Strong").length} strong, ${byLabel("Good").length} good and ${
+                byLabel("Weak").length
+              } weak${byLabel("Weak").length > 0 ? ` (${numbers(byLabel("Weak"))})` : ""}.`}
+        </li>
+        <li>
+          <strong>Planners:</strong>{" "}
+          {noPlanner.length === 0
+            ? "every match has someone who'll make the plan."
+            : `${plural(noPlanner.length, "match")} (${numbers(noPlanner)}) ${
+                noPlanner.length === 1 ? "has" : "have"
+              } nobody who'll make the plan; there weren't enough planners to go round.`}
+        </li>
+        <li>
+          <strong>Common thread:</strong>{" "}
+          {noThread.length === 0
+            ? "every group shares something as a whole."
+            : `${plural(noThread.length, "group")} (${numbers(noThread)}) ${
+                noThread.length === 1 ? "shares" : "share"
+              } nothing as a whole group.`}
         </li>
       </ul>
 
@@ -117,6 +141,8 @@ export default async function ConnectorTeamPage() {
                 <th>Type</th>
                 <th>Members</th>
                 <th>Match quality</th>
+                <th>Common thread</th>
+                <th>Planner</th>
                 <th>Cohort clash</th>
               </tr>
             </thead>
@@ -132,10 +158,13 @@ export default async function ConnectorTeamPage() {
                       </div>
                     ))}
                   </td>
-                  <td className={r.quality < WEAK_MATCH_QUALITY ? team.flag : undefined}>
-                    {r.quality.toFixed(1)} / {SCORED_QUESTIONS}
-                    {r.quality < WEAK_MATCH_QUALITY && " · weak"}
+                  <td className={r.label === "Weak" ? team.flag : undefined}>
+                    {Math.round(r.quality)}/100 · {r.label}
                   </td>
+                  <td className={r.thread === null && !r.isPair ? team.flag : team.thread}>
+                    {r.thread ?? (r.isPair ? "—" : "⚠ None")}
+                  </td>
+                  <td className={r.planner ? undefined : team.flag}>{r.planner ? "Yes" : "⚠ None"}</td>
                   <td className={r.clashes > 0 ? team.flag : undefined}>{r.clashes > 0 ? "⚠ Yes" : "No"}</td>
                 </tr>
               ))}

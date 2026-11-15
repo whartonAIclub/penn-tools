@@ -1,0 +1,114 @@
+/* ── The envelope and the promise ──────────────────────────────────────────── */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--penn-blue);
+}
+
+.promise {
+  margin: 0;
+  max-width: 34em;
+  color: var(--section-label);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.email {
+  color: var(--penn-blue);
+  overflow-wrap: anywhere;
+}
+
+/* A sealed envelope: a gold card with a folded flap and a star seal, floating
+   gently. Still, not "loading": it's on its way, and nothing to wait for. */
+.envelope {
+  position: relative;
+  width: 112px;
+  height: 74px;
+  border-radius: 8px;
+  background: linear-gradient(160deg, #ffe3a6, var(--penn-blue));
+  box-shadow: 0 10px 30px rgba(255, 210, 122, 0.25);
+  animation: float 5s ease-in-out infinite;
+}
+
+.envelopeFlap {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 50px;
+  background: linear-gradient(180deg, #ffd890, #e8b85a);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  border-radius: 8px 8px 0 0;
+}
+
+.envelopeSeal {
+  position: absolute;
+  left: 50%;
+  top: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  border-radius: 50%;
+  background: #1a1406;
+  color: var(--penn-blue);
+  font-size: 0.8rem;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .envelope { animation: none; }
+}
+
+/* ── What happens next ─────────────────────────────────────────────────────── */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 18px;
+  list-style: none;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  background: var(--option);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--tint-strong);
+  color: var(--penn-blue);
+  font-size: 0.8rem;
+  font-weight: 700;
+}

@@ -181,6 +181,167 @@
 }
 .back:hover { color: var(--penn-blue); }
 
+/* The prompt, with its instruction ("Pick two") right under it. */
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+
+/* "Pick 2", with a dot for each pick that fills in gold, so it can't be missed. */
+.pickBadge {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 10px;
+  margin-top: -8px;
+  padding: 7px 14px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 999px;
+  background: var(--tint-strong);
+  color: var(--penn-blue);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pickSlots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.slot,
+.slotFilled {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--penn-blue);
+  border-radius: 50%;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.slotFilled {
+  background: var(--penn-blue);
+  transform: scale(1.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot,
+  .slotFilled { transition: none; transform: none; }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.option:disabled:hover { border-color: var(--panel-line); background: var(--option); }
+
+.nextRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pickCount {
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+
+/* ── Ranking ───────────────────────────────────────────────────────────────── */
+
+.rankList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rankItem {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  background: var(--option);
+  cursor: grab;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.rankItem:hover { border-color: var(--penn-blue); }
+
+.dragging {
+  border-color: var(--penn-blue);
+  background: var(--tint-strong);
+  transform: scale(1.02);
+  cursor: grabbing;
+}
+
+.rankNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--tint-strong);
+  color: var(--penn-blue);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.rankLabel {
+  min-width: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.rankMoves {
+  display: flex;
+  gap: 4px;
+}
+
+.moveButton {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.moveButton:hover:not(:disabled) { border-color: var(--penn-blue); color: var(--penn-blue); }
+.moveButton:disabled { opacity: 0.3; cursor: not-allowed; }
+.moveButton:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rankItem { transition: none; }
+  .dragging { transform: none; }
+}
+
 /* ── Summary ───────────────────────────────────────────────────────────────── */
 
 .answer {
@@ -190,7 +351,68 @@
   font-size: 0.9rem;
 }
 .answer dt { color: var(--section-label); }
-.answer dd { margin: 0; font-weight: 600; }
+.answer dd { margin: 0; font-weight: 600; text-align: right; }
+
+/* ── Review your answers: a short label for each question, the answers as chips ── */
+
+.review {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  background: var(--option);
+}
+
+.reviewRow {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: baseline;
+  gap: 8px 16px;
+  padding: 12px 16px;
+}
+.reviewRow + .reviewRow {
+  border-top: 1px solid var(--panel-line);
+}
+
+@media (max-width: 520px) {
+  .reviewRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reviewRow dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--section-label);
+}
+
+.reviewRow dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.chipRank {
+  font-weight: 700;
+  color: var(--penn-blue);
+}
 
 .error {
   padding: 10px 14px;
@@ -221,10 +443,22 @@
 .secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .success {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 0.875rem;
   border: 1px solid #bbf7d0;
   background: #f0fdf4;
   color: #15803d;
+}
+.success p {
+  margin: 0;
+}
+.success .button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }

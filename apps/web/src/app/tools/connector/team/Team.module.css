@@ -52,6 +52,12 @@
   color: var(--section-label);
 }
 
+/* The common thread can be a long answer, so it wraps (other columns don't). */
+.table td.thread {
+  min-width: 180px;
+  white-space: normal;
+}
+
 .flag {
   color: var(--danger);
   font-weight: 600;

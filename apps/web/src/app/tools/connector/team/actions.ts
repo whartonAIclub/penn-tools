@@ -9,7 +9,15 @@ import { releaseMatches } from "@penntools/tool-connector";
 import { getCurrentUser } from "@/lib/auth";
 import { canRelease } from "./access";
 
-export type ReleaseOutcome = { ok: true; groups: number; waitlist: number } | { ok: false; error: string };
+export type ReleaseOutcome =
+  | {
+      ok: true;
+      groups: number;
+      waitlist: number;
+      /** Everyone just matched, so the team can email them that their matches are ready. */
+      matchedEmails: string[];
+    }
+  | { ok: false; error: string };
 
 export async function release(): Promise<ReleaseOutcome> {
   const user = await getCurrentUser();
@@ -20,7 +28,12 @@ export async function release(): Promise<ReleaseOutcome> {
   try {
     const result = await releaseMatches(sql, user.email ?? user.id);
     revalidatePath("/tools/connector/team");
-    return { ok: true, groups: result.groups.length, waitlist: result.waitlist.length };
+    return {
+      ok: true,
+      groups: result.groups.length,
+      waitlist: result.waitlist.length,
+      matchedEmails: result.groups.flatMap((g) => g.members.map((m) => m.email)),
+    };
   } catch (error) {
     console.error("Connector: releasing matches failed", error);
     return { ok: false, error: "Matches couldn't be released. Try again in a moment." };

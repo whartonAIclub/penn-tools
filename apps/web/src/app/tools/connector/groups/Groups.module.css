@@ -161,6 +161,152 @@
   outline-offset: 2px;
 }
 
+/* ── Card reveal: your matches start face down; tap to flip ───────────────── */
+
+.reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.reveal .tiles {
+  align-self: stretch;
+}
+
+.cardSlot {
+  perspective: 900px;
+}
+
+.flipCard {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 190px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.flipCard:disabled { cursor: default; }
+.flipCard:hover:not(:disabled) .cardBack { border-color: var(--penn-blue); transform: translateY(-3px); }
+.flipCard:focus-visible { outline: 2px solid var(--penn-blue); outline-offset: 3px; border-radius: 14px; }
+
+.flipped {
+  transform: rotateY(180deg);
+}
+
+.cardBack,
+.cardFront {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 12px;
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  text-align: center;
+}
+
+/* The back: a starry gold card, inviting a tap. */
+.cardBack {
+  border-color: var(--penn-blue);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.35) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 70% 65%, rgba(255, 255, 255, 0.3) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.25) 0 1px, transparent 1.5px),
+    linear-gradient(160deg, var(--tint-strong), var(--tint));
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.cardStar {
+  font-size: 2rem;
+  color: var(--penn-blue);
+  animation: twinkle 2.4s ease-in-out infinite;
+}
+
+.cardHint {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--penn-blue);
+}
+
+.cardFront {
+  position: relative;
+  background: var(--option);
+  transform: rotateY(180deg);
+}
+
+/* A burst of gold when a card turns over. */
+.sparkle {
+  position: absolute;
+  inset: -6px;
+  border-radius: 18px;
+  pointer-events: none;
+  box-shadow: 0 0 0 0 rgba(255, 210, 122, 0.7);
+  animation: burst 0.9s ease-out 0.35s both;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.7; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(15deg); }
+}
+
+@keyframes burst {
+  from { box-shadow: 0 0 0 0 rgba(255, 210, 122, 0.7); }
+  to { box-shadow: 0 0 0 18px rgba(255, 210, 122, 0); }
+}
+
+.revealAll {
+  padding: 0;
+  background: none;
+  color: var(--penn-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.revealAll:hover { text-decoration: underline; }
+
+/* Without motion: no turning over, the front simply replaces the back. */
+@media (prefers-reduced-motion: reduce) {
+  .flipCard { transition: none; transform: none; }
+  .flipped { transform: none; }
+  .cardFront { transform: none; }
+  .flipCard .cardFront { visibility: hidden; }
+  .flipped .cardFront { visibility: visible; }
+  .flipped .cardBack { visibility: hidden; }
+  .cardStar, .sparkle { animation: none; }
+  .flipCard:hover:not(:disabled) .cardBack { transform: none; }
+}
+
+/* What the whole match has in common, as a first plan. */
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 14px;
+  background: var(--tint);
+}
+
+.threadAnswer {
+  margin: 0;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+
 .reachOut {
   display: flex;
   flex-wrap: wrap;
