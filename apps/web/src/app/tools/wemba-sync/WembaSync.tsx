@@ -11,6 +11,7 @@
 // of it.
 
 import { useEffect, useRef, useState } from "react";
+import { Lilita_One } from "next/font/google";
 import type { AIProvider } from "@penntools/core/ai";
 import {
   currentWeekend,
@@ -47,6 +48,9 @@ import {
 import { ErrorNote } from "./ErrorNote";
 import styles from "./WembaSync.module.css";
 
+/** The brick theme's headline font (see "Theme: building bricks" in WembaSync.module.css). */
+const brickFont = Lilita_One({ weight: "400", subsets: ["latin"], variable: "--font-brick" });
+
 type Tab = "weekend" | "courses" | "events";
 const TABS: Record<Tab, string> = { weekend: "Class Weekend", courses: "Courses", events: "Events" };
 
@@ -73,9 +77,9 @@ export function WembaSync({
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   maxBytes: number;
-  /** The student's saved weekends, earliest first, or null if storage isn't set up. */
+  /** The class's shared weekends, earliest first, or null if storage isn't set up. */
   weekends: SavedWeekend[] | null;
-  /** The student's saved syllabi, or null if storage isn't set up. */
+  /** The class's shared syllabi, or null if storage isn't set up. */
   syllabi: SavedSyllabus[] | null;
   /** The student's saved events, earliest first, or null if storage isn't set up. */
   events: SavedEvent[] | null;
@@ -168,8 +172,44 @@ export function WembaSync({
     setSelected(currentWeekend(rest, todayInPhiladelphia())?.id ?? null);
   }
 
+  // The weekend menu, shown beside the weekend's title.
+  const picker =
+    weekends.length > 0 ? (
+      <div className={styles.weekendPicker}>
+        <label className={styles.provider}>
+          Weekend
+          <select
+            value={unsaved ? "" : (saved?.id ?? "")}
+            onChange={(e) => {
+              setSelected(e.target.value);
+              setUnsaved(null);
+            }}
+          >
+            {unsaved && <option value="">Not saved</option>}
+            {weekends.map((w) =>
+              w.id === current?.id ? (
+                <option key={w.id} value={w.id} className={styles.currentOption}>
+                  Current weekend: {weekendLabel(w)}
+                </option>
+              ) : (
+                <option key={w.id} value={w.id}>
+                  {weekendLabel(w)}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        {/* Shared with the class: only the student who uploaded this copy can remove it. */}
+        {saved?.mine && (
+          <button className={styles.textButton} onClick={() => void remove(saved)}>
+            Remove
+          </button>
+        )}
+      </div>
+    ) : null;
+
   return (
-    <div className={`${styles.page} ${styles.withAMA}`}>
+    <div className={`${styles.page} ${styles.withAMA} ${styles.brick} ${brickFont.variable}`}>
       <header>
         <h1 className={styles.title}>WEMBA Sync</h1>
         <p className={styles.intro}>{INTROS[tab]}</p>
@@ -197,43 +237,6 @@ export function WembaSync({
       )}
 
       <div role="tabpanel" hidden={tab !== "weekend"} className={`${styles.page} ${styles.tabPanel}`}>
-        <Upload status={status} onFile={(file) => void upload(file)} compact={shown !== null} />
-
-        {status.state === "error" && <ErrorNote error={status.error} />}
-
-        {weekends.length > 0 && (
-          <div className={styles.weekendPicker}>
-            <label className={styles.provider}>
-              Weekend
-              <select
-                value={unsaved ? "" : (saved?.id ?? "")}
-                onChange={(e) => {
-                  setSelected(e.target.value);
-                  setUnsaved(null);
-                }}
-              >
-                {unsaved && <option value="">Not saved</option>}
-                {weekends.map((w) =>
-                  w.id === current?.id ? (
-                    <option key={w.id} value={w.id} className={styles.currentOption}>
-                      Current weekend: {weekendLabel(w)}
-                    </option>
-                  ) : (
-                    <option key={w.id} value={w.id}>
-                      {weekendLabel(w)}
-                    </option>
-                  ),
-                )}
-              </select>
-            </label>
-            {saved && (
-              <button className={styles.textButton} onClick={() => void remove(saved)}>
-                Remove
-              </button>
-            )}
-          </div>
-        )}
-
         {shown && (
           <Weekend
             schedule={shown}
@@ -243,8 +246,14 @@ export function WembaSync({
             onSection={chooseSection}
             events={events}
             syllabi={syllabi.map((s) => s.syllabus)}
+            picker={picker}
           />
         )}
+
+        {/* Without a weekend to show, the menu sits above the upload. */}
+        {!shown && picker}
+        <Upload status={status} onFile={(file) => void upload(file)} compact={shown !== null} />
+        {status.state === "error" && <ErrorNote error={status.error} />}
       </div>
 
       <div role="tabpanel" hidden={tab !== "courses"} className={styles.tabPanel}>
@@ -266,6 +275,10 @@ export function WembaSync({
         />
       </div>
 
+      <p className={styles.caution}>
+        <span className={styles.cautionLabel}>CAUTION</span>Do not step on the Saturday schedule barefoot.
+      </p>
+
       <AMA provider={provider} schedule={shown} section={shownSection} />
     </div>
   );
@@ -273,9 +286,9 @@ export function WembaSync({
 
 const INTROS: Record<Tab, string> = {
   weekend:
-    "Upload each class weekend\u2019s schedule PDF from the program\u2019s email to see your weekend: classes, meals and events, for your section. Weekends are saved to your account.",
+    "Upload each class weekend\u2019s schedule PDF from the program\u2019s email to see your weekend: classes, meals and events, for your section. Each weekend is shared with the class, so it only needs uploading once.",
   courses:
-    "Upload each course\u2019s syllabus once a semester. It\u2019s sorted into the same sections for every course and saved to your account.",
+    "Each course\u2019s syllabus, sorted into the same sections for every course. Syllabi are shared with the class, so each one only needs uploading once, by anyone.",
   events:
     "Every event, whenever it is: club events, celebrations and socials you add from an invite, plus the events on your class weekend schedules.",
 };
@@ -349,6 +362,7 @@ function Weekend({
   onSection,
   events,
   syllabi,
+  picker,
 }: {
   schedule: WeekendSchedule;
   /** The saved copy, or null if it wasn't saved. */
@@ -361,6 +375,8 @@ function Weekend({
   events: SavedEvent[];
   /** The student's syllabi: each class shows its session's readings, and what's due over the weekend is listed. */
   syllabi: Syllabus[];
+  /** The weekend menu, beside the title; null without saved weekends. */
+  picker: React.ReactNode;
 }) {
   const items = itemsForSection(schedule.items, section);
   const weekendDays = [...new Set(schedule.items.map((item) => item.date))].sort();
@@ -382,11 +398,14 @@ function Weekend({
     <section className={styles.weekend}>
       <div className={styles.weekendHeader}>
         <div>
-          <h2 className={styles.weekendTitle}>{schedule.title}</h2>
+          <div className={styles.titleRow}>
+            <h2 className={styles.weekendTitle}>{schedule.title}</h2>
+            {picker}
+          </div>
           <p className={styles.meta}>
             {schedule.program && `${schedule.program} · `}
             {saved
-              ? `From ${saved.filename}. Upload an updated PDF for this weekend to replace it.`
+              ? `From ${saved.filename}`
               : storage
                 ? "Not saved: the schedule has no dates to file it under."
                 : "Not saved: storage isn\u2019t set up yet, so upload it again after reloading the page."}
@@ -415,7 +434,8 @@ function Weekend({
         <p className={styles.meta}>Pick your section first, or your calendar gets every section&apos;s classes.</p>
       )}
 
-      {schedule.warnings.length > 0 && (
+      {/* For the student who uploaded this copy, to check against the PDF; classmates don't see it. */}
+      {schedule.warnings.length > 0 && (saved === null || saved.mine) && (
         <div className={styles.warnings}>
           <strong>Check these against the PDF:</strong>
           <ul>
@@ -446,7 +466,14 @@ function Weekend({
         </div>
       )}
 
-      <div className={styles.days}>
+      {/* The days' headers take the chosen section's color, as its button does. */}
+      <div
+        className={`${styles.days} ${
+          section !== null && schedule.sections.includes(section)
+            ? styles[`sectionColor${schedule.sections.indexOf(section) % 4}`]
+            : ""
+        }`}
+      >
         {days.map((day) => (
           <div key={day.date} className={styles.day}>
             <h3 className={styles.dayTitle}>{formatDate(day.date, { weekday: "long", month: "short", day: "numeric" })}</h3>

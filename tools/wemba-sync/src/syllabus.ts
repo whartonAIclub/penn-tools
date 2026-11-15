@@ -14,8 +14,8 @@ import type { ScheduleItem } from "./schedule.js";
 
 /** The most pages a syllabus PDF may have, bounding what one upload costs the user. */
 export const MAX_SYLLABUS_PAGES = 40;
-/** The most syllabi one student keeps: a semester's courses, with room to spare. */
-export const MAX_SYLLABI = 20;
+/** The most syllabi the class keeps (they're shared): a few semesters' courses. */
+export const MAX_SYLLABI = 40;
 /** The longest Word document's text, in characters (about 50 pages), bounding what one upload costs the user. */
 export const MAX_SYLLABUS_TEXT = 150_000;
 

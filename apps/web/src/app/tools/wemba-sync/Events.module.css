@@ -224,3 +224,32 @@
 @media (max-width: 520px) {
   .fields { grid-template-columns: 1fr; }
 }
+
+/* ── Theme: building bricks (see WembaSync.module.css) ───────────────────────
+   Event cards are white tiles with a navy edge and a green brick for a date. */
+.card {
+  border: 2.5px solid var(--ink, #1b2a3a);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 0 var(--ink, #1b2a3a);
+}
+.dateBadge {
+  border: 2px solid var(--ink, #1b2a3a);
+  border-radius: 4px;
+  background: #e5eee4;
+  color: var(--event-text, #046a4c);
+  box-shadow: inset 0 -4px 0 rgba(95, 140, 99, 0.35);
+}
+.dateBadge strong { font-family: var(--font-brick), sans-serif; font-weight: 400; font-size: 1.4rem; }
+.secondary {
+  border: 2.5px solid var(--ink, #1b2a3a);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--ink, #1b2a3a);
+  box-shadow: inset 0 -4px 0 var(--border);
+}
+.secondary:hover { background: var(--paper, #f7f2e4); }
+.rsvp { border: 2px solid var(--ink, #1b2a3a); border-radius: 5px; background: #ffffff; }
+.rsvp button { border-radius: 3px; }
+.dropOverlay { border: 3px dashed var(--ink, #1b2a3a); border-radius: 8px; background: rgba(247, 242, 228, 0.94); color: var(--ink, #1b2a3a); }
+.pastToggle { color: var(--brick-blue, #33618c); }
