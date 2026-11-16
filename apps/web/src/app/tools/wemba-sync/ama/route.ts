@@ -2,8 +2,8 @@
 //
 // Body: { provider, schedule, section, messages }: the weekend the page shows
 // (or null), the student's section (or null) and the conversation, ending with
-// the new question (see checkAsk). AMA answers from the student's saved
-// weekends, syllabi and events, loaded here, plus the shown weekend in case
+// the new question (see checkAsk). AMA answers from the class's shared
+// weekends and syllabi and the student's events, loaded here, plus the shown weekend in case
 // it wasn't saved. The conversation isn't saved. A body over
 // MAX_AMA_REQUEST_BYTES gets a 413, one checkAsk refuses a 400. The response
 // is server-sent events: the answer's { type: "text", delta } events and a
@@ -54,7 +54,7 @@ function now(): string {
 }
 
 /**
- * What AMA answers from: the student's saved weekends, syllabi and events,
+ * What AMA answers from: the class's weekends and syllabi and the student's events,
  * and the shown weekend. Without storage, just the shown weekend.
  */
 async function knowledge(userId: string, shown: WeekendSchedule | null): Promise<AMAKnowledge> {
