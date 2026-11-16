@@ -2,15 +2,12 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { DM_Sans } from "next/font/google";
 import { C, shadow } from "../lib/tokens";
 import { formatDate, formatTime } from "../lib/format";
 import { useAnonymousIdentity } from "../hooks/useAnonymousIdentity";
 import { useCompassEvents } from "../hooks/useCompassEvents";
 import { useReflections } from "../hooks/useReflections";
 import { ReflectionModal } from "../components/ReflectionModal";
-
-const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
 function BackIcon() {
   return (
@@ -74,7 +71,7 @@ export default function ReflectionsPage() {
   }, [reflectionsByEventId, events]);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, color: C.text, fontFamily: dmSans.style.fontFamily }}>
+    <div style={{ minHeight: "100vh", background: C.pageBg, color: C.text }}>
       {/* Header */}
       <nav style={{
         position: "sticky", top: 0, zIndex: 40,

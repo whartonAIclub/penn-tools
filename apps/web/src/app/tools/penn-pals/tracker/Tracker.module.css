@@ -330,7 +330,7 @@
   margin: 0;
   font-size: 0.9rem;
 }
-.aiUsage {
+.aiMeta {
   font-size: 0.75rem;
   color: var(--section-label);
 }

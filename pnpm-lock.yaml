@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.33
+        specifier: ^22.0.0
+        version: 22.20.5
       turbo:
         specifier: ^2.0.0
         version: 2.8.10
@@ -35,15 +35,30 @@ importers:
       '@penntools/tool-3':
         specifier: workspace:*
         version: link:../../tools/3
+      '@penntools/tool-accounting-practice':
+        specifier: workspace:*
+        version: link:../../tools/accounting-practice
       '@penntools/tool-askpenn':
         specifier: workspace:*
         version: link:../../tools/askpenn
       '@penntools/tool-career-canvas':
         specifier: workspace:*
         version: link:../../tools/career-canvas
+      '@penntools/tool-choose-mba-major':
+        specifier: workspace:*
+        version: link:../../tools/choose-mba-major
       '@penntools/tool-coursematch-assist':
         specifier: workspace:*
         version: link:../../tools/coursematch-assist
+      '@penntools/tool-deadline-calendar':
+        specifier: workspace:*
+        version: link:../../tools/deadline-calendar
+      '@penntools/tool-keepintouch':
+        specifier: workspace:*
+        version: link:../../tools/keepintouch
+      '@penntools/tool-non-wharton-course-manager':
+        specifier: workspace:*
+        version: link:../../tools/non-wharton-course-manager
       '@penntools/tool-penn-pals':
         specifier: workspace:*
         version: link:../../tools/penn-pals
@@ -56,9 +71,15 @@ importers:
       '@penntools/tool-platform-playground':
         specifier: workspace:*
         version: link:../../tools/platform-playground
+      '@penntools/tool-recruiting-helper':
+        specifier: workspace:*
+        version: link:../../tools/recruiting-helper
       '@penntools/tool-resume-customizer':
         specifier: workspace:*
         version: link:../../tools/resume-customizer
+      '@penntools/tool-wemba-sync':
+        specifier: workspace:*
+        version: link:../../tools/wemba-sync
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
@@ -98,7 +119,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.1
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   packages/core:
     dependencies:
@@ -139,7 +160,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.1
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/18:
     dependencies:
@@ -152,7 +173,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/19:
     dependencies:
@@ -171,7 +192,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/3:
     dependencies:
@@ -184,7 +205,23 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/accounting-practice:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/askpenn:
     dependencies:
@@ -200,7 +237,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/career-canvas:
     dependencies:
@@ -216,7 +253,20 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/choose-mba-major:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/coursematch-assist:
     dependencies:
@@ -232,7 +282,49 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/deadline-calendar:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/keepintouch:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/non-wharton-course-manager:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/penn-pals:
     dependencies:
@@ -248,7 +340,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/penn-planner:
     dependencies:
@@ -261,7 +353,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/pitch-coach:
     dependencies:
@@ -274,7 +366,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/platform-playground:
     dependencies:
@@ -287,7 +379,26 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/recruiting-helper:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      mammoth:
+        specifier: ^1.8.0
+        version: 1.12.0
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
 
   tools/resume-customizer:
     dependencies:
@@ -300,7 +411,23 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.33)
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/wemba-sync:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
 
 packages:
 
@@ -694,8 +821,8 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
-  '@types/node@20.19.33':
-    resolution: {integrity: sha512-Rs1bVAIdBs5gbTIKza/tgpMuG1k3U/UMJLWecIMxNdJFDMzcM5LOiLVRYh3PilWEYDIeUDv7bpiHPLPsbydGcw==}
+  '@types/node@22.20.5':
+    resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
@@ -816,8 +943,8 @@ packages:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
     engines: {node: '>= 0.4'}
 
-  caniuse-lite@1.0.30001774:
-    resolution: {integrity: sha512-DDdwPGz99nmIEv216hKSgLD+D4ikHQHjBC/seF98N9CPqRX4M5mSxT9eTV6oyisnJcuzxtZy4n17yKKQYmYQOA==}
+  caniuse-lite@1.0.30001826:
+    resolution: {integrity: sha512-wTB+9tIbLro/BCXwLuNV1meHE4L9dS6dArMDwgYfNBPMYScqClHyGunhkCSDtHhe/69Xl0sHlKgBVZ+fNsYtWA==}
 
   canvas@2.11.2:
     resolution: {integrity: sha512-ItanGBMrmRV7Py2Z+Xhs7cT+FNt5K0vPL4p9EZ/UX/Mu7hFbkxSjKF2KVtPwX7UYWp7dRKnrTvReflgrItJbdw==}
@@ -2008,7 +2135,7 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
-  '@types/node@20.19.33':
+  '@types/node@22.20.5':
     dependencies:
       undici-types: 6.21.0
 
@@ -2135,7 +2262,7 @@ snapshots:
       es-errors: 1.3.0
       function-bind: 1.1.2
 
-  caniuse-lite@1.0.30001774: {}
+  caniuse-lite@1.0.30001826: {}
 
   canvas@2.11.2:
     dependencies:
@@ -2600,7 +2727,7 @@ snapshots:
       '@next/env': 14.2.35
       '@swc/helpers': 0.5.5
       busboy: 1.6.0
-      caniuse-lite: 1.0.30001774
+      caniuse-lite: 1.0.30001826
       graceful-fs: 4.2.11
       postcss: 8.4.31
       react: 18.3.1
@@ -3018,13 +3145,13 @@ snapshots:
 
   uuid@11.1.1: {}
 
-  vite-node@1.6.1(@types/node@20.19.33):
+  vite-node@1.6.1(@types/node@22.20.5):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       pathe: 1.1.2
       picocolors: 1.1.1
-      vite: 5.4.21(@types/node@20.19.33)
+      vite: 5.4.21(@types/node@22.20.5)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -3036,16 +3163,16 @@ snapshots:
       - supports-color
       - terser
 
-  vite@5.4.21(@types/node@20.19.33):
+  vite@5.4.21(@types/node@22.20.5):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.6
       rollup: 4.59.0
     optionalDependencies:
-      '@types/node': 20.19.33
+      '@types/node': 22.20.5
       fsevents: 2.3.3
 
-  vitest@1.6.1(@types/node@20.19.33):
+  vitest@1.6.1(@types/node@22.20.5):
     dependencies:
       '@vitest/expect': 1.6.1
       '@vitest/runner': 1.6.1
@@ -3064,11 +3191,11 @@ snapshots:
       strip-literal: 2.1.1
       tinybench: 2.9.0
       tinypool: 0.8.4
-      vite: 5.4.21(@types/node@20.19.33)
-      vite-node: 1.6.1(@types/node@20.19.33)
+      vite: 5.4.21(@types/node@22.20.5)
+      vite-node: 1.6.1(@types/node@22.20.5)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 20.19.33
+      '@types/node': 22.20.5
     transitivePeerDependencies:
       - less
       - lightningcss

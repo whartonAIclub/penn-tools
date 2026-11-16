@@ -51,6 +51,7 @@ def local(path: str) -> dict:
 TARGETS = {
     # Community tools (apps/web/src/data/communityTools.ts)
     "quakercal": {"url": "https://quakercal.vercel.app/"},
+    "mbakit": {"url": "https://mbakit.vercel.app/"},
     "mba-tech-internships": {
         # The README, not GitHub's file listing.
         "url": "https://github.com/TrevorDohm/MBA-Tech-Internships-2027",
@@ -75,6 +76,13 @@ TARGETS = {
     "pitch-coach": local("/tools/pitch-coach"),
     "platform-playground": local("/tools/platform-playground"),
     "askpenn": local("/tools/askpenn"),
+    "recruiting-helper": local("/tools/recruiting-helper"),  # needs sign-in: its image was taken signed in
+    "accounting-practice": local("/tools/accounting-practice"),
+    "choose-mba-major": local("/tools/choose-mba-major"),
+    "non-wharton-course-manager": local("/tools/non-wharton-course-manager"),
+    "keepintouch": local("/tools/keepintouch"),  # needs sign-in: its image was taken signed in
+    "deadline-calendar": local("/tools/deadline-calendar"),  # needs sign-in: its image was taken signed in
+    "wemba-sync": local("/tools/wemba-sync"),  # needs sign-in: its image was taken signed in, with sample data
 }
 
 

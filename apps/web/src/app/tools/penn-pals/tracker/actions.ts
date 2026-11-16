@@ -30,7 +30,7 @@ export async function readChat(
   answers: IntakeAnswer[] = [],
   base?: ContactDraft,
 ): Promise<IntakeResult> {
-  const ai = await getAI();
+  const ai = await getAI("penn-pals");
   if (!ai) return { ok: false, error: { message: "Sign in with the button at the top right to use the AI." } };
 
   const problem = checkStory(story);

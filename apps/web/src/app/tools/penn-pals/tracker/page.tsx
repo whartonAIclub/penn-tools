@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function PennPalsTrackerPage() {
-  const ai = await getAI(); // null when signed out
+  const ai = await getAI("penn-pals"); // null when signed out
   const providers = ai ? await ai.providers() : [];
   return (
     <>

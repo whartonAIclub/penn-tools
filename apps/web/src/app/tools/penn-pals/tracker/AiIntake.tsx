@@ -161,7 +161,7 @@ export function AiIntake({
           <button type="button" className={styles.link} onClick={startOver}>
             Start over
           </button>
-          <span className={styles.aiUsage}> · {status.tokens.toLocaleString()} AI tokens used</span>
+          <span className={styles.aiMeta}> · {status.tokens.toLocaleString()} AI tokens used</span>
         </p>
       ) : status.state === "asking" ? (
         <div className={styles.aiQuestions}>
@@ -219,7 +219,7 @@ export function AiIntake({
                 ))}
               </select>
             )}
-            <span className={styles.aiUsage}>
+            <span className={styles.aiMeta}>
               {story.length.toLocaleString()} / {MAX_STORY_LENGTH.toLocaleString()}
             </span>
           </div>

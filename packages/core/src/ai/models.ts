@@ -13,6 +13,10 @@
 
 import type { AIProvider, AIReasoning, AITier } from "./types.js";
 
+/** Every tier and reasoning level the AI API takes; AITier and AIReasoning come from these. */
+export const AI_TIERS = ["fast", "standard", "best"] as const;
+export const AI_REASONING_LEVELS = ["low", "medium", "high"] as const;
+
 export interface ModelSpec {
   readonly id: string;
   readonly reasoning: AIReasoning;
@@ -30,6 +34,9 @@ export const MODELS = {
     best: { id: "gpt-6-astra", reasoning: "high" },
   },
 } as const satisfies Record<AIProvider, Record<AITier, ModelSpec>>;
+
+/** Every provider the AI API takes: MODELS' keys, which must include them all. */
+export const AI_PROVIDERS = Object.keys(MODELS) as readonly AIProvider[];
 
 /** The tier used when a request names neither a tier nor a model. */
 export const DEFAULT_TIER: AITier = "standard";

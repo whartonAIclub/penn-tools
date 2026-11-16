@@ -28,7 +28,7 @@ function todayInPhilly(): string {
 }
 
 export async function debrief(provider: AIProvider, notes: string): Promise<DebriefResult> {
-  const ai = await getAI();
+  const ai = await getAI("penn-pals");
   if (!ai) return { ok: false, error: { message: "Sign in with the button at the top right to use Penn Pals." } };
 
   const problem = checkNotes(notes);

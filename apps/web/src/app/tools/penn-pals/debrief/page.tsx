@@ -19,7 +19,7 @@ export default async function PennPalsPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Penn Pals: Network Tracker" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("penn-pals"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="Penn Pals: Network Tracker" />;
 
   return <PennPals providers={providers} labels={PROVIDER_LABELS} maxLength={MAX_NOTES_LENGTH} />;

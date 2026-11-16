@@ -1,0 +1,1236 @@
+/* Penn Modern: the tool's look (see "Visual style" in SPEC.md). Colors live
+   here as variables so every part of the page uses the same ones. */
+
+.root {
+  --paper: #fbfaf6;
+  --panel: #eeedea;
+  --soft: #f4f3ee;
+  --card: #ffffff;
+  --blue: #011f5b;
+  --muted: #4a5468;
+  --link: #0e5696;
+  --red: #990000;
+  --gold: #f6e7b4;
+  --gold-light: #fbf3d9;
+  --blue-light: #d4e4f2;
+  --locked: #6a7386;
+  --shadow: 0 1px 2px #011f5b0f, 0 8px 24px #011f5b14;
+  /* Dot patterns on a 14px grid. */
+  --dots-blue: radial-gradient(rgba(14, 86, 150, 0.3) 1.1px, transparent 1.4px);
+  --dots-light: radial-gradient(rgba(130, 166, 232, 0.35) 1.1px, transparent 1.4px);
+
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--blue);
+  font-family: var(--nwcm-sans), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ---- Shared pieces ---- */
+
+/* Cards fade up gently as they appear; overview bars fill one after another. */
+@keyframes nwcmRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes nwcmFill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.rise { animation: nwcmRise 0.5s ease both; }
+.fill { animation: nwcmFill 0.9s ease-in-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .rise, .fill { animation: none; }
+}
+
+.label {
+  font-family: var(--nwcm-mono), Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.goldPill {
+  composes: label;
+  align-self: flex-start;
+  background: var(--gold);
+  color: var(--blue);
+  border-radius: 9999px;
+  padding: 5px 14px;
+}
+
+.muted {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.red { color: var(--red); }
+
+.card {
+  background: var(--card);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.primaryButton {
+  border-radius: 9999px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 24px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.primaryButton:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.root button:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+/* ---- Top bar ---- */
+
+.topBar {
+  background-color: var(--blue);
+  background-image: radial-gradient(rgba(130, 166, 232, 0.35) 1px, transparent 1.3px);
+  background-size: 12px 12px;
+  color: #fff;
+}
+
+.topBarInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.slash { color: var(--gold); }
+
+.savedPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  padding: 6px 14px;
+}
+
+/* ---- Overview ---- */
+
+.overview {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 72px 24px 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 56px;
+}
+
+.hero {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  padding: 24px 0;
+}
+.hero .goldPill { align-self: center; }
+
+.heroTitle {
+  margin: 0;
+  max-width: 760px;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: clamp(40px, 6.5vw, 64px);
+  line-height: 1.05;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.heroText {
+  max-width: 620px;
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.overviewPanel {
+  width: 100%;
+  background-color: var(--panel);
+  background-image: var(--dots-blue);
+  background-size: 14px 14px;
+  border-radius: 32px;
+  padding: 48px;
+}
+
+.overviewSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.overviewCard {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow);
+}
+
+.numberCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.circleBlue { background: var(--blue); color: #fff; }
+.circleGold { background: var(--gold); color: var(--blue); }
+.circleRed { background: var(--red); color: #fff; }
+
+.overviewCardTitle {
+  margin: 0;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 400;
+}
+
+.overviewCardText {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Progress bars sit at the bottom of each card, so they line up. */
+.barTrack {
+  margin-top: auto;
+  display: block;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.bar { display: block; height: 4px; width: 100%; border-radius: 9999px; }
+.barBlue { background: var(--blue); }
+.barGold { background: #d7bc6a; }
+.barRed { background: var(--red); }
+
+.startArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.startButton {
+  composes: primaryButton;
+  font-size: 16px;
+  padding: 0 34px;
+  min-height: 54px;
+  box-shadow: 0 8px 24px #011f5b33;
+}
+
+/* ---- Flow: stepper beside the current step (stacks on a phone) ---- */
+
+.flow {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.stepper {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 260px;
+  max-width: 320px;
+  min-width: 0;
+  background-color: var(--panel);
+  border-radius: 28px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+/* A band of dots along the bottom of the stepper panel. */
+.stepper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 120px;
+  background-image: var(--dots-blue);
+  background-size: 14px 14px;
+  pointer-events: none;
+}
+
+.overviewLink {
+  position: relative;
+  z-index: 1;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--blue);
+}
+
+.overviewPill {
+  composes: label;
+  align-self: flex-start;
+  color: var(--link);
+  background: var(--card);
+  border-radius: 9999px;
+  padding: 6px 12px;
+}
+
+.stepperTitle {
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.stepList {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stepItem { display: flex; gap: 16px; }
+
+.stepRail {
+  flex: none;
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stepDot {
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  border: 1.5px solid #c9c8c0;
+  background: var(--card);
+  color: var(--muted);
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepItem[data-state="done"] .stepDot { border-color: var(--blue); background: var(--blue); color: #fff; }
+.stepItem[data-state="current"] .stepDot {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 0 0 6px rgba(153, 0, 0, 0.14);
+}
+
+.stepLine {
+  flex: 1;
+  min-height: 44px;
+  margin: 8px 0;
+  border-left: 2px dotted #a9a89f;
+}
+.stepLine[data-done="true"] { border-left-color: var(--blue); }
+
+.stepButton {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 6px 0 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--blue);
+}
+.stepItem:last-child .stepButton { padding-bottom: 0; }
+.stepButton:disabled { cursor: not-allowed; }
+
+.stepName { font-size: 16px; line-height: 1.35; }
+.stepItem[data-state="current"] .stepName { font-weight: 500; }
+.stepItem[data-state="locked"] .stepName { color: var(--locked); }
+
+.stepPill {
+  composes: label;
+  align-self: flex-start;
+  font-size: 11px;
+  border-radius: 9999px;
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.6);
+}
+.stepItem[data-state="current"] .stepPill { background: var(--gold); }
+.stepItem[data-state="done"] .stepPill { background: var(--card); }
+.stepItem[data-state="locked"] .stepPill { color: var(--locked); }
+
+.stepArea {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* The Penn Blue card at the top of each step. */
+.stepHeader {
+  background-color: var(--blue);
+  background-image: var(--dots-light);
+  background-size: 14px 14px;
+  border-radius: 28px;
+  padding: 40px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stepTitle {
+  margin: 0;
+  max-width: 560px;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 38px;
+  line-height: 1.15;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.stepIntro {
+  max-width: 560px;
+  color: var(--blue-light);
+}
+
+/* ---- Step content cards ---- */
+
+.root a { color: var(--link); }
+.root a:hover { color: var(--blue); }
+
+.mutedText { color: var(--muted); }
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The gold A / B / C marker before each part's title. */
+.letter {
+  composes: label;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--gold);
+  color: var(--blue);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.titleRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.actionRow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.endRow { display: flex; justify-content: flex-end; padding-top: 6px; }
+
+/* A: the three how-to tiles. */
+.tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  background: var(--soft);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.tile strong { color: var(--blue); font-weight: 500; }
+
+.tileNumber {
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--red);
+}
+
+/* B: paste box and the "What we check" panel. */
+.infoButton {
+  border-radius: 9999px;
+  background: var(--blue-light);
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.infoButton:hover { background: #c3d8ec; }
+.infoButton[aria-expanded="true"] { background: var(--blue); color: #fff; }
+.callout strong { font-weight: 500; color: var(--blue); }
+.note { margin: 0; }
+
+.callout {
+  position: relative;
+  overflow: hidden;
+  background: var(--gold-light);
+  border-radius: 20px;
+  padding: 20px 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Gold dots down the callout's right edge. */
+.callout::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 120px;
+  background-image: radial-gradient(rgba(215, 188, 106, 0.6) 1.1px, transparent 1.4px);
+  background-size: 12px 12px;
+  pointer-events: none;
+}
+.callout > * { position: relative; z-index: 1; }
+
+.ruleChips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ruleChip { background: var(--card); border-radius: 9999px; padding: 6px 14px; }
+
+.textarea {
+  resize: vertical;
+  border: 0;
+  border-radius: 18px;
+  padding: 18px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--blue);
+  background: var(--soft);
+}
+.textarea::placeholder { color: #8a92a3; }
+.textarea:focus { outline: 2px solid var(--link); outline-offset: 1px; }
+
+.checking {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid var(--panel);
+  border-top-color: var(--red);
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* C: results. */
+.resultsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.score { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+
+.scoreNumber {
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--red);
+}
+
+.resultList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+/* One course. Its colors follow the eligibility result. */
+.resultRow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 18px;
+  padding: 16px 20px;
+  background: var(--soft);
+}
+.resultRow[data-result="doesnt-count"] { background: #faf8f4; }
+.resultRow[data-result="take-graduate"],
+.resultRow[data-result="needs-format"] { background: var(--gold-light); }
+.resultRow[data-result="wharton"] { background: #f2f6fa; }
+
+.resultMain { display: flex; gap: 16px; align-items: center; }
+
+.checkbox {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin: 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+.checkbox:disabled { cursor: not-allowed; }
+
+.resultText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.resultRow[data-result="doesnt-count"] .resultText,
+.resultRow[data-result="wharton"] .resultText { opacity: 0.75; }
+
+.code { composes: label; color: var(--muted); }
+.courseTitle { font-size: 16px; font-weight: 500; }
+.reason { font-size: 13px; color: var(--muted); }
+
+.resultPill {
+  composes: label;
+  flex: none;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  background: #e2efe4;
+  color: #267434;
+}
+.resultRow[data-result="doesnt-count"] .resultPill { background: #f5e1e1; color: var(--red); }
+.resultRow[data-result="take-graduate"] .resultPill,
+.resultRow[data-result="needs-format"] .resultPill { background: var(--gold); color: var(--blue); }
+.resultRow[data-result="wharton"] .resultPill { background: var(--blue-light); color: var(--blue); }
+
+.removeButton {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 9999px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.removeButton:hover { background: rgba(1, 31, 91, 0.06); color: var(--blue); }
+
+/* The format question or the switch button, lined up under the course text. */
+.resultExtra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding-left: 38px;
+  font-size: 13px;
+}
+
+.formatButton {
+  border-radius: 9999px;
+  background: var(--card);
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px;
+  min-height: 36px;
+}
+.formatButton:hover { background: var(--blue-light); }
+
+.switchButton {
+  border-radius: 9999px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 16px;
+  min-height: 38px;
+}
+
+/* B: the heading row with the term picker on the right. */
+.spreadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+
+.field { display: flex; flex-direction: column; gap: 10px; }
+
+.note {
+  font-size: 14px;
+  color: var(--blue);
+  background: var(--gold-light);
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+
+.warning {
+  font-size: 14px;
+  color: var(--red);
+  background: #f5e1e1;
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+
+/* ---- Step 2: Request permission ---- */
+
+.fieldLabel { font-size: 14px; font-weight: 500; color: var(--blue); }
+
+.pillInput {
+  font-family: inherit;
+  font-size: 15px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 9999px;
+  min-height: 48px;
+  background: var(--card);
+  color: var(--blue);
+  width: 100%;
+}
+.pillInput:focus { outline: 2px solid var(--link); outline-offset: 1px; }
+.pillInput::placeholder { color: #8a92a3; }
+.softInput { background: var(--soft); font-size: 14px; min-height: 46px; }
+
+.secondaryButton {
+  border-radius: 9999px;
+  background: var(--blue-light);
+  color: var(--blue);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 0 22px;
+  min-height: 48px;
+}
+
+.navRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* The gold name-and-year card, with gold dots down its right side. */
+.senderCard {
+  composes: callout;
+  border-radius: 24px;
+  padding: 28px;
+  gap: 16px;
+}
+
+.senderIntro { display: flex; align-items: flex-start; gap: 12px; color: var(--blue); }
+.senderIntro strong { font-weight: 500; }
+
+.senderIcon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--card);
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.senderFields { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.nameField { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; }
+.pickField { flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Rounded dropdowns in the gold card (year, term). */
+.pillSelect {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--blue);
+  border: 0;
+  border-radius: 9999px;
+  background: var(--card);
+  padding: 0 18px;
+  min-height: 48px;
+  width: 100%;
+  cursor: pointer;
+}
+.pillSelect:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+
+/* A locked "Open in email" and the note saying what unlocks it. */
+.lockedAction { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lockedNote { font-size: 13px; color: var(--muted); max-width: 240px; }
+.mailButton:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.inlineLink {
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.permissionList { display: flex; flex-direction: column; gap: 12px; }
+
+/* One course's card, colored by where its request stands. */
+.permissionCard {
+  --status-bg: var(--panel);
+  --status-fg: var(--muted);
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: 0 1px 2px #011f5b0f, 0 4px 12px #011f5b0d;
+  overflow: hidden;
+}
+.permissionCard[data-open="true"] { box-shadow: 0 1px 2px #011f5b0f, 0 12px 32px #011f5b1f; }
+.permissionCard[data-status="waiting"] { --status-bg: var(--gold); --status-fg: var(--blue); }
+.permissionCard[data-status="approved"] { --status-bg: #e2efe4; --status-fg: #267434; }
+.permissionCard[data-status="declined"] { --status-bg: #f5e1e1; --status-fg: var(--red); }
+
+.cardHead {
+  width: 100%;
+  text-align: left;
+  padding: 20px 24px;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--blue);
+}
+
+.cardNumber {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--status-bg);
+  color: var(--status-fg);
+  font-family: var(--nwcm-serif), Georgia, serif;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.statusPill {
+  composes: label;
+  flex: none;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  background: var(--status-bg);
+  color: var(--status-fg);
+}
+
+.chevron {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+.permissionCard[data-open="true"] .chevron { transform: rotate(180deg); }
+
+.cardBody { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.contactField { display: flex; flex-direction: column; gap: 6px; }
+
+.sourcePill {
+  composes: label;
+  font-size: 11px;
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+.sourcePill[data-source="details"] { background: #e2efe4; color: #267434; }
+.sourcePill[data-source="directory"] { background: var(--gold); color: var(--blue); }
+.sourcePill[data-source="none"] { background: #f5e1e1; color: var(--red); }
+.sourcePill[data-source="you"] { background: var(--blue-light); color: var(--blue); }
+
+/* The permission pill (backlog) and the "Find … email" search button. */
+.contactHelp { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 4px; }
+
+.findButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  border-radius: 9999px;
+  background: var(--blue-light);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 18px;
+  min-height: 40px;
+}
+.root .findButton,
+.root .findButton:hover { color: var(--blue); }
+.findButton:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+.emailPreview {
+  background: var(--soft);
+  border-radius: 20px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.65;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 14px;
+  align-items: baseline;
+}
+/* The editable email: looks like the preview, with a light outline on hover and focus. */
+.emailEditor { display: flex; flex-direction: column; gap: 8px; }
+.subjectInput,
+.bodyInput {
+  font: inherit;
+  color: var(--blue);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 4px 8px;
+  margin: -5px -9px;
+  width: calc(100% + 18px);
+}
+.subjectInput { font-weight: 500; }
+.bodyInput {
+  grid-column: 1 / -1;
+  resize: vertical;
+  line-height: 1.65;
+  field-sizing: content;
+  min-height: 8em;
+}
+.subjectInput:hover,
+.bodyInput:hover { border-color: #d8d6cc; background: rgba(255, 255, 255, 0.5); }
+.subjectInput:focus,
+.bodyInput:focus { outline: 2px solid var(--link); outline-offset: 0; background: var(--card); }
+
+.editedRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.editedPill {
+  composes: label;
+  font-size: 11px;
+  background: var(--blue-light);
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+
+/* Read by screen readers only. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.mailButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  border-radius: 9999px;
+  background: var(--blue);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 22px;
+  min-height: 46px;
+}
+.root .mailButton,
+.root .mailButton:hover { color: #fff; }
+.mailButton:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+.statusToggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--soft);
+  border-radius: 9999px;
+}
+
+.statusOption {
+  border-radius: 9999px;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.statusOption[aria-pressed="true"][data-status="not-sent"] { background: var(--panel); color: var(--muted); }
+.statusOption[aria-pressed="true"][data-status="waiting"] { background: var(--gold); color: var(--blue); }
+.statusOption[aria-pressed="true"][data-status="approved"] { background: #e2efe4; color: #267434; }
+.statusOption[aria-pressed="true"][data-status="declined"] { background: #f5e1e1; color: var(--red); }
+
+/* ---- Step 3 ---- */
+
+.approvedList { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+
+.approvedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #e2efe4;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+.approvedCode { composes: label; color: #267434; }
+
+.donePanel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 32px;
+  padding: 48px;
+  background-color: var(--panel);
+  background-image: var(--dots-blue);
+  background-size: 14px 14px;
+}
+.doneArt { position: absolute; right: 24px; top: 24px; }
+
+.doneCard {
+  position: relative;
+  max-width: 480px;
+  background: var(--card);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.doneCard p { margin: 0; }
+
+.sentPill {
+  composes: label;
+  align-self: flex-start;
+  background: #e2efe4;
+  color: #267434;
+  border-radius: 9999px;
+  padding: 5px 12px;
+}
+
+.doneTitle { margin: 0; font-family: var(--nwcm-serif), Georgia, serif; font-size: 32px; font-weight: 400; }
+
+/* "Start over" in the top bar: small, so it isn't clicked by accident. */
+.topBarRight { display: flex; align-items: center; gap: 14px; }
+.startOver {
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  color: var(--blue-light);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.startOver:hover { color: #fff; }
+
+/* ---- "Find an email" panel ---- */
+
+.panelBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(1, 31, 91, 0.25);
+}
+
+.searchPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  width: min(460px, 100%);
+  overflow-y: auto;
+  /* Google's plain look: white, Arial, dark grey text, a light divider instead of a heavy shadow. */
+  background: #fff;
+  color: #202124;
+  font-family: Arial, sans-serif;
+  line-height: normal;
+  border-left: 1px solid #dadce0;
+  box-shadow: -4px 0 16px rgba(60, 64, 67, 0.15);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: nwcmSlideIn 0.25s ease-out;
+}
+@keyframes nwcmSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) { .searchPanel { animation: none; } }
+
+.searchPanelHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.searchPanelTitle { margin: 0; font-size: 22px; font-weight: 400; color: #202124; }
+.searchPanelNote { margin: 0; font-size: 14px; color: #4d5156; }
+.searchPanelClose {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #5f6368;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.searchPanelClose:hover { background: #f1f3f4; }
+.panelText { margin: 0 0 10px; }
+.searchResults { min-height: 120px; }
+/* Google's search box and results: drop their own frame so they sit on the panel. */
+/* Only remove the outer frame; everything inside keeps Google's own look. */
+.searchResults :global(.gsc-control-cse) { padding: 0; border: 0; }
+/* The engine's "Overlay" layout floats results over the page; keep them in the panel instead. */
+/* Google's stylesheet marks its own rules important, so these must be too. */
+.searchResults :global(.gsc-results-wrapper-overlay) {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.searchResults :global(.gsc-modal-background-image),
+.searchResults :global(.gsc-results-close-btn) { display: none !important; }
+
+/* ---- Overview "HEADS UP" reminder card ---- */
+
+.reminderCard {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 760px;
+  background: var(--gold-light);
+  border-radius: 24px;
+  padding: 24px 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+/* Gold dots along the right edge. */
+.reminderCard::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 160px;
+  background-image: radial-gradient(rgba(215, 188, 106, 0.6) 1.1px, transparent 1.4px);
+  background-size: 12px 12px;
+  pointer-events: none;
+}
+.reminderCard > * { position: relative; z-index: 1; }
+.headsUp {
+  composes: label;
+  flex: none;
+  font-size: 11px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 9999px;
+  padding: 4px 10px;
+}
+.reminderText { flex: 1 1 360px; min-width: 0; margin: 0; }
+.reminderText strong { font-weight: 500; }
+.pathButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  border-radius: 9999px;
+  background: var(--blue);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 18px;
+  min-height: 40px;
+}
+.root .pathButton,
+.root .pathButton:hover { color: #fff; }
+.pathButton:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+/* Step 3's "You're not enrolled yet" box on the final card. */
+.notEnrolled {
+  margin-top: 8px;
+  background: var(--gold-light);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.notEnrolled strong { font-weight: 500; }
+.notEnrolled .label { font-size: 11px; }
+.notEnrolled .pathButton { align-self: flex-start; }
+
+@media (max-width: 600px) {
+  .reminderCard { padding: 20px; }
+  .searchPanel { width: 100%; padding: 20px 16px; }
+  .donePanel { padding: 24px 16px; }
+  .doneArt { display: none; }
+  .cardHead { padding: 16px; gap: 12px; flex-wrap: wrap; }
+  .cardHead .resultText { flex-basis: calc(100% - 112px); }
+  .cardHead .statusPill { margin-left: 56px; }
+  .cardBody { padding: 0 16px 20px; }
+  .senderCard { padding: 22px; }
+  .resultRow { padding: 14px 16px; }
+  .resultMain { flex-wrap: wrap; }
+  .resultText { flex-basis: calc(100% - 80px); }
+  .resultPill { margin-left: 38px; }
+
+  .overview { padding: 48px 16px 72px; gap: 40px; }
+  .overviewPanel { padding: 20px; border-radius: 24px; }
+  .flow { padding: 24px 16px 72px; gap: 24px; }
+  .stepper { max-width: none; }
+  .stepHeader { padding: 28px 24px; }
+  .stepTitle { font-size: 30px; }
+  .card { padding: 24px; }
+}
