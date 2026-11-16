@@ -1,5 +1,5 @@
 import { VISIT_RECENT_DAYS } from "@penntools/core/repositories";
-import type { ToolVisitRepository, ToolVisits } from "@penntools/core/repositories";
+import type { ToolVisitCount, ToolVisitRepository, ToolVisits } from "@penntools/core/repositories";
 import type { UserId } from "@penntools/core/types";
 import type { PrismaClient } from "@prisma/client";
 
@@ -38,5 +38,16 @@ export class PrismaToolVisitRepository implements ToolVisitRepository {
       recentVisits: row.recent_visits,
       recentUsers: row.recent_users,
     }));
+  }
+
+  async visitsSince(days: number): Promise<ToolVisitCount[]> {
+    const since = new Date(Date.now() - days * 24 * 60 * 60_000);
+    const rows = await this.db.$queryRaw<{ tool_id: string; visits: number; users: number }[]>`
+      SELECT tool_id, COUNT(*)::int AS visits, COUNT(DISTINCT user_id)::int AS users
+      FROM tool_visits
+      WHERE created_at > ${since}
+      GROUP BY tool_id
+      ORDER BY visits DESC, users DESC, tool_id`;
+    return rows.map((row) => ({ toolId: row.tool_id, visits: row.visits, users: row.users }));
   }
 }

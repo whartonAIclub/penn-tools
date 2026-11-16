@@ -387,15 +387,21 @@ Key design choices:
   `community-<id>` (`communityVisitId`) so it stays apart from registered
   tools' IDs. People who reach its site any other way aren't counted. `/admin`
   shows visits and distinct signed-in users per tool, for the last 30 days and
-  all time. `/stats`, linked from the dashboard's footer, shows the same table
-  to anyone, signed in or not, for the tools still on the site
-  (`components/stats/ToolVisitsTable.tsx`, with rows from
+  all time. `/stats`, linked from the dashboard's top tools and its footer,
+  shows the same table to anyone, signed in or not, for the tools still on the
+  site (`components/stats/ToolVisitsTable.tsx`, with rows from
   `lib/visitReport.ts`). It reads the report at most once a minute, so its
-  counts are never more than a minute old. Anyone can call the route, and some
-  ad blockers stop the beacon, so the counts are a guide, not an audit. A
-  removed tool's rows are deleted on every deploy once it's listed in
-  `removed-tools.json` (see **Removing a tool** in the README). Tool code must
-  not import `toolVisits` or `admins`.
+  counts are never more than a minute old (`cachedFor` in `lib/cache.ts`).
+  The home page leads with the most-visited tools of the last 7 and 30 days
+  (`lib/topTools.ts`, `components/dashboard/TopTools.tsx`), every tool but the
+  Platform team's AskPenn and Platform Playground. It reads them at most once
+  a minute too, but doesn't wait long on the database: if a read fails or
+  takes over 2 seconds, it shows the last counts read (`cachedOrStale`), or
+  none just after the server starts, and retries a minute later. Anyone can call
+  the route, and some ad blockers stop the beacon, so the counts are a guide,
+  not an audit. A removed tool's rows are deleted on every deploy once it's
+  listed in `removed-tools.json` (see **Removing a tool** in the README). Tool
+  code must not import `toolVisits` or `admins`.
 - `admins` lists, by email, who can open `/admin` (AI usage, tool visits, and
   the admins themselves, who add and remove each other there; no one can remove
   themselves). `db:deploy` adds the first admins

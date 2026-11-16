@@ -1,4 +1,5 @@
-// POST /api/visits — records a visit to a tool, for /admin and /stats
+// POST /api/visits — records a visit to a tool, for /admin, /stats and the
+// home page's top tools
 //
 // The site sends { toolId } with navigator.sendBeacon (lib/visits.ts), signed
 // in or not: a registered tool's ID each time it's opened, or a community
