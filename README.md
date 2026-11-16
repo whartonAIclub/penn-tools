@@ -72,7 +72,7 @@ pnpm test                                     # run all tests
 pnpm --filter @penntools/tool-askpenn test    # run one package's tests
 pnpm build                                    # production build
 pnpm typecheck                                # TypeScript check
-pnpm check:tools                              # tool code follows the platform rules (no vendor SDKs or key access; notYetMigrated matches legacy API use)
+pnpm check:tools                              # tool code follows the platform rules (no vendor SDKs or key access; PDFs opened safely; notYetMigrated matches legacy API use)
 pnpm new-tool                                 # scaffold a new tool (see Adding a tool)
 
 # Apply schema changes + tool databases. db:deploy doesn't read .env.local, so pass the URL

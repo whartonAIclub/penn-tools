@@ -20,9 +20,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
-  const sidebarOpen = cookies().get(SIDEBAR_COOKIE)?.value !== "closed";
-  const collapsed = (cookies().get(SECTIONS_COOKIE)?.value ?? "").split(".").filter(Boolean);
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const sidebarOpen = cookieStore.get(SIDEBAR_COOKIE)?.value !== "closed";
+  const collapsed = (cookieStore.get(SECTIONS_COOKIE)?.value ?? "").split(".").filter(Boolean);
   const sections = toolCatalog(toolRegistry.listManifests(), communityTools);
 
   return (

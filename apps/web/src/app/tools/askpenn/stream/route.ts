@@ -24,22 +24,14 @@ import {
 } from "@penntools/tool-askpenn";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
-import { loadGetDocument } from "@/lib/pdf";
+import { pdfPageCount } from "@/lib/pdf";
 
 /** Why one of the PDFs can't be sent, or null: each must open and have at most MAX_PDF_PAGES pages. */
 async function checkPdfs(attachments: Attachment[]): Promise<string | null> {
-  const getDocument = await loadGetDocument();
   for (const { name, mediaType, data } of attachments) {
     if (mediaType !== "application/pdf") continue;
-    const task = getDocument({ data: new Uint8Array(Buffer.from(data, "base64")), isEvalSupported: false, verbosity: 0 });
-    let pages: number;
-    try {
-      pages = (await task.promise).numPages;
-    } catch {
-      return `${name} couldn't be read as a PDF.`;
-    } finally {
-      await task.destroy();
-    }
+    const pages = await pdfPageCount(data);
+    if (pages === null) return `${name} couldn't be read as a PDF.`;
     if (pages > MAX_PDF_PAGES) return `${name} has ${pages} pages; PDFs can have at most ${MAX_PDF_PAGES}.`;
   }
   return null;

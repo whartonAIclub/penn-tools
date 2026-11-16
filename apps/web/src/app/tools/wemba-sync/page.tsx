@@ -25,7 +25,8 @@ export const metadata: Metadata = {
   title: "WEMBA Sync",
 };
 
-export default async function WembaSyncPage({ searchParams }: { searchParams: { theme?: string } }) {
+export default async function WembaSyncPage({ searchParams }: PageProps<"/tools/wemba-sync">) {
+  const { theme } = await searchParams;
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="WEMBA Sync" />;
 
@@ -38,7 +39,7 @@ export default async function WembaSyncPage({ searchParams }: { searchParams: { 
       labels={PROVIDER_LABELS}
       maxBytes={MAX_PDF_BYTES}
       // ?theme=bricks shows the building-bricks theme, to compare it with the default planner look.
-      theme={searchParams.theme === "bricks" ? "bricks" : "planner"}
+      theme={theme === "bricks" ? "bricks" : "planner"}
       {...await saved(user.id)}
     />
   );
