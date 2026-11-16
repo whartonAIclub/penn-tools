@@ -56,6 +56,12 @@ describe("resolveDate", () => {
     expect(guessExplanation(weekOnly, SAMPLE_COURSE)).toBe("Due picked Mon, Mar 1, the first class in Week 8. Please confirm.");
   });
 
+  it("never guesses a date before the first day of classes", () => {
+    // Week 1 starts on Wednesday, Jan 13, so its Monday isn't a class.
+    expect(resolveDate(deadline({ date: null, week: 1 }), SAMPLE_COURSE)).toBe("2027-01-13");
+    expect(resolveDate(deadline({ date: null, week: 1 }), { ...SAMPLE_COURSE, classDays: [] })).toBe("2027-01-13");
+  });
+
   it("stops guessing once the student picks a date, or when the outline names the day", () => {
     expect(isGuessedDate(deadline({ date: "2027-03-02", week: 8 }), SAMPLE_COURSE)).toBe(false);
     expect(isGuessedDate(deadline({ date: null, week: 8, day: 5 }), SAMPLE_COURSE)).toBe(false);
@@ -67,7 +73,7 @@ describe("resolveDate", () => {
     expect(resolveDate(deadline({ date: null, week: 5, day: 3 }), noWeek1)).toBeNull();
     expect(resolveDate(deadline({ date: null, week: 8 }), noWeek1)).toBeNull();
     expect(deadlineProblem(deadline({ date: null, week: 8 }), noWeek1)).toBe(
-      "Add the first week of classes in course details, or pick a date.",
+      "Add the first day of classes in course details, or pick a date.",
     );
   });
 

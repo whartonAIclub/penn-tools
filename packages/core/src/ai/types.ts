@@ -1,10 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // AI API types
 //
-// The AI object tools receive is already bound to the signed-in user: it calls
-// providers with that user's saved API key, which tools never see. The tool
-// picks the provider on every call; if the user has no key for it, the call
-// throws AIError("missing_key").
+// The AI object tools receive is already bound to the signed-in user and the
+// calling tool. Each call uses the platform's key until the user has spent
+// their free credit (FREE_CREDIT_USD, pricing.ts), then the user's saved key
+// for that provider; tools never see either. The tool picks the provider on
+// every call; with no key left to use, the call throws AIError("credit_used"),
+// or AIError("missing_key") when the platform has no key for that provider.
+// Every call's tokens and cost are recorded against the user and the tool.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { z } from "zod";
@@ -94,7 +97,10 @@ export interface GenerateObjectResult<T> {
 }
 
 export interface AI {
-  /** Providers the user has saved a key for (never the keys). */
+  /**
+   * Providers the user can call now (never the keys): those the platform has
+   * a key for while their free credit lasts, and those they've saved a key for.
+   */
   providers(): Promise<AIProvider[]>;
   generate(request: GenerateRequest): Promise<GenerateResult>;
   /** Yields text as it arrives, then one "done" event with the full result. */

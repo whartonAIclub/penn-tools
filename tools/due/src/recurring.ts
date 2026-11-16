@@ -34,7 +34,7 @@ export function occurrenceDates(recurring: RecurringDeadline, course: CourseDeta
 /** Why the repeating deadline can't go in the calendar yet, or null if it's ready. */
 export function recurringProblem(recurring: RecurringDeadline, course: CourseDetails): string | null {
   if (!recurring.title.trim()) return "Add a title.";
-  if (!isDate(course.week1Start)) return "Add the first week of classes in course details.";
+  if (!isDate(course.week1Start)) return "Add the first day of classes in course details.";
   if (recurring.firstWeek === null || recurring.lastWeek === null) return "Pick the first and last week.";
   if (recurring.lastWeek < recurring.firstWeek) return "The last week is before the first week.";
   if (recurring.lastWeek - recurring.firstWeek >= MAX_RECURRING_WEEKS) return `Pick at most ${MAX_RECURRING_WEEKS} weeks.`;

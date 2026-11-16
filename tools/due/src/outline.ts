@@ -1,7 +1,7 @@
 // Reading a course outline PDF with the AI API: the course's details and its
 // graded deadlines, turned into the shapes the rest of Due works with. The
 // tool's route (apps/web/src/app/tools/due/read/route.ts) passes in the
-// signed-in user's AI, so this runs on the student's own key.
+// signed-in user's AI: the platform's free credit, then the student's own key.
 //
 // The model reports what the outline says (a date, or a week and weekday, and
 // a time or "at class"); dates from weeks are worked out in deadlines.ts, once

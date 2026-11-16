@@ -1,4 +1,4 @@
-// POST /tools/due/read — reads a course outline PDF with the student's own AI key
+// POST /tools/due/read — reads a course outline PDF with the AI API
 //
 // Body: { provider, filename, data } with the PDF as base64. A route rather
 // than a server action, since Next.js refuses server action requests over
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (pdfProblem) return Response.json({ error: { message: pdfProblem } }, { status: 400 });
 
   try {
-    const { course, deadlines, recurring, usage } = await readOutline((await getAI())!, provider, { filename, data }, { signal: req.signal });
+    const { course, deadlines, recurring, usage } = await readOutline((await getAI("due"))!, provider, { filename, data }, { signal: req.signal });
     console.info(`[due] read an outline: ${deadlines.length} deadlines, ${recurring.length} repeating, ${usage.inputTokens} in / ${usage.outputTokens} out tokens`);
     return Response.json({ course, deadlines, recurring });
   } catch (error) {

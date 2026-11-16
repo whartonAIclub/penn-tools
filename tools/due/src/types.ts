@@ -14,7 +14,7 @@ export interface CourseDetails {
   classDays: number[];
   classStart: string | null;
   classEnd: string | null;
-  /** Any date in the first week of classes. Weeks run Monday to Sunday. */
+  /** The first day of classes. Week 1 is the week it falls in; weeks run Monday to Sunday. */
   week1Start: string | null;
 }
 

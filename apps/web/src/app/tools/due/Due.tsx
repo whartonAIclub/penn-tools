@@ -56,8 +56,8 @@ interface Outline {
 /** An error from the read route: an AIError's data, or just a message. */
 type ReadError = Partial<AIErrorInfo> & { message: string };
 
-/** Errors fixed in Settings: no key, a rejected key, or no credit. */
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+/** Errors fixed in Settings: no key, a rejected key, no credit, or the free AI credit used up. */
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 export interface DueProps {
   /** Providers the student has saved a key for. */
@@ -165,7 +165,7 @@ function toBase64(file: File): Promise<string> {
   });
 }
 
-/** Sends the outline to the tool's read route, which reads it with the student's own key. */
+/** Sends the outline to the tool's read route, which reads it with the AI API. */
 async function readOutline(
   file: File,
   provider: AIProvider,
@@ -292,7 +292,7 @@ function UploadStep({
         )}
       </div>
       <p className={styles.help}>
-        The outline goes to {labels[provider]} with your own API key, and nothing is saved. Reading one costs about a cent.
+        {labels[provider]} reads the outline, and nothing is saved. Reading one costs about a cent of your AI credit.
       </p>
     </section>
   );
@@ -373,14 +373,14 @@ function CourseStep({
       </div>
 
       <label className={styles.field}>
-        <span className={styles.label}>First week of classes</span>
+        <span className={styles.label}>First day of classes</span>
         <input
           type="date"
           className={styles.input}
           value={course.week1Start ?? ""}
           onChange={(e) => onChange({ ...course, week1Start: e.target.value || null })}
         />
-        <span className={styles.help}>Any day in Week 1. Weeks run Monday to Sunday, and Day 1 is Monday.</span>
+        <span className={styles.help}>Week 1 is the week this falls in. Weeks run Monday to Sunday.</span>
       </label>
 
       <div className={styles.actions}>
@@ -852,8 +852,11 @@ function DownloadStep({
     const link = document.createElement("a");
     link.href = url;
     link.download = calendarFileName(course);
+    document.body.appendChild(link); // Firefox ignores clicks on links outside the page
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    // Releasing the file right after the click can cancel the download in Firefox and Safari.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
     setDownloaded(true);
   }
 

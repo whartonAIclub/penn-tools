@@ -1,7 +1,7 @@
 // Due: turn a course outline into calendar events with reminders. The AI reads
-// the outline PDF with the student's own key (see tools/due/PLAN.md), so the
-// page asks signed-out visitors to sign in and sends students without a key to
-// Settings.
+// the outline PDF, on the platform's free AI credit and then the student's own
+// key (see tools/due/PLAN.md), so the page asks signed-out visitors to sign in
+// and sends students out of credit without a saved key to Settings.
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
@@ -20,7 +20,7 @@ export default async function DuePage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Due" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("due"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="Due" />;
 
   return (

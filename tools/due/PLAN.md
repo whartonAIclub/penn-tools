@@ -18,7 +18,7 @@ Due reads a course outline (PDF), pulls out the deadlines, and gives you a calen
 
 One course outline in, one calendar file out.
 
-1. **Sign in and AI key.** Like every PennTools AI tool, Due runs on the student's own OpenAI or Anthropic key, saved in Settings. A student without one sees the platform's standard "add a key" screen. This is required, so we keep the rest of the flow as short as possible.
+1. **Sign in.** Like every PennTools AI tool, Due runs on the platform's free AI credit, then on the student's own OpenAI or Anthropic key saved in Settings. A student out of credit without a key sees the platform's standard "add a key" screen.
 2. **Upload** one course outline PDF.
 3. **Extract.** The AI reads the PDF and returns:
    - **Course details:** course name, class meeting days and times, and the semester's first class date, if the outline mentions them.
@@ -68,7 +68,7 @@ One course outline in, one calendar file out.
 2. **Updating a calendar the student already imported.** Google can't update events by re-importing, so the download step should tell students to import into a dedicated "Due" calendar and, to update, delete it and import the new file. Decided: each deadline keeps the same event ID in every download, so a mistaken re-import fails clearly instead of creating duplicates. A later phase could offer a subscription link that updates itself, which needs a database and the Platform team.
 3. **What a timed deadline looks like on the calendar.** Proposed: a short event ending at the due time, titled like "DUE: Problem Set 3 (FNCE 6110)".
 4. **The review screen.** The table design is a first guess. Judge it once it's visible and simplify if needed.
-5. **The AI key.** Raise with the Platform team or workshop leads whether there's any way to make this step easier for students before launch.
+5. **The AI key.** Resolved by the platform (2026-11-16): every user gets free AI credit on the platform's keys, so most students never need a key of their own. Students who use it up are sent to Settings.
 
 ## Google Calendar test results (2026-11-10)
 

@@ -51,7 +51,7 @@ describe("recurringProblem", () => {
     expect(recurringProblem(repeating({ firstWeek: 6, lastWeek: 2 }), SAMPLE_COURSE)).toBe("The last week is before the first week.");
     expect(recurringProblem(repeating({ weekday: null }), SAMPLE_COURSE)).toBe("Pick a day.");
     expect(recurringProblem(repeating(), { ...SAMPLE_COURSE, week1Start: null })).toBe(
-      "Add the first week of classes in course details.",
+      "Add the first day of classes in course details.",
     );
     expect(recurringProblem(repeating({ weekday: 2 }), SAMPLE_COURSE)).toBe("There's no class on Tue. Pick another day or time.");
     expect(recurringProblem(repeating({ repeat: "every-class" }), { ...SAMPLE_COURSE, classDays: [] })).toBe(

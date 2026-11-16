@@ -22,8 +22,12 @@ export function resolveDate(deadline: Deadline, course: CourseDetails): string |
   if (deadline.week === null) return null;
   const start = weekStart(course, deadline.week);
   if (!start) return null;
-  const day = deadline.day ?? (course.classDays.length > 0 ? Math.min(...course.classDays) : 1);
-  return addDays(start, day - 1);
+  if (deadline.day !== null) return addDays(start, deadline.day - 1);
+  // The week's first class, but never before the first day of classes (Week 1 can start mid-week).
+  const firstDay = course.week1Start!; // weekStart needs it
+  const classDates = [...course.classDays].sort((a, b) => a - b).map((d) => addDays(start, d - 1));
+  const guess = classDates.find((date) => date >= firstDay) ?? classDates[0] ?? start;
+  return guess < firstDay ? firstDay : guess;
 }
 
 /** Whether resolveDate guessed the day, because the outline gives only a week and the student hasn't picked a date. */
@@ -61,7 +65,7 @@ export function deadlineProblem(deadline: Deadline, course: CourseDetails): stri
   const date = resolveDate(deadline, course);
   if (!date) {
     if (deadline.week !== null && !isDate(course.week1Start)) {
-      return "Add the first week of classes in course details, or pick a date.";
+      return "Add the first day of classes in course details, or pick a date.";
     }
     return "Pick a date.";
   }

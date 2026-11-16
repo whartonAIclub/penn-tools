@@ -18,6 +18,8 @@ import {
 const ai = createAI({
   getKey: async (provider) => `key-${provider}`,
   listProviders: async () => ["openai", "anthropic"],
+  credit: null,
+  recordUsage: async () => {},
   logger: silentLogger,
 });
 const hi = [{ role: "user" as const, content: "hi" }];
@@ -143,6 +145,11 @@ describe("OpenAI", () => {
 
   it("maps HTTP errors to AIError kinds", async () => {
     net.reply(openaiErrorReply(429, "insufficient_quota", "You exceeded your current quota"));
+    await expect(ai.generate({ provider: "openai", messages: hi })).rejects.toMatchObject({ kind: "no_credit" });
+  });
+
+  it("maps a billing 429 whose code names the cause to no_credit, not rate_limited", async () => {
+    net.reply(openaiErrorReply(429, "credit_balance_exhausted", "You exceeded your current quota", "insufficient_quota"));
     await expect(ai.generate({ provider: "openai", messages: hi })).rejects.toMatchObject({ kind: "no_credit" });
   });
 
