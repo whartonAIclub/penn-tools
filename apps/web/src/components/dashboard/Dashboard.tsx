@@ -57,6 +57,8 @@ export function Dashboard({ sections }: { sections: CatalogSection[] }) {
         <p>
           <Link href="/privacy" className={styles.footerLink}>Privacy policy</Link>
           {" · "}
+          <Link href="/stats" className={styles.footerLink}>Stats</Link>
+          {" · "}
           <a href="mailto:waiac.platform@gmail.com" className={styles.footerLink}>Contact</a>
         </p>
       </footer>

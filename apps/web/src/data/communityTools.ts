@@ -1,8 +1,8 @@
 // Community tools shown in the site sidebar and on the dashboard.
 //
 // These are apps built by Penn students that live outside this repo, so they
-// link out; clicks on those links are counted for the admin page. Tools in the
-// monorepo (tools/*) come from the tool registry, each in the category its
+// link out; clicks on those links are counted for /admin and /stats. Tools in
+// the monorepo (tools/*) come from the tool registry, each in the category its
 // manifest names.
 
 import type { ToolCategory } from "@penntools/core/tools";

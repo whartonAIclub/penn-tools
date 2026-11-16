@@ -11,7 +11,7 @@ export interface ToolVisits {
 }
 
 /**
- * Who opened which tool, for the admin page. A visit is opening a tool's
+ * Who opened which tool, for /admin and /stats. A visit is opening a tool's
  * pages, signed in or not; moving between pages within a tool isn't another
  * one. Tools never use this.
  */

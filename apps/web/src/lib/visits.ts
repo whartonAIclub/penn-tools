@@ -1,4 +1,4 @@
-// Records visits to tools for the admin page (POST /api/visits): opening a
+// Records visits to tools for /admin and /stats (POST /api/visits): opening a
 // registered tool (components/layout/ToolsShell.tsx), and clicking a community
 // tool's link in the site sidebar or on the dashboard.
 

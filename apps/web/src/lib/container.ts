@@ -84,7 +84,7 @@ export const aiUsage: AiUsageRepository = new PrismaAiUsageRepository(prisma);
 // Who can open /admin; see lib/admin.ts.
 export const admins: AdminRepository = new PrismaAdminRepository(prisma);
 
-// Visits to each tool, recorded by POST /api/visits for the admin page.
+// Visits to each tool, recorded by POST /api/visits for /admin and /stats.
 export const toolVisits: ToolVisitRepository = new PrismaToolVisitRepository(prisma);
 
 // ── Embedding provider ─────────────────────────────────────────────────────
