@@ -5,10 +5,10 @@
 // reads real debriefs correctly.
 
 import { useState } from "react";
-import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { DebriefCard } from "@penntools/tool-penn-pals";
 import { debrief, type DebriefError } from "./actions";
+import { SettingsLink } from "./SettingsLink";
 import styles from "./PennPals.module.css";
 
 type Status =
@@ -17,7 +17,7 @@ type Status =
   | { state: "done"; card: DebriefCard; defaultedDate: boolean }
   | { state: "error"; error: DebriefError };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 const PLACEHOLDER =
   "Just talked to Maria, Wharton '22, PM at Stripe. Great energy, suggested I talk to her manager, follow up after Thanksgiving.";
@@ -95,9 +95,7 @@ export function PennPals({
           {status.error.kind && KEY_PROBLEMS.has(status.error.kind) && (
             <>
               {" "}
-              <Link href="/settings" className={styles.link}>
-                Open Settings
-              </Link>
+              <SettingsLink className={styles.link}>Open Settings</SettingsLink>, then reload this page.
             </>
           )}
         </p>

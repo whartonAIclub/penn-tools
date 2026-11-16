@@ -7,7 +7,6 @@
 // attached go into the notes box, read in the browser at no AI cost.
 
 import { useRef, useState } from "react";
-import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import {
   MAX_SCREENSHOTS,
@@ -17,6 +16,7 @@ import {
   type ReviewField,
 } from "@penntools/tool-penn-pals";
 import type { IntakeResult } from "./actions";
+import { SettingsLink } from "../SettingsLink";
 import { Collapsible } from "./Collapsible";
 import { ACCEPT, isNotesFile, readNotesFile, readScreenshot, uniqueName } from "./screenshots";
 import styles from "./Tracker.module.css";
@@ -76,7 +76,7 @@ export function AiIntake({
               <>Sign in (top right) to try it.</>
             ) : (
               <>
-                Add an AI key in <Link href="/settings">Settings</Link> to try it.
+                Add an AI key in <SettingsLink>Settings</SettingsLink>, then reload this page to try it.
               </>
             )}
           </p>
@@ -313,7 +313,7 @@ export function AiIntake({
                 {status.keyProblem && (
                   <>
                     {" "}
-                    <Link href="/settings">Open Settings</Link>
+                    <SettingsLink>Open Settings</SettingsLink>, then reload this page. Your notes stay here.
                   </>
                 )}
               </p>
