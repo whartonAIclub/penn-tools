@@ -3,22 +3,20 @@
 // A summary of people, thank-yous and follow-ups on top, then two lanes:
 // follow-ups in three buckets, due today, overdue and coming up (left), and
 // everyone the student has talked to (right). Clicking a person opens their card.
-// Everything shown comes from the contacts the intake form saved in this
-// browser (the tracker page's storage). Follow-ups come from
+// Everything shown comes from the user's saved contacts: in their account when
+// signed in, in this browser otherwise (useContacts). Follow-ups come from
 // followUpsFor(), so marking one done saves it and schedules the next.
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   chatsWith,
-  CONTACTS_STORAGE_KEY,
   countByKind,
   daysFrom,
   followUpEventFor,
   followUpStatus,
   followUpsFor,
   markFollowUpDone,
-  parseStoredContacts,
   relationshipLabel,
   reopenStep,
   describeRecurrence,
@@ -27,6 +25,8 @@ import {
 } from "@penntools/tool-penn-pals";
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
 import { recordFollowUp } from "./metricsActions";
+import { StorageNote } from "./StorageNote";
+import { useContacts } from "./useContacts";
 import styles from "./Landing.module.css";
 
 // The three timeline buckets, in the order the lane shows them
@@ -347,22 +347,15 @@ function PersonCard({
   );
 }
 
-export function Landing({ today: todayIso }: { today: string }) {
+export function Landing({ today: todayIso, signedIn }: { today: string; signedIn: boolean }) {
   const [y, m, d] = todayIso.split("-").map(Number);
   const today = new Date(y!, m! - 1, d!);
 
-  // null until the browser's saved contacts are read, so the page doesn't flash empty.
-  const [saved, setSaved] = useState<Contact[] | null>(null);
+  // null until the contacts are loaded, so the page doesn't flash empty.
+  const store = useContacts(signedIn);
+  const saved = store.contacts;
   const [opened, setOpened] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    try {
-      setSaved(parseStoredContacts(localStorage.getItem(CONTACTS_STORAGE_KEY)));
-    } catch {
-      setSaved([]); // storage blocked (private window): nothing to show
-    }
-  }, []);
 
   const allContacts = saved ?? [];
 
@@ -372,7 +365,9 @@ export function Landing({ today: todayIso }: { today: string }) {
     [allContacts],
   );
 
-  if (!saved) return <p className={styles.empty}>Loading…</p>;
+  if (!saved) {
+    return store.error ? <StorageNote store={store} /> : <p className={styles.empty}>Loading…</p>;
+  }
 
   const totals = countByKind(followUps);
 
@@ -384,14 +379,8 @@ export function Landing({ today: todayIso }: { today: string }) {
     .filter((c) => !q || `${c.name} ${c.company ?? ""} ${c.role ?? ""}`.toLowerCase().includes(q))
     .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
 
-  const save = (next: Contact[]) => {
-    setSaved(next);
-    try {
-      localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Storage full or blocked: keep working in memory.
-    }
-  };
+  // Shows the change at once; a failed save shows in the note above, with a retry.
+  const save = (next: Contact[]) => void store.save(next);
 
   const markDone = (followUp: FollowUp) => {
     const contact = allContacts.find((c) => c.id === followUp.contactId);
@@ -430,6 +419,7 @@ export function Landing({ today: todayIso }: { today: string }) {
 
   return (
     <div className={styles.page}>
+      <StorageNote store={store} />
       <section className={styles.summary} aria-label="Summary">
         <div className={styles.stat}>
           <span className={styles.statNumber}>{allContacts.length}</span>

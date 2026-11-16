@@ -585,9 +585,15 @@ export function parseStoredContacts(raw: string | null): Contact[] {
   }
   if (!Array.isArray(data)) return [];
   return data.flatMap((item) => {
-    const parsed = Contact.safeParse(migrateStored(item));
-    return parsed.success ? [parsed.data] : [];
+    const contact = parseContact(item);
+    return contact ? [contact] : [];
   });
+}
+
+/** One stored contact, brought up to the current shape and checked; null if it doesn't fit. */
+export function parseContact(item: unknown): Contact | null {
+  const parsed = Contact.safeParse(migrateStored(item));
+  return parsed.success ? parsed.data : null;
 }
 
 /** An entry saved by an earlier version, brought up to the current shape. */

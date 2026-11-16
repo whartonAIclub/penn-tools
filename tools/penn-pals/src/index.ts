@@ -26,6 +26,7 @@ export {
   MAX_YEARS_AHEAD,
   MAX_YEARS_BACK,
   logAnotherChat,
+  parseContact,
   parseStoredContacts,
   RELATIONSHIP_LABELS,
   relationshipLabel,
@@ -109,3 +110,17 @@ export {
   type IntakeScreenshot,
   type ReviewField,
 } from "./intake.js";
+export {
+  batchContacts,
+  checkContacts,
+  checkIds,
+  ContactLimitError,
+  contactChanges,
+  deleteContacts,
+  importContacts,
+  listContacts,
+  MAX_BATCH_BYTES,
+  MAX_CONTACT_BYTES,
+  MAX_CONTACTS,
+  saveContacts,
+} from "./storage.js";

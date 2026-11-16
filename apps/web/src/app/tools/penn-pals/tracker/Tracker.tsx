@@ -1,16 +1,15 @@
 "use client";
 
 // The intake form for a new contact, or for editing one (?edit=<id>, from the
-// person card). Saving it returns to the landing page,
-// which lists the follow-ups. Contacts are kept in this browser's localStorage,
-// so they stay on one device and are lost if the browser's data is cleared.
+// person card). Saving it returns to the landing page, which lists the
+// follow-ups. Contacts are saved to the user's account when signed in, so
+// they're on every device, and in this browser otherwise (useContacts).
 // The form's rules are in tools/penn-pals/src/contacts.ts.
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   buildContact,
-  CONTACTS_STORAGE_KEY,
   anotherChatDraft,
   asAnotherChat,
   chatsWith,
@@ -20,7 +19,6 @@ import {
   customRelationships,
   emptyDraft,
   FORM_RELATIONSHIPS,
-  parseStoredContacts,
   MAX_RECURRENCE,
   MAX_YEARS_AHEAD,
   MAX_YEARS_BACK,
@@ -39,6 +37,8 @@ import {
   type RecurrenceUnit,
   type ReviewField,
 } from "@penntools/tool-penn-pals";
+import { StorageNote } from "../StorageNote";
+import { useContacts } from "../useContacts";
 import { AiIntake, type AiAccess } from "./AiIntake";
 import { Collapsible } from "./Collapsible";
 import { recordChat } from "../metricsActions";
@@ -64,8 +64,9 @@ function newId(): string {
 
 export function Tracker({ ai }: { ai: AiAccess }) {
   const router = useRouter();
-  // null until the browser's saved contacts are read, so the page doesn't flash empty.
-  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  // null until the contacts are loaded, so the page doesn't flash empty.
+  const store = useContacts(ai.signedIn);
+  const contacts = store.contacts;
   const [today, setToday] = useState<string | null>(null);
   // ?edit=<id> edits a contact; ?another=<id> logs another chat with them. Read after load like the contacts.
   const [editId, setEditId] = useState<string | null>(null);
@@ -76,11 +77,6 @@ export function Tracker({ ai }: { ai: AiAccess }) {
     const params = new URLSearchParams(window.location.search);
     setEditId(params.get("edit"));
     setAnotherId(params.get("another"));
-    try {
-      setContacts(parseStoredContacts(localStorage.getItem(CONTACTS_STORAGE_KEY)));
-    } catch {
-      setContacts([]); // storage blocked (private window): the tracker works, but nothing is kept
-    }
   }, []);
 
   const editing = editId ? contacts?.find((c) => c.id === editId) : undefined;
@@ -89,27 +85,30 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   const [prefill, setPrefill] = useState<{ draft: ContactDraft; missing: ReviewField[]; toCheck: ReviewField[]; key: number } | null>(null);
   const [storyTyped, setStoryTyped] = useState(false);
 
-  /** Saves `contact`; `merged` when a new chat was added to a saved contact instead. */
-  async function save(contact: Contact, merged = false) {
+  /**
+   * Saves `contact` (`merged` when a new chat was added to a saved contact
+   * instead) and goes to the dashboard. False when it didn't reach the
+   * account: the form stays, with the note above saying so.
+   */
+  async function save(contact: Contact, merged = false): Promise<boolean> {
     // An edit, or another chat, replaces the contact where it was; a new one goes first.
     const next = editing || again || merged
       ? (contacts ?? []).map((c) => (c.id === contact.id ? contact : c))
       : [contact, ...(contacts ?? [])];
-    try {
-      localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Storage full or blocked: nothing is kept, as the intro says.
-    }
+    if (!(await store.save(next))) return false;
     if (!editing) await reportChat(contact);
     router.push(LANDING);
+    return true;
   }
 
-  if (!contacts || !today) return <p className={styles.note}>Loading…</p>;
+  if (!contacts || !today) {
+    return store.error ? <StorageNote store={store} /> : <p className={styles.note}>Loading…</p>;
+  }
 
   if ((editId && !editing) || (anotherId && !editId && !again)) {
     return (
       <p className={styles.note}>
-        That contact isn&apos;t saved in this browser. <a href={LANDING}>Back to the dashboard</a>
+        That contact isn&apos;t in your saved network. <a href={LANDING}>Back to the dashboard</a>
       </p>
     );
   }
@@ -117,8 +116,9 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   return (
     <div className={styles.page}>
       <p className={styles.intro}>
-        Log a chat and we&apos;ll remind you when to follow up. <span className={styles.hint}>Saved on this device only.</span>
+        Log a chat and we&apos;ll remind you when to follow up.
       </p>
+      <StorageNote store={store} />
 
       {!editing && (
         <AiIntake ai={ai} base={again && today ? anotherChatDraft(again, today) : undefined} onFilled={(draft, missing, toCheck) => setPrefill((p) => ({ draft, missing, toCheck, key: (p?.key ?? 0) + 1 }))} onTyping={setStoryTyped} />
@@ -223,7 +223,8 @@ function Form({
   savedContacts,
 }: {
   today: string;
-  onSave: (contact: Contact, merged?: boolean) => void;
+  /** Resolves false when saving failed; the form keeps what was typed. */
+  onSave: (contact: Contact, merged?: boolean) => Promise<boolean>;
   original?: Contact | undefined;
   /** Logging another chat with this saved contact. */
   again?: Contact | undefined;
@@ -285,19 +286,24 @@ function Form({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (same) return setAskingSame(true);
-    saveAsIs();
+    void saveAsIs();
   }
 
-  function mergeInto(contact: Contact) {
+  async function mergeInto(contact: Contact) {
     const result = logAnotherChat(contact, asAnotherChat(contact, draft, today), today);
     setAskingSame(false);
     if (!result.ok) return setErrors(result.errors);
-    setSaved(true);
-    onSave(result.contact, true);
-    setErrors([]);
+    await commit(result.contact, true);
   }
 
-  function saveAsIs() {
+  /** Saves, marking the form saved first so leaving for the dashboard doesn't ask; undone if it fails. */
+  async function commit(contact: Contact, merged = false) {
+    setErrors([]);
+    setSaved(true);
+    if (!(await onSave(contact, merged))) setSaved(false);
+  }
+
+  async function saveAsIs() {
     setAskingSame(false);
     const result = original
       ? updateContact(original, draft, today)
@@ -305,10 +311,7 @@ function Form({
         ? logAnotherChat(again, draft, today)
         : buildContact(draft, today, newId());
     if (!result.ok) return setErrors(result.errors);
-    setSaved(true);
-    onSave(result.contact);
-    setErrors([]);
-    setDraft(newDraft(today));
+    await commit(result.contact);
   }
 
   // Relationship menu: the standard answers, then the user's own labels.
@@ -394,7 +397,7 @@ function Form({
               {friendlyDate(same.meetingDate)}).
             </p>
             <div className={styles.actions}>
-              <button type="button" className={styles.buttonSecondary} onClick={() => mergeInto(same)}>
+              <button type="button" className={styles.buttonSecondary} onClick={() => void mergeInto(same)}>
                 Add as chat #{chatsWith(same).length + 1} with {same.name.split(" ")[0]}
               </button>
               <button type="button" className={styles.link} onClick={() => setNotSameId(same.id)}>
@@ -626,10 +629,10 @@ function Form({
             {chatsWith(same).length === 1 ? "chat" : "chats"} so far
           </p>
           <div className={styles.actions}>
-            <button type="button" className={styles.button} onClick={() => mergeInto(same)} autoFocus>
+            <button type="button" className={styles.button} onClick={() => void mergeInto(same)} autoFocus>
               Yes, add as chat #{chatsWith(same).length + 1}
             </button>
-            <button type="button" className={styles.buttonSecondary} onClick={saveAsIs}>
+            <button type="button" className={styles.buttonSecondary} onClick={() => void saveAsIs()}>
               No, save as a new person
             </button>
             <button type="button" className={styles.link} onClick={() => setAskingSame(false)}>

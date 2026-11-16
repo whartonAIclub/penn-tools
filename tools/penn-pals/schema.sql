@@ -4,9 +4,9 @@
 
 -- One row per chat a signed-in user saves: the usage numbers (users, chats,
 -- people) are counted from these. Counts only: no names, notes, companies or
--- contact details are stored, and the contacts themselves stay in the user's
--- browser. A tool's schema can't reference platform tables, so user_id is the
--- platform user's id with no foreign key.
+-- contact details are stored here (contacts are in `contacts`, below). A tool's
+-- schema can't reference platform tables, so user_id is the platform user's id
+-- with no foreign key.
 --
 --   person_key  the opaque random id the browser gave the contact, so a person
 --               counts once however many chats there are with them
@@ -43,3 +43,20 @@ CREATE TABLE IF NOT EXISTS follow_up_events (
 );
 
 CREATE INDEX IF NOT EXISTS follow_up_events_user_idx ON follow_up_events (user_id);
+
+-- A signed-in user's network, so it's there on every device they sign in on:
+-- one row per contact, `data` holding the whole contact (details, chats,
+-- follow-ups) as tools/penn-pals/src/contacts.ts defines it and checks it on
+-- every read and write. Each user reads and writes only their own rows (see
+-- src/storage.ts). Signed-out users' contacts stay in their browser.
+--
+--   id          the contact's id, made by the browser; unique per user
+--   updated_at  when this device last saved it; the latest save wins
+CREATE TABLE IF NOT EXISTS contacts (
+  user_id    TEXT        NOT NULL,
+  id         TEXT        NOT NULL,
+  data       JSONB       NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id)
+);
