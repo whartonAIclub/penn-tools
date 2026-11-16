@@ -1,0 +1,28 @@
+{
+  "name": "@penntools/tool-industry-connector",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "node scripts/build-data.mjs && tsc",
+    "dev": "node scripts/build-data.mjs && tsc --watch",
+    "typecheck": "node scripts/build-data.mjs && tsc --noEmit",
+    "test": "node scripts/build-data.mjs && vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@penntools/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
