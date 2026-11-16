@@ -51,6 +51,7 @@ def local(path: str) -> dict:
 TARGETS = {
     # Community tools (apps/web/src/data/communityTools.ts)
     "quakercal": {"url": "https://quakercal.vercel.app/"},
+    "mbakit": {"url": "https://mbakit.vercel.app/"},
     "mba-tech-internships": {
         # The README, not GitHub's file listing.
         "url": "https://github.com/TrevorDohm/MBA-Tech-Internships-2027",

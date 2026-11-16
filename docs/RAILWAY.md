@@ -41,9 +41,10 @@ to develop it.
   Canvas's course catalog, which costs a few cents the first time, and searches
   use it for users who haven't saved their own key. Without it, those features
   are off but the app still runs. **An Anthropic key alone isn't enough**:
-  embeddings only work with OpenAI. The platform's Anthropic key is optional
-  and only serves older tools (step 5), and tools on the current platform
-  generate with users' own keys from Settings, never the platform's.
+  embeddings only work with OpenAI. The platform's keys also pay for each
+  user's free AI credit ($0.50, across OpenAI and Anthropic); after that,
+  tools use the user's own keys from Settings. Without the platform's
+  Anthropic key (optional, step 5), Anthropic calls use only users' own keys.
 - **Your team's Penn Google accounts**, to sign in with. Only accounts with a
   upenn.edu email address (including school addresses such as
   wharton.upenn.edu) can sign in. Team instances sign in
@@ -84,7 +85,7 @@ an admin of the `whartonAIclub` organization.
 
    Leave the build command empty: Railway runs the root `build` script. Railway
    picks pnpm and the Node version up from the repo (`packageManager` in
-   `package.json` and `.nvmrc`); the app needs Node 20.12 or later.
+   `package.json` and `.nvmrc`, Node 24); the app needs Node 22 or later.
 4. Under **Settings → Networking**, generate a public domain, and note the URL,
    e.g. `https://penntools-team8.up.railway.app`. You need it in the next two
    steps.
@@ -106,8 +107,9 @@ On the app service (not the database), add:
 
 Optional:
 
-- `ANTHROPIC_API_KEY`: used by older tools still on the legacy LLM API (it's
-  preferred over OpenAI there when set).
+- `ANTHROPIC_API_KEY`: pays for Anthropic calls within each user's free AI
+  credit, and for older tools still on the legacy LLM API (it's preferred over
+  OpenAI there when set).
 - Variables that some older tools read for themselves: Compass
   (`COMPASS_ICS_FEED_URL`, `TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`)
   and Penn Planner (`NEXT_PUBLIC_GCAL_CLIENT_ID`). Set these only if you need
@@ -153,6 +155,11 @@ On your public URL:
 - [ ] The home page loads, with the tools listed in the sidebar at the left.
 - [ ] **Sign in** works with one of the Google accounts you sent in step 6.
 - [ ] In **Settings**, you can save an OpenAI or Anthropic API key.
+- [ ] As an admin, **/admin** shows AI usage, tool visits and the admins. On a new
+      instance, the first admins are the ones in
+      `packages/platform/scripts/seed-platform.mjs`; to see the page on your
+      own instance, ask one of them to add you, or edit that list before your
+      first deploy.
 - [ ] **AskPenn** answers a message.
 - [ ] The **Platform Playground** runs each demo, including the search.
 - [ ] Your team's tool loads at `/tools/<your tool ID>`.
