@@ -53,6 +53,7 @@ Run at `/tools/recruiting-helper` while signed in, with an Anthropic or OpenAI k
 | M18 | Follow-up questions | Open an item, click an example question or type one, then reload the page | The answer appears as it's written, labels guesses as likely examples, and the chat is still there after reloading; **Clear** deletes it; removing the item deletes it too | Pass (asked about partners for the example posting) |
 | M19 | Sort by newest | Click **Newest** above the list, then **Jobs** | Items most recently scored come first, each saying when ("scored today, 3:42 PM", "scored Nov 12"); **Best score** goes back to the ranked order; the Jobs and People filters still work | Pass (15 Nov) |
 | M20 | Voice and missing experience in the chat | Open a job, click the microphone in its question box and say experience your résumé leaves out, then **Ask** | The words appear in the box; the answer takes the experience as given, says how fit, gaps and what to lead with change, says the saved score doesn't, and suggests adding it to the profile and pasting again | Pass (typed, 15 Nov; voice typing uses the same microphone button as the profile's) |
+| M21 | Voice typing in Firefox | In Firefox (no speech recognition), click a microphone button | The cursor goes into its box, and the hint gives this device's own voice typing: Windows key + H on Windows, 🌐 twice on a Mac, the keyboard's microphone on a phone | Pass (simulated Firefox on Windows, 15 Nov) |
 
 ## 3. User tests (WAIAC AI PM Training)
 

@@ -2,9 +2,11 @@
 
 // A microphone button for voice typing into a text box, with the browser's own
 // speech recognition (Chrome, Edge and Safari have it; Firefox doesn't). Where
-// it's missing, the button explains the system's dictation instead. Chrome
-// sends the audio to Google and Safari to Apple to transcribe; PennTools never
-// receives it, only the words that land in the box.
+// it's missing, the button puts the cursor back in the box and explains the
+// computer's own voice typing, which works in any browser. Chrome sends the
+// audio to Google and Safari to Apple to transcribe; PennTools never receives
+// it, only the words that land in the box. The button must sit next to its
+// text box, in the same parent element.
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./RecruitingHelper.module.css";
@@ -33,6 +35,20 @@ type RecognitionConstructor = new () => Recognition;
 function recognitionConstructor(): RecognitionConstructor | null {
   const w = window as unknown as { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+/** How to voice type with the computer's or phone's own dictation, which works in any browser. */
+function systemDictationHelp(): string {
+  const ua = navigator.userAgent;
+  const instead = "This browser can't voice type into web pages, but your device can.";
+  if (/Android|iPhone|iPad/i.test(ua)) return `${instead} Tap the microphone on your keyboard and talk.`;
+  if (/Windows/i.test(ua)) {
+    return `${instead} Press the Windows key + H and talk; press it again to stop. (Or open this page in Chrome or Edge.)`;
+  }
+  if (/Mac/i.test(ua)) {
+    return `${instead} Press 🌐 (fn) twice and talk; turn Dictation on in System Settings → Keyboard if nothing happens. (Or open this page in Chrome or Safari.)`;
+  }
+  return `${instead} Use your computer's dictation, or open this page in Chrome.`;
 }
 
 const ERRORS: Record<string, string> = {
@@ -88,11 +104,11 @@ export function Dictation({ onText, label }: { onText: (text: string) => void; l
     r.start();
   }
 
-  function toggle() {
+  function toggle(button: HTMLButtonElement) {
     if (supported === false) {
-      setMessage((old) =>
-        old ? null : "This browser can't do voice typing. On a Mac, click in the box and press 🌐 (fn) twice to dictate; on a phone, tap the keyboard's microphone. Or open this page in Chrome or Safari.",
-      );
+      // Back in the box, so the system's dictation types there.
+      button.parentElement?.querySelector<HTMLTextAreaElement | HTMLInputElement>("textarea, input")?.focus();
+      setMessage(systemDictationHelp());
       return;
     }
     if (listening) recognition.current?.stop();
@@ -106,7 +122,7 @@ export function Dictation({ onText, label }: { onText: (text: string) => void; l
       <button
         type="button"
         className={listening ? `${styles.mic} ${styles.micOn}` : styles.mic}
-        onClick={toggle}
+        onClick={(e) => toggle(e.currentTarget)}
         aria-label={listening ? "Stop voice typing" : label}
         aria-pressed={listening}
         title={listening ? "Stop voice typing" : label}
