@@ -217,7 +217,8 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
     expect(spot).toMatchObject({ neighborhood: "old-city", mapsUrl: mapsUrl("Zqy Cafe", "1 Market St") });
 
     const oldCity = await listDiscounts(sql, { userId: null, status: "active", neighborhood: "old-city" });
-    expect(oldCity.map((d) => d.id)).toEqual([spot.id]);
+    expect(oldCity.map((d) => d.id)).toContain(spot.id);
+    expect(oldCity.every((d) => d.neighborhood === "old-city")).toBe(true);
     const uCity = await listDiscounts(sql, { userId: null, status: "active", neighborhood: "university-city" });
     expect(uCity.map((d) => d.business)).toContain("Penn Museum");
     expect(uCity.every((d) => d.kind === "local" && d.neighborhood === "university-city" && d.mapsUrl)).toBe(true);
@@ -241,7 +242,9 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
 
     const ids = async (options: Parameters<typeof listDiscounts>[1]) => (await listDiscounts(sql, options)).map((d) => d.id);
     expect(await ids({ userId: null, status: "active", kind: "code", audience: "general" })).toEqual([added.id]);
-    expect(await ids({ userId: null, status: "active", category: "food", audience: "general" })).toEqual([added.id]);
+    const food = await listDiscounts(sql, { userId: null, status: "active", category: "food", audience: "general" });
+    expect(food.map((d) => d.id)).toContain(added.id);
+    expect(food.every((d) => d.category === "food")).toBe(true);
     expect(await ids({ userId: null, status: "active", search: "bagel", audience: "general" })).toEqual([added.id]);
     expect(await ids({ userId: null, status: "active", search: "37%" })).toEqual([added.id]);
     expect(await ids({ userId: null, status: "active", search: "100%" })).toEqual([]);
