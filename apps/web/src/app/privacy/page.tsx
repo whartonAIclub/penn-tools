@@ -4,6 +4,7 @@
 // date, before a tool starts handling new data or requests a new scope.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import cardPage from "@/components/layout/CardPage.module.css";
 import styles from "./page.module.css";
 
@@ -18,7 +19,7 @@ export default function PrivacyPage() {
     <div className={cardPage.page}>
       <div>
         <h1 className={cardPage.title}>Privacy policy</h1>
-        <p className={cardPage.muted}>Last updated: November 11, 2026</p>
+        <p className={cardPage.muted}>Last updated: November 16, 2026</p>
       </div>
 
       <p>
@@ -46,7 +47,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Which tools you open.</strong> Each time a tool is opened, or a link to a community tool on
             another site is clicked, we record which tool and when, and who it was if they&apos;re signed in, so we can
-            see how much each tool is used.
+            see how much each tool is used. We publish each tool&apos;s totals on our{" "}
+            <Link href="/stats" className={cardPage.link}>stats page</Link>, and the most-visited tools on the home
+            page, never who visited.
           </li>
           <li>
             <strong>What you enter into tools.</strong> Some tools save what you enter so you can come back to it,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.js";
+import { loadGetDocument } from "@/lib/pdf";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
     const arrayBuffer = await file.arrayBuffer();
+    const getDocument = await loadGetDocument();
     const pdf = await getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
     const pages: string[] = [];

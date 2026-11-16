@@ -3,8 +3,12 @@
 
 import { DM_Mono, Inter, Newsreader } from "next/font/google";
 
-/** Headings and big numbers, always weight 400. */
-export const serif = Newsreader({ subsets: ["latin"], axes: ["opsz"], variable: "--nwcm-serif" });
+/**
+ * Headings and big numbers, always weight 400. Next.js has no metrics for
+ * Newsreader to size its fallback font with, so it doesn't try (it warned on
+ * every build).
+ */
+export const serif = Newsreader({ subsets: ["latin"], axes: ["opsz"], variable: "--nwcm-serif", adjustFontFallback: false });
 
 /** Body text. */
 export const sans = Inter({ subsets: ["latin"], weight: ["400", "500"], variable: "--nwcm-sans" });
