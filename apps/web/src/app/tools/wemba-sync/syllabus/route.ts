@@ -21,7 +21,6 @@ import {
   TooManySyllabiError,
   checkUpload,
   extractSyllabus,
-  listSyllabi,
   saveSyllabus,
   uploadKind,
   type SyllabusDocument,
@@ -35,7 +34,7 @@ import { failure, pageCount, readBody, today } from "../upload";
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return signInRequired();
-  const ai = await getAI();
+  const ai = await getAI("wemba-sync");
   if (!ai) return signInRequired();
 
   const text = await readBody(req);
@@ -71,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const sql = db();
   try {
     if (!sql) throw new Error("DATABASE_URL is not set");
-    await listSyllabi(sql, user.id);
+    await sql`SELECT 1`;
   } catch (error) {
     console.error("[wemba-sync] syllabus storage unavailable", error);
     return failure(STORAGE_UNAVAILABLE, 503);

@@ -25,7 +25,7 @@ function todayWithWeekday(): string {
 
 export async function POST(req: NextRequest): Promise<Response> {
   if (!(await getCurrentUser())) return signInRequired();
-  const ai = await getAI();
+  const ai = await getAI("wemba-sync");
   if (!ai) return signInRequired();
 
   const text = await readBody(req);

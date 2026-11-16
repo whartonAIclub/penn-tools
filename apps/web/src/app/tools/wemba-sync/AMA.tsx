@@ -12,10 +12,10 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import Link from "next/link";
 import type { AIProvider, GenerateResult } from "@penntools/core/ai";
 import type { WeekendSchedule } from "@penntools/tool-wemba-sync";
+import { KEY_PROBLEMS } from "./client";
 import styles from "./WembaSync.module.css";
 
 const MAX_QUESTION_LENGTH = 1000;
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 
 const SUGGESTIONS = ["When does my first class start?", "What's due before this weekend?", "What do I need to read for Saturday?"];
 

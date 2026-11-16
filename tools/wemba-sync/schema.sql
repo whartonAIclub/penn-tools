@@ -48,12 +48,3 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 CREATE INDEX IF NOT EXISTS events_user_date_idx ON events (user_id, date);
-
--- A test version shared syllabi and weekends across all students, replacing
--- the per-student unique constraints above with class-wide ones. Undo that on
--- any database it ran on: drop the class-wide indexes and restore one copy of
--- each course and weekend per student. Safe to re-run; a no-op elsewhere.
-DROP INDEX IF EXISTS syllabi_course_key_key;
-CREATE UNIQUE INDEX IF NOT EXISTS syllabi_user_id_course_key_key ON syllabi (user_id, course_key);
-DROP INDEX IF EXISTS weekends_start_date_key;
-CREATE UNIQUE INDEX IF NOT EXISTS weekends_user_id_start_date_key ON weekends (user_id, start_date);

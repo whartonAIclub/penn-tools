@@ -29,7 +29,7 @@ export default async function WembaSyncPage({ searchParams }: { searchParams: { 
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="WEMBA Sync" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("wemba-sync"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="WEMBA Sync" />;
 
   return (

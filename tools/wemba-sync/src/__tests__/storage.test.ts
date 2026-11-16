@@ -39,25 +39,6 @@ describe.skipIf(!databaseUrl)("storage (Postgres)", () => {
     await admin?.end();
   });
 
-  it("restores per-student storage on a database the shared test version ran on", async () => {
-    // What that version's schema did: class-wide uniqueness in place of per-student.
-    await sql.unsafe(`
-      ALTER TABLE syllabi DROP CONSTRAINT IF EXISTS syllabi_user_id_course_key_key;
-      CREATE UNIQUE INDEX IF NOT EXISTS syllabi_course_key_key ON syllabi (course_key);
-      ALTER TABLE weekends DROP CONSTRAINT IF EXISTS weekends_user_id_start_date_key;
-      CREATE UNIQUE INDEX IF NOT EXISTS weekends_start_date_key ON weekends (start_date);
-    `);
-    await sql.unsafe(schemaSql);
-
-    await saveSyllabus(sql, "repair-a", "a.pdf", syllabus());
-    await saveSyllabus(sql, "repair-b", "b.pdf", syllabus());
-    expect(await listSyllabi(sql, "repair-a")).toHaveLength(1);
-    expect(await listSyllabi(sql, "repair-b")).toHaveLength(1);
-    await saveWeekend(sql, "repair-a", "a.pdf", weekend("2026-11-13", "2026-11-14"));
-    await saveWeekend(sql, "repair-b", "b.pdf", weekend("2026-11-13", "2026-11-14"));
-    expect(await listWeekends(sql, "repair-b")).toHaveLength(1);
-  });
-
   it("saves, lists and replaces a course's syllabus, per user", async () => {
     const saved = await saveSyllabus(sql, "ada", "FNCE.pdf", syllabus());
     expect(saved.syllabus.title).toBe("Corporate Finance");

@@ -41,7 +41,7 @@ async function save(userId: string, filename: string, schedule: WeekendSchedule)
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return signInRequired();
-  const ai = await getAI();
+  const ai = await getAI("wemba-sync");
   if (!ai) return signInRequired();
 
   const text = await readBody(req);
