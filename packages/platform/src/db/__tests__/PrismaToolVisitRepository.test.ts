@@ -88,7 +88,7 @@ describe.skipIf(!databaseUrl)("PrismaToolVisitRepository (Postgres)", () => {
     expect(await visits.visitsSince(7)).toEqual([]);
   });
 
-  it("counts only the window's visits, most first, ties broken by users", async () => {
+  it("counts only the window's visits, most first, ties broken by users, signed-out visitors as one user", async () => {
     const alice = await user("alice");
     const bob = await user("bob");
     const at = (days: number) => new Date(Date.now() - days * DAY);
@@ -111,10 +111,12 @@ describe.skipIf(!databaseUrl)("PrismaToolVisitRepository (Postgres)", () => {
       { toolId: "career-canvas", visits: 2, users: 2 },
       { toolId: "askpenn", visits: 2, users: 1 },
     ]);
+    // AskPenn: alice, and one for its signed-out visit. Deadline Calendar's
+    // only visit in the month is signed out, which still makes one user.
     expect(await visits.visitsSince(30)).toEqual([
-      { toolId: "askpenn", visits: 3, users: 1 },
+      { toolId: "askpenn", visits: 3, users: 2 },
       { toolId: "career-canvas", visits: 2, users: 2 },
-      { toolId: "deadline-calendar", visits: 1, users: 0 },
+      { toolId: "deadline-calendar", visits: 1, users: 1 },
     ]);
   });
 });

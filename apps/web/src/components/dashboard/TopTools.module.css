@@ -145,11 +145,13 @@
 }
 .gold .name { font-size: 0.95rem; font-weight: 700; }
 
-.visits {
+.visits,
+.users {
   font-size: 0.75rem;
   color: var(--section-label);
   font-variant-numeric: tabular-nums;
 }
+.users { margin-top: -2px; }
 
 /* The steps: their height is the place, not the visits. */
 .step {

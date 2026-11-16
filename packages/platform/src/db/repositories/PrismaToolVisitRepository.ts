@@ -42,8 +42,13 @@ export class PrismaToolVisitRepository implements ToolVisitRepository {
 
   async visitsSince(days: number): Promise<ToolVisitCount[]> {
     const since = new Date(Date.now() - days * 24 * 60 * 60_000);
+    // COUNT(user_id) skips signed-out visits, so it's under COUNT(*) when there
+    // are any; they count as one user between them.
     const rows = await this.db.$queryRaw<{ tool_id: string; visits: number; users: number }[]>`
-      SELECT tool_id, COUNT(*)::int AS visits, COUNT(DISTINCT user_id)::int AS users
+      SELECT
+        tool_id,
+        COUNT(*)::int AS visits,
+        (COUNT(DISTINCT user_id) + CASE WHEN COUNT(user_id) < COUNT(*) THEN 1 ELSE 0 END)::int AS users
       FROM tool_visits
       WHERE created_at > ${since}
       GROUP BY tool_id

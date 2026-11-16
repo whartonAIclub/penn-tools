@@ -26,7 +26,7 @@ const NOT_RANKED: ReadonlySet<string> = new Set(["platform-playground", "askpenn
 export interface RankedTool {
   tool: CatalogTool;
   visits: number;
-  /** Distinct signed-in users; signed-out visits count only in `visits`. */
+  /** Distinct signed-in users, plus one for all signed-out visitors (ToolVisitCount.users). */
   users: number;
 }
 

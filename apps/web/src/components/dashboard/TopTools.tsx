@@ -3,7 +3,9 @@
 // The home page's top tools: a card for this week and one for this month, each
 // a podium of the three most-visited tools, with gold, silver and bronze cups
 // and the winner in the middle. A step's height shows its place, not its
-// visits, which are printed under each tool's name. Below the cards, a link to
+// visits, which are printed under each tool's name with its users (signed-in
+// people, plus one for everyone signed out; the places are still decided by
+// visits). Below the cards, a link to
 // every tool's counts on /stats. A period with no visits has no card; with
 // neither, the section isn't shown.
 
@@ -29,8 +31,8 @@ const CUP_COLORS: Record<Metal, [string, string, string]> = {
   bronze: ["#f8d2b0", "#c8783f", "#86461a"],
 };
 
-function visitCount(n: number): string {
-  return `${n.toLocaleString("en-US")} ${n === 1 ? "visit" : "visits"}`;
+function count(n: number, one: string, many: string): string {
+  return `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 }
 
 export function TopToolsSection({ top }: { top: TopTools }) {
@@ -79,7 +81,10 @@ function Place({ rank, label, metal, entry }: { rank: number; label: string; met
             <span className={styles.srOnly}>{label} place: </span>
             {entry.tool.title}
           </span>
-          <span className={styles.visits}>{visitCount(entry.visits)}</span>
+          <span className={styles.visits}>{count(entry.visits, "visit", "visits")}</span>
+          <span className={styles.users} title="Signed-in people who opened it">
+            {count(entry.users, "user", "users")}
+          </span>
         </ToolLink>
       )}
       <span className={styles.step} aria-hidden="true">{rank}</span>

@@ -14,7 +14,10 @@ export interface ToolVisits {
 export interface ToolVisitCount {
   toolId: string;
   visits: number;
-  /** Distinct signed-in users; signed-out visits count only in `visits`. */
+  /**
+   * Distinct signed-in users, plus one for everyone signed out together if
+   * any visit was signed out, so a tool with visits has at least one user.
+   */
   users: number;
 }
 
