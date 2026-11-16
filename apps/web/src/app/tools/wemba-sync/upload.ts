@@ -2,8 +2,8 @@
 // weekend's schedule) and syllabus/route.ts (a course's syllabus).
 
 import type { NextRequest } from "next/server";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.js";
 import { MAX_REQUEST_BYTES } from "@penntools/tool-wemba-sync";
+import { loadGetDocument } from "@/lib/pdf";
 
 export function failure(message: string, status: number, kind?: string): Response {
   return Response.json({ error: { message, kind } }, { status });
@@ -11,6 +11,7 @@ export function failure(message: string, status: number, kind?: string): Respons
 
 /** How many pages the PDF has, or null if it doesn't open. */
 export async function pageCount(data: string): Promise<number | null> {
+  const getDocument = await loadGetDocument();
   const task = getDocument({ data: new Uint8Array(Buffer.from(data, "base64")), isEvalSupported: false, verbosity: 0 });
   try {
     return (await task.promise).numPages;

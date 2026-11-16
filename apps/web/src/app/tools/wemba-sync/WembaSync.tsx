@@ -48,8 +48,12 @@ import {
 import { ErrorNote } from "./ErrorNote";
 import styles from "./WembaSync.module.css";
 
-/** The brick theme's headline font (see "Theme: building bricks" in WembaSync.module.css). */
-const brickFont = Lilita_One({ weight: "400", subsets: ["latin"], variable: "--font-brick" });
+/**
+ * The brick theme's headline font (see "Theme: building bricks" in
+ * WembaSync.module.css). Not preloaded: only ?theme=bricks uses it, so other
+ * visitors don't download it.
+ */
+const brickFont = Lilita_One({ weight: "400", subsets: ["latin"], variable: "--font-brick", preload: false });
 
 type Tab = "weekend" | "courses" | "events";
 
