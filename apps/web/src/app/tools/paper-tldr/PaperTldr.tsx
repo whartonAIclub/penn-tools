@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { PaperSummary } from "@penntools/tool-paper-tldr";
-import { simplifyPaper } from "./actions";
+import type { SummaryResult } from "./types";
 import { extractPdfText } from "./extractText";
 import SummaryView from "./SummaryView";
 import styles from "./PaperTldr.module.css";
@@ -13,7 +13,24 @@ const MAX_MB = 20;
 
 type Status = "idle" | "reading" | "summarizing";
 
-const KEY_ERRORS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_ERRORS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
+
+/** Sends the paper's text to the tool's route (not a server action: those refuse requests over 1 MB). */
+async function simplifyPaper(provider: AIProvider, text: string): Promise<SummaryResult> {
+  const res = await fetch("/tools/paper-tldr/simplify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider, text }),
+  });
+  if (res.status === 401) {
+    return { ok: false, error: { message: "Sign in with the button at the top right to simplify a paper." } };
+  }
+  try {
+    return (await res.json()) as SummaryResult;
+  } catch {
+    return { ok: false, error: { message: "Something went wrong on our end. Try again in a moment." } };
+  }
+}
 
 const SECTIONS = [
   "The claim in one line",
@@ -279,7 +296,7 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
             </p>
           ) : !provider ? (
             <p className={styles.note}>
-              Paper TL;DR runs on your own AI key. Add an OpenAI or Anthropic
+              You&apos;ve used your free AI credit. Add an OpenAI or Anthropic
               key in{" "}
               <Link href="/settings" className={styles.link}>
                 Settings
