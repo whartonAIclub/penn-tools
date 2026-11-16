@@ -35,6 +35,7 @@ import {
   type ContactDraft,
   type FollowUpKind,
   type RecurrenceUnit,
+  type ReviewField,
 } from "@penntools/tool-penn-pals";
 import { AiIntake, type AiAccess } from "./AiIntake";
 import { Collapsible } from "./Collapsible";
@@ -83,7 +84,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   const editing = editId ? contacts?.find((c) => c.id === editId) : undefined;
   const again = !editing && anotherId ? contacts?.find((c) => c.id === anotherId) : undefined;
   // The AI's fields; a new key remounts the form with them.
-  const [prefill, setPrefill] = useState<{ draft: ContactDraft; key: number } | null>(null);
+  const [prefill, setPrefill] = useState<{ draft: ContactDraft; missing: ReviewField[]; toCheck: ReviewField[]; key: number } | null>(null);
   const [storyTyped, setStoryTyped] = useState(false);
 
   async function save(contact: Contact) {
@@ -117,7 +118,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
       </p>
 
       {!editing && (
-        <AiIntake ai={ai} base={again && today ? anotherChatDraft(again, today) : undefined} onFilled={(draft) => setPrefill((p) => ({ draft, key: (p?.key ?? 0) + 1 }))} onTyping={setStoryTyped} />
+        <AiIntake ai={ai} base={again && today ? anotherChatDraft(again, today) : undefined} onFilled={(draft, missing, toCheck) => setPrefill((p) => ({ draft, missing, toCheck, key: (p?.key ?? 0) + 1 }))} onTyping={setStoryTyped} />
       )}
 
       <Form
@@ -127,6 +128,8 @@ export function Tracker({ ai }: { ai: AiAccess }) {
         original={editing}
         again={again}
         prefill={prefill?.draft}
+        missing={prefill?.missing}
+        toCheck={prefill?.toCheck}
         storyTyped={storyTyped}
         customLabels={customRelationships(contacts)}
       />
@@ -209,6 +212,8 @@ function Form({
   original,
   again,
   prefill,
+  missing = [],
+  toCheck = [],
   storyTyped = false,
   customLabels,
 }: {
@@ -219,6 +224,10 @@ function Form({
   again?: Contact | undefined;
   /** Fields the AI filled in, to check before saving. */
   prefill?: ContactDraft | undefined;
+  /** Fields the AI couldn't find, highlighted until the user fills them in. */
+  missing?: ReviewField[] | undefined;
+  /** Fields the AI filled in from a guess, such as a name from a LinkedIn link, highlighted until edited. */
+  toCheck?: ReviewField[] | undefined;
   /** The AI box has text the user would lose by leaving. */
   storyTyped?: boolean;
   /** Relationships the user wrote in before, offered again. */
@@ -234,6 +243,23 @@ function Form({
   const [writingOwn, setWritingOwn] = useState(false);
   // Closed at first; open straight away when editing a contact or checking what the AI filled in.
   const [open, setOpen] = useState(Boolean(original || prefill));
+
+  // A field the AI couldn't find stays highlighted until it's filled in (the
+  // date, which defaults to today, until it's changed or confirmed by saving).
+  // A field to check (filled from a guess) stays highlighted until it's edited.
+  const isMissing = (field: ReviewField) =>
+    missing.includes(field) &&
+    // The date and relationship have defaults (today, Industry), so they count until changed.
+    (field === "meetingDate" || field === "relationship" ? draft[field] === initial[field] : !draft[field].trim());
+  const isToCheck = (field: ReviewField) => toCheck.includes(field) && draft[field] === initial[field];
+  const needsReview = (field: ReviewField) => isMissing(field) || isToCheck(field);
+  const reviewClass = (field: ReviewField) => (needsReview(field) ? `${styles.field} ${styles.needsReview}` : styles.field);
+  const reviewHint = (field: ReviewField, missingText: string, checkText = "") =>
+    isMissing(field) ? (
+      <span className={styles.reviewHint}>{missingText}</span>
+    ) : isToCheck(field) && checkText ? (
+      <span className={styles.reviewHint}>{checkText}</span>
+    ) : null;
 
   const set = <K extends keyof ContactDraft>(key: K, value: ContactDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const text = (key: "name" | "company" | "role" | "area" | "location" | "email" | "phone" | "linkedin") => ({
@@ -316,12 +342,18 @@ function Form({
         open={open}
         onToggle={setOpen}
       >
-      {prefill && <p className={styles.aiBanner}>💬 Written up by AI from your chat. Fix anything it got wrong, then save.</p>}
+      {prefill && (
+        <p className={styles.aiBanner}>
+          ✨ Filled in by AI from your notes and screenshots. Fix anything it got wrong
+          {missing.length + toCheck.length > 0 ? ", check the highlighted fields" : ""}, then save.
+        </p>
+      )}
 
       <div className={styles.grid}>
-        <label className={styles.field}>
+        <label className={reviewClass("name")}>
           Full name *
           <input {...text("name")} placeholder="e.g. Maria Chen" />
+          {reviewHint("name", "AI couldn't find their name.", "From their LinkedIn link: check the spelling and accents.")}
         </label>
         <label className={styles.field}>
           Company
@@ -331,7 +363,7 @@ function Form({
           Title
           <input {...text("role")} placeholder="e.g. Product Manager" />
         </label>
-        <label className={styles.field}>
+        <label className={reviewClass("relationship")}>
           Relationship
           <select value={relationshipValue} onChange={(e) => pickRelationship(e.target.value)}>
             {relationshipOptions.map((r) => (
@@ -349,6 +381,7 @@ function Form({
               </optgroup>
             )}
           </select>
+          {reviewHint("relationship", "AI couldn't tell, so it's set to Industry. Check it.")}
         </label>
         {showOwnBox && (
           <label className={styles.field}>
@@ -372,7 +405,7 @@ function Form({
             ))}
           </select>
         </label>
-        <label className={styles.field}>
+        <label className={reviewClass("meetingDate")}>
           Date of chat *
           <input
             type="date"
@@ -382,6 +415,7 @@ function Form({
             max={today}
             onChange={(e) => set("meetingDate", e.target.value)}
           />
+          {reviewHint("meetingDate", "AI couldn't find the date, so it's set to today. Check it.")}
         </label>
       </div>
 
@@ -467,9 +501,16 @@ function Form({
         </label>
       </div>
 
-      <label className={styles.field}>
+      <label className={reviewClass("takeaways")}>
         Key takeaways
-        <textarea rows={3} value={draft.takeaways} placeholder="One per line" onChange={(e) => set("takeaways", e.target.value)} />
+        <span className={styles.hint}>The advice worth rereading before your next chat. One per line.</span>
+        <textarea
+          rows={3}
+          value={draft.takeaways}
+          placeholder={"e.g. Lead every story with one metric\nApply in January, not December"}
+          onChange={(e) => set("takeaways", e.target.value)}
+        />
+        {reviewHint("takeaways", "AI didn't find any advice. Add what stuck with you.")}
       </label>
 
       <section className={styles.more} aria-labelledby="more-title">
@@ -477,7 +518,7 @@ function Form({
           More about them <span className={styles.optional}>(optional)</span>
         </h3>
         <div className={styles.grid}>
-          <label className={styles.field}>
+          <label className={reviewClass("seniority")}>
             Seniority
             <select value={draft.seniority} onChange={(e) => set("seniority", e.target.value as ContactDraft["seniority"])}>
               <option value="">Not sure</option>
@@ -487,6 +528,7 @@ function Form({
                 </option>
               ))}
             </select>
+            {reviewHint("seniority", "AI couldn't tell. Pick one if you know it.")}
           </label>
           <label className={styles.field}>
             Function or industry
@@ -511,6 +553,9 @@ function Form({
         </div>
         <label className={styles.field}>
           Notes
+          <span className={styles.hint}>
+            Everything else, as you wrote it. Notes you gave the AI land here word for word.
+          </span>
           <textarea rows={6} value={draft.notes} onChange={(e) => set("notes", e.target.value)} />
         </label>
       </section>

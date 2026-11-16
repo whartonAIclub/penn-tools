@@ -313,19 +313,6 @@
   opacity: 0.55;
   font-style: italic;
 }
-.aiQuestions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.aiQuestions input {
-  padding: 7px 10px;
-  border: 1px solid var(--input-border);
-  border-radius: 8px;
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-}
 .aiDone {
   margin: 0;
   font-size: 0.9rem;
@@ -365,4 +352,128 @@
 .aiStepNow {
   color: var(--penn-blue);
   font-weight: 700;
+}
+
+/* AI intake: screenshots as removable thumbnails, and the drop highlight */
+.aiShots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.aiShot {
+  position: relative;
+  width: 96px;
+  height: 72px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.aiShot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.aiShotRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.aiShotRemove:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Form fields the AI couldn't find, until the user fills them in */
+.needsReview input,
+.needsReview select,
+.needsReview textarea {
+  border-color: #dc6803;
+  box-shadow: 0 0 0 2px rgb(220 104 3 / 0.18);
+}
+.reviewHint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #b54708;
+}
+
+/* The upload area under the notes box: dashed, full width, lights up on hover and drag */
+.aiDrop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 2px dashed color-mix(in srgb, var(--penn-blue) 35%, transparent);
+  border-radius: 10px;
+  background: var(--bg);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.aiDrop:hover,
+.aiDragging .aiDrop {
+  border-color: var(--penn-blue);
+  background: color-mix(in srgb, var(--penn-blue) 6%, var(--bg));
+}
+.aiDropButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.aiDropButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.aiDropButton:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.aiDropIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--penn-blue) 10%, transparent);
+  font-size: 1.2rem;
+}
+.aiDropText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.aiDropText strong {
+  color: var(--penn-blue);
+  font-size: 0.95rem;
+}
+.aiDropText span {
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+.aiHint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--section-label);
 }

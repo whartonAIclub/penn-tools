@@ -89,11 +89,19 @@ export {
   type PennPalsMetrics,
 } from "./metrics.js";
 export {
-  checkStory,
+  checkIntake,
+  describeSaved,
+  fieldsToCheck,
   intakeToDraft,
   IntakeReply,
-  MAX_QUESTIONS,
+  MAX_INTAKE_REQUEST_BYTES,
+  MAX_SCREENSHOT_NAME_LENGTH,
+  MAX_SCREENSHOTS,
   MAX_STORY_LENGTH,
+  missingFields,
   readIntake,
-  type IntakeAnswer,
+  REVIEW_FIELDS,
+  type IntakeInput,
+  type IntakeScreenshot,
+  type ReviewField,
 } from "./intake.js";

@@ -1,17 +1,24 @@
-"use server";
+// The AI intake's server side, called by read/route.ts: gets the signed-in
+// user's AI, checks the notes and screenshots, and calls readIntake() in
+// tools/penn-pals/src/intake.ts. A route, not a server action, because Next.js
+// refuses server action requests over 1 MB and screenshots are bigger.
+// AIErrors are returned as data, so the page can show them.
 
-// The AI intake's server action: gets the signed-in user's AI (their own key),
-// checks the story, and calls readIntake() in tools/penn-pals/src/intake.ts.
-// AIErrors are returned as data, since thrown errors lose their class on the
-// way to the browser.
-
-import { isAIError } from "@penntools/core/ai";
+import "server-only";
+import { AI_PROVIDERS, isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
-import { checkStory, intakeToDraft, readIntake, type ContactDraft, type IntakeAnswer } from "@penntools/tool-penn-pals";
+import {
+  checkIntake,
+  intakeToDraft,
+  readIntake,
+  type ContactDraft,
+  type IntakeScreenshot,
+  type ReviewField,
+} from "@penntools/tool-penn-pals";
 import { getAI } from "@/lib/ai";
 
 export type IntakeResult =
-  | { ok: true; draft: ContactDraft; questions: string[]; tokens: number }
+  | { ok: true; draft: ContactDraft; missing: ReviewField[]; toCheck: ReviewField[]; tokens: number }
   | { ok: false; error: { kind?: string; message: string } };
 
 /** Today in Philadelphia as YYYY-MM-DD, so a late-evening chat isn't dated tomorrow. */
@@ -20,30 +27,32 @@ function todayInPhilly(): string {
 }
 
 /**
- * Reads the story (and, the second time, the answers) into the form's fields.
- * For another chat with someone saved, `base` is the form with their details:
- * the AI is told who it is and fills in only what's new.
+ * Reads the notes and screenshots into the form's fields in one AI call. For
+ * another chat with someone saved, `base` is the form with their details: the
+ * AI is told who it is and fills in only what's new.
  */
-export async function readChat(
-  provider: AIProvider,
-  story: string,
-  answers: IntakeAnswer[] = [],
-  base?: ContactDraft,
-): Promise<IntakeResult> {
+export async function readChat(body: {
+  provider?: unknown;
+  story?: unknown;
+  screenshots?: unknown;
+  base?: unknown;
+}): Promise<IntakeResult> {
   const ai = await getAI("penn-pals");
   if (!ai) return { ok: false, error: { message: "Sign in with the button at the top right to use the AI." } };
 
-  const problem = checkStory(story);
+  if (!AI_PROVIDERS.includes(body.provider as AIProvider)) return { ok: false, error: { message: "Pick an AI provider." } };
+  const problem = checkIntake(body);
   if (problem) return { ok: false, error: { message: problem } };
-  const cleanAnswers = (Array.isArray(answers) ? answers : [])
-    .slice(0, 3)
-    .map((a) => ({ question: String(a?.question ?? "").slice(0, 300), answer: String(a?.answer ?? "").slice(0, 1000) }));
+  const provider = body.provider as AIProvider;
+  const story = (body.story as string | undefined) ?? "";
+  const screenshots = (body.screenshots as IntakeScreenshot[] | undefined) ?? [];
+  // The page's own form state, sent back to fill on top of; only its fields are used.
+  const base = typeof body.base === "object" && body.base !== null ? (body.base as ContactDraft) : undefined;
 
   const today = todayInPhilly();
   try {
-    const known = base?.name ? [base.name, [base.role, base.company].filter(Boolean).join(" at ")].filter(Boolean).join(", ") : undefined;
-    const { reply, tokens } = await readIntake(ai, provider, story, today, cleanAnswers, known);
-    return { ok: true, draft: intakeToDraft(reply, today, base), questions: reply.questions, tokens };
+    const { reply, missing, toCheck, tokens } = await readIntake(ai, provider, { story, screenshots }, today, base);
+    return { ok: true, draft: intakeToDraft(reply, today, base, story), missing, toCheck, tokens };
   } catch (error) {
     if (isAIError(error)) return { ok: false, error: error.toJSON() };
     throw error;

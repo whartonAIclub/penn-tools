@@ -1,5 +1,5 @@
-// Penn Pals "Log a chat": tell the AI about the chat or fill in the form
-// yourself. The form works signed out; the AI needs sign-in and a saved key,
+// Penn Pals "Log a chat": paste notes or screenshots for the AI, or fill in the form
+// yourself. The form works signed out; the AI needs sign-in (free credit or a saved key),
 // so this server component looks those up and passes them down.
 
 import type { Metadata } from "next";
