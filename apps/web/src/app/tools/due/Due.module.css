@@ -19,16 +19,6 @@
   line-height: 1.6;
 }
 
-.preview {
-  padding: 10px 14px;
-  border: 1px solid #dce3ff;
-  border-radius: 8px;
-  background: #f5f7ff;
-  color: #1e3a8a;
-  font-size: 0.85rem;
-  line-height: 1.5;
-}
-
 /* ── Stepper ───────────────────────────────────────────────────────────────── */
 
 .stepper {
@@ -79,6 +69,12 @@
 .cardTitle {
   margin: 0;
   font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.subTitle {
+  margin: 8px 0 -6px;
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
@@ -171,6 +167,38 @@
   cursor: pointer;
 }
 .dropzone:hover { border-color: var(--penn-blue); }
+.dropzoneBusy {
+  composes: dropzone;
+  cursor: progress;
+  border-color: var(--penn-blue);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% { background: #f5f7ff; }
+}
+
+.error {
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.errorLink {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .fileInput {
   position: absolute;
@@ -198,6 +226,7 @@
 
 .row,
 .rowProblem,
+.rowGuess,
 .rowOff {
   display: flex;
   align-items: flex-start;
@@ -207,6 +236,7 @@
   border-radius: 10px;
 }
 .rowProblem { border-color: #fcd34d; background: #fffbeb; }
+.rowGuess { border-color: #bfdbfe; background: #eff6ff; }
 .rowOff { opacity: 0.55; }
 
 .checkbox {
@@ -231,6 +261,28 @@
   gap: 8px;
 }
 
+.weekRange {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+
+.weekInput,
+.skipInput {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+.weekInput { width: 56px; }
+.skipInput { width: 90px; }
+
 .hint {
   font-size: 0.8rem;
   color: var(--section-label);
@@ -243,6 +295,29 @@
 }
 
 .attentionCount { color: #b45309; }
+.confirmCount { color: #1d4ed8; }
+
+.guess {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.confirmButton {
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid #93c5fd;
+  border-radius: 999px;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.confirmButton:hover { background: #dbeafe; }
 
 .remove {
   flex-shrink: 0;

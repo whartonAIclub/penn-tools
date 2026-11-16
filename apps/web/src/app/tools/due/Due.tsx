@@ -5,22 +5,33 @@
 // (dates, problems, the .ics file) is in tools/due/src.
 
 import { useState } from "react";
+import Link from "next/link";
+import { fileType } from "@penntools/core/ai/attachments";
+import type { AIErrorInfo, AIProvider } from "@penntools/core/ai";
 import {
   ALL_DAY_REMINDER_OPTIONS,
   DEADLINE_KINDS,
   DEFAULT_REMINDERS,
   TIMED_REMINDER_OPTIONS,
   WEEKDAY_LABELS,
+  REPEAT_KINDS,
   buildCalendar,
+  calendarDeadlines,
   calendarFileName,
   deadlineProblem,
   formatTime,
+  guessExplanation,
+  isGuessedDate,
   isTime,
+  recurringProblem,
+  recurringSummary,
   resolveDate,
   weekHint,
   type CourseDetails,
   type Deadline,
   type DeadlineKind,
+  type RecurringDeadline,
+  type RepeatKind,
   type ReminderSettings,
   type TimeChoice,
 } from "@penntools/tool-due";
@@ -35,16 +46,40 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "download", label: "Download" },
 ];
 
-export function Due({ sampleCourse, sampleDeadlines }: { sampleCourse: CourseDetails; sampleDeadlines: Deadline[] }) {
+/** What Due reads from an outline, or the samples. */
+interface Outline {
+  course: CourseDetails;
+  deadlines: Deadline[];
+  recurring: RecurringDeadline[];
+}
+
+/** An error from the read route: an AIError's data, or just a message. */
+type ReadError = Partial<AIErrorInfo> & { message: string };
+
+/** Errors fixed in Settings: no key, a rejected key, or no credit. */
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+
+export interface DueProps {
+  /** Providers the student has saved a key for. */
+  providers: AIProvider[];
+  labels: Record<AIProvider, string>;
+  maxPdfBytes: number;
+  sampleCourse: CourseDetails;
+  sampleDeadlines: Deadline[];
+  sampleRecurring: RecurringDeadline[];
+}
+
+export function Due({ providers, labels, maxPdfBytes, sampleCourse, sampleDeadlines, sampleRecurring }: DueProps) {
   const [step, setStep] = useState<Step>("upload");
   const [course, setCourse] = useState<CourseDetails>(sampleCourse);
   const [deadlines, setDeadlines] = useState<Deadline[]>(sampleDeadlines);
+  const [recurring, setRecurring] = useState<RecurringDeadline[]>(sampleRecurring);
   const [reminders, setReminders] = useState<ReminderSettings>(DEFAULT_REMINDERS);
 
-  function loadOutline() {
-    // Preview: every outline loads the sample deadlines until the AI reads PDFs.
-    setCourse(sampleCourse);
-    setDeadlines(sampleDeadlines);
+  function loadOutline(read: Outline) {
+    setCourse(read.course);
+    setDeadlines(read.deadlines);
+    setRecurring(read.recurring);
     setStep("course");
   }
 
@@ -60,14 +95,17 @@ export function Due({ sampleCourse, sampleDeadlines }: { sampleCourse: CourseDet
         <p className={styles.intro}>Turn a course outline into calendar events with reminders, so no deadline sneaks up on you.</p>
       </header>
 
-      <p className={styles.preview}>
-        <strong>Preview:</strong> Due doesn&apos;t read PDFs yet. Any outline you upload loads the same made-up deadlines,
-        so you can try every step.
-      </p>
-
       <Stepper current={step} />
 
-      {step === "upload" && <UploadStep onLoad={loadOutline} />}
+      {step === "upload" && (
+        <UploadStep
+          providers={providers}
+          labels={labels}
+          maxPdfBytes={maxPdfBytes}
+          onLoad={loadOutline}
+          onSample={() => loadOutline({ course: sampleCourse, deadlines: sampleDeadlines, recurring: sampleRecurring })}
+        />
+      )}
       {step === "course" && (
         <CourseStep course={course} onChange={setCourse} onBack={() => setStep("upload")} onNext={() => setStep("review")} />
       )}
@@ -75,7 +113,9 @@ export function Due({ sampleCourse, sampleDeadlines }: { sampleCourse: CourseDet
         <ReviewStep
           course={course}
           deadlines={deadlines}
+          recurring={recurring}
           onChange={setDeadlines}
+          onRecurringChange={setRecurring}
           onBack={() => setStep("course")}
           onNext={() => setStep("download")}
         />
@@ -84,6 +124,7 @@ export function Due({ sampleCourse, sampleDeadlines }: { sampleCourse: CourseDet
         <DownloadStep
           course={course}
           deadlines={deadlines}
+          recurring={recurring}
           reminders={reminders}
           onRemindersChange={setReminders}
           onBack={() => setStep("review")}
@@ -114,8 +155,76 @@ function Stepper({ current }: { current: Step }) {
   );
 }
 
-function UploadStep({ onLoad }: { onLoad: () => void }) {
+/** The file's bytes as base64, without the data: prefix. */
+function toBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).slice(String(reader.result).indexOf(",") + 1));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Sends the outline to the tool's read route, which reads it with the student's own key. */
+async function readOutline(
+  file: File,
+  provider: AIProvider,
+  maxPdfBytes: number,
+): Promise<Outline> {
+  if (file.size > maxPdfBytes) throw { message: `${file.name} is over ${maxPdfBytes / 1024 / 1024} MB.` } satisfies ReadError;
+  if (fileType(new Uint8Array(await file.slice(0, 12).arrayBuffer())) !== "application/pdf") {
+    throw { message: `${file.name} isn't a PDF. Download the outline as a PDF and try again.` } satisfies ReadError;
+  }
+  let response: Response;
+  try {
+    response = await fetch("/tools/due/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, filename: file.name, data: await toBase64(file) }),
+    });
+  } catch {
+    throw { message: "Couldn't reach Due. Check your connection and try again." } satisfies ReadError;
+  }
+  if (response.status === 401) throw { message: "Your session ended. Sign in again with the button at the top right." } satisfies ReadError;
+  const body = (await response.json().catch(() => null)) as
+    | Outline
+    | { error: ReadError }
+    | null;
+  if (!body) throw { message: "Something went wrong reading the outline. Try again." } satisfies ReadError;
+  if ("error" in body) throw body.error;
+  return body;
+}
+
+function UploadStep({
+  providers,
+  labels,
+  maxPdfBytes,
+  onLoad,
+  onSample,
+}: {
+  providers: AIProvider[];
+  labels: Record<AIProvider, string>;
+  maxPdfBytes: number;
+  onLoad: (read: Outline) => void;
+  onSample: () => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
+  // OpenAI first when the student has both: its fast model costs the least per outline (see PLAN.md).
+  const [provider, setProvider] = useState<AIProvider>(providers.includes("openai") ? "openai" : providers[0]!);
+  const [reading, setReading] = useState(false);
+  const [error, setError] = useState<ReadError | null>(null);
+
+  async function find() {
+    if (!file) return;
+    setReading(true);
+    setError(null);
+    try {
+      onLoad(await readOutline(file, provider, maxPdfBytes));
+    } catch (e) {
+      setError(typeof e === "object" && e !== null && "message" in e ? (e as ReadError) : { message: "Something went wrong. Try again." });
+      setReading(false);
+    }
+  }
 
   return (
     <section className={styles.card}>
@@ -124,24 +233,67 @@ function UploadStep({ onLoad }: { onLoad: () => void }) {
         Download the outline (syllabus) PDF from Canvas, then add it here. Due finds the assignments and exams and their
         due dates.
       </p>
-      <label className={styles.dropzone}>
+      <label className={reading ? styles.dropzoneBusy : styles.dropzone}>
         <input
           type="file"
           accept="application/pdf,.pdf"
           className={styles.fileInput}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          disabled={reading}
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null);
+            setError(null);
+          }}
         />
         <span className={styles.dropzoneText}>{file ? file.name : "Choose a PDF"}</span>
-        <span className={styles.help}>{file ? "Choose a different file" : "Click to browse your files"}</span>
+        <span className={styles.help}>
+          {reading ? "Reading your outline. This usually takes 10–30 seconds." : file ? "Choose a different file" : "Click to browse your files"}
+        </span>
       </label>
+
+      {error && (
+        <p className={styles.error} role="alert">
+          {error.message}
+          {error.kind && KEY_PROBLEMS.has(error.kind) && (
+            <>
+              {" "}
+              <Link href="/settings" className={styles.errorLink}>
+                Go to Settings
+              </Link>
+            </>
+          )}
+        </p>
+      )}
+
       <div className={styles.actions}>
-        <button className={styles.button} onClick={onLoad} disabled={!file}>
-          Find deadlines
+        <button className={styles.button} onClick={find} disabled={!file || reading}>
+          {reading ? "Reading…" : "Find deadlines"}
         </button>
-        <button className={styles.linkButton} onClick={onLoad}>
-          No outline handy? Try a sample
-        </button>
+        {providers.length > 1 && (
+          <label className={styles.inline}>
+            <span className={styles.help}>using</span>
+            <select
+              className={styles.select}
+              value={provider}
+              disabled={reading}
+              onChange={(e) => setProvider(e.target.value as AIProvider)}
+            >
+              {providers.map((p) => (
+                <option key={p} value={p}>
+                  {labels[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!reading && (
+          <button className={styles.linkButton} onClick={onSample}>
+            No outline handy? Try a sample
+          </button>
+        )}
       </div>
+      <p className={styles.help}>
+        The outline goes to {labels[provider]} with your own API key, and nothing is saved. Reading one costs about a cent.
+      </p>
     </section>
   );
 }
@@ -246,18 +398,53 @@ function CourseStep({
 function ReviewStep({
   course,
   deadlines,
+  recurring,
   onChange,
+  onRecurringChange,
   onBack,
   onNext,
 }: {
   course: CourseDetails;
   deadlines: Deadline[];
+  recurring: RecurringDeadline[];
   onChange: (deadlines: Deadline[]) => void;
+  onRecurringChange: (recurring: RecurringDeadline[]) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
   const included = deadlines.filter((d) => d.include);
-  const needsAttention = included.filter((d) => deadlineProblem(d, course) !== null).length;
+  const includedRecurring = recurring.filter((r) => r.include);
+  const needsAttention =
+    included.filter((d) => deadlineProblem(d, course) !== null).length +
+    includedRecurring.filter((r) => recurringProblem(r, course) !== null).length;
+  const toConfirm =
+    included.filter((d) => deadlineProblem(d, course) === null && isGuessedDate(d, course)).length +
+    includedRecurring.filter((r) => recurringProblem(r, course) === null && !r.confirmed).length;
+  const total = calendarDeadlines(course, deadlines, recurring).length;
+
+  function updateRecurring(id: string, patch: Partial<RecurringDeadline>) {
+    onRecurringChange(recurring.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  function addRecurring() {
+    onRecurringChange([
+      ...recurring,
+      {
+        id: `added-repeating-${Date.now()}`,
+        title: "",
+        kind: "assignment",
+        repeat: "every-class",
+        weekday: null,
+        time: isTime(course.classStart) ? { kind: "class-time" } : { kind: "all-day" },
+        firstWeek: null,
+        lastWeek: null,
+        skipWeeks: [],
+        include: true,
+        confirmed: true, // the student added it
+        note: null,
+      },
+    ]);
+  }
 
   function update(id: string, patch: Partial<Deadline>) {
     onChange(deadlines.map((d) => (d.id === id ? { ...d, ...patch } : d)));
@@ -275,6 +462,7 @@ function ReviewStep({
         day: null,
         time: { kind: "all-day" },
         include: true,
+        note: null,
       },
     ]);
   }
@@ -283,8 +471,16 @@ function ReviewStep({
     <section className={styles.card}>
       <h2 className={styles.cardTitle}>Review the deadlines</h2>
       <p className={styles.help}>
-        {deadlines.length} found{needsAttention > 0 && <> · <strong className={styles.attentionCount}>{needsAttention} need your attention</strong></>}.
-        Untick anything you don&apos;t want in your calendar.
+        {deadlines.length + recurring.length === 0 ? (
+          "Due didn't find any graded deadlines in this outline. Add them below."
+        ) : (
+          <>
+            {deadlines.length + recurring.length} found
+            {needsAttention > 0 && <> · <strong className={styles.attentionCount}>{needsAttention} need your attention</strong></>}
+            {toConfirm > 0 && <> · <strong className={styles.confirmCount}>{toConfirm} to confirm</strong></>}.
+            Check them against the outline, and untick anything you don&apos;t want in your calendar.
+          </>
+        )}
       </p>
 
       <ul className={styles.deadlines}>
@@ -303,12 +499,35 @@ function ReviewStep({
         + Add a deadline
       </button>
 
+      <h3 className={styles.subTitle}>Repeating deadlines</h3>
+      <p className={styles.help}>
+        {recurring.length === 0
+          ? "Graded work due every week or every class, such as reflection papers. Due didn't find any."
+          : "Graded work due every week or every class. Each one goes in your calendar once for every date."}
+      </p>
+      {recurring.length > 0 && (
+        <ul className={styles.deadlines}>
+          {recurring.map((r) => (
+            <RecurringRow
+              key={r.id}
+              recurring={r}
+              course={course}
+              onChange={(patch) => updateRecurring(r.id, patch)}
+              onRemove={() => onRecurringChange(recurring.filter((other) => other.id !== r.id))}
+            />
+          ))}
+        </ul>
+      )}
+      <button className={styles.linkButton} onClick={addRecurring}>
+        + Add a repeating deadline
+      </button>
+
       <div className={styles.actions}>
         <button className={styles.secondaryButton} onClick={onBack}>
           Back
         </button>
-        <button className={styles.button} onClick={onNext} disabled={needsAttention > 0 || included.length === 0}>
-          Continue with {included.length} deadline{included.length === 1 ? "" : "s"}
+        <button className={styles.button} onClick={onNext} disabled={needsAttention > 0 || total === 0}>
+          Continue with {total} deadline{total === 1 ? "" : "s"}
         </button>
       </div>
       {needsAttention > 0 && <p className={styles.help}>Fix or untick the highlighted deadlines to continue.</p>}
@@ -337,13 +556,14 @@ function DeadlineRow({
   const problem = deadline.include ? deadlineProblem(deadline, course) : null;
   const date = resolveDate(deadline, course);
   const hint = weekHint(deadline, course);
+  const guess = deadline.include && !problem ? guessExplanation(deadline, course) : null;
 
   function setTimeKind(kind: TimeChoice["kind"]) {
     onChange({ time: kind === "custom" ? { kind, time: "17:00" } : { kind } });
   }
 
   return (
-    <li className={!deadline.include ? styles.rowOff : problem ? styles.rowProblem : styles.row}>
+    <li className={!deadline.include ? styles.rowOff : problem ? styles.rowProblem : guess ? styles.rowGuess : styles.row}>
       <input
         type="checkbox"
         className={styles.checkbox}
@@ -409,6 +629,15 @@ function DeadlineRow({
         </div>
 
         {hint && <p className={styles.hint}>{hint}</p>}
+        {guess && (
+          <p className={styles.guess}>
+            {guess}{" "}
+            {/* Picking the guessed date keeps it, and it's no longer a guess. */}
+            <button className={styles.confirmButton} onClick={() => onChange({ date })}>
+              Looks right
+            </button>
+          </p>
+        )}
         {problem && <p className={styles.problem}>{problem}</p>}
       </div>
 
@@ -419,9 +648,184 @@ function DeadlineRow({
   );
 }
 
+const REPEAT_LABELS: Record<RepeatKind, string> = {
+  "every-class": "Every class",
+  weekly: "Weekly on",
+};
+
+/** "8" or "8, 10" as week numbers, ignoring anything else. */
+function parseWeeks(text: string): number[] {
+  return [...new Set(text.split(/[^0-9]+/).filter(Boolean).map(Number))].filter((w) => w >= 1 && w <= 52).sort((a, b) => a - b);
+}
+
+function WeekInput({ label, value, onChange }: { label: string; value: number | null; onChange: (week: number | null) => void }) {
+  return (
+    <input
+      type="number"
+      min={1}
+      max={52}
+      className={styles.weekInput}
+      value={value ?? ""}
+      aria-label={label}
+      placeholder="?"
+      onChange={(e) => onChange(e.target.value ? Math.max(1, Math.round(Number(e.target.value))) : null)}
+    />
+  );
+}
+
+function RecurringRow({
+  recurring,
+  course,
+  onChange,
+  onRemove,
+}: {
+  recurring: RecurringDeadline;
+  course: CourseDetails;
+  onChange: (patch: Partial<RecurringDeadline>) => void;
+  onRemove: () => void;
+}) {
+  const problem = recurring.include ? recurringProblem(recurring, course) : null;
+  const summary = recurringSummary(recurring, course);
+  const askToConfirm = recurring.include && !problem && !recurring.confirmed;
+  // Any change is the student checking it, so it no longer asks.
+  const edit = (patch: Partial<RecurringDeadline>) => onChange({ ...patch, confirmed: true });
+  const [skipText, setSkipText] = useState(recurring.skipWeeks.join(", "));
+
+  function setTimeKind(kind: TimeChoice["kind"]) {
+    edit({ time: kind === "custom" ? { kind, time: "17:00" } : { kind } });
+  }
+
+  return (
+    <li className={!recurring.include ? styles.rowOff : problem ? styles.rowProblem : askToConfirm ? styles.rowGuess : styles.row}>
+      <input
+        type="checkbox"
+        className={styles.checkbox}
+        checked={recurring.include}
+        aria-label={`Include ${recurring.title || "this repeating deadline"}`}
+        onChange={(e) => edit({ include: e.target.checked })}
+      />
+
+      <div className={styles.rowFields}>
+        <div className={styles.rowTop}>
+          <input
+            className={styles.titleInput}
+            value={recurring.title}
+            placeholder="e.g. Reflection paper"
+            aria-label="Title"
+            onChange={(e) => edit({ title: e.target.value })}
+          />
+          <select
+            className={styles.select}
+            value={recurring.kind}
+            aria-label="Type"
+            onChange={(e) => edit({ kind: e.target.value as DeadlineKind })}
+          >
+            {DEADLINE_KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {kind === "exam" ? "Exam" : "Assignment"}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.rowBottom}>
+          <select
+            className={styles.select}
+            value={recurring.repeat}
+            aria-label="Repeats"
+            onChange={(e) => edit({ repeat: e.target.value as RepeatKind })}
+          >
+            {REPEAT_KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {REPEAT_LABELS[kind]}
+              </option>
+            ))}
+          </select>
+          {recurring.repeat === "weekly" && (
+            <select
+              className={styles.select}
+              value={recurring.weekday ?? ""}
+              aria-label="Day"
+              onChange={(e) => edit({ weekday: e.target.value ? Number(e.target.value) : null })}
+            >
+              <option value="">Pick a day</option>
+              {WEEKDAY_LABELS.map((label, i) => (
+                <option key={label} value={i + 1}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          )}
+          <select
+            className={styles.select}
+            value={recurring.time.kind}
+            aria-label="Time"
+            onChange={(e) => setTimeKind(e.target.value as TimeChoice["kind"])}
+          >
+            {(Object.keys(TIME_LABELS) as TimeChoice["kind"][]).map((kind) => (
+              <option key={kind} value={kind}>
+                {kind === "class-time" && isTime(course.classStart)
+                  ? `Class time (${formatTime(course.classStart)})`
+                  : TIME_LABELS[kind]}
+              </option>
+            ))}
+          </select>
+          {recurring.time.kind === "custom" && (
+            <input
+              type="time"
+              className={styles.input}
+              value={recurring.time.time}
+              aria-label="Custom time"
+              onChange={(e) => edit({ time: { kind: "custom", time: e.target.value } })}
+            />
+          )}
+        </div>
+
+        <div className={styles.rowBottom}>
+          <span className={styles.weekRange}>
+            Weeks
+            <WeekInput label="First week" value={recurring.firstWeek} onChange={(firstWeek) => edit({ firstWeek })} />
+            to
+            <WeekInput label="Last week" value={recurring.lastWeek} onChange={(lastWeek) => edit({ lastWeek })} />
+          </span>
+          <label className={styles.weekRange}>
+            Skip weeks
+            <input
+              className={styles.skipInput}
+              value={skipText}
+              placeholder="e.g. 8"
+              onChange={(e) => {
+                setSkipText(e.target.value);
+                edit({ skipWeeks: parseWeeks(e.target.value) });
+              }}
+            />
+          </label>
+        </div>
+
+        {recurring.note && <p className={styles.hint}>Outline: “{recurring.note}”</p>}
+        {summary && recurring.include && <p className={styles.hint}>{summary}</p>}
+        {askToConfirm && (
+          <p className={styles.guess}>
+            Due found this repeating deadline. Put it in your calendar? Please confirm.{" "}
+            <button className={styles.confirmButton} onClick={() => onChange({ confirmed: true })}>
+              Looks right
+            </button>
+          </p>
+        )}
+        {problem && <p className={styles.problem}>{problem}</p>}
+      </div>
+
+      <button className={styles.remove} onClick={onRemove} aria-label={`Remove ${recurring.title || "this repeating deadline"}`}>
+        ×
+      </button>
+    </li>
+  );
+}
+
 function DownloadStep({
   course,
   deadlines,
+  recurring,
   reminders,
   onRemindersChange,
   onBack,
@@ -429,20 +833,21 @@ function DownloadStep({
 }: {
   course: CourseDetails;
   deadlines: Deadline[];
+  recurring: RecurringDeadline[];
   reminders: ReminderSettings;
   onRemindersChange: (reminders: ReminderSettings) => void;
   onBack: () => void;
   onStartOver: () => void;
 }) {
   const [downloaded, setDownloaded] = useState(false);
-  const ready = deadlines.filter((d) => d.include && deadlineProblem(d, course) === null);
+  const ready = calendarDeadlines(course, deadlines, recurring);
 
   function toggle(list: number[], value: number): number[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   }
 
   function download() {
-    const ics = buildCalendar(course, deadlines, reminders);
+    const ics = buildCalendar(course, ready, reminders);
     const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
     const link = document.createElement("a");
     link.href = url;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { addDays, formatTime, mondayOf, weekdayOf } from "../dates.js";
-import { deadlineProblem, resolveDate, weekHint } from "../deadlines.js";
+import { deadlineProblem, guessExplanation, isGuessedDate, resolveDate, weekHint } from "../deadlines.js";
 import { buildCalendar, calendarFileName, eventTitle } from "../ics.js";
 import { SAMPLE_COURSE, SAMPLE_DEADLINES } from "../samples.js";
 import { DEFAULT_REMINDERS, type Deadline } from "../types.js";
@@ -17,6 +17,7 @@ function deadline(overrides: Partial<Deadline> = {}): Deadline {
     day: null,
     time: { kind: "all-day" },
     include: true,
+    note: null,
     ...overrides,
   };
 }
@@ -46,13 +47,32 @@ describe("resolveDate", () => {
     expect(resolveDate(deadline({ date: "2027-03-01", week: 5, day: 3 }), SAMPLE_COURSE)).toBe("2027-03-01");
   });
 
-  it("has no date for a week without a day, or without a Week 1 date", () => {
-    expect(resolveDate(deadline({ date: null, week: 8 }), SAMPLE_COURSE)).toBeNull();
-    expect(resolveDate(deadline({ date: null, week: 5, day: 3 }), { ...SAMPLE_COURSE, week1Start: null })).toBeNull();
+  it("guesses the week's first class when the outline gives only a week, for the student to confirm", () => {
+    const weekOnly = deadline({ date: null, week: 8 });
+    expect(resolveDate(weekOnly, SAMPLE_COURSE)).toBe("2027-03-01");
+    expect(resolveDate(weekOnly, { ...SAMPLE_COURSE, classDays: [3, 4] })).toBe("2027-03-03");
+    expect(resolveDate(weekOnly, { ...SAMPLE_COURSE, classDays: [] })).toBe("2027-03-01");
+    expect(isGuessedDate(weekOnly, SAMPLE_COURSE)).toBe(true);
+    expect(guessExplanation(weekOnly, SAMPLE_COURSE)).toBe("Due picked Mon, Mar 1, the first class in Week 8. Please confirm.");
+  });
+
+  it("stops guessing once the student picks a date, or when the outline names the day", () => {
+    expect(isGuessedDate(deadline({ date: "2027-03-02", week: 8 }), SAMPLE_COURSE)).toBe(false);
+    expect(isGuessedDate(deadline({ date: null, week: 8, day: 5 }), SAMPLE_COURSE)).toBe(false);
+    expect(guessExplanation(deadline({ date: null, week: 8, day: 5 }), SAMPLE_COURSE)).toBeNull();
+  });
+
+  it("has no date for a week without a Week 1 date", () => {
+    const noWeek1 = { ...SAMPLE_COURSE, week1Start: null };
+    expect(resolveDate(deadline({ date: null, week: 5, day: 3 }), noWeek1)).toBeNull();
+    expect(resolveDate(deadline({ date: null, week: 8 }), noWeek1)).toBeNull();
+    expect(deadlineProblem(deadline({ date: null, week: 8 }), noWeek1)).toBe(
+      "Add the first week of classes in course details, or pick a date.",
+    );
   });
 
   it("shows the week's dates when the outline gives only a week", () => {
-    expect(weekHint(deadline({ date: null, week: 8 }), SAMPLE_COURSE)).toBe("Outline: Week 8 (Mon, Mar 1 – Sun, Mar 7)");
+    expect(weekHint(deadline({ date: null, week: 8 }), SAMPLE_COURSE)).toBe("Outline: Week 8 (Week 8 is Mon, Mar 1 – Sun, Mar 7)");
   });
 });
 
@@ -75,9 +95,10 @@ describe("deadlineProblem", () => {
     );
   });
 
-  it("leaves two sample deadlines for the student to fix", () => {
+  it("leaves one sample deadline for the student to fix, and one to confirm", () => {
     const problems = SAMPLE_DEADLINES.filter((d) => deadlineProblem(d, SAMPLE_COURSE) !== null).map((d) => d.title);
-    expect(problems).toEqual(["Group project proposal", "Final exam"]);
+    expect(problems).toEqual(["Final exam"]);
+    expect(SAMPLE_DEADLINES.filter((d) => isGuessedDate(d, SAMPLE_COURSE)).map((d) => d.title)).toEqual(["Group project proposal"]);
   });
 });
 
@@ -128,7 +149,7 @@ describe("buildCalendar", () => {
 
   it("leaves out unticked deadlines and ones that aren't ready", () => {
     const ics = buildCalendar(SAMPLE_COURSE, SAMPLE_DEADLINES, DEFAULT_REMINDERS, NOW);
-    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(4);
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(5);
     const unticked = SAMPLE_DEADLINES.map((d) => ({ ...d, include: false }));
     expect(buildCalendar(SAMPLE_COURSE, unticked, DEFAULT_REMINDERS, NOW)).not.toContain("BEGIN:VEVENT");
   });

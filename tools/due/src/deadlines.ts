@@ -10,21 +10,48 @@ export function weekStart(course: CourseDetails, week: number): string | null {
   return addDays(mondayOf(course.week1Start), 7 * (week - 1));
 }
 
-/** The deadline's date: the one given, or worked out from its week and day. */
+/**
+ * The deadline's date: the one given, or worked out from its week and day.
+ * When the outline gives only a week, it's a guess: the week's first class
+ * (or its Monday, without class days), the earliest the work is likely due,
+ * so a wrong guess reminds the student early rather than late. The review
+ * screen asks the student to confirm it (see isGuessedDate).
+ */
 export function resolveDate(deadline: Deadline, course: CourseDetails): string | null {
   if (isDate(deadline.date)) return deadline.date;
-  if (deadline.week === null || deadline.day === null) return null;
+  if (deadline.week === null) return null;
   const start = weekStart(course, deadline.week);
-  return start ? addDays(start, deadline.day - 1) : null;
+  if (!start) return null;
+  const day = deadline.day ?? (course.classDays.length > 0 ? Math.min(...course.classDays) : 1);
+  return addDays(start, day - 1);
 }
 
-/** What the outline said about the deadline's week, for showing next to the date. */
+/** Whether resolveDate guessed the day, because the outline gives only a week and the student hasn't picked a date. */
+export function isGuessedDate(deadline: Deadline, course: CourseDetails): boolean {
+  return !isDate(deadline.date) && deadline.week !== null && deadline.day === null && weekStart(course, deadline.week) !== null;
+}
+
+/** Why the date was picked, for a guessed date, e.g. "Due picked Mon, Nov 30, the first class in Week 3." */
+export function guessExplanation(deadline: Deadline, course: CourseDetails): string | null {
+  if (!isGuessedDate(deadline, course)) return null;
+  const date = resolveDate(deadline, course)!;
+  const which = course.classDays.length > 0 ? "the first class" : "the first day";
+  return `Due picked ${formatDate(date)}, ${which} in Week ${deadline.week}. Please confirm.`;
+}
+
+/**
+ * What the outline said about when the deadline is due, for showing next to
+ * the date, with the week's dates when it gives a week but no day.
+ */
 export function weekHint(deadline: Deadline, course: CourseDetails): string | null {
-  if (deadline.week === null) return null;
-  const label = `Week ${deadline.week}${deadline.day !== null ? `, Day ${deadline.day}` : ""}`;
+  const said = deadline.note?.trim();
+  if (deadline.week === null) return said ? `Outline: “${said}”` : null;
+  const label = said
+    ? `“${said}”`
+    : `Week ${deadline.week}${deadline.day !== null ? `, ${WEEKDAY_LABELS[deadline.day - 1] ?? `Day ${deadline.day}`}` : ""}`;
   const start = weekStart(course, deadline.week);
   if (deadline.day !== null || !start) return `Outline: ${label}`;
-  return `Outline: ${label} (${formatDate(start)} – ${formatDate(addDays(start, 6))})`;
+  return `Outline: ${label} (Week ${deadline.week} is ${formatDate(start)} – ${formatDate(addDays(start, 6))})`;
 }
 
 /** Why the deadline can't go in the calendar yet, or null if it's ready. */
@@ -33,7 +60,7 @@ export function deadlineProblem(deadline: Deadline, course: CourseDetails): stri
 
   const date = resolveDate(deadline, course);
   if (!date) {
-    if (deadline.week !== null && deadline.day !== null && !isDate(course.week1Start)) {
+    if (deadline.week !== null && !isDate(course.week1Start)) {
       return "Add the first week of classes in course details, or pick a date.";
     }
     return "Pick a date.";

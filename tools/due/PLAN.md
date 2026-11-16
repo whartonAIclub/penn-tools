@@ -34,15 +34,17 @@ One course outline in, one calendar file out.
      - **11:59 PM**
      - **Custom time**
    - Deadlines with no time in the outline default to **All day**.
+   - **Deadlines given only as a week** ("due in Week 3") get the week's first class as their date, at class time when the outline gives the class time. That's the earliest likely day, so a wrong guess reminds early, never late. The row is highlighted with "Please confirm" and a **Looks right** button, and shows what the outline says and the week's dates. Confirming isn't required to continue.
+   - **Repeating graded deadlines** (e.g. weekly reflection papers, decided 2026-11-16) are listed once each in their own section: every class, or weekly on a day, with a time, first and last week, and weeks to skip (breaks). They're ticked by default and ask the student to confirm. In the calendar, each date is its own event. Repeating readings are not included.
 6. **Reminders.** A sensible default preset, which the student can change before downloading (see Open questions).
 7. **Download** the .ics file, with short instructions for adding it to Google, Apple and Outlook calendars.
 
-**Not in the MVP:** multiple PDFs, recurring items (readings and so on), saved reminder settings, Canvas.
+**Not in the MVP:** multiple PDFs, repeating non-graded items (readings and so on), saved reminder settings, Canvas.
 
 ## Phase 2
 
 - **Multiple PDFs at once.** Upload all of a semester's outlines (say, six courses) and get one .ics file covering every course.
-- **Recurring items** (optional, off by default). For important non-graded work, such as readings that feed graded class discussion. The student turns it on for a course and sets:
+- **Repeating non-graded items** (optional, off by default; repeating graded deadlines are already in the MVP). For important non-graded work, such as readings that feed graded class discussion. The student turns it on for a course and sets:
   - **How often:** every class, once a week, or every other class
   - **When to remind:** for example, the day before class
   - **The reminder's name**

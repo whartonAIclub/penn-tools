@@ -39,6 +39,35 @@ export interface Deadline {
   time: TimeChoice;
   /** Whether it goes in the calendar file. */
   include: boolean;
+  /** What the outline says about when it's due, e.g. "Session 5, before class", for the student to check against. */
+  note: string | null;
+}
+
+/** How a repeating deadline repeats: at every class, or once a week on one day. */
+export const REPEAT_KINDS = ["every-class", "weekly"] as const;
+export type RepeatKind = (typeof REPEAT_KINDS)[number];
+
+/**
+ * A graded deadline that repeats, such as a weekly reflection paper. It goes in
+ * the calendar as one event per occurrence, from firstWeek to lastWeek.
+ */
+export interface RecurringDeadline {
+  id: string;
+  title: string;
+  kind: DeadlineKind;
+  repeat: RepeatKind;
+  /** For "weekly": the day, 1 = Monday … 7 = Sunday. */
+  weekday: number | null;
+  time: TimeChoice;
+  firstWeek: number | null;
+  lastWeek: number | null;
+  /** Weeks with nothing due, e.g. spring break. */
+  skipWeeks: number[];
+  include: boolean;
+  /** Whether the student has confirmed it; until then the review screen asks them to. */
+  confirmed: boolean;
+  /** What the outline says about it, e.g. "Due before each Monday class". */
+  note: string | null;
 }
 
 export interface ReminderSettings {
