@@ -82,13 +82,13 @@ export function DiscountBoard({
     <DealCard
       key={deal.id}
       deal={deal}
-      kindLabel={kindLabels[deal.kind]}
+      kindLabels={deal.kinds.map((k) => kindLabels[k])}
       categoryLabel={categoryLabels[deal.category]}
       neighborhoodLabel={deal.neighborhood ? neighborhoodLabels[deal.neighborhood] : null}
       signedIn={signedIn}
       onVote={(works) => act(() => castVote(deal.id, works))}
       onExpire={() => {
-        if (confirm(`Move "${deal.business}: ${deal.title}" to Expired?`)) void act(() => expireDeal(deal.id));
+        if (confirm(`Move "${deal.business}: ${deal.title ?? deal.summary}" to Expired?`)) void act(() => expireDeal(deal.id));
       }}
     />
   );
@@ -314,7 +314,7 @@ export function DiscountBoard({
               <DealCard
                 key={deal.id}
                 deal={deal}
-                kindLabel={kindLabels[deal.kind]}
+                kindLabels={deal.kinds.map((k) => kindLabels[k])}
                 categoryLabel={categoryLabels[deal.category]}
                 neighborhoodLabel={deal.neighborhood ? neighborhoodLabels[deal.neighborhood] : null}
                 signedIn={signedIn}
@@ -330,7 +330,7 @@ export function DiscountBoard({
 
 function DealCard({
   deal,
-  kindLabel,
+  kindLabels,
   categoryLabel,
   neighborhoodLabel,
   signedIn,
@@ -339,7 +339,8 @@ function DealCard({
   onRestore,
 }: {
   deal: Discount;
-  kindLabel: string;
+  /** One per way the deal is used. */
+  kindLabels: string[];
   categoryLabel: string;
   neighborhoodLabel: string | null;
   signedIn: boolean;
@@ -384,7 +385,11 @@ function DealCard({
               Penn only
             </span>
           )}
-          <span className={styles.badge}>{kindLabel}</span>
+          {kindLabels.map((label) => (
+            <span key={label} className={styles.badge}>
+              {label}
+            </span>
+          ))}
           <span className={styles.badge}>{categoryLabel}</span>
           {deal.source === "starter" && !expired && (
             <span className={styles.badgeStarter} title="From our starter list: vote to confirm it still works">

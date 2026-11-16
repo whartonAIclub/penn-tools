@@ -100,7 +100,7 @@ describe("checkNewDiscount", () => {
 
   it("needs only the establishment and the deal type, defaulting to an in-person deal", () => {
     expect(checkNewDiscount({ business: "Sweetgreen", dealType: "bogo" })).toEqual({
-      kind: "local",
+      kinds: ["local"],
       business: "Sweetgreen",
       title: null,
       dealType: "bogo",
@@ -141,6 +141,16 @@ describe("checkNewDiscount", () => {
     expect(checkNewDiscount(LOCAL).neighborhood).toBe("university-city");
     expect(() => checkNewDiscount({ ...LOCAL, neighborhood: "narnia" })).toThrow("Choose a neighborhood from the list.");
     expect(checkNewDiscount({ ...DEAL, neighborhood: "old-city" }).neighborhood).toBeNull();
+  });
+
+  it("takes more than one way to use a deal, in a fixed order without repeats", () => {
+    expect(checkNewDiscount({ ...LOCAL, kinds: ["local", "online", "local"] }).kinds).toEqual(["online", "local"]);
+    expect(checkNewDiscount({ ...LOCAL, kind: undefined, kinds: [] }).kinds).toEqual(["local"]);
+    expect(checkNewDiscount({ ...DEAL, kind: "online", code: null }).kinds).toEqual(["online"]);
+    // In person among others keeps the neighborhood; a promo code among others still needs the code.
+    expect(checkNewDiscount({ ...LOCAL, kinds: ["online", "local"] }).neighborhood).toBe("university-city");
+    expect(() => checkNewDiscount({ ...LOCAL, kinds: ["code", "local"] })).toThrow("Enter code.");
+    expect(() => checkNewDiscount({ ...LOCAL, kinds: ["local", "coupon"] })).toThrow("Choose where the deal is used");
   });
 
   it("rejects links that aren't web addresses", () => {
@@ -221,10 +231,36 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
     expect(oldCity.every((d) => d.neighborhood === "old-city")).toBe(true);
     const uCity = await listDiscounts(sql, { userId: null, status: "active", neighborhood: "university-city" });
     expect(uCity.map((d) => d.business)).toContain("Penn Museum");
-    expect(uCity.every((d) => d.kind === "local" && d.neighborhood === "university-city" && d.mapsUrl)).toBe(true);
+    expect(uCity.every((d) => d.kinds.includes("local") && d.neighborhood === "university-city" && d.mapsUrl)).toBe(true);
 
     const [online] = await listDiscounts(sql, { userId: null, status: "active", search: "Spotify" });
     expect(online).toMatchObject({ neighborhood: null, mapsUrl: null });
+  });
+
+  it("lists a deal used more than one way under each of them", async () => {
+    const both = await addDiscount(sql, "lee", {
+      ...LOCAL,
+      kinds: ["online", "local"],
+      business: "Qwv Outfitters",
+      title: "Qwv student discount",
+      discount: "Qwv details",
+      neighborhood: "center-city",
+      location: "1625 Chestnut St",
+    });
+    expect(both).toMatchObject({ kinds: ["online", "local"], neighborhood: "center-city", mapsUrl: mapsUrl("Qwv Outfitters", "1625 Chestnut St") });
+
+    const search = "Qwv Outfitters";
+    const ids = async (kind: "code" | "online" | "local") =>
+      (await listDiscounts(sql, { userId: null, status: "active", kind, search })).map((d) => d.id);
+    expect(await ids("online")).toEqual([both.id]);
+    expect(await ids("local")).toEqual([both.id]);
+    expect(await ids("code")).toEqual([]);
+    const centerCity = await listDiscounts(sql, { userId: null, status: "active", neighborhood: "center-city" });
+    expect(centerCity.map((d) => d.id)).toContain(both.id);
+
+    // From the starter list: Madewell's discount works in stores and online.
+    const [madewell] = await listDiscounts(sql, { userId: null, status: "active", kind: "local", search: "Madewell" });
+    expect(madewell?.kinds).toEqual(["online", "local"]);
   });
 
   it("filters Penn-specific and general deals", async () => {

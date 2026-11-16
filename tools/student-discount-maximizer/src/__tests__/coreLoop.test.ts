@@ -92,7 +92,7 @@ describe("empty inputs", () => {
       category: "",
     };
     expect(checkNewDiscount(blank)).toEqual({
-      kind: "local",
+      kinds: ["local"],
       business: "Loop Tacos",
       title: null,
       dealType: "bogo",
@@ -205,7 +205,7 @@ describe.skipIf(!databaseUrl)("core loop (Postgres)", () => {
     expect(added).toMatchObject({
       business: "Loop Tacos",
       summary: "Buy one, get one free: tacos",
-      kind: "local",
+      kinds: ["local"],
       status: "active",
       source: "student",
       works: 0,

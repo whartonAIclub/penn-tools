@@ -18,6 +18,11 @@ export const KIND_LABELS: Record<DiscountKind, string> = {
   local: "Local spot",
 };
 
+/** Puts kinds in KINDS order without repeats, so ["local", "online", "local"] → ["online", "local"]. */
+export function sortKinds(kinds: readonly DiscountKind[]): DiscountKind[] {
+  return KINDS.filter((k) => kinds.includes(k));
+}
+
 export const CATEGORIES = ["food", "entertainment", "tech", "shopping", "travel", "culture", "fitness", "other"] as const;
 export type DiscountCategory = (typeof CATEGORIES)[number];
 
@@ -97,7 +102,8 @@ export const LIMITS = {
 
 export interface Discount {
   id: string;
-  kind: DiscountKind;
+  /** Every way the deal is used, in KINDS order; never empty. */
+  kinds: DiscountKind[];
   business: string;
   /** An optional headline; cards fall back to `summary`. */
   title: string | null;
@@ -113,9 +119,9 @@ export interface Discount {
   discount: string;
   code: string | null;
   location: string | null;
-  /** Local spots only. */
+  /** Deals used in person only. */
   neighborhood: Neighborhood | null;
-  /** A Google Maps link to the spot, for local spots with a location. */
+  /** A Google Maps link to the spot, for deals used in person that have a location. */
   mapsUrl: string | null;
   url: string | null;
   howToClaim: string;
@@ -141,7 +147,7 @@ export interface Discount {
  * optional fields are null.
  */
 export interface NewDiscount {
-  kind: DiscountKind;
+  kinds: DiscountKind[];
   business: string;
   title: string | null;
   dealType: DealType;
@@ -161,10 +167,11 @@ export interface ListOptions {
   /** The signed-in student, to include their votes; null when signed out. */
   userId: string | null;
   status: DiscountStatus;
+  /** Only deals that can be used this way (among others). */
   kind?: DiscountKind | null;
   category?: DiscountCategory | null;
   audience?: DiscountAudience | null;
-  /** Only local spots in this neighborhood. */
+  /** Only in-person deals in this neighborhood. */
   neighborhood?: Neighborhood | null;
   search?: string | null;
   sort?: DiscountSort;
@@ -222,6 +229,16 @@ function amountOf(value: unknown, dealType: DealType): number | null {
   return Math.round(amount * 100) / 100;
 }
 
+/**
+ * Where a deal is used: a list of kinds, or one kind as text (older callers).
+ * Optional: with none chosen it's in person, as most deals students add are.
+ */
+function kindsOf(value: unknown): DiscountKind[] {
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+  if (list.some((k) => !KINDS.includes(k as DiscountKind))) throw new DiscountError("Choose where the deal is used.");
+  return list.length > 0 ? sortKinds(list as DiscountKind[]) : ["local"];
+}
+
 /** A new deal from the browser's input, checked; throws DiscountError if something's wrong. */
 export function checkNewDiscount(input: unknown): NewDiscount {
   if (typeof input !== "object" || input === null) throw new DiscountError("Fill in the deal's details.");
@@ -229,19 +246,18 @@ export function checkNewDiscount(input: unknown): NewDiscount {
   const business = text(raw["business"], "Establishment name", LIMITS.business, true)!;
   const dealType = raw["dealType"];
   if (!DEAL_TYPES.includes(dealType as DealType)) throw new DiscountError("Choose what kind of deal it is.");
-  // Optional, with defaults: most deals students add are in person.
-  const kind = raw["kind"] || "local";
-  if (!KINDS.includes(kind as DiscountKind)) throw new DiscountError("Choose where the deal is used.");
+  const kinds = kindsOf(raw["kinds"] ?? raw["kind"]);
+  const inPerson = kinds.includes("local");
   const category = raw["category"] || "other";
   if (!CATEGORIES.includes(category as DiscountCategory)) throw new DiscountError("Choose a category.");
-  // Only local spots have a neighborhood; it's ignored for the others.
-  const neighborhood = kind === "local" ? raw["neighborhood"] || null : null;
+  // Only deals used in person have a neighborhood; it's ignored for the others.
+  const neighborhood = inPerson ? raw["neighborhood"] || null : null;
   if (neighborhood !== null && !NEIGHBORHOODS.includes(neighborhood as Neighborhood)) {
     throw new DiscountError("Choose a neighborhood from the list.");
   }
 
   return {
-    kind: kind as DiscountKind,
+    kinds,
     business,
     title: text(raw["title"], "Title", LIMITS.title, false),
     dealType: dealType as DealType,
@@ -249,8 +265,8 @@ export function checkNewDiscount(input: unknown): NewDiscount {
     appliesTo: text(raw["appliesTo"], "What it applies to", LIMITS.appliesTo, false),
     // "Other" has no structure of its own, so it needs words.
     discount: text(raw["discount"], "Details", LIMITS.discount, dealType === "other") ?? "",
-    // A promo code deal is the code.
-    code: text(raw["code"], "Code", LIMITS.code, kind === "code"),
+    // A promo code deal needs the code.
+    code: text(raw["code"], "Code", LIMITS.code, kinds.includes("code")),
     location: text(raw["location"], "Address", LIMITS.location, false),
     neighborhood: neighborhood as Neighborhood | null,
     url: link(raw["url"], false),
@@ -298,7 +314,7 @@ export function dealSummary(deal: {
 
 interface DiscountRow {
   id: string;
-  kind: DiscountKind;
+  kinds: DiscountKind[];
   business: string;
   title: string | null;
   deal_type: DealType | null;
@@ -326,7 +342,7 @@ interface DiscountRow {
 function toDiscount(row: DiscountRow): Discount {
   return {
     id: row.id,
-    kind: row.kind,
+    kinds: sortKinds(row.kinds),
     business: row.business,
     title: row.title,
     dealType: row.deal_type,
@@ -342,7 +358,7 @@ function toDiscount(row: DiscountRow): Discount {
     code: row.code,
     location: row.location,
     neighborhood: row.neighborhood,
-    mapsUrl: row.kind === "local" && row.location ? mapsUrl(row.business, row.location) : null,
+    mapsUrl: row.kinds.includes("local") && row.location ? mapsUrl(row.business, row.location) : null,
     url: row.url,
     howToClaim: row.how_to_claim,
     category: row.category,
@@ -370,7 +386,7 @@ export function mapsUrl(business: string, location: string): string {
 /** The columns of a DiscountRow, for a query over discounts d LEFT JOIN votes v, grouped by d.id. */
 function discountColumns(sql: Sql, userId: string | null) {
   return sql`
-    d.id, d.kind, d.business, d.title, d.deal_type, d.amount, d.applies_to, d.discount, d.code,
+    d.id, d.kinds, d.business, d.title, d.deal_type, d.amount, d.applies_to, d.discount, d.code,
     d.location, d.neighborhood, d.url, d.how_to_claim, d.category, d.penn_specific, d.source,
     d.status, d.expired_reason, d.status_changed_at, d.created_at,
     COUNT(v.user_id) FILTER (WHERE v.works) AS works,
@@ -404,10 +420,10 @@ export async function listDiscounts(sql: Sql, options: ListOptions): Promise<Dis
     FROM discounts d
     LEFT JOIN votes v ON v.discount_id = d.id
     WHERE d.status = ${status}
-      ${kind ? sql`AND d.kind = ${kind}` : sql``}
+      ${kind ? sql`AND ${kind} = ANY(d.kinds)` : sql``}
       ${category ? sql`AND d.category = ${category}` : sql``}
       ${audience ? sql`AND d.penn_specific = ${audience === "penn"}` : sql``}
-      ${neighborhood ? sql`AND d.kind = 'local' AND d.neighborhood = ${neighborhood}` : sql``}
+      ${neighborhood ? sql`AND 'local' = ANY(d.kinds) AND d.neighborhood = ${neighborhood}` : sql``}
       ${
         pattern
           ? sql`AND (d.business ILIKE ${pattern} OR d.title ILIKE ${pattern} OR d.discount ILIKE ${pattern}
@@ -448,9 +464,9 @@ export async function addDiscount(sql: Sql, userId: string, input: unknown): Pro
   }
 
   const [row] = await sql<{ id: string }[]>`
-    INSERT INTO discounts (kind, business, title, deal_type, amount, applies_to, discount, code, location,
+    INSERT INTO discounts (kind, kinds, business, title, deal_type, amount, applies_to, discount, code, location,
                            neighborhood, url, how_to_claim, category, penn_specific, source, created_by)
-    VALUES (${deal.kind}, ${deal.business}, ${deal.title}, ${deal.dealType}, ${deal.amount}, ${deal.appliesTo},
+    VALUES (${deal.kinds[0]!}, ${sql.array(deal.kinds)}, ${deal.business}, ${deal.title}, ${deal.dealType}, ${deal.amount}, ${deal.appliesTo},
             ${deal.discount}, ${deal.code}, ${deal.location}, ${deal.neighborhood}, ${deal.url}, ${deal.howToClaim},
             ${deal.category}, ${deal.pennSpecific}, 'student', ${userId})
     RETURNING id

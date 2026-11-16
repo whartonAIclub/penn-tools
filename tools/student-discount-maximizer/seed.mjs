@@ -15,9 +15,13 @@ const DATA_PATH = new URL("./data/starter-discounts.json", import.meta.url);
 
 /** @param {{ sql: import("postgres").Sql }} deps */
 export default async function seed({ sql }) {
-  const deals = JSON.parse(fs.readFileSync(DATA_PATH, "utf8")).map((deal) => ({
+  const deals = JSON.parse(fs.readFileSync(DATA_PATH, "utf8")).map((deal) => {
+    // "kinds" lists every way the deal is used; "kind" is the older single one.
+    const kinds = deal.kinds ?? [deal.kind];
+    return {
     slug: deal.slug,
-    kind: deal.kind,
+    kind: kinds[0],
+    kinds,
     business: deal.business,
     title: deal.title ?? null,
     deal_type: deal.dealType ?? null,
@@ -32,23 +36,24 @@ export default async function seed({ sql }) {
     category: deal.category,
     penn_specific: deal.pennSpecific === true,
     source: "starter",
-  }));
+    };
+  });
   if (deals.length === 0) return;
 
   // Updates only rows whose details changed, so a deploy without changes writes nothing.
   const changed = await sql`
     INSERT INTO discounts ${sql(deals)}
     ON CONFLICT (slug) DO UPDATE SET
-      kind = EXCLUDED.kind, business = EXCLUDED.business, title = EXCLUDED.title,
+      kind = EXCLUDED.kind, kinds = EXCLUDED.kinds, business = EXCLUDED.business, title = EXCLUDED.title,
       deal_type = EXCLUDED.deal_type, amount = EXCLUDED.amount, applies_to = EXCLUDED.applies_to,
       discount = EXCLUDED.discount, code = EXCLUDED.code, location = EXCLUDED.location,
       neighborhood = EXCLUDED.neighborhood, url = EXCLUDED.url, how_to_claim = EXCLUDED.how_to_claim,
       category = EXCLUDED.category, penn_specific = EXCLUDED.penn_specific
-    WHERE (discounts.kind, discounts.business, discounts.title, discounts.deal_type, discounts.amount,
+    WHERE (discounts.kind, discounts.kinds, discounts.business, discounts.title, discounts.deal_type, discounts.amount,
            discounts.applies_to, discounts.discount, discounts.code, discounts.location, discounts.neighborhood,
            discounts.url, discounts.how_to_claim, discounts.category, discounts.penn_specific)
       IS DISTINCT FROM
-          (EXCLUDED.kind, EXCLUDED.business, EXCLUDED.title, EXCLUDED.deal_type, EXCLUDED.amount,
+          (EXCLUDED.kind, EXCLUDED.kinds, EXCLUDED.business, EXCLUDED.title, EXCLUDED.deal_type, EXCLUDED.amount,
            EXCLUDED.applies_to, EXCLUDED.discount, EXCLUDED.code, EXCLUDED.location, EXCLUDED.neighborhood,
            EXCLUDED.url, EXCLUDED.how_to_claim, EXCLUDED.category, EXCLUDED.penn_specific)
   `;

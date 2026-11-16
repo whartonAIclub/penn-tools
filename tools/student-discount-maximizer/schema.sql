@@ -48,6 +48,13 @@ ALTER TABLE discounts ADD COLUMN IF NOT EXISTS amount NUMERIC(10, 2);
 ALTER TABLE discounts ADD COLUMN IF NOT EXISTS applies_to TEXT;
 ALTER TABLE discounts ALTER COLUMN title DROP NOT NULL;
 
+-- Every way the deal can be used (in person, online, with a promo code): a
+-- deal can be more than one, e.g. Madewell's student discount works in stores
+-- and online. Each is one of KINDS in src/discounts.ts, which checks them.
+-- `kind` above keeps the first, for deals added before this column.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS kinds TEXT[] NOT NULL DEFAULT '{}';
+UPDATE discounts SET kinds = ARRAY[kind] WHERE kinds = '{}';
+
 CREATE INDEX IF NOT EXISTS discounts_status_idx ON discounts (status, created_at DESC);
 -- The daily submission limit counts a student's recent deals.
 CREATE INDEX IF NOT EXISTS discounts_creator_idx ON discounts (created_by, created_at);

@@ -24,7 +24,7 @@ function fakeAI(reply: unknown) {
 }
 
 const EMPTY_DRAFT = {
-  kind: null,
+  kinds: null,
   business: null,
   title: null,
   dealType: null,
@@ -42,10 +42,10 @@ const EMPTY_DRAFT = {
 
 describe("fillFromText", () => {
   it("sends the pasted text with the form's schema on the fast tier", async () => {
-    const { ai, requests } = fakeAI({ ...EMPTY_DRAFT, business: "Spotify", kind: "online", category: "entertainment" });
+    const { ai, requests } = fakeAI({ ...EMPTY_DRAFT, business: "Spotify", kinds: ["online"], category: "entertainment" });
     const draft = await fillFromText(ai, "anthropic", "Spotify Premium Student: half price for students.");
 
-    expect(draft).toEqual({ ...EMPTY_DRAFT, business: "Spotify", kind: "online", category: "entertainment" });
+    expect(draft).toEqual({ ...EMPTY_DRAFT, business: "Spotify", kinds: ["online"], category: "entertainment" });
     expect(requests[0]).toMatchObject({
       provider: "anthropic",
       tier: "fast",

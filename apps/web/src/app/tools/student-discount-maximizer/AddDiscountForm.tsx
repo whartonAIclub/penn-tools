@@ -45,7 +45,8 @@ interface FormState {
   /** "Everything" when false. */
   specificItems: boolean;
   appliesTo: string;
-  kind: DiscountKind;
+  /** Never empty: the form keeps at least one ticked. */
+  kinds: DiscountKind[];
   code: string;
   discount: string;
   title: string;
@@ -63,7 +64,7 @@ const EMPTY: FormState = {
   amount: "",
   specificItems: false,
   appliesTo: "",
-  kind: "local",
+  kinds: ["local"],
   code: "",
   discount: "",
   title: "",
@@ -117,6 +118,15 @@ export function AddDiscountForm({
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
   const type = dealTypes.find((t) => t.value === form.dealType);
+  const inPerson = form.kinds.includes("local");
+
+  /** Ticks or unticks a way to use the deal, keeping at least one ticked. */
+  function toggleKind(kind: DiscountKind) {
+    setForm((f) => {
+      const kinds = f.kinds.includes(kind) ? f.kinds.filter((k) => k !== kind) : [...f.kinds, kind];
+      return kinds.length > 0 ? { ...f, kinds } : f;
+    });
+  }
 
   /** Fills in what the AI found, keeping what the student already typed where it found nothing. */
   function applyDraft(draft: DealDraft) {
@@ -126,7 +136,7 @@ export function AddDiscountForm({
       amount: draft.amount !== null ? String(draft.amount) : f.amount,
       specificItems: draft.appliesTo !== null ? true : f.specificItems,
       appliesTo: draft.appliesTo ?? f.appliesTo,
-      kind: draft.kind ?? f.kind,
+      kinds: draft.kinds && draft.kinds.length > 0 ? draft.kinds : f.kinds,
       code: draft.code ?? f.code,
       discount: draft.discount ?? f.discount,
       title: draft.title ?? f.title,
@@ -271,17 +281,17 @@ export function AddDiscountForm({
         </label>
 
         <fieldset className={styles.fieldset}>
-          <legend className={styles.legend}>Where do you use it?</legend>
+          <legend className={styles.legend}>Where do you use it? (pick all that apply)</legend>
           <div className={styles.chips}>
             {WHERE.map((w) => (
-              <label key={w.value} className={form.kind === w.value ? styles.chipActive : styles.chip}>
-                <input type="radio" name="kind" checked={form.kind === w.value} onChange={() => set("kind", w.value)} />
+              <label key={w.value} className={form.kinds.includes(w.value) ? styles.chipActive : styles.chip}>
+                <input type="checkbox" name="kinds" checked={form.kinds.includes(w.value)} onChange={() => toggleKind(w.value)} />
                 {w.label}
               </label>
             ))}
           </div>
         </fieldset>
-        {form.kind === "code" && (
+        {form.kinds.includes("code") && (
           <label className={styles.field}>
             Code
             <input className={styles.input} required maxLength={limits.code} value={form.code} onChange={(e) => set("code", e.target.value)} />
@@ -291,7 +301,7 @@ export function AddDiscountForm({
         <details className={styles.more} open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
           <summary>More details (optional)</summary>
           <div className={styles.form}>
-            {form.kind === "local" && (
+            {inPerson && (
               <div className={styles.formRow}>
                 <label className={styles.field}>
                   Address

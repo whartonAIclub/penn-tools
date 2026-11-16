@@ -12,7 +12,12 @@ export const MAX_PASTED_TEXT_LENGTH = 8000;
 // Fields the text may not mention are .nullable(), so the model leaves them empty
 // rather than guessing.
 export const DealDraft = z.object({
-  kind: z.enum(KINDS).nullable().describe("code: a promo code to enter; online: a student price online, often after verifying student status; local: an in-person place"),
+  kinds: z
+    .array(z.enum(KINDS))
+    .nullable()
+    .describe(
+      "Every way the deal can be used: code (a promo code to enter), online (a student price online, often after verifying student status), local (in person). E.g. ['online', 'local'] for a store discount that also works online. Null if unclear",
+    ),
   business: z.string().nullable().describe("The establishment or brand offering the deal"),
   title: z.string().nullable().describe("A short headline only if the deal has a name, e.g. 'Student Premium plan'; else null"),
   dealType: z

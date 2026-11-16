@@ -1,7 +1,7 @@
 [
   {
     "slug": "spotify-premium-student",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Spotify",
     "title": "Premium Student",
     "dealType": "student_price",
@@ -13,7 +13,7 @@
   },
   {
     "slug": "youtube-premium-student",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "YouTube",
     "title": "YouTube Premium student plan",
     "dealType": "student_price",
@@ -25,7 +25,7 @@
   },
   {
     "slug": "hulu-student",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Hulu",
     "title": "Hulu student plan",
     "dealType": "student_price",
@@ -37,7 +37,7 @@
   },
   {
     "slug": "amazon-prime-student",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Amazon",
     "title": "Prime Student",
     "dealType": "student_price",
@@ -49,7 +49,7 @@
   },
   {
     "slug": "unidays",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "UNiDAYS",
     "title": "Student discounts at hundreds of brands",
     "dealType": "other",
@@ -61,7 +61,7 @@
   },
   {
     "slug": "student-beans",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Student Beans",
     "title": "Student discounts at many brands",
     "dealType": "other",
@@ -73,7 +73,7 @@
   },
   {
     "slug": "apple-education",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Apple",
     "title": "Education pricing on Macs and iPads",
     "dealType": "student_price",
@@ -86,7 +86,7 @@
   },
   {
     "slug": "github-student-pack",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "GitHub",
     "title": "Student Developer Pack",
     "dealType": "free_item",
@@ -99,7 +99,7 @@
   },
   {
     "slug": "jetbrains-students",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "JetBrains",
     "title": "Free IDEs for students",
     "dealType": "free_item",
@@ -112,7 +112,7 @@
   },
   {
     "slug": "figma-education",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Figma",
     "title": "Figma for Education",
     "dealType": "free_item",
@@ -125,7 +125,7 @@
   },
   {
     "slug": "notion-education",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Notion",
     "title": "Notion for Education",
     "dealType": "free_item",
@@ -138,7 +138,7 @@
   },
   {
     "slug": "adobe-creative-cloud-students",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Adobe",
     "title": "Creative Cloud for students",
     "dealType": "student_price",
@@ -151,7 +151,7 @@
   },
   {
     "slug": "microsoft-365-education",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Microsoft",
     "title": "Microsoft 365 for students",
     "dealType": "free_item",
@@ -164,20 +164,21 @@
   },
   {
     "slug": "madewell-students",
-    "kind": "online",
+    "kinds": ["online", "local"],
     "business": "Madewell",
     "title": "Teachers & Students discount",
     "dealType": "percent",
     "amount": 15,
-    "discount": "15% off online and in stores. Can't be combined with some sales, such as the Insider sale.",
+    "discount": "15% off in stores and online. Can't be combined with some sales, such as the Insider sale.",
     "url": "https://www.madewell.com/help/teacher_student_discount.jsp",
     "howToClaim": "In a store, show your PennCard at checkout. Online, verify your student status through your Madewell Insider account.",
     "category": "shopping",
-    "pennSpecific": false
+    "pennSpecific": false,
+    "location": "Philadelphia"
   },
   {
     "slug": "jcrew-center-city",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "J.Crew",
     "dealType": "percent",
     "amount": 15,
@@ -191,21 +192,21 @@
   },
   {
     "slug": "banana-republic-student-beans",
-    "kind": "online",
+    "kinds": ["online", "local"],
     "business": "Banana Republic",
-    "title": "Student discount through Student Beans",
+    "title": "Student discount",
     "dealType": "percent",
     "amount": 15,
-    "appliesTo": "your first online order",
-    "discount": "15% off your first online order when you verify through Student Beans. Listed as a limited-time offer.",
+    "discount": "15% off in stores with a student ID (confirmed in person by a Penn student). Online, 15% off your first order through Student Beans, listed as a limited-time offer.",
     "url": "https://www.studentbeans.com/student-discount/us/banana-republic",
-    "howToClaim": "Verify with your Penn email on Student Beans, then use the code it gives you at checkout.",
+    "howToClaim": "In a store, show your PennCard at checkout. Online, verify with your Penn email on Student Beans and use the code it gives you.",
     "category": "shopping",
-    "pennSpecific": false
+    "pennSpecific": false,
+    "location": "Philadelphia"
   },
   {
     "slug": "amtrak-student",
-    "kind": "online",
+    "kinds": ["online"],
     "business": "Amtrak",
     "title": "Student fares",
     "dealType": "other",
@@ -217,7 +218,7 @@
   },
   {
     "slug": "penn-museum",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Penn Museum",
     "title": "Free admission with your PennCard",
     "dealType": "free_item",
@@ -232,7 +233,7 @@
   },
   {
     "slug": "ica-philadelphia",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Institute of Contemporary Art",
     "title": "Free contemporary art on campus",
     "dealType": "free_item",
@@ -247,7 +248,7 @@
   },
   {
     "slug": "penn-live-arts",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Penn Live Arts (Annenberg Center)",
     "title": "Student tickets for dance, theater and music",
     "dealType": "student_price",
@@ -262,7 +263,7 @@
   },
   {
     "slug": "philadelphia-orchestra-ezseatu",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "The Philadelphia Orchestra",
     "title": "eZseatU student membership",
     "dealType": "other",
@@ -276,7 +277,7 @@
   },
   {
     "slug": "philadelphia-museum-of-art",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Philadelphia Museum of Art",
     "title": "Student admission",
     "dealType": "student_price",
@@ -291,7 +292,7 @@
   },
   {
     "slug": "barnes-foundation",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "The Barnes Foundation",
     "title": "Student admission",
     "dealType": "student_price",
@@ -306,7 +307,7 @@
   },
   {
     "slug": "mutter-museum",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Mütter Museum",
     "title": "Student admission",
     "dealType": "student_price",
@@ -322,7 +323,7 @@
   },
   {
     "slug": "morris-arboretum",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Morris Arboretum & Gardens",
     "title": "Free admission with your PennCard",
     "dealType": "free_item",
@@ -336,7 +337,7 @@
   },
   {
     "slug": "magic-gardens",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Philadelphia's Magic Gardens",
     "dealType": "amount",
     "amount": 3,
@@ -350,7 +351,7 @@
   },
   {
     "slug": "cork-and-candles",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Cork & Candles",
     "title": "Signature student experience",
     "dealType": "student_price",
@@ -365,7 +366,7 @@
   },
   {
     "slug": "independence-seaport-museum",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Independence Seaport Museum",
     "dealType": "amount",
     "amount": 5,
@@ -379,7 +380,7 @@
   },
   {
     "slug": "eastern-state-penitentiary",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Eastern State Penitentiary",
     "title": "Student admission",
     "dealType": "student_price",
@@ -394,7 +395,7 @@
   },
   {
     "slug": "new-delhi-university-city",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "New Delhi Indian Restaurant",
     "dealType": "percent",
     "amount": 10,
@@ -408,7 +409,7 @@
   },
   {
     "slug": "landmark-americana-university-city",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Landmark Americana University City",
     "dealType": "percent",
     "amount": 50,
@@ -422,7 +423,7 @@
   },
   {
     "slug": "gather-food-hall",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Gather Food Hall",
     "dealType": "percent",
     "amount": 10,
@@ -435,7 +436,7 @@
   },
   {
     "slug": "revolution-taco",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Revolution Taco",
     "dealType": "percent",
     "amount": 10,
@@ -446,7 +447,7 @@
   },
   {
     "slug": "juana-tamale",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Juana Tamale",
     "dealType": "percent",
     "amount": 20,
@@ -459,7 +460,7 @@
   },
   {
     "slug": "hipcityveg-university-city",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "HipCityVeg",
     "dealType": "percent",
     "amount": 10,
@@ -472,7 +473,7 @@
   },
   {
     "slug": "la-nova-pizza-steaks",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "La Nova Philly Pizza & Steaks",
     "dealType": "percent",
     "amount": 10,
@@ -486,7 +487,7 @@
   },
   {
     "slug": "mucho-peru",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Mucho Peru",
     "dealType": "percent",
     "amount": 10,
@@ -500,7 +501,7 @@
   },
   {
     "slug": "el-mictlan",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "El Mictlan",
     "dealType": "percent",
     "amount": 20,
@@ -514,7 +515,7 @@
   },
   {
     "slug": "ace-outpost-cafe",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Ace Outpost Cafe",
     "dealType": "percent",
     "amount": 10,
@@ -528,7 +529,7 @@
   },
   {
     "slug": "cafe-lift",
-    "kind": "local",
+    "kinds": ["local"],
     "business": "Café Lift",
     "dealType": "percent",
     "amount": 10,
