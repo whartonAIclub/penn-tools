@@ -450,6 +450,68 @@ export function logAnotherChat(contact: Contact, draft: ContactDraft, today: str
   };
 }
 
+// ── Duplicates ────────────────────────────────────────────────────────────────
+// Logging a chat with someone already saved should add a chat to them, not a
+// second contact. The form warns when a new chat looks like a saved person and
+// lets the user merge it or keep both (two people can share a name).
+
+/** A name as compared for duplicates: without accents, capitals or extra spaces. */
+export function nameKey(name: string): string {
+  return name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** A LinkedIn profile link as compared: just its /in/ slug, lowercased; "" when it isn't a profile link. */
+export function linkedinKey(url: string): string {
+  const match = /linkedin\.com\/in\/([^/?#\s]+)/i.exec(url);
+  return match ? match[1]!.toLowerCase() : "";
+}
+
+/**
+ * A saved contact that looks like the same person as the form: the same
+ * LinkedIn profile, else the same name. Null when there's none.
+ */
+export function findSameContact(contacts: Contact[], draft: Pick<ContactDraft, "name" | "linkedin">): Contact | null {
+  const link = linkedinKey(draft.linkedin);
+  const byLink = link ? contacts.find((c) => linkedinKey(c.linkedin ?? "") === link) : undefined;
+  if (byLink) return byLink;
+  const name = nameKey(draft.name);
+  return (name && contacts.find((c) => nameKey(c.name) === name)) || null;
+}
+
+/**
+ * The form for logging `draft`, filled in as a new contact, as another chat
+ * with `contact` instead. The chat (date, vibe, offers, takeaways, notes,
+ * follow-ups) is the draft's. Their details are the draft's where it has them,
+ * so a new title or company updates them, and otherwise what's saved. Their
+ * name and relationship stay as saved: the name matched, and a relationship
+ * left at the form's default would otherwise overwrite the saved one.
+ */
+export function asAnotherChat(contact: Contact, draft: ContactDraft, today: string): ContactDraft {
+  const saved = anotherChatDraft(contact, today);
+  const pick = (key: "classYear" | "company" | "role" | "area" | "location" | "email" | "phone" | "linkedin") =>
+    draft[key].trim() || saved[key];
+  return {
+    ...saved,
+    classYear: pick("classYear"),
+    company: pick("company"),
+    role: pick("role"),
+    area: pick("area"),
+    location: pick("location"),
+    email: pick("email"),
+    phone: pick("phone"),
+    linkedin: pick("linkedin"),
+    seniority: draft.seniority || saved.seniority,
+    meetingDate: draft.meetingDate,
+    vibe: draft.vibe,
+    offeredReferral: draft.offeredReferral,
+    offeredIntro: draft.offeredIntro,
+    takeaways: draft.takeaways,
+    notes: draft.notes,
+    nextSteps: draft.nextSteps,
+    ...(draft.repeat ? { repeat: true, repeatEvery: draft.repeatEvery, repeatUnit: draft.repeatUnit } : {}),
+  };
+}
+
 // ── Follow-up rules ───────────────────────────────────────────────────────────
 
 export type DueStatus = "overdue" | "soon" | "later";

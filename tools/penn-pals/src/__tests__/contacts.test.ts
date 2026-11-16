@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   anotherChatDraft,
+  asAnotherChat,
+  findSameContact,
+  linkedinKey,
+  nameKey,
   buildContact,
   chatsWith,
   logAnotherChat,
@@ -557,5 +561,83 @@ describe("another chat with the same person", () => {
     if (!result.ok) throw new Error();
     const edited = updateContact(result.contact, { ...contactToDraft(result.contact), company: "Ramp" }, TODAY);
     expect(edited).toMatchObject({ ok: true, contact: { company: "Ramp", pastChats: [{ meetingDate: "2026-11-01" }] } });
+  });
+});
+
+describe("duplicates", () => {
+  const zach = contact({
+    id: "zach",
+    name: "Zach Garman",
+    company: "Stripe",
+    role: "PM",
+    relationship: "alumni",
+    seniority: "mid",
+    linkedin: "https://www.linkedin.com/in/zachgarman/",
+    meetingDate: "2026-11-01",
+    takeaways: ["Lead with one metric"],
+  });
+  const other = contact({ id: "ana", name: "Ana Sofía Pérez" });
+
+  it("compares names without accents, capitals or extra spaces", () => {
+    expect(nameKey("  José   Ñúñez ")).toBe("jose nunez");
+    expect(nameKey("ZACH GARMAN")).toBe(nameKey("Zach Garman"));
+  });
+
+  it("compares LinkedIn links by their profile slug", () => {
+    expect(linkedinKey("https://www.linkedin.com/in/ZachGarman/?trk=x")).toBe("zachgarman");
+    expect(linkedinKey("linkedin.com/in/zachgarman")).toBe("zachgarman");
+    expect(linkedinKey("https://www.linkedin.com/company/stripe")).toBe("");
+    expect(linkedinKey("")).toBe("");
+  });
+
+  it("finds a saved contact by name, ignoring case and accents", () => {
+    const draft = { ...emptyDraft(TODAY), name: " zach  garman" };
+    expect(findSameContact([other, zach], draft)?.id).toBe("zach");
+    expect(findSameContact([other, zach], { ...draft, name: "ana sofia perez" })?.id).toBe("ana");
+  });
+
+  it("finds a saved contact by LinkedIn link even under another name", () => {
+    const draft = { ...emptyDraft(TODAY), name: "Zachary G.", linkedin: "linkedin.com/in/ZACHGARMAN" };
+    expect(findSameContact([other, zach], draft)?.id).toBe("zach");
+  });
+
+  it("finds nothing for a new person, a blank name, or only a first name match", () => {
+    expect(findSameContact([zach], { ...emptyDraft(TODAY), name: "Maria Chen" })).toBeNull();
+    expect(findSameContact([zach], { ...emptyDraft(TODAY), name: "  " })).toBeNull();
+    expect(findSameContact([zach], { ...emptyDraft(TODAY), name: "Zach" })).toBeNull();
+  });
+
+  it("merges a new chat into the saved contact, as chat #2", () => {
+    const draft = {
+      ...emptyDraft(TODAY),
+      name: "zach garman",
+      role: "Senior PM",
+      meetingDate: TODAY,
+      takeaways: "Apply in January",
+      notes: "Caught up over coffee",
+      offeredIntro: true,
+    };
+    const result = logAnotherChat(zach, asAnotherChat(zach, draft, TODAY), TODAY);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.contact).toMatchObject({
+      id: "zach",
+      name: "Zach Garman", // as saved
+      role: "Senior PM", // updated
+      company: "Stripe", // kept: the draft had none
+      relationship: "alumni", // kept: the draft's was the form's default
+      seniority: "mid",
+      meetingDate: TODAY,
+      takeaways: ["Apply in January"],
+      notes: "Caught up over coffee",
+      offeredIntro: true,
+    });
+    expect(chatsWith(result.contact)).toHaveLength(2);
+    expect(result.contact.pastChats?.[0]).toMatchObject({ meetingDate: "2026-11-01", takeaways: ["Lead with one metric"] });
+  });
+
+  it("refuses to merge a chat dated before the saved one", () => {
+    const draft = { ...emptyDraft(TODAY), name: "Zach Garman", meetingDate: "2026-10-01" };
+    expect(logAnotherChat(zach, asAnotherChat(zach, draft, TODAY), TODAY)).toMatchObject({ ok: false });
   });
 });

@@ -12,7 +12,9 @@ import {
   buildContact,
   CONTACTS_STORAGE_KEY,
   anotherChatDraft,
+  asAnotherChat,
   chatsWith,
+  findSameContact,
   contactToDraft,
   logAnotherChat,
   customRelationships,
@@ -87,9 +89,10 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   const [prefill, setPrefill] = useState<{ draft: ContactDraft; missing: ReviewField[]; toCheck: ReviewField[]; key: number } | null>(null);
   const [storyTyped, setStoryTyped] = useState(false);
 
-  async function save(contact: Contact) {
-    // An edit replaces the contact where it was; a new one goes first.
-    const next = editing || again
+  /** Saves `contact`; `merged` when a new chat was added to a saved contact instead. */
+  async function save(contact: Contact, merged = false) {
+    // An edit, or another chat, replaces the contact where it was; a new one goes first.
+    const next = editing || again || merged
       ? (contacts ?? []).map((c) => (c.id === contact.id ? contact : c))
       : [contact, ...(contacts ?? [])];
     try {
@@ -132,6 +135,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
         toCheck={prefill?.toCheck}
         storyTyped={storyTyped}
         customLabels={customRelationships(contacts)}
+        savedContacts={contacts}
       />
     </div>
   );
@@ -216,9 +220,10 @@ function Form({
   toCheck = [],
   storyTyped = false,
   customLabels,
+  savedContacts,
 }: {
   today: string;
-  onSave: (contact: Contact) => void;
+  onSave: (contact: Contact, merged?: boolean) => void;
   original?: Contact | undefined;
   /** Logging another chat with this saved contact. */
   again?: Contact | undefined;
@@ -232,6 +237,8 @@ function Form({
   storyTyped?: boolean;
   /** Relationships the user wrote in before, offered again. */
   customLabels: string[];
+  /** Everyone saved, to spot a new chat with someone already logged. */
+  savedContacts: Contact[];
 }) {
   const [initial] = useState<ContactDraft>(() => prefill ?? (original ? contactToDraft(original) : again ? anotherChatDraft(again, today) : newDraft(today)));
   const [draft, setDraft] = useState<ContactDraft>(initial);
@@ -267,8 +274,31 @@ function Form({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, e.target.value),
   });
 
+  // A new contact that looks like someone saved: warned under the name, and
+  // asked about on save (merge as another chat, or keep both).
+  // "It's a different person" hides the warning for that saved contact.
+  const [notSameId, setNotSameId] = useState<string | null>(null);
+  const match = !original && !again ? findSameContact(savedContacts, draft) : null;
+  const same = match && match.id !== notSameId ? match : null;
+  const [askingSame, setAskingSame] = useState(false);
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (same) return setAskingSame(true);
+    saveAsIs();
+  }
+
+  function mergeInto(contact: Contact) {
+    const result = logAnotherChat(contact, asAnotherChat(contact, draft, today), today);
+    setAskingSame(false);
+    if (!result.ok) return setErrors(result.errors);
+    setSaved(true);
+    onSave(result.contact, true);
+    setErrors([]);
+  }
+
+  function saveAsIs() {
+    setAskingSame(false);
     const result = original
       ? updateContact(original, draft, today)
       : again
@@ -355,6 +385,24 @@ function Form({
           <input {...text("name")} placeholder="e.g. Maria Chen" />
           {reviewHint("name", "AI couldn't find their name.", "From their LinkedIn link: check the spelling and accents.")}
         </label>
+        {same && !askingSame && (
+          // Outside the label, so its buttons don't focus the name box. Spans the grid's width.
+          <div className={styles.sameWarn} role="status">
+            <p className={styles.sameWarnText}>
+              Looks like you&apos;ve met <strong>{same.name}</strong> before
+              {describeWork(same)} ({chatsWith(same).length} {chatsWith(same).length === 1 ? "chat" : "chats"}, last{" "}
+              {friendlyDate(same.meetingDate)}).
+            </p>
+            <div className={styles.actions}>
+              <button type="button" className={styles.buttonSecondary} onClick={() => mergeInto(same)}>
+                Add as chat #{chatsWith(same).length + 1} with {same.name.split(" ")[0]}
+              </button>
+              <button type="button" className={styles.link} onClick={() => setNotSameId(same.id)}>
+                It&apos;s a different person
+              </button>
+            </div>
+          </div>
+        )}
         <label className={styles.field}>
           Company
           <input {...text("company")} placeholder="e.g. Stripe" />
@@ -567,6 +615,29 @@ function Form({
           ))}
         </ul>
       )}
+      {same && askingSame ? (
+        <div className={styles.sameAsk} role="group" aria-labelledby="same-ask-title">
+          <p id="same-ask-title" className={styles.sameAskTitle}>
+            Is this the {same.name} you already saved?
+          </p>
+          <p className={styles.sameAskDetail}>
+            {same.name}
+            {describeWork(same)} · last chat {friendlyDate(same.meetingDate)} · {chatsWith(same).length}{" "}
+            {chatsWith(same).length === 1 ? "chat" : "chats"} so far
+          </p>
+          <div className={styles.actions}>
+            <button type="button" className={styles.button} onClick={() => mergeInto(same)} autoFocus>
+              Yes, add as chat #{chatsWith(same).length + 1}
+            </button>
+            <button type="button" className={styles.buttonSecondary} onClick={saveAsIs}>
+              No, save as a new person
+            </button>
+            <button type="button" className={styles.link} onClick={() => setAskingSame(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className={styles.actions}>
         <button type="submit" className={styles.button}>
           {original ? "Save changes" : again ? "Save chat" : "Save contact"}
@@ -577,6 +648,7 @@ function Form({
           </a>
         )}
       </div>
+      )}
       </Collapsible>
     </form>
   );
@@ -584,4 +656,15 @@ function Form({
 
 function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+/** ", PM at Stripe" for a saved contact, or "" when neither is saved. */
+function describeWork(contact: Contact): string {
+  const work = [contact.role, contact.company].filter(Boolean).join(" at ");
+  return work ? `, ${work}` : "";
+}
+
+/** "Nov 1, 2026" from YYYY-MM-DD. */
+function friendlyDate(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }

@@ -136,6 +136,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   align-items: center;
 }
@@ -476,4 +477,59 @@
   margin: 0;
   font-size: 0.75rem;
   color: var(--section-label);
+}
+
+/* A new chat that looks like someone already saved */
+/* The note under the name when it matches someone saved: soft, with the merge right there */
+.sameWarn {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #fecdca;
+  border-left: 4px solid #f04438;
+  border-radius: 8px;
+  background: #fef3f2;
+}
+.sameWarnText {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.sameWarnText strong {
+  color: #b42318;
+}
+.sameAsk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--penn-blue);
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--penn-blue) 5%, var(--bg));
+}
+.sameAskTitle {
+  margin: 0;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+.sameAskDetail {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+.buttonSecondary {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--penn-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.buttonSecondary:hover {
+  background: color-mix(in srgb, var(--penn-blue) 8%, var(--bg));
 }
