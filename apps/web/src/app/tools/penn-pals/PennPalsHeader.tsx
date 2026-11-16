@@ -18,7 +18,7 @@ export function PennPalsHeader() {
     <header className={styles.header}>
       <div>
         <h1 className={styles.title}>Penn Pals</h1>
-        <p className={styles.intro}>Who you owe a follow-up, and everyone you&apos;ve talked to.</p>
+        <p className={styles.intro}>Keep your network warm: log who you meet, and Penn Pals reminds you when to reach back out.</p>
       </div>
       <nav className={styles.nav} aria-label="Penn Pals">
         {NAV.map(({ href, label }) => {

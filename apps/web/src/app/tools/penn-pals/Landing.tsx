@@ -25,6 +25,7 @@ import {
 } from "@penntools/tool-penn-pals";
 import type { Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
 import { recordFollowUp } from "./metricsActions";
+import { HowItWorks } from "./HowItWorks";
 import { StorageNote } from "./StorageNote";
 import { useContacts } from "./useContacts";
 import styles from "./Landing.module.css";
@@ -419,6 +420,7 @@ export function Landing({ today: todayIso, signedIn }: { today: string; signedIn
 
   return (
     <div className={styles.page}>
+      <HowItWorks empty={allContacts.length === 0} />
       <StorageNote store={store} />
       <section className={styles.summary} aria-label="Summary">
         <div className={styles.stat}>
