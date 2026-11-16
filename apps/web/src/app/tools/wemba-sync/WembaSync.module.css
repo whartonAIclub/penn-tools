@@ -551,6 +551,61 @@
 }
 .textButton:hover { color: var(--text); }
 
+/* ── Theme: planner (the default) ────────────────────────────────────────────
+   Calm and professional, like an executive planner: Penn navy with a red
+   accent, white cards with a soft shadow, and the site's own font. It follows
+   the site's light and dark modes. ?theme=bricks shows the building-bricks
+   theme below instead. */
+
+.planner {
+  --accent: #990000; /* Penn red: the open tab, what's next */
+  /* Course colors (see Courses.module.css): muted, distinct in both modes. */
+  --course-0: #1f4e8c;
+  --course-1: #a3262a;
+  --course-2: #0e7490;
+  --course-3: #b45309;
+  --course-4: #6d28d9;
+}
+
+.planner .title {
+  font-size: 2rem;
+  letter-spacing: -0.03em;
+}
+.planner .title::after {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.planner .tab[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.planner .day,
+.planner .panel {
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.planner .dayTitle {
+  background: transparent;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--section-label);
+}
+.planner .panelTitle {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--section-label);
+}
+.planner .weekendTitle { letter-spacing: -0.01em; }
+
 /* ── Theme: building bricks ──────────────────────────────────────────────────
    Muted brick colors on a light baseplate: tabs, buttons and AMA are bricks
    with studs on top, and cards are white tiles with a solid navy edge. The
@@ -583,6 +638,14 @@
   --nav-active: var(--paper);
   --input-border: #9aa6b4;
   --penn-blue: var(--brick-blue);
+  /* Course colors (see Courses.module.css): the strip's bricks. */
+  --course-0: var(--brick-red);
+  --course-1: var(--brick-yellow);
+  --course-1-text: var(--ink);
+  --course-2: var(--brick-blue);
+  --course-3: var(--brick-green);
+  --course-4: var(--brick-orange);
+  --course-4-text: var(--ink);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--ink);
   /* Its own stacking context, so the baseplate (z-index: -1) sits above the

@@ -52,6 +52,9 @@ import styles from "./WembaSync.module.css";
 const brickFont = Lilita_One({ weight: "400", subsets: ["latin"], variable: "--font-brick" });
 
 type Tab = "weekend" | "courses" | "events";
+
+/** The page's look: "planner" (the default) or "bricks". */
+export type Theme = "planner" | "bricks";
 const TABS: Record<Tab, string> = { weekend: "Class Weekend", courses: "Courses", events: "Events" };
 
 type Status = { state: "idle" } | { state: "reading"; filename: string } | { state: "error"; error: UploadError };
@@ -72,17 +75,20 @@ export function WembaSync({
   weekends: initialWeekends,
   syllabi: initialSyllabi,
   events: initialEvents,
+  theme,
 }: {
   /** Providers the user has saved keys for; never empty. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   maxBytes: number;
-  /** The class's shared weekends, earliest first, or null if storage isn't set up. */
+  /** The student's saved weekends, earliest first, or null if storage isn't set up. */
   weekends: SavedWeekend[] | null;
-  /** The class's shared syllabi, or null if storage isn't set up. */
+  /** The student's saved syllabi, or null if storage isn't set up. */
   syllabi: SavedSyllabus[] | null;
   /** The student's saved events, earliest first, or null if storage isn't set up. */
   events: SavedEvent[] | null;
+  /** The look: the calm planner, or building bricks (see the themes in WembaSync.module.css). */
+  theme: Theme;
 }) {
   const [provider, setProvider] = useState(providers[0]!);
   const [tab, setTab] = useState<Tab>("weekend");
@@ -199,8 +205,7 @@ export function WembaSync({
             )}
           </select>
         </label>
-        {/* Shared with the class: only the student who uploaded this copy can remove it. */}
-        {saved?.mine && (
+        {saved && (
           <button className={styles.textButton} onClick={() => void remove(saved)}>
             Remove
           </button>
@@ -209,7 +214,9 @@ export function WembaSync({
     ) : null;
 
   return (
-    <div className={`${styles.page} ${styles.withAMA} ${styles.brick} ${brickFont.variable}`}>
+    <div
+      className={`${styles.page} ${styles.withAMA} ${theme === "bricks" ? `${styles.brick} ${brickFont.variable}` : styles.planner}`}
+    >
       <header>
         <h1 className={styles.title}>WEMBA Sync</h1>
         <p className={styles.intro}>{INTROS[tab]}</p>
@@ -262,6 +269,7 @@ export function WembaSync({
           maxBytes={maxBytes}
           syllabi={initialSyllabi === null ? null : syllabi}
           onSyllabi={setSyllabi}
+          theme={theme}
         />
       </div>
 
@@ -272,12 +280,15 @@ export function WembaSync({
           events={initialEvents === null ? null : events}
           onEvents={setEvents}
           scheduled={scheduledEvents}
+          theme={theme}
         />
       </div>
 
-      <p className={styles.caution}>
-        <span className={styles.cautionLabel}>CAUTION</span>Do not step on the Saturday schedule barefoot.
-      </p>
+      {theme === "bricks" && (
+        <p className={styles.caution}>
+          <span className={styles.cautionLabel}>CAUTION</span>Do not step on the Saturday schedule barefoot.
+        </p>
+      )}
 
       <AMA provider={provider} schedule={shown} section={shownSection} />
     </div>
@@ -286,9 +297,9 @@ export function WembaSync({
 
 const INTROS: Record<Tab, string> = {
   weekend:
-    "Upload each class weekend\u2019s schedule PDF from the program\u2019s email to see your weekend: classes, meals and events, for your section. Each weekend is shared with the class, so it only needs uploading once.",
+    "Upload each class weekend\u2019s schedule PDF from the program\u2019s email to see your weekend: classes, meals and events, for your section. Weekends are saved to your account.",
   courses:
-    "Each course\u2019s syllabus, sorted into the same sections for every course. Syllabi are shared with the class, so each one only needs uploading once, by anyone.",
+    "Each course\u2019s syllabus, sorted into the same sections for every course. Each is saved to your account for the semester.",
   events:
     "Every event, whenever it is: club events, celebrations and socials you add from an invite, plus the events on your class weekend schedules.",
 };
@@ -434,8 +445,7 @@ function Weekend({
         <p className={styles.meta}>Pick your section first, or your calendar gets every section&apos;s classes.</p>
       )}
 
-      {/* For the student who uploaded this copy, to check against the PDF; classmates don't see it. */}
-      {schedule.warnings.length > 0 && (saved === null || saved.mine) && (
+      {schedule.warnings.length > 0 && (
         <div className={styles.warnings}>
           <strong>Check these against the PDF:</strong>
           <ul>

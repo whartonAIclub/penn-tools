@@ -106,7 +106,7 @@
   font-size: 0.875rem;
   font-weight: 600;
 }
-.secondary:hover { background: #f5f7ff; }
+.secondary:hover { background: color-mix(in srgb, var(--penn-blue) 8%, var(--bg)); }
 
 .fields {
   display: grid;
@@ -179,7 +179,7 @@
   align-items: center;
   padding: 6px 0;
   border-radius: 8px;
-  background: #ecfdf5;
+  background: color-mix(in srgb, var(--event) 12%, var(--bg));
   color: var(--event);
   font-size: 0.7rem;
   font-weight: 600;
@@ -227,29 +227,29 @@
 
 /* ── Theme: building bricks (see WembaSync.module.css) ───────────────────────
    Event cards are white tiles with a navy edge and a green brick for a date. */
-.card {
+.bricks .card {
   border: 2.5px solid var(--ink, #1b2a3a);
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 4px 0 var(--ink, #1b2a3a);
 }
-.dateBadge {
+.bricks .dateBadge {
   border: 2px solid var(--ink, #1b2a3a);
   border-radius: 4px;
   background: #e5eee4;
   color: var(--event-text, #046a4c);
   box-shadow: inset 0 -4px 0 rgba(95, 140, 99, 0.35);
 }
-.dateBadge strong { font-family: var(--font-brick), sans-serif; font-weight: 400; font-size: 1.4rem; }
-.secondary {
+.bricks .dateBadge strong { font-family: var(--font-brick), sans-serif; font-weight: 400; font-size: 1.4rem; }
+.bricks .secondary {
   border: 2.5px solid var(--ink, #1b2a3a);
   border-radius: 4px;
   background: #ffffff;
   color: var(--ink, #1b2a3a);
   box-shadow: inset 0 -4px 0 var(--border);
 }
-.secondary:hover { background: var(--paper, #f7f2e4); }
-.rsvp { border: 2px solid var(--ink, #1b2a3a); border-radius: 5px; background: #ffffff; }
-.rsvp button { border-radius: 3px; }
-.dropOverlay { border: 3px dashed var(--ink, #1b2a3a); border-radius: 8px; background: rgba(247, 242, 228, 0.94); color: var(--ink, #1b2a3a); }
-.pastToggle { color: var(--brick-blue, #33618c); }
+.bricks .secondary:hover { background: var(--paper, #f7f2e4); }
+.bricks .rsvp { border: 2px solid var(--ink, #1b2a3a); border-radius: 5px; background: #ffffff; }
+.bricks .rsvp button { border-radius: 3px; }
+.bricks .dropOverlay { border: 3px dashed var(--ink, #1b2a3a); border-radius: 8px; background: rgba(247, 242, 228, 0.94); color: var(--ink, #1b2a3a); }
+.bricks .pastToggle { color: var(--brick-blue, #33618c); }

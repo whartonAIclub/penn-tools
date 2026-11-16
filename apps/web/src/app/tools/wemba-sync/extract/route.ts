@@ -15,7 +15,6 @@ import { isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
 import {
   MAX_PDF_PAGES,
-  applyCorrections,
   checkUpload,
   extractWeekend,
   saveWeekend,
@@ -62,9 +61,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (pages > MAX_PDF_PAGES) return failure(`${filename} has ${pages} pages; schedules can have at most ${MAX_PDF_PAGES}.`, 400);
 
   try {
-    // The AI API checks provider itself. Then fill in what the PDF leaves
-    // out (corrections.ts).
-    const schedule = applyCorrections(await extractWeekend(ai, provider, { filename, data }, today()));
+    // The AI API checks provider itself.
+    const schedule = await extractWeekend(ai, provider, { filename, data }, today());
     return Response.json({ schedule, saved: await save(user.id, filename, schedule) });
   } catch (error) {
     if (isAIError(error)) return failure(error.message, 502, error.kind);

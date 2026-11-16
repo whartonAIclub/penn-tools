@@ -170,7 +170,7 @@
   margin: 0 -10px;
   padding: 10px;
   border-radius: 8px;
-  background: #f5f7ff;
+  background: color-mix(in srgb, var(--accent, var(--penn-blue)) 7%, var(--bg));
 }
 
 .when {
@@ -187,7 +187,7 @@
   margin-top: 2px;
   padding: 1px 8px;
   border-radius: 999px;
-  background: var(--penn-blue);
+  background: var(--accent, var(--penn-blue));
   color: #fff;
   font-size: 0.7rem;
 }
@@ -283,33 +283,19 @@
   color: #b91c1c;
 }
 
-/* ── Theme: building bricks (see WembaSync.module.css) ───────────────────────
-   Course cards are white tiles with a navy edge; course chips are small bricks. */
-.chip { border: 2px solid var(--ink, #1b2a3a); border-radius: 4px; background: #ffffff; color: var(--ink, #1b2a3a); }
-.chip:hover { border-color: var(--ink, #1b2a3a); background: var(--paper, #f7f2e4); }
-.chip[aria-selected="true"] {
-  background: var(--brick-blue, #33618c);
-  border-color: var(--ink, #1b2a3a);
-  box-shadow: inset 0 -3px 0 var(--brick-blue-dark, #264b6e);
-}
-.course {
-  border: 3px solid var(--ink, #1b2a3a);
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 6px 0 var(--ink, #1b2a3a);
-}
-.courseHeader { background: var(--paper, #f7f2e4); border-bottom: 2.5px solid var(--ink, #1b2a3a); }
-.code { color: var(--class-text, #264b6e); }
-.sectionTabs { padding-top: 4px; }
-.sectionTab[aria-current="true"] { color: var(--ink, #1b2a3a); border-bottom: 3px solid var(--brick-yellow, #e3b85a); }
-.next { background: #eef2f6; border: 2px solid var(--border); border-radius: 6px; }
-.when { color: var(--class-text, #264b6e); }
-.nextTag { border-radius: 3px; background: var(--brick-blue, #33618c); }
+/* ── Course colors ─────────────────────────────────────────────────────────────
+   Each course has a color (courseColor0…4; later courses repeat them) from
+   the theme's palette, --course-0…4 (see the themes in WembaSync.module.css):
+   on its tab, its code and beside its deadlines. */
+.courseColor0 { --course: var(--course-0); --course-text: var(--course-0-text, #ffffff); }
+.courseColor1 { --course: var(--course-1); --course-text: var(--course-1-text, #ffffff); }
+.courseColor2 { --course: var(--course-2); --course-text: var(--course-2-text, #ffffff); }
+.courseColor3 { --course: var(--course-3); --course-text: var(--course-3-text, #ffffff); }
+.courseColor4 { --course: var(--course-4); --course-text: var(--course-4-text, #ffffff); }
 
 /* The course's heading: smaller than other titles, so a full course title
    fits on one line; cut short with … if it still doesn't. */
 .courseHeading { min-width: 0; }
-/* h2 here outranks the theme's .brick .weekendTitle size. */
 .courseHeading h2.courseTitle {
   font-size: 1.1rem;
   overflow: hidden;
@@ -317,58 +303,100 @@
   text-overflow: ellipsis;
 }
 
-/* ── Course colors ─────────────────────────────────────────────────────────────
-   Each course has a brick color from the strip along the page's top (see
-   WembaSync.module.css): its tab is tinted with it, filled with it when open,
-   and its deadlines have a brick of it. */
-.courseColor0 { --course: var(--brick-red, #b5473d); --course-dark: var(--brick-red-dark, #8e362e); --course-tint: #f3dfdc; --course-text: #ffffff; }
-.courseColor1 { --course: var(--brick-yellow, #e3b85a); --course-dark: var(--brick-yellow-dark, #b8913c); --course-tint: #f7ecd2; --course-text: var(--ink, #1b2a3a); }
-.courseColor2 { --course: var(--brick-blue, #33618c); --course-dark: var(--brick-blue-dark, #264b6e); --course-tint: #dce6ef; --course-text: #ffffff; }
-.courseColor3 { --course: var(--brick-green, #5f8c63); --course-dark: #48704c; --course-tint: #e1ece2; --course-text: #ffffff; }
-.courseColor4 { --course: var(--brick-orange, #cf8a52); --course-dark: #a66b3a; --course-tint: #f5e4d6; --course-text: var(--ink, #1b2a3a); }
-
 /* All the tabs on one row: they share it, and a name that doesn't fit is cut
-   short with … (the full title shows on hover). */
-.picker { flex-wrap: nowrap; gap: 5px; }
+   short with … (the full title shows on hover). Each has a dot of its color. */
+.picker { flex-wrap: nowrap; gap: 6px; }
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex: 0 1 auto;
   min-width: 0;
-  padding: 6px 8px;
-  font-size: 0.74rem;
+  padding: 6px 12px;
+  font-size: 0.8rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: var(--course-tint, #ffffff);
-  box-shadow: inset 0 -3px 0 var(--course, transparent);
+  background: var(--bg);
 }
-.chip:hover { background: var(--course-tint, var(--paper, #f7f2e4)); filter: brightness(0.97); }
+.chip::before {
+  content: "";
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--course, var(--penn-blue));
+}
 .chip[aria-selected="true"] {
-  background: var(--course, var(--brick-blue, #33618c));
-  border-color: var(--ink, #1b2a3a);
-  color: var(--course-text, #ffffff);
-  box-shadow: inset 0 -3px 0 var(--course-dark, #264b6e);
+  border-color: var(--course, var(--penn-blue));
+  background: color-mix(in srgb, var(--course, var(--penn-blue)) 12%, var(--bg));
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--course, var(--penn-blue));
 }
 
+/* A deadline's course: a dot of its color. */
 .withBrick::before {
   content: "";
   display: inline-block;
   width: 8px;
-  height: 14px;
+  height: 8px;
   margin-right: 6px;
-  vertical-align: -2px;
-  border: 1.5px solid var(--ink, #1b2a3a);
-  border-radius: 2px;
+  vertical-align: 1px;
+  border-radius: 50%;
   background: var(--course);
 }
 
-/* The course's code in its heading: a tag in the course's color, like its tab. */
+/* The course's code in its heading, in the course's color. */
 .codeTag {
   display: inline-block;
   padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--course, var(--penn-blue));
+  color: var(--course-text, #ffffff);
+  vertical-align: 1px;
+}
+
+/* ── Theme: building bricks (see WembaSync.module.css) ───────────────────────
+   Course cards are white tiles with a navy edge; course tabs are small bricks. */
+.bricks .chip {
+  padding: 6px 8px;
+  font-size: 0.74rem;
   border: 2px solid var(--ink, #1b2a3a);
   border-radius: 4px;
+  background: color-mix(in srgb, var(--course, #ffffff) 18%, #ffffff);
+  color: var(--ink, #1b2a3a);
+  box-shadow: inset 0 -3px 0 var(--course, transparent);
+}
+.bricks .chip::before { display: none; }
+.bricks .chip:hover { filter: brightness(0.97); }
+.bricks .chip[aria-selected="true"] {
   background: var(--course, var(--brick-blue, #33618c));
+  border-color: var(--ink, #1b2a3a);
   color: var(--course-text, #ffffff);
-  box-shadow: inset 0 -3px 0 var(--course-dark, #264b6e);
-  vertical-align: 1px;
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--course, #33618c) 75%, #000000);
+}
+.bricks .course {
+  border: 3px solid var(--ink, #1b2a3a);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 6px 0 var(--ink, #1b2a3a);
+}
+.bricks .courseHeader { background: var(--paper, #f7f2e4); border-bottom: 2.5px solid var(--ink, #1b2a3a); }
+.bricks .code { color: var(--class-text, #264b6e); }
+.bricks .sectionTabs { padding-top: 4px; }
+.bricks .sectionTab[aria-current="true"] { color: var(--ink, #1b2a3a); border-bottom: 3px solid var(--brick-yellow, #e3b85a); }
+.bricks .next { background: #eef2f6; border: 2px solid var(--border); border-radius: 6px; }
+.bricks .when { color: var(--class-text, #264b6e); }
+.bricks .nextTag { border-radius: 3px; background: var(--brick-blue, #33618c); }
+.bricks .withBrick::before {
+  width: 8px;
+  height: 14px;
+  vertical-align: -2px;
+  border: 1.5px solid var(--ink, #1b2a3a);
+  border-radius: 2px;
+}
+.bricks .codeTag {
+  border: 2px solid var(--ink, #1b2a3a);
+  border-radius: 4px;
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--course, #33618c) 75%, #000000);
 }

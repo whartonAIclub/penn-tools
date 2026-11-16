@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // WEMBA Sync: AMA, questions about everything the student has uploaded
 //
-// AMA answers from the class's shared weekends and syllabi and the student's own events, which the
+// AMA answers from the student's saved class weekends, syllabi and events, which the
 // route (apps/web/.../wemba-sync/ama/route.ts) loads from the tool's database,
 // plus the weekend the page shows, which the browser sends in case it wasn't
 // saved. It sends the AI what was read from the PDFs, not the PDFs, so each

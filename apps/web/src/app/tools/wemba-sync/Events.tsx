@@ -34,6 +34,7 @@ import {
   type UploadError,
 } from "./client";
 import { ErrorNote } from "./ErrorNote";
+import type { Theme } from "./WembaSync";
 import shared from "./WembaSync.module.css";
 import styles from "./Events.module.css";
 
@@ -72,6 +73,7 @@ export function Events({
   events,
   onEvents,
   scheduled,
+  theme,
 }: {
   provider: AIProvider;
   maxPdfBytes: number;
@@ -80,6 +82,7 @@ export function Events({
   onEvents: (update: (events: SavedEvent[]) => SavedEvent[]) => void;
   /** The events on the student's class weekend schedules, for their section. */
   scheduled: ScheduleItem[];
+  theme: Theme;
 }) {
   const [adding, setAdding] = useState(false);
   const [showPast, setShowPast] = useState(false);
@@ -129,7 +132,7 @@ export function Events({
 
   return (
     <div
-      className={styles.events}
+      className={`${styles.events} ${theme === "bricks" ? styles.bricks : ""}`}
       onDragEnter={(e) => {
         if (!canAdd || !isFileDrag(e)) return;
         dragDepth.current += 1;

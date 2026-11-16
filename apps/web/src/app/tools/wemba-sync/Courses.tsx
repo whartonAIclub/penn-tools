@@ -1,6 +1,6 @@
 "use client";
 
-// The Courses tab: the class's shared syllabi. Uploading one (a PDF or Word
+// The Courses tab: the student's saved syllabi. Uploading one (a PDF or Word
 // document) sends it to syllabus/route.ts, which reads it with extractSyllabus
 // (tools/wemba-sync/src/syllabus.ts) and saves it. The tab shows upcoming
 // deadlines across courses, then one course at a time, in the same sections
@@ -12,6 +12,7 @@ import { upcomingDeadlines, type SavedSyllabus, type Syllabus } from "@penntools
 import { removeSyllabus } from "./actions";
 import { KEY_PROBLEMS, formatDate, formatTime, postFile, todayInPhiladelphia, type UploadError } from "./client";
 import { ErrorNote } from "./ErrorNote";
+import type { Theme } from "./WembaSync";
 import shared from "./WembaSync.module.css";
 import styles from "./Courses.module.css";
 
@@ -56,12 +57,14 @@ export function Courses({
   maxBytes,
   syllabi,
   onSyllabi,
+  theme,
 }: {
   provider: AIProvider;
   maxBytes: number;
-  /** The class's shared syllabi, or null if storage isn't set up. */
+  /** The student's saved syllabi, or null if storage isn't set up. */
   syllabi: SavedSyllabus[] | null;
   onSyllabi: (update: (syllabi: SavedSyllabus[]) => SavedSyllabus[]) => void;
+  theme: Theme;
 }) {
   const saved = syllabi ?? [];
   const setSaved = onSyllabi;
@@ -142,7 +145,7 @@ export function Courses({
   const colorByCourse = new Map(saved.map((s) => [s.syllabus.courseCode ?? s.syllabus.title, colorOf(s.syllabus)]));
 
   return (
-    <div className={styles.courses}>
+    <div className={`${styles.courses} ${theme === "bricks" ? styles.bricks : ""}`}>
       {saved.length > 0 && (
         <>
           <div className={styles.picker} role="tablist" aria-label="Your courses">
@@ -358,12 +361,9 @@ function Course({
               .join(" · ")}
           </p>
         </div>
-        {/* Shared with the class: only the student who uploaded this copy can remove it. */}
-        {item.mine && (
-          <button className={styles.remove} onClick={onRemove}>
-            Remove
-          </button>
-        )}
+        <button className={styles.remove} onClick={onRemove}>
+          Remove
+        </button>
       </div>
 
       <nav className={styles.sectionTabs} aria-label={`${courseName(syllabus)} sections`}>
@@ -376,7 +376,7 @@ function Course({
       </nav>
 
       <div className={styles.sectionBody}>
-        {section === "Overview" && <Overview syllabus={syllabus} mine={item.mine} />}
+        {section === "Overview" && <Overview syllabus={syllabus} />}
         {section === "Sessions" && <Sessions syllabus={syllabus} today={today} />}
         {section === "Assignments" && <Assignments syllabus={syllabus} today={today} />}
         {section === "Grading" && <Grading syllabus={syllabus} />}
@@ -389,7 +389,7 @@ function Course({
 
 const Empty = ({ what }: { what: string }) => <p className={shared.meta}>The syllabus doesn&apos;t list {what}.</p>;
 
-function Overview({ syllabus, mine }: { syllabus: Syllabus; mine: boolean }) {
+function Overview({ syllabus }: { syllabus: Syllabus }) {
   return (
     <div className={styles.stack}>
       {syllabus.summary && <p className={styles.summary}>{syllabus.summary}</p>}
@@ -411,8 +411,7 @@ function Overview({ syllabus, mine }: { syllabus: Syllabus; mine: boolean }) {
           ))}
         </ul>
       )}
-      {/* For the student who uploaded this copy, to check against the syllabus; classmates don't see it. */}
-      {mine && syllabus.warnings.length > 0 && (
+      {syllabus.warnings.length > 0 && (
         <div className={shared.warnings}>
           <strong>Check these against the syllabus:</strong>
           <ul>
