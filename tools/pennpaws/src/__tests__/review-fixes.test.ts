@@ -12,6 +12,8 @@ import type { Sql } from "postgres";
 import { agreementTemplate } from "../agreement.js";
 import type { RequestDraft } from "../request.js";
 import { recordPayment, clearPayment } from "../jobs.js";
+import { listNotifications } from "../notifications.js";
+import { addPet, removePet, updatePet, type SavedPet } from "../pets.js";
 import {
   acceptOffer,
   approveAgreement,
@@ -116,6 +118,9 @@ describe.skipIf(!databaseUrl)("review fixes (Postgres)", () => {
     await checkOut(sql, ben.id, id, { photo: null, note: null });
     const visit = (await getAfterMatch(sql, owner.id, id))!.visits;
     expect(visit).toHaveLength(1);
+    // The owner's "you can pay" notification opens the payment step.
+    const [latest] = await listNotifications(sql, owner.id);
+    expect(latest).toMatchObject({ requestId: id, step: "pay" });
     await markVisitPaid(sql, owner.id, id, visit[0]!.id, { amount: 15, method: "venmo" });
     const [payment] = await sql<{ sitter_id: string; amount: string }[]>`SELECT sitter_id, amount FROM payments WHERE request_id = ${id}`;
     expect(payment).toMatchObject({ sitter_id: ben.id });
@@ -184,8 +189,29 @@ describe.skipIf(!databaseUrl)("review fixes (Postgres)", () => {
   it("sends list photos as a link, readable once the sitter can see the request", async () => {
     const id = await createRequest(sql, owner, draft);
     const card = (await listOpenRequests(sql, ben.id)).find((r) => r.id === id);
-    expect(card?.draft.photo).toBe(requestPhotoUrl(id));
+    expect(card?.draft.photo?.startsWith(requestPhotoUrl(id))).toBe(true);
     expect(await requestPhoto(sql, ben.id, id)).toBe(PHOTO);
+  });
+
+  it("shows a saved pet's current photo on every request it's on", async () => {
+    const pet: SavedPet = {
+      name: "Bunny", kind: "cat", kindOther: null, size: "small", age: "adult", energy: "medium",
+      withPeople: "warms_up", withAnimals: "friendly", alone: "fine", specialCare: [], specialCareOther: null,
+      bites: false, bitesDetails: null, photo: PHOTO, breed: null, diet: null, health: null, sharedEarly: [],
+    };
+    const petId = await addPet(sql, owner.id, pet);
+    const id = await createRequest(sql, owner, { ...draft, petIds: [petId] });
+    const before = (await listOpenRequests(sql, owner.id)).find((r) => r.id === id)!.draft.photo;
+
+    const NEW = "data:image/png;base64,iVBORw0KGgo=";
+    await updatePet(sql, owner.id, petId, { ...pet, photo: NEW });
+    expect(await requestPhoto(sql, owner.id, id)).toBe(NEW);
+    const after = (await listOpenRequests(sql, owner.id)).find((r) => r.id === id)!.draft.photo;
+    expect(after).not.toBe(before);
+
+    // With the pet removed, the request falls back to the photo it was posted with.
+    await removePet(sql, owner.id, petId);
+    expect(await requestPhoto(sql, owner.id, id)).toBe(PHOTO);
   });
 
   it("won't mark a booking done before the care starts", async () => {

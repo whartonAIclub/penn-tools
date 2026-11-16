@@ -5,9 +5,40 @@
 
 import type { Sql } from "postgres";
 
+/**
+ * The part of a request a notification is about, so opening it lands on that
+ * step: the offers, a conversation, the agreement, the booking's contacts,
+ * how to get in, a visit's photos, paying for a visit, rating, or just the
+ * request.
+ */
+export type NotificationStep = "offers" | "messages" | "agreement" | "booked" | "guide" | "visit" | "pay" | "rate" | "request";
+
+// Matched against the messages this tool writes (requests.ts, messages.ts,
+// visits.ts), so notifications stored before steps existed land right too.
+// A new message without a rule here opens the request at the top; the tests
+// pin every message to its step.
+const STEP_RULES: [RegExp, NotificationStep][] = [
+  [/ offered to look after /, "offers"],
+  [/ sent you a message about | replied about /, "messages"],
+  [/ picked you to look after | It's your turn to review it\.| asked for a change to the agreement /, "agreement"],
+  [/^You're booked\./, "booked"],
+  [/ added how to get in /, "guide"],
+  [/ arrived and is with /, "visit"],
+  [/ You can pay for it now\./, "pay"],
+  [/ paid \$[\d.]+ for the visit /, "visit"],
+  [/ marked looking after .+ as done\. .*Leave a rating\./, "rate"],
+];
+
+/** Which step of the request `message` is about. */
+export function stepOf(message: string): NotificationStep {
+  return STEP_RULES.find(([rule]) => rule.test(message))?.[1] ?? "request";
+}
+
 export interface Notification {
   id: number;
   requestId: string | null;
+  /** Where opening it lands in the request. */
+  step: NotificationStep;
   message: string;
   read: boolean;
   /** ISO timestamp. */
@@ -41,6 +72,7 @@ export async function listNotifications(sql: Sql, userId: string): Promise<Notif
   return rows.map((row) => ({
     id: Number(row.id),
     requestId: row.request_id,
+    step: stepOf(row.message),
     message: row.message,
     read: row.read_at !== null,
     createdAt: row.created_at.toISOString(),

@@ -20,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return new Response(Buffer.from(parts[2]!, "base64"), {
     headers: {
       "Content-Type": parts[1]!,
-      // Private: who may see a photo depends on who's signed in. A request's photo never changes once posted.
+      // Private: who may see a photo depends on who's signed in. The link carries the photo's version, so caching is safe.
       "Cache-Control": "private, max-age=86400",
       "X-Content-Type-Options": "nosniff",
     },

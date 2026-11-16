@@ -146,7 +146,8 @@ interface RequestRow {
   pet_kind: RequestDraft["petKind"];
   pet_kind_other: string | null;
   pet_details: string | null;
-  has_photo: boolean;
+  /** A short fingerprint of the photo shown, or null without one; it changes when the pet's photo does. */
+  photo_version: string | null;
   weekly: boolean;
   starts_on: string | null;
   ends_on: string | null;
@@ -179,7 +180,7 @@ interface RequestRow {
 function selectRequests(sql: Sql, viewerId: string) {
   return sql`
     SELECT r.id, r.owner_id, r.owner_name, r.owner_email, r.pet_name, r.pet_kind, r.pet_kind_other,
-           r.pet_details, r.photo IS NOT NULL AS has_photo, r.weekly,
+           r.pet_details, left(md5(${shownPhoto(sql)}), 10) AS photo_version, r.weekly,
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
            r.pay, r.area, r.vet, r.notes, r.status, r.created_at, r.completed_at,
@@ -197,9 +198,27 @@ function selectRequests(sql: Sql, viewerId: string) {
   `;
 }
 
-/** Where the web app serves a request's photo (apps/web .../pennpaws/photo/[id]). */
-export function requestPhotoUrl(requestId: string): string {
-  return `/tools/pennpaws/photo/${requestId}`;
+/**
+ * The photo a request shows. Posted from My Pets, it's the first of those
+ * pets' current photos, so changing a pet's photo updates every request it's
+ * on; the copy taken when posting is only the fallback (a pet removed since,
+ * or a request posted without saved pets).
+ */
+function shownPhoto(sql: Sql) {
+  return sql`COALESCE(
+    (SELECT p.photo FROM pets p
+     WHERE p.id = ANY(r.pet_ids) AND p.owner_id = r.owner_id AND p.photo IS NOT NULL
+     ORDER BY array_position(r.pet_ids, p.id) LIMIT 1),
+    r.photo
+  )`;
+}
+
+/**
+ * Where the web app serves a request's photo (apps/web .../pennpaws/photo/[id]).
+ * `version` changes with the photo, so a browser never keeps showing an old one.
+ */
+export function requestPhotoUrl(requestId: string, version?: string): string {
+  return `/tools/pennpaws/photo/${requestId}${version ? `?v=${version}` : ""}`;
 }
 
 /**
@@ -210,7 +229,7 @@ export function requestPhotoUrl(requestId: string): string {
 export async function requestPhoto(sql: Sql, viewerId: string, requestId: string, asTeam = false): Promise<string | null> {
   if (!UUID_RE.test(requestId)) return null;
   const [row] = await sql<{ photo: string | null }[]>`
-    SELECT r.photo FROM requests r
+    SELECT ${shownPhoto(sql)} AS photo FROM requests r
     WHERE r.id = ${requestId} AND (
       ${asTeam} OR r.owner_id = ${viewerId} OR ${browsable(sql)}
       OR EXISTS (SELECT 1 FROM offers o WHERE o.request_id = r.id AND o.sitter_id = ${viewerId} AND o.status <> 'withdrawn')
@@ -232,7 +251,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
       petKindOther: row.pet_kind_other,
       petDetails: row.pet_details,
       // A link rather than the photo itself, so a list of requests doesn't carry every picture.
-      photo: row.has_photo ? requestPhotoUrl(row.id) : null,
+      photo: row.photo_version ? requestPhotoUrl(row.id, row.photo_version) : null,
       weekly: row.weekly,
       startsOn: row.starts_on,
       endsOn: row.ends_on,
@@ -462,7 +481,14 @@ export async function getRequestView(sql: Sql, viewerId: string, requestId: stri
       if (ownerSide) privateNotes = petNotes(ownerSide);
     }
   }
-  const [last] = party ? await sql<{ phone: string }[]>`SELECT phone FROM handoffs WHERE user_id = ${viewerId} ORDER BY created_at DESC LIMIT 1` : [];
+  // The last phone that would pass checkHandoff (10 to 15 digits), so an old malformed one isn't offered again.
+  const [last] = party
+    ? await sql<{ phone: string }[]>`
+        SELECT phone FROM handoffs
+        WHERE user_id = ${viewerId} AND length(regexp_replace(phone, '[^0-9]', '', 'g')) BETWEEN 10 AND 15
+        ORDER BY created_at DESC LIMIT 1
+      `
+    : [];
 
   return {
     ...card,

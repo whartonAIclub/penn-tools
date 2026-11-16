@@ -103,7 +103,7 @@ function GuideCard({ view, busy, onSave }: { view: AfterMatchView; busy: boolean
   }
 
   return (
-    <section className={styles.amCard}>
+    <section className={styles.amCard} data-step="guide">
       <div className={styles.amHead}>
         <h3 className={styles.amTitle}>How to get in</h3>
         {isOwner && (
@@ -165,7 +165,7 @@ function GuideForm({
   const detail = DETAIL_LABEL[g.keyMethod];
 
   return (
-    <section className={styles.amCard}>
+    <section className={styles.amCard} data-step="guide">
       <h3 className={styles.amTitle}>Help {sitter} get in</h3>
       <p className={styles.muted}>Four quick answers, and {sitter} has everything for the first visit. Codes stay hidden until you both approve.</p>
 
@@ -215,7 +215,7 @@ function VisitsCard({ view, busy, act, requestId }: { view: AfterMatchView; busy
   const open = view.visits.find((v) => !v.leftAt) ?? null;
   const isSitter = view.role === "sitter";
   return (
-    <section className={styles.amCard}>
+    <section className={styles.amCard} data-step="visit">
       <h3 className={styles.amTitle}>Visits</h3>
       {isSitter && view.status === "agreed" && (
         <CheckInBox
@@ -364,7 +364,7 @@ function PayBox({ view, busy, onPay }: { view: AfterMatchView; busy: boolean; on
   const valid = Number.isFinite(dollars) && dollars > 0;
   const note = `PennPaws visit with ${view.petName}`;
   return (
-    <div className={styles.payBox}>
+    <div className={styles.payBox} data-step="pay">
       <strong>Pay {view.otherFirstName} for this visit</strong>
       <label className={styles.payAmount}>
         <span>$</span>

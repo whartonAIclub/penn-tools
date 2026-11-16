@@ -21,6 +21,7 @@ import {
   type Match,
   type Member,
   type Notification,
+  type NotificationStep,
   type Pet,
   type PlatformRates,
   type RequestCard as Card,
@@ -38,7 +39,7 @@ import { TeamView } from "./TeamView";
 import styles from "./PennPaws.module.css";
 
 type ListTab = "find" | "mine" | "pets" | "alerts" | "tasks" | "done" | "earnings";
-type View = { tab: ListTab | "post" | "profile" | "team" } | { tab: "request"; id: string; back: ListTab };
+type View = { tab: ListTab | "post" | "profile" | "team" } | { tab: "request"; id: string; back: ListTab; focus: NotificationStep | null };
 
 // Only sitters browse open requests; owners post and follow their own.
 const OWNER_TABS = [
@@ -127,7 +128,7 @@ export function PennPaws({
   const [ranking, setRanking] = useState(false);
   const [rankError, setRankError] = useState<string | null>(null);
 
-  const openRequest = (id: string, back: ListTab) => setView({ tab: "request", id, back });
+  const openRequest = (id: string, back: ListTab, focus?: NotificationStep) => setView({ tab: "request", id, back, focus: focus ?? null });
   /** Moves to the other side, or opens its setup the first time they go there. */
   const switchSides = async () => {
     setSwitching(true);
@@ -389,7 +390,7 @@ export function PennPaws({
                     <button
                       type="button"
                       className={n.read ? styles.alert : styles.alertNew}
-                      onClick={() => n.requestId && openRequest(n.requestId, "alerts")}
+                      onClick={() => n.requestId && openRequest(n.requestId, "alerts", n.step)}
                       disabled={!n.requestId}
                     >
                       <span>{n.message}</span>
@@ -405,7 +406,7 @@ export function PennPaws({
         )}
 
         {view.tab === "request" && (
-          <RequestDetail key={view.id} requestId={view.id} hasAI={hasAI} match={matchOf.get(view.id) ?? null} onBack={() => setView({ tab: view.back })} onChanged={() => router.refresh()} />
+          <RequestDetail key={view.id} requestId={view.id} focus={view.focus} hasAI={hasAI} match={matchOf.get(view.id) ?? null} onBack={() => setView({ tab: view.back })} onChanged={() => router.refresh()} />
         )}
 
         {view.tab === "profile" && (

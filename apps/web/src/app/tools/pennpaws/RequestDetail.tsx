@@ -7,8 +7,8 @@
 // booking done, then the owner can rate it; the sitter sees ratings only
 // anonymously, in Completed.
 
-import { useCallback, useEffect, useState } from "react";
-import { FIT_LABELS, REPORT_REASONS, addressFrom, describe, type AgreementTerms, type Contact, type SitterCard, type AskCheck, type Match } from "@penntools/tool-pennpaws";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FIT_LABELS, REPORT_REASONS, addressFrom, describe, type AgreementTerms, type Contact, type SitterCard, type AskCheck, type Match, type NotificationStep } from "@penntools/tool-pennpaws";
 import { accept, approve, askForChange, cancel, loadRequest, markDone, offer, rate, report, withdraw, type ActionResult, type RequestPage } from "./actions";
 import { AfterMatch } from "./AfterMatch";
 import { Conversation } from "./Conversation";
@@ -28,12 +28,15 @@ const TERM_LABELS: [keyof AgreementTerms, string][] = [
 
 export function RequestDetail({
   requestId,
+  focus,
   hasAI,
   match,
   onBack,
   onChanged,
 }: {
   requestId: string;
+  /** The step to scroll to once it's on screen, when opened from a notification. */
+  focus: NotificationStep | null;
   /** Whether the user saved an API key, for "Help me write" in messages. */
   hasAI: boolean;
   /** How this request fits the viewer, when they're a sitter looking at an open request. */
@@ -51,6 +54,7 @@ export function RequestDetail({
   useEffect(() => {
     void reload();
   }, [reload]);
+  useFocusStep(focus, request !== undefined);
 
   /** Runs an action, then reloads this request and the page's lists. */
   const act = async (fn: () => Promise<ActionResult<unknown>>) => {
@@ -191,6 +195,7 @@ export function RequestDetail({
 
       {/* A sitter's conversation with the owner */}
       {!request.mine && request.threads[0] && (request.threads[0].canSend || request.threads[0].messages.length > 0) && (
+        <div data-step="messages">
         <Conversation
           key={`${request.threads[0].messages.length}`}
           requestId={request.id}
@@ -209,6 +214,7 @@ export function RequestDetail({
               : undefined
           }
         />
+        </div>
       )}
       {role === "sitter" && request.myOffer?.status === "declined" && (
         <div className={styles.panelPlain}>{request.draft.petName} found another sitter this time. Thanks for offering.</div>
@@ -216,7 +222,7 @@ export function RequestDetail({
 
       {/* The owner, before picking */}
       {role === "owner" && request.status === "open" && (
-        <div className={styles.stack}>
+        <div className={styles.stack} data-step="offers">
           <h3 className={styles.heading}>Offers</h3>
           {pendingOffers.length === 0 ? (
             <p className={styles.muted}>No offers yet. We'll notify you as soon as someone offers.</p>
@@ -244,8 +250,8 @@ export function RequestDetail({
         request.threads
           .filter((t) => t.canSend || t.messages.length > 0)
           .map((t) => (
+            <div key={`${t.id}-${t.messages.length}`} data-step="messages">
             <Conversation
-              key={`${t.id}-${t.messages.length}`}
               requestId={request.id}
               thread={t}
               title={`Messages with ${t.sitterFirstName}`}
@@ -253,11 +259,12 @@ export function RequestDetail({
               hasAI={hasAI}
               onSent={reload}
             />
+            </div>
           ))}
 
       {/* The agreement */}
       {agreement && (request.status === "matched" || request.status === "agreed") && (
-        <div className={styles.stack}>
+        <div className={styles.stack} data-step="agreement">
           <h3 className={styles.heading}>Care agreement</h3>
           {request.status === "matched" && (
             <p className={styles.muted}>Drafted from the request. Read it through; either of you can ask for a change before approving.</p>
@@ -346,7 +353,7 @@ export function RequestDetail({
       )}
 
       {request.contacts && (
-        <div className={styles.noticeGood}>
+        <div className={styles.noticeGood} data-step="booked">
           <strong>You're booked</strong>
           <span>Text each other to plan a quick meet-and-greet and the key handoff.</span>
           <ContactLines name={request.ownerFirstName} contact={request.contacts.owner} />
@@ -380,11 +387,13 @@ export function RequestDetail({
             <strong>Thanks for your rating.</strong>
           </div>
         ) : (
+          <div data-step="rate">
           <ReviewForm
             sitterName={request.sitterFirstName ?? "your sitter"}
             busy={busy}
             onSubmit={(rating, feedback) => void act(() => rate(request.id, { rating, feedback: feedback.trim() || null }))}
           />
+          </div>
         ))}
 
       {request.status === "cancelled" && (
@@ -429,6 +438,56 @@ export function RequestDetail({
 }
 
 /** A quiet link that asks first, with an optional reason the other person sees. */
+/**
+ * Where each notification step may land, best first: paying falls back to the
+ * visits once it's paid, and anything missing falls back to the top.
+ */
+const FOCUS_ORDER: Record<NotificationStep, string[]> = {
+  offers: ["offers", "agreement"],
+  messages: ["messages"],
+  agreement: ["agreement", "booked"],
+  booked: ["booked", "guide"],
+  guide: ["guide"],
+  visit: ["visit"],
+  pay: ["pay", "visit"],
+  rate: ["rate"],
+  request: [],
+};
+
+/**
+ * Scrolls to the step a notification is about and flashes it. Some steps
+ * (visits, paying) load a moment after the request, so it keeps looking for
+ * up to six seconds, then leaves the page at the top.
+ */
+function useFocusStep(focus: NotificationStep | null, loaded: boolean) {
+  const done = useRef(false);
+  useEffect(() => {
+    if (!focus || !loaded || done.current) return;
+    const steps = FOCUS_ORDER[focus];
+    if (steps.length === 0) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      // Each step and its fallbacks render together (paying sits inside the visits), so the first one present is the answer.
+      const el = steps.map((step) => document.querySelector<HTMLElement>(`[data-step="${step}"]`)).find((found) => found !== null) ?? null;
+      if (el || tries > 40) {
+        window.clearInterval(timer);
+        done.current = true;
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Some browsers skip smooth scrolling (a background tab, an embedded view); jump if it didn't move.
+        window.setTimeout(() => {
+          const box = el.getBoundingClientRect();
+          if (box.bottom < 0 || box.top > window.innerHeight) el.scrollIntoView({ block: "center" });
+        }, 700);
+        el.classList.add(styles.focusFlash!);
+        window.setTimeout(() => el.classList.remove(styles.focusFlash!), 2400);
+      }
+    }, 150);
+    return () => window.clearInterval(timer);
+  }, [focus, loaded]);
+}
+
 function BackOut({ label, question, confirm, busy, onConfirm }: { label: string; question: string; confirm: string; busy: boolean; onConfirm: (reason: string | null) => void }) {
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");

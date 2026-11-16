@@ -1367,3 +1367,11 @@
 .avatarSketch svg .sketchCheek { fill: #f6a9a4; stroke: none; opacity: 0.75; }
 .avatarSketch svg .sketchShine { fill: #ffffff; stroke: none; }
 .avatarSketch svg .sketchSoft { stroke-width: 1.5; opacity: 0.6; }
+
+/* A step opened from a notification: a soft honey ring that fades, so the eye finds it. */
+.focusFlash { animation: ppFocusFlash 2.4s ease-out; border-radius: 22px; }
+@keyframes ppFocusFlash {
+  0%, 35% { box-shadow: 0 0 0 4px rgba(232, 182, 74, 0.75); }
+  100% { box-shadow: 0 0 0 4px rgba(232, 182, 74, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .focusFlash { animation: none; box-shadow: 0 0 0 3px rgba(232, 182, 74, 0.75); } }
