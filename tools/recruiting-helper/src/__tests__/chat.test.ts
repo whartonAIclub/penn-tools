@@ -2,7 +2,7 @@
 // streaming are tested against Postgres in storage.test.ts.
 
 import { describe, it, expect } from "vitest";
-import { chatMessages, checkQuestion, itemContext, CHAT_HISTORY_LIMIT, MAX_QUESTION_LENGTH, type ChatMessage } from "../chat.js";
+import { chatMessages, chatSystem, checkQuestion, itemContext, CHAT_HISTORY_LIMIT, MAX_QUESTION_LENGTH, type ChatMessage } from "../chat.js";
 import type { SavedContact, SavedPosting } from "../storage.js";
 import { SAMPLE_PROFILE } from "../samples.js";
 
@@ -81,6 +81,20 @@ describe("itemContext", () => {
     expect(text).toContain("Jordan Rivera, Head of Partnerships at Google Cloud");
     expect(text).toContain("Schools: (not recorded)");
     expect(text).toContain("Subject: Hello\nHi Jordan");
+  });
+});
+
+describe("chatSystem", () => {
+  it("gives the re-scoring advice only for postings", () => {
+    expect(chatSystem(job)).toContain("role fit score is out of 5");
+    expect(chatSystem(person)).not.toMatch(/role fit|pasting/);
+  });
+
+  it("says to remove a posting without a link before pasting it again, as it would be duplicated", () => {
+    expect(chatSystem(job)).toContain("removing this posting from their list");
+    const linked = chatSystem({ ...job, link: "https://careers.google.com/jobs/1" });
+    expect(linked).toContain("it replaces this one");
+    expect(linked).not.toContain("removing this posting");
   });
 });
 

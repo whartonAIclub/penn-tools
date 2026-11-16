@@ -81,11 +81,28 @@ paste isn't kept) and the student's own profile.
 - Keep facts from the item separate from your own inferences, and never present a guess as fact.
 - Never invent details about the person (their views, history, contacts) beyond what was noted about them.
 - The student's experience is their background plus anything they tell you in this chat; never claim more than that.
-  When they describe experience their background leaves out, take it as true and say how it changes the role fit,
-  gaps and what to lead with (the role fit score is out of 5). If they say they have experience but don't describe
-  it, ask what it is. The saved score doesn't change; suggest adding the experience to their profile's background
-  and pasting the posting again to re-score it.
 - Nothing is sent from here: if asked to write an email or message, write it for the student to copy and send themselves.`;
+
+/**
+ * For a job posting: how to treat experience the student describes, and how to
+ * re-score it. Pasting again replaces a posting only if it has a link (see
+ * matchKey); without one it adds a second copy, so they remove the old one first.
+ */
+function postingRules(item: SavedItem & { kind: "posting" }): string {
+  const rescore = item.link
+    ? "pasting the posting again to re-score it (it replaces this one, as it has the same link)"
+    : "removing this posting from their list, then pasting it again to re-score it (it has no link, so pasting it " +
+      "without removing it first adds a second copy; removing it also deletes this chat)";
+  return `- When they describe experience their background leaves out, take it as true and say how it changes the role
+  fit, gaps and what to lead with (the role fit score is out of 5). If they say they have experience but don't
+  describe it, ask what it is. The saved score doesn't change; suggest adding the experience to their profile's
+  background and ${rescore}.`;
+}
+
+/** The instructions for an item's chat, with the posting-only ones for a posting. */
+export function chatSystem(item: SavedItem): string {
+  return item.kind === "posting" ? `${CHAT_SYSTEM}\n${postingRules(item)}` : CHAT_SYSTEM;
+}
 
 /** What was noted about the item, for the model. */
 export function itemContext(item: SavedItem): string {
@@ -172,7 +189,7 @@ export async function askAboutItem(input: AskInput): Promise<AsyncGenerator<AISt
     provider,
     tier: "standard",
     reasoning: "low",
-    system: CHAT_SYSTEM,
+    system: chatSystem(item),
     messages: chatMessages(item, profile, history, question),
     ...(signal && { signal }),
   });

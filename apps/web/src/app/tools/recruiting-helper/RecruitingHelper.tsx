@@ -31,7 +31,7 @@ import {
   saveMyOutreach,
   saveMyProfile,
 } from "./actions";
-import { Dictation } from "./Dictation";
+import { appendSpoken, Dictation, type DictationHandle } from "./Dictation";
 import { RolePicker } from "./RolePicker";
 import { ACCEPT, readScreenshot, screenshotSrc, toBase64 } from "./screenshots";
 import styles from "./RecruitingHelper.module.css";
@@ -215,6 +215,8 @@ function ProfileEditor({
   const [error, setError] = useState<string | null>(null);
   const [upload, setUpload] = useState<Upload>({ state: "idle" });
   const resumeInput = useRef<HTMLInputElement>(null);
+  const backgroundInput = useRef<HTMLTextAreaElement>(null);
+  const dictation = useRef<DictationHandle>(null);
 
   /**
    * Puts the résumé's text in the background box: a Word file is read here, in
@@ -286,8 +288,12 @@ function ProfileEditor({
   const ready = form.background.trim() && !tooLong && form.targetRoles.trim() && companies.length > 0;
 
   async function save() {
+    // Saving stops voice typing, keeping the phrase it was still hearing.
+    const spoken = dictation.current?.finish() ?? "";
+    const background = appendSpoken(form.background, spoken);
+    if (spoken) setForm((old) => ({ ...old, background: appendSpoken(old.background, spoken) }));
     const profile: RecruitingProfile = {
-      background: form.background.trim(),
+      background: background.trim(),
       targetRoles: form.targetRoles.trim(),
       companies,
       bonusSignals: toLines(form.signals).slice(0, 10),
@@ -345,8 +351,14 @@ function ProfileEditor({
           Upload your résumé, or paste or type a summary: roles, results, skills, schools, languages. Add anything
           your résumé leaves out.
         </span>
-        <div className={styles.textareaWrap}>
+        <Dictation
+          label="Add to your background by voice"
+          inputRef={backgroundInput}
+          handle={dictation}
+          onText={(spoken) => setForm((old) => ({ ...old, background: appendSpoken(old.background, spoken) }))}
+        >
           <textarea
+            ref={backgroundInput}
             id="rh-background"
             className={styles.textarea}
             rows={form.background ? 14 : 7}
@@ -354,17 +366,7 @@ function ProfileEditor({
             onChange={set("background")}
             aria-describedby="rh-background-count"
           />
-          <Dictation
-            label="Add to your background by voice"
-            onText={(spoken) =>
-              setForm((old) => ({
-                ...old,
-                // Each spoken phrase goes on the end, after a space (or straight after a new line).
-                background: !old.background ? spoken : /\s$/.test(old.background) ? old.background + spoken : `${old.background} ${spoken}`,
-              }))
-            }
-          />
-        </div>
+        </Dictation>
         <span id="rh-background-count" className={tooLong ? styles.countOver : styles.count}>
           {form.background.length.toLocaleString()} / {maxBackgroundLength.toLocaleString()} characters
           {tooLong &&
@@ -715,14 +717,17 @@ type Sort = "score" | "newest";
 /** Most recently scored first: pasting an item again counts as scoring it again. */
 const byNewest = (a: SavedItem, b: SavedItem) => b.addedAt.localeCompare(a.addedAt);
 
-/** When an item was scored: "today, 3:42 PM", "yesterday, 9:05 AM" or "Nov 12". */
+/** When an item was scored: "today, 3:42 PM", "yesterday, 9:05 AM", "Nov 12" or, in another year, "Nov 12, 2025". */
 function scoredWhen(iso: string): string {
   const date = new Date(iso);
-  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(iso).setHours(0, 0, 0, 0)) / 86_400_000);
+  const now = new Date();
+  const days = Math.round((new Date(now).setHours(0, 0, 0, 0) - new Date(iso).setHours(0, 0, 0, 0)) / 86_400_000);
   const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  if (days === 0) return `today, ${time}`;
+  // Below 0 when the server's clock is a little ahead of this one.
+  if (days <= 0) return `today, ${time}`;
   if (days === 1) return `yesterday, ${time}`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const otherYear = date.getFullYear() !== now.getFullYear();
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(otherYear && { year: "numeric" }) });
 }
 
 function RankedList({
@@ -1417,17 +1422,19 @@ function Outreach({
 
 // ── Follow-up chat ───────────────────────────────────────────────────────────
 
-const CHAT_EXAMPLES: Record<SavedItem["kind"], string[]> = {
+/** Example questions: each is asked as it is, or, with `finish`, put in the box for the student to finish. */
+const CHAT_EXAMPLES: Record<SavedItem["kind"], { text: string; finish?: string }[]> = {
   posting: [
-    "What companies would this team likely partner with?",
-    "What does a typical week look like in this role?",
-    "How should I tailor my résumé for this?",
-    "I have experience my résumé doesn't show. How would it change my fit?",
+    { text: "What companies would this team likely partner with?" },
+    { text: "What does a typical week look like in this role?" },
+    { text: "How should I tailor my résumé for this?" },
+    // Asked as it is, the AI would only reply "what experience?", spending a paid call.
+    { text: "I have experience my résumé doesn't show…", finish: "How would this change my fit? I also have experience in " },
   ],
   contact: [
-    "What should I ask them in a coffee chat?",
-    "What does their team likely work on?",
-    "Make my email draft shorter",
+    { text: "What should I ask them in a coffee chat?" },
+    { text: "What does their team likely work on?" },
+    { text: "Make my email draft shorter" },
   ],
 };
 
@@ -1438,6 +1445,8 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ScoreError | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const questionInput = useRef<HTMLTextAreaElement>(null);
+  const dictation = useRef<DictationHandle>(null);
 
   useEffect(() => {
     let current = true;
@@ -1459,8 +1468,11 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
   const updateAnswer = (content: string) =>
     setMessages((m) => (m ? [...m.slice(0, -1), { role: "assistant", content }] : m));
 
-  async function ask(text: string) {
-    if (!text.trim() || busy) return;
+  async function ask(typed: string) {
+    if (busy) return;
+    // Asking stops voice typing, so the phrase it was still hearing goes with the question, not into the empty box after.
+    const text = appendSpoken(typed, dictation.current?.finish() ?? "");
+    if (!text.trim()) return;
     setBusy(true);
     setError(null);
     setQuestion("");
@@ -1485,7 +1497,8 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
         const body = (await res.json().catch(() => ({}))) as { error?: ScoreError };
         // Not saved, so take the question back off the chat and put it back in the box.
         setMessages((m) => (m ? m.slice(0, -2) : m));
-        setQuestion(text);
+        // Ahead of anything typed since, rather than over it.
+        setQuestion((typedSince) => (typedSince.trim() ? `${text}\n${typedSince}` : text));
         setError(body.error ?? { message: "Something went wrong. Try again." });
         return;
       }
@@ -1559,9 +1572,18 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
       )}
       {messages && messages.length === 0 && (
         <div className={styles.chips}>
-          {CHAT_EXAMPLES[item.kind].map((example) => (
-            <button key={example} className={styles.chip} onClick={() => void ask(example)} disabled={busy}>
-              {example}
+          {CHAT_EXAMPLES[item.kind].map(({ text, finish }) => (
+            <button
+              key={text}
+              className={styles.chip}
+              onClick={() => {
+                if (!finish) return void ask(text);
+                setQuestion(finish);
+                questionInput.current?.focus();
+              }}
+              disabled={busy}
+            >
+              {text}
             </button>
           ))}
         </div>
@@ -1574,8 +1596,14 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
             void ask(question);
           }}
         >
-          <div className={styles.textareaWrap}>
+          <Dictation
+            label="Ask by voice"
+            inputRef={questionInput}
+            handle={dictation}
+            onText={(spoken) => setQuestion((old) => appendSpoken(old, spoken))}
+          >
             <textarea
+              ref={questionInput}
               className={styles.textarea}
               aria-label={`Ask about this ${item.kind === "posting" ? "role" : "person"}`}
               rows={2}
@@ -1593,14 +1621,7 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
                 }
               }}
             />
-            <Dictation
-              label="Ask by voice"
-              onText={(spoken) =>
-                // Each spoken phrase goes on the end, after a space (or straight after a new line).
-                setQuestion((old) => (!old ? spoken : /\s$/.test(old) ? old + spoken : `${old} ${spoken}`))
-              }
-            />
-          </div>
+          </Dictation>
           <button className={styles.button} type="submit" disabled={busy || !question.trim()}>
             {busy ? "Answering…" : "Ask"}
           </button>
