@@ -1,6 +1,7 @@
 // Student Discount Central: student deals that students vote on and expire.
 // Anyone can browse; signing in lets students vote, add deals and mark them
-// expired, and a saved AI key lets them fill in a new deal from pasted text.
+// expired, and fill in a new deal from pasted text with AI (free credit, then
+// their own key).
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
@@ -49,7 +50,7 @@ export default async function StudentDiscountCentralPage() {
     );
   }
 
-  const providers: AIProvider[] = user ? await (await getAI())!.providers() : [];
+  const providers: AIProvider[] = user ? await (await getAI("student-discount-maximizer"))!.providers() : [];
 
   return (
     <DiscountBoard

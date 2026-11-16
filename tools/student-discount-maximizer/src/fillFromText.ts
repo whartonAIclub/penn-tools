@@ -1,7 +1,7 @@
 // Fills in the Add a deal form from text a student pasted, such as a deal's
-// web page, an email, or text copied from a photo of a sign (the AI API takes
-// text only), with the AI API on the student's own key. The student checks
-// the result before saving it: nothing here is saved.
+// web page, an email, or text copied from a photo of a sign, with the AI API
+// (free credit, then the student's own key). The student checks the result
+// before saving it: nothing here is saved.
 
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";

@@ -126,9 +126,9 @@ export async function restoreDeal(discountId: string): Promise<ActionResult<Disc
   return run(() => restore(database(), user.id, discountId));
 }
 
-/** A draft of the Add a deal form from pasted text, on the student's own AI key. */
+/** A draft of the Add a deal form from pasted text, with the AI API (free credit, then the student's own key). */
 export async function fillForm(provider: AIProvider, pastedText: string): Promise<ActionResult<DealDraft>> {
-  const ai = await getAI();
+  const ai = await getAI("student-discount-maximizer");
   if (!ai) return signedOut;
   const problem = checkPastedText(pastedText);
   if (problem) return fail(problem);

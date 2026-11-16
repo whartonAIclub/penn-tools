@@ -14,6 +14,25 @@
   font-weight: 600;
 }
 
+/* Free AI credit */
+
+.creditLeft {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.creditBar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.creditFill {
+  height: 100%;
+  background: var(--penn-blue);
+}
+
 /* API keys */
 
 .keyRow {

@@ -122,6 +122,16 @@ export function anthropicErrorReply(status: number, type: string, message: strin
   return { status, json: { type: "error", error: { type, message } } };
 }
 
-export function openaiErrorReply(status: number, code: string, message: string) {
-  return { status, json: { error: { code, type: code, message, param: null } } };
+export function openaiErrorReply(status: number, code: string, message: string, type: string = code) {
+  return { status, json: { error: { code, type, message, param: null } } };
+}
+
+/** Anthropic's token count for a request (POST /v1/messages/count_tokens). */
+export function anthropicCountReply(inputTokens: number) {
+  return { json: { input_tokens: inputTokens } };
+}
+
+/** OpenAI's token count for a request (POST /v1/responses/input_tokens). */
+export function openaiCountReply(inputTokens: number) {
+  return { json: { object: "response.input_tokens", input_tokens: inputTokens } };
 }

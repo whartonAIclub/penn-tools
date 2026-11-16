@@ -149,6 +149,41 @@ describe.skipIf(!databaseUrl)("AskPenn storage (Postgres)", () => {
     expect(await getMessages(sql, "eve", chatId)).toHaveLength(4);
   });
 
+  it("sends attachments with their message only, and keeps just their names", async () => {
+    const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
+    const attachments = [
+      { name: "map.png", mediaType: "image/png" as const, data: png },
+      { name: "notes.txt", mediaType: "text/plain" as const, data: "Room 101" },
+    ];
+    const { ai, requests } = fakeAI(["A map."]);
+    const first = await collect(sendMessage({ sql, ai, userId: "jo", chatId: null, provider: "anthropic", content: "", attachments }));
+    const chatId = (first[0] as { chatId: string }).chatId;
+
+    expect(requests[0]?.messages).toEqual([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: '<attachment name="map.png">' },
+          { type: "image", mediaType: "image/png", data: png },
+          { type: "text", text: "</attachment>" },
+          { type: "text", text: '<attachment name="notes.txt">\nRoom 101\n</attachment>' },
+        ],
+      },
+    ]);
+    expect(await getMessages(sql, "jo", chatId)).toEqual([
+      { role: "user", content: "", attachments: ["map.png", "notes.txt"] },
+      { role: "assistant", content: "A map." },
+    ]);
+    expect((await listChats(sql, "jo"))[0]?.title).toBe("map.png, notes.txt");
+
+    const next = fakeAI(["Sure."]);
+    await collect(sendMessage({ sql, ai: next.ai, userId: "jo", chatId, provider: "anthropic", content: "Thanks" }));
+    expect(next.requests[0]?.messages[0]).toEqual({
+      role: "user",
+      content: "[Attached: map.png, notes.txt (no longer available)]",
+    });
+  });
+
   it("refuses another user's chat without saving anything", async () => {
     const chatId = await createChat(sql, "frank", "Private");
     const { ai, requests } = fakeAI(["nope"]);

@@ -25,4 +25,11 @@ export interface ProviderAdapter {
    * reason (a refusal or cut-off reply isn't valid JSON) before parsing.
    */
   stream(request: ResolvedRequest, schema?: AISchema): AsyncGenerator<AIStreamEvent>;
+
+  /**
+   * The input tokens `stream` would send for this request, from the
+   * provider's token counting endpoint. Used to reserve a call's cost against
+   * the user's free credit before making it.
+   */
+  countInputTokens(request: ResolvedRequest, schema?: AISchema): Promise<number>;
 }

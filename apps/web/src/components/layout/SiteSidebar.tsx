@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CatalogSection } from "@/lib/toolCatalog";
+import { trackClicks } from "@/lib/visits";
 import { SECTIONS_COOKIE, SIDEBAR_COOKIE } from "./sidebarCookie";
 import styles from "./SiteSidebar.module.css";
 
@@ -161,9 +162,15 @@ export function SiteSidebar({
             </button>
             <ul id={`sidebar-${section.id}`} className={styles.tools} hidden={!expanded}>
               {section.tools.map((tool) => (
-                <li key={tool.key}>
+                <li key={tool.visitId}>
                   {tool.external ? (
-                    <a href={tool.href} className={styles.tool} target="_blank" rel="noopener noreferrer">
+                    <a
+                      href={tool.href}
+                      className={styles.tool}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      {...trackClicks(tool.visitId)}
+                    >
                       <span className={styles.label}>{tool.title}</span>
                       <IconExternal />
                     </a>

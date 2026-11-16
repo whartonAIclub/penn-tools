@@ -7,10 +7,30 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { AISchema, AIStopReason, GenerateResult } from "@penntools/core/ai";
-import type { ProviderAdapter } from "./adapter.js";
+import type { AIContentPart, AIMessage, AISchema, AIStopReason, GenerateResult } from "@penntools/core/ai";
+import type { ProviderAdapter, ResolvedRequest } from "./adapter.js";
 
 type Message = Anthropic.Messages.Message;
+
+function contentBlock(part: AIContentPart): Anthropic.Messages.ContentBlockParam {
+  switch (part.type) {
+    case "text":
+      return { type: "text", text: part.text };
+    case "image":
+      return { type: "image", source: { type: "base64", media_type: part.mediaType, data: part.data } };
+    case "pdf":
+      return {
+        type: "document",
+        title: part.filename,
+        source: { type: "base64", media_type: "application/pdf", data: part.data },
+      };
+  }
+}
+
+function messageParam(message: AIMessage): Anthropic.Messages.MessageParam {
+  if (typeof message.content === "string") return { role: message.role, content: message.content };
+  return { role: message.role, content: message.content.map(contentBlock) };
+}
 
 /**
  * The schema as plain JSON Schema. The helper's object also carries a parse
@@ -48,19 +68,28 @@ function result(message: Message): GenerateResult {
   };
 }
 
+/** What a request sends besides max_tokens, shared by streaming and counting. */
+function input(request: ResolvedRequest, schema?: AISchema) {
+  return {
+    model: request.model,
+    messages: request.messages.map(messageParam),
+    ...(request.system !== undefined && { system: request.system }),
+    output_config: { effort: request.reasoning, ...(schema && { format: outputFormat(schema) }) },
+  };
+}
+
 export function createAnthropicAdapter(apiKey: string): ProviderAdapter {
   const client = new Anthropic({ apiKey });
 
   return {
+    async countInputTokens(request, schema) {
+      const count = await client.messages.countTokens(input(request, schema), { signal: request.signal });
+      return count.input_tokens;
+    },
+
     async *stream(request, schema) {
       const stream = client.messages.stream(
-        {
-          model: request.model,
-          max_tokens: request.maxOutputTokens,
-          messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
-          ...(request.system !== undefined && { system: request.system }),
-          output_config: { effort: request.reasoning, ...(schema && { format: outputFormat(schema) }) },
-        },
+        { ...input(request, schema), max_tokens: request.maxOutputTokens },
         { signal: request.signal },
       );
       for await (const event of stream) {

@@ -3,7 +3,8 @@
 // The Add a deal form. Only the establishment and what the deal is are
 // required; everything else sits under "More details". Students can fill it
 // in themselves, or paste a deal's text (including text copied from a photo)
-// and let AI fill it in on their own key, then check it and save.
+// and let AI fill it in (on the platform's free AI credit, then their own
+// key), then check it and save.
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -83,8 +84,8 @@ const WHERE: { value: DiscountKind; label: string }[] = [
   { value: "code", label: "Promo code" },
 ];
 
-// Errors about the student's AI key send them to Settings.
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+// Errors about the student's AI key, or their used-up free AI credit, send them to Settings.
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 async function call<T>(action: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
@@ -381,7 +382,7 @@ function FillWithAI({
   if (!provider) {
     return (
       <p className={styles.hint}>
-        Tip: add an OpenAI or Anthropic key in{" "}
+        You&apos;ve used your free AI credit. Add an OpenAI or Anthropic key in{" "}
         <Link href="/settings" className={styles.link}>
           Settings
         </Link>{" "}
