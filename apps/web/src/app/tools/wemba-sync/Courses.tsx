@@ -138,14 +138,18 @@ export function Courses({
   const course = saved.find((s) => s.id === selected) ?? saved[0];
   const today = todayInPhiladelphia();
 
-  // Each course has its own brick color, in the order of the strip along the
-  // page's top, on its tab and beside its deadlines.
+  // Each course has its own color from the theme's palette, on its tab and
+  // beside its deadlines.
   const colorOf = (syllabus: Syllabus) =>
     styles[`courseColor${saved.findIndex((s) => s.syllabus === syllabus) % COURSE_COLORS}`];
   const colorByCourse = new Map(saved.map((s) => [s.syllabus.courseCode ?? s.syllabus.title, colorOf(s.syllabus)]));
 
   return (
     <div className={`${styles.courses} ${theme === "bricks" ? styles.bricks : ""}`}>
+      <SyllabusUpload busy={busy} compact={saved.length > 0} onFiles={(files) => void upload(files)} />
+      {uploads.length > 0 && <UploadList uploads={uploads} onDismiss={() => setUploads([])} busy={busy} />}
+      {error && <ErrorNote error={error} />}
+
       {saved.length > 0 && (
         <>
           <div className={styles.picker} role="tablist" aria-label="Your courses">
@@ -176,11 +180,6 @@ export function Courses({
           )}
         </>
       )}
-
-      {/* At the bottom, as on the Class Weekend tab. */}
-      <SyllabusUpload busy={busy} compact={saved.length > 0} onFiles={(files) => void upload(files)} />
-      {uploads.length > 0 && <UploadList uploads={uploads} onDismiss={() => setUploads([])} busy={busy} />}
-      {error && <ErrorNote error={error} />}
     </div>
   );
 }

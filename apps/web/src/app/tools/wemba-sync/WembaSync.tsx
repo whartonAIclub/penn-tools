@@ -244,6 +244,11 @@ export function WembaSync({
       )}
 
       <div role="tabpanel" hidden={tab !== "weekend"} className={`${styles.page} ${styles.tabPanel}`}>
+        <Upload status={status} onFile={(file) => void upload(file)} compact={shown !== null} />
+        {status.state === "error" && <ErrorNote error={status.error} />}
+
+        {/* Without a weekend to show, the menu sits under the upload. */}
+        {!shown && picker}
         {shown && (
           <Weekend
             schedule={shown}
@@ -256,11 +261,6 @@ export function WembaSync({
             picker={picker}
           />
         )}
-
-        {/* Without a weekend to show, the menu sits above the upload. */}
-        {!shown && picker}
-        <Upload status={status} onFile={(file) => void upload(file)} compact={shown !== null} />
-        {status.state === "error" && <ErrorNote error={status.error} />}
       </div>
 
       <div role="tabpanel" hidden={tab !== "courses"} className={styles.tabPanel}>
