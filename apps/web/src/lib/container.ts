@@ -65,6 +65,8 @@ import { ChatprepTool } from "@penntools/tool-chatprep";
 toolRegistry.register(new ChatprepTool());
 import { PennPalsTool } from "@penntools/tool-penn-pals";
 toolRegistry.register(new PennPalsTool());
+import { PaperTldrTool } from "@penntools/tool-paper-tldr";
+toolRegistry.register(new PaperTldrTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 

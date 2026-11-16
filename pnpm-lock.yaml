@@ -50,6 +50,9 @@ importers:
       '@penntools/tool-non-wharton-course-manager':
         specifier: workspace:*
         version: link:../../tools/non-wharton-course-manager
+      '@penntools/tool-paper-tldr':
+        specifier: workspace:*
+        version: link:../../tools/paper-tldr
       '@penntools/tool-pass-it-on':
         specifier: workspace:*
         version: link:../../tools/pass-it-on
@@ -260,6 +263,19 @@ importers:
         version: 1.6.1(@types/node@22.20.5)
 
   tools/non-wharton-course-manager:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/paper-tldr:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
