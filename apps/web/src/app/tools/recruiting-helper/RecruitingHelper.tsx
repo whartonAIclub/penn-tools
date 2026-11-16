@@ -710,6 +710,20 @@ function AddCard({
 // ── Ranked list ──────────────────────────────────────────────────────────────
 
 type Filter = "all" | SavedItem["kind"];
+type Sort = "score" | "newest";
+
+/** Most recently scored first: pasting an item again counts as scoring it again. */
+const byNewest = (a: SavedItem, b: SavedItem) => b.addedAt.localeCompare(a.addedAt);
+
+/** When an item was scored: "today, 3:42 PM", "yesterday, 9:05 AM" or "Nov 12". */
+function scoredWhen(iso: string): string {
+  const date = new Date(iso);
+  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(iso).setHours(0, 0, 0, 0)) / 86_400_000);
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (days === 0) return `today, ${time}`;
+  if (days === 1) return `yesterday, ${time}`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 function RankedList({
   items,
@@ -731,6 +745,7 @@ function RankedList({
 }) {
   const draftCount = items.filter((i) => i.kind === "contact" && i.outreach).length;
   const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useState<Sort>("score");
   const [open, setOpen] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
@@ -754,7 +769,10 @@ function RankedList({
     }
   }
 
-  const ranked = useMemo(() => items.filter((i) => filter === "all" || i.kind === filter).sort(byRank), [items, filter]);
+  const ranked = useMemo(
+    () => items.filter((i) => filter === "all" || i.kind === filter).sort(sort === "newest" ? byNewest : byRank),
+    [items, filter, sort],
+  );
 
   async function remove(id: string) {
     setRemoveError(null);
@@ -772,18 +790,32 @@ function RankedList({
     <section className={styles.card}>
       <div className={styles.cardHeader}>
         <h2 className={styles.cardTitle}>Your ranked list</h2>
-        <div className={styles.toggle}>
-          {(
-            [
-              ["all", "All"],
-              ["posting", "Jobs"],
-              ["contact", "People"],
-            ] as const
-          ).map(([f, label]) => (
-            <button key={f} className={filter === f ? styles.toggleOn : styles.toggleOff} onClick={() => setFilter(f)}>
-              {label}
-            </button>
-          ))}
+        <div className={styles.listControls}>
+          <div className={styles.toggle} role="group" aria-label="Show">
+            {(
+              [
+                ["all", "All"],
+                ["posting", "Jobs"],
+                ["contact", "People"],
+              ] as const
+            ).map(([f, label]) => (
+              <button key={f} className={filter === f ? styles.toggleOn : styles.toggleOff} onClick={() => setFilter(f)} aria-pressed={filter === f}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className={styles.toggle} role="group" aria-label="Sort by">
+            {(
+              [
+                ["score", "Best score"],
+                ["newest", "Newest"],
+              ] as const
+            ).map(([s, label]) => (
+              <button key={s} className={sort === s ? styles.toggleOn : styles.toggleOff} onClick={() => setSort(s)} aria-pressed={sort === s}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -842,6 +874,7 @@ function RankedList({
                       {item.kind === "posting" && item.salary ? ` · ${item.salary}` : ""}
                       {item.kind === "posting" && item.applyBy ? ` · apply by ${item.applyBy}` : ""}
                       {item.kind === "contact" && item.schools?.length ? ` · ${item.schools.join("; ")}` : ""}
+                      {sort === "newest" ? ` · scored ${scoredWhen(item.addedAt)}` : ""}
                     </span>
                   </span>
                 </button>
@@ -1389,6 +1422,7 @@ const CHAT_EXAMPLES: Record<SavedItem["kind"], string[]> = {
     "What companies would this team likely partner with?",
     "What does a typical week look like in this role?",
     "How should I tailor my résumé for this?",
+    "I have experience my résumé doesn't show. How would it change my fit?",
   ],
   contact: [
     "What should I ask them in a coffee chat?",
@@ -1540,20 +1574,33 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
             void ask(question);
           }}
         >
-          <textarea
-            className={styles.textarea}
-            aria-label={`Ask about this ${item.kind === "posting" ? "role" : "person"}`}
-            rows={2}
-            value={question}
-            placeholder="Ask a question…"
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void ask(question);
+          <div className={styles.textareaWrap}>
+            <textarea
+              className={styles.textarea}
+              aria-label={`Ask about this ${item.kind === "posting" ? "role" : "person"}`}
+              rows={2}
+              value={question}
+              placeholder={
+                item.kind === "posting"
+                  ? "Ask a question, or tell it about experience your résumé leaves out…"
+                  : "Ask a question…"
               }
-            }}
-          />
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void ask(question);
+                }
+              }}
+            />
+            <Dictation
+              label="Ask by voice"
+              onText={(spoken) =>
+                // Each spoken phrase goes on the end, after a space (or straight after a new line).
+                setQuestion((old) => (!old ? spoken : /\s$/.test(old) ? old + spoken : `${old} ${spoken}`))
+              }
+            />
+          </div>
           <button className={styles.button} type="submit" disabled={busy || !question.trim()}>
             {busy ? "Answering…" : "Ask"}
           </button>

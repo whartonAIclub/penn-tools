@@ -257,6 +257,12 @@
   background: var(--bg);
 }
 
+.listControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .toggle {
   display: inline-flex;
   border: 1px solid var(--input-border);
@@ -486,7 +492,7 @@
   gap: 8px;
   align-items: flex-end;
 }
-.chatForm .textarea { flex: 1; }
+.chatForm .textareaWrap { flex: 1; }
 
 .contactFields {
   display: grid;

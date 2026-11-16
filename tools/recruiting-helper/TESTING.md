@@ -2,7 +2,7 @@
 
 How Recruiting Helper is tested: automated tests that run with no API key and cost nothing, a manual checklist run in the browser before each release, and the user tests from the WAIAC AI PM Training.
 
-Last run: 13 Nov 2026, on `team/recruiting-helper-chat-salary`, after adding pay (only when the posting states it) and follow-up questions. Every test that was run passed; the results column says which were run that day and which earlier.
+Last run: 15 Nov 2026, on `team/recruiting-helper-sort-newest`, after adding sorting by newest, and voice typing and missing experience in the chat. Every test that was run passed; the results column says which were run that day and which earlier.
 
 ## 1. Automated checks
 
@@ -51,6 +51,8 @@ Run at `/tools/recruiting-helper` while signed in, with an Anthropic or OpenAI k
 | M16 | Missing drafts | Open the page with a person who has no email draft | Nothing is written on its own; a notice offers "Write the missing draft", which writes it with the selected AI provider | Pass |
 | M17 | Pay | Score a posting that states pay, and one that doesn't | The posting with pay shows its range on the list row and in its details, marked "from the posting"; the one without shows no pay at all, never an estimate | Pass (example posting with and without a pay line) |
 | M18 | Follow-up questions | Open an item, click an example question or type one, then reload the page | The answer appears as it's written, labels guesses as likely examples, and the chat is still there after reloading; **Clear** deletes it; removing the item deletes it too | Pass (asked about partners for the example posting) |
+| M19 | Sort by newest | Click **Newest** above the list, then **Jobs** | Items most recently scored come first, each saying when ("scored today, 3:42 PM", "scored Nov 12"); **Best score** goes back to the ranked order; the Jobs and People filters still work | Pass (15 Nov) |
+| M20 | Voice and missing experience in the chat | Open a job, click the microphone in its question box and say experience your résumé leaves out, then **Ask** | The words appear in the box; the answer takes the experience as given, says how fit, gaps and what to lead with change, says the saved score doesn't, and suggests adding it to the profile and pasting again | Pass (typed, 15 Nov; voice typing uses the same microphone button as the profile's) |
 
 ## 3. User tests (WAIAC AI PM Training)
 

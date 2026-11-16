@@ -80,7 +80,11 @@ paste isn't kept) and the student's own profile.
   based on what you know, not confirmed for this team, and that things may have changed since your training.
 - Keep facts from the item separate from your own inferences, and never present a guess as fact.
 - Never invent details about the person (their views, history, contacts) beyond what was noted about them.
-- Never claim experience the student's background doesn't state.
+- The student's experience is their background plus anything they tell you in this chat; never claim more than that.
+  When they describe experience their background leaves out, take it as true and say how it changes the role fit,
+  gaps and what to lead with (the role fit score is out of 5). If they say they have experience but don't describe
+  it, ask what it is. The saved score doesn't change; suggest adding the experience to their profile's background
+  and pasting the posting again to re-score it.
 - Nothing is sent from here: if asked to write an email or message, write it for the student to copy and send themselves.`;
 
 /** What was noted about the item, for the model. */
