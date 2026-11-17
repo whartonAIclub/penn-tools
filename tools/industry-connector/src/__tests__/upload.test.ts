@@ -14,10 +14,12 @@ const entry = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("checkUpload", () => {
-  it("accepts a well-formed file", () => {
+  it("accepts a well-formed file, ignoring fields it doesn't use", () => {
     const result = checkUpload([entry(), entry({ name: "Bailey Example", careerPathId: 123 })]);
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.entries).toHaveLength(2);
+    if (!result.ok) return;
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries[1]).not.toHaveProperty("careerPathId");
   });
 
   it("fills in a missing current job as empty", () => {
@@ -63,8 +65,8 @@ describe("checkUpload", () => {
 });
 
 describe("personKey", () => {
-  it("uses the CareerPath ID when there is one, otherwise name, year and program", () => {
-    expect(personKey(entry({ careerPathId: 42 }) as never)).toBe("cp:42");
+  it("matches by name, year and program, whether or not the file has a CareerPath ID", () => {
+    expect(personKey(entry({ careerPathId: 42 }) as never)).toBe(personKey(entry() as never));
     expect(personKey(entry({ name: " Alex  Sample " }) as never)).toBe(personKey(entry({ name: "alex sample" }) as never));
     expect(personKey(entry({ gradYear: 2027 }) as never)).not.toBe(personKey(entry() as never));
   });

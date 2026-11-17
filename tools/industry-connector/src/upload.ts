@@ -13,10 +13,11 @@ export const MAX_UPLOAD_PEOPLE = 50_000;
 const CURRENT_YEAR = new Date().getFullYear();
 const text = (max: number) => z.string().trim().max(max);
 
-/** One person in an upload file: the shape the CareerPath export (people.json) has. */
+/**
+ * One person in an upload file: the shape the CareerPath export (people.json)
+ * has. Other fields, such as a CareerPath ID, are allowed and ignored.
+ */
 export const UploadEntry = z.object({
-  /** CareerPath's ID for the person, when the export has one: the most reliable way to match them across uploads. */
-  careerPathId: z.union([z.string().trim().min(1).max(40), z.number().int().nonnegative()]).optional(),
   name: text(200).min(1),
   gradYear: z.number().int().min(1950).max(CURRENT_YEAR + 6),
   program: text(100).min(1),
@@ -41,11 +42,11 @@ export type UploadCheck = { ok: true; entries: UploadEntry[] } | { ok: false; pr
 const MAX_PROBLEMS = 50;
 
 /**
- * The person's key, the same in every upload: their CareerPath ID when the
- * file has one, otherwise their name, class year and program.
+ * The person's key, the same in every upload: their name, class year and
+ * program, ignoring case and extra spaces. Always these three, never an ID a
+ * file may or may not have, so one person can't end up with two keys.
  */
-export function personKey(entry: Pick<UploadEntry, "careerPathId" | "name" | "gradYear" | "program">): string {
-  if (entry.careerPathId !== undefined) return `cp:${entry.careerPathId}`;
+export function personKey(entry: Pick<UploadEntry, "name" | "gradYear" | "program">): string {
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
   return `np:${norm(entry.name)}|${entry.gradYear}|${norm(entry.program)}`;
 }

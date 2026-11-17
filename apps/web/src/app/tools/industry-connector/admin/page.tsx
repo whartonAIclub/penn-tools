@@ -22,7 +22,6 @@ export const metadata: Metadata = {
 
 const EXAMPLE = `[
   {
-    "careerPathId": 540016055699050,
     "name": "Jordan Example",
     "gradYear": 2026,
     "program": "FT MBA",
@@ -82,9 +81,9 @@ export default async function AdminPage() {
           A <strong>.json</strong> file (at most {MAX_UPLOAD_BYTES / 1024 / 1024} MB): an array with one object per
           person. <code>name</code>, <code>gradYear</code>, <code>program</code>, <code>isAlumni</code> and{" "}
           <code>industries</code> (one or more of the tool&apos;s 43 CareerPath industries, spelled exactly) are
-          required. <code>currentEmployer</code> and <code>currentTitle</code> may be empty. Include{" "}
-          <code>careerPathId</code> when the export has it: it&apos;s how people are matched across uploads (otherwise
-          by name, class year and program). If any entry is wrong, nothing is uploaded.
+          required. <code>currentEmployer</code> and <code>currentTitle</code> may be empty. Other fields are
+          ignored. People are matched across uploads by name, class year and program, so spell names the same way
+          in every file: a different spelling adds the person again. If any entry is wrong, nothing is uploaded.
         </p>
         <pre className={styles.code}>{EXAMPLE}</pre>
       </section>

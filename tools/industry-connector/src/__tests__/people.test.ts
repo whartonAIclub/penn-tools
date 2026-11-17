@@ -73,7 +73,7 @@ describe.skipIf(!databaseUrl)("people directory (Postgres)", () => {
       sql,
       entries([
         person("Alex Sample", 2026, ["Consulting", "Technology"]),
-        person("Bailey Example", 2027, ["Consulting"], { careerPathId: "cp-1" }),
+        person("Bailey Example", 2027, ["Consulting"]),
         person('Casey "CJ" Placeholder', 2025, ["Real Estate"]),
       ]),
       { uploadedBy: "admin-1", fileName: "first.json" },

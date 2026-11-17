@@ -3,9 +3,9 @@
 -- Every statement must be safe to re-run against a database that already has it.
 -- The tool starts empty: admins load CareerPath data through its upload page.
 
--- One student or alum. person_key stays the same across uploads (the
--- CareerPath ID when the export has one, otherwise name, class year and
--- program), so a new upload updates people in place and their id never changes.
+-- One student or alum. person_key stays the same across uploads (name, class
+-- year and program; see personKey in src/upload.ts), so a new upload updates
+-- people in place and their id never changes.
 CREATE TABLE IF NOT EXISTS people (
   id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   person_key       TEXT        NOT NULL UNIQUE,
