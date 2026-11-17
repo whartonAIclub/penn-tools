@@ -77,6 +77,9 @@ importers:
       '@penntools/tool-resume-customizer':
         specifier: workspace:*
         version: link:../../tools/resume-customizer
+      '@penntools/tool-student-discount-maximizer':
+        specifier: workspace:*
+        version: link:../../tools/student-discount-maximizer
       '@penntools/tool-wemba-sync':
         specifier: workspace:*
         version: link:../../tools/wemba-sync
@@ -418,6 +421,22 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/student-discount-maximizer:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
       typescript:
         specifier: ^5.4.0
         version: 5.9.3

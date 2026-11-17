@@ -29,6 +29,7 @@
     "@penntools/tool-platform-playground": "workspace:*",
     "@penntools/tool-recruiting-helper": "workspace:*",
     "@penntools/tool-resume-customizer": "workspace:*",
+    "@penntools/tool-student-discount-maximizer": "workspace:*",
     "@penntools/tool-wemba-sync": "workspace:*",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

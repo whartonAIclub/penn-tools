@@ -68,6 +68,8 @@ import { WembaSyncTool } from "@penntools/tool-wemba-sync";
 toolRegistry.register(new WembaSyncTool());
 import { PassItOnTool } from "@penntools/tool-pass-it-on";
 toolRegistry.register(new PassItOnTool());
+import { StudentDiscountMaximizerTool } from "@penntools/tool-student-discount-maximizer";
+toolRegistry.register(new StudentDiscountMaximizerTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 
