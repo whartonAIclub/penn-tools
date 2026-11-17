@@ -85,6 +85,7 @@ TARGETS = {
     "student-discount-maximizer": local("/tools/student-discount-maximizer"),  # needs the seeded deals (db:deploy)
     "pass-it-on": local("/tools/pass-it-on"),  # needs sign-in and board access: its image was taken signed in, with sample data
     "chatprep": local("/tools/chatprep"),  # needs sign-in: its image was taken signed in
+    "penn-pals": local("/tools/penn-pals"),  # its image was taken signed in, with sample contacts and the "how it works" box hidden
 }
 
 
