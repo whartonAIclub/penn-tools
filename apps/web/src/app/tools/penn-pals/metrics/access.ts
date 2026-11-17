@@ -5,5 +5,4 @@ export const METRICS_VIEWERS: readonly string[] = [
   "lmarcond@wharton.upenn.edu",
   "lujua@wharton.upenn.edu",
   "lmarcond@upenn.edu",
-  "luana.o.marcondes@gmail.com",
 ];

@@ -20,12 +20,13 @@ export const dynamic = "force-dynamic";
 const oneDecimal = (n: number | null) => (n === null ? "-" : n.toFixed(1));
 const percent = (n: number | null) => (n === null ? "-" : `${Math.round(n * 100)}%`);
 
-export default async function PennPalsMetricsPage({ searchParams }: { searchParams?: { as?: string } }) {
+export default async function PennPalsMetricsPage({ searchParams }: PageProps<"/tools/penn-pals/metrics">) {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Penn Pals metrics" />;
   // TEST MODE (development only): ?as=someone@example.com checks access as that email, with the production rules.
   const isProduction = process.env.NODE_ENV === "production";
-  const pretendEmail = !isProduction ? searchParams?.as : undefined;
+  const as = isProduction ? undefined : (await searchParams)["as"];
+  const pretendEmail = typeof as === "string" ? as : undefined;
   if (!canViewMetrics(pretendEmail ?? user.email, METRICS_VIEWERS, pretendEmail ? true : isProduction)) {
     return (
       <div className={styles.page}>

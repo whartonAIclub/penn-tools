@@ -16,11 +16,14 @@ import {
   FOLLOW_UP_INTERVALS,
   FORM_RELATIONSHIPS,
   intervalToRecurrence,
+  RECURRENCE_UNITS,
+  RELATIONSHIPS,
   SENIORITIES,
   STEP_ACTIONS,
+  VIBES,
   type ContactDraft,
 } from "./contacts.js";
-import { isDate } from "./debrief.js";
+import { isDate, MAX_NOTES_LENGTH } from "./debrief.js";
 
 /** Longest notes accepted: room for pasted meeting notes or an email thread, still about a cent to read. */
 export const MAX_STORY_LENGTH = 10_000;
@@ -145,6 +148,43 @@ export function missingFields(reply: IntakeReply, saved?: Pick<ContactDraft, "re
     missing.seniority &&= !saved.seniority;
   }
   return REVIEW_FIELDS.filter((field) => missing[field]);
+}
+
+const DraftText = z.string().max(2000);
+/**
+ * The form the page sends back as `base` (a saved person's details, to log
+ * another chat with them), checked field by field. Anything else in the request
+ * is dropped, so nothing the browser invents reaches the AI prompt or the draft.
+ */
+const DraftBase = z.object({
+  name: DraftText,
+  relationship: z.enum(RELATIONSHIPS),
+  relationshipOther: DraftText,
+  classYear: DraftText,
+  seniority: z.enum([...SENIORITIES, ""]),
+  company: DraftText,
+  role: DraftText,
+  area: DraftText,
+  location: DraftText,
+  email: DraftText,
+  phone: DraftText,
+  linkedin: DraftText,
+  meetingDate: z.string().max(40),
+  vibe: z.enum(VIBES),
+  offeredReferral: z.boolean(),
+  offeredIntro: z.boolean(),
+  takeaways: z.string().max(MAX_NOTES_LENGTH),
+  nextSteps: z.array(z.object({ action: DraftText, owner: z.enum(["me", "them"]), dueDate: z.string().max(40) })).max(20),
+  repeat: z.boolean(),
+  repeatEvery: z.string().max(10),
+  repeatUnit: z.enum(RECURRENCE_UNITS),
+  notes: z.string().max(MAX_NOTES_LENGTH),
+});
+
+/** The form sent as `base`, checked and stripped to its own fields; null when it isn't a valid form. */
+export function parseDraftBase(value: unknown): ContactDraft | null {
+  const parsed = DraftBase.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 /** "Maria Chen, PM at Stripe" from a saved contact's form, or undefined. */

@@ -9,6 +9,7 @@ export {
   checkContactLimits,
   editPastChat,
   findSameContacts,
+  linkedinHref,
   linkedinKey,
   nameKey,
   chatsWith,
@@ -56,17 +57,7 @@ export {
   type Seniority,
   type Vibe,
 } from "./contacts.js";
-export {
-  addDays,
-  checkNotes,
-  type ContactRecord,
-  DebriefCard,
-  DEFAULT_FOLLOW_UP_DAYS,
-  extractDebrief,
-  MAX_NOTES_LENGTH,
-  toContactRecord,
-  withFollowUpDate,
-} from "./debrief.js";
+export { addDays, DEFAULT_FOLLOW_UP_DAYS, MAX_NOTES_LENGTH } from "./debrief.js";
 export {
   addRecurrence,
   bestAdvice,
@@ -109,6 +100,7 @@ export {
   MAX_SCREENSHOTS,
   MAX_STORY_LENGTH,
   missingFields,
+  parseDraftBase,
   readIntake,
   REVIEW_FIELDS,
   type IntakeInput,

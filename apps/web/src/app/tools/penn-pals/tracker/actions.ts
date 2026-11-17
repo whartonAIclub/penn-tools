@@ -10,6 +10,7 @@ import type { AIProvider } from "@penntools/core/ai";
 import {
   checkIntake,
   intakeToDraft,
+  parseDraftBase,
   readIntake,
   type ContactDraft,
   type IntakeScreenshot,
@@ -46,8 +47,9 @@ export async function readChat(body: {
   const provider = body.provider as AIProvider;
   const story = (body.story as string | undefined) ?? "";
   const screenshots = (body.screenshots as IntakeScreenshot[] | undefined) ?? [];
-  // The page's own form state, sent back to fill on top of; only its fields are used.
-  const base = typeof body.base === "object" && body.base !== null ? (body.base as ContactDraft) : undefined;
+  // The page's own form state, sent back to fill on top of: checked, and only its own fields kept.
+  const base = body.base === undefined || body.base === null ? undefined : parseDraftBase(body.base);
+  if (base === null) return { ok: false, error: { message: "Something went wrong reading the form. Reload the page and try again." } };
 
   const today = todayInPhilly();
   try {

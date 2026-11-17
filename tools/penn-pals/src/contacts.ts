@@ -520,6 +520,26 @@ export function linkedinKey(url: string): string {
 }
 
 /**
+ * Where a saved LinkedIn value may be linked to: an http(s) address on
+ * linkedin.com or www.linkedin.com (https:// is added when missing), else null.
+ * The value can come from the AI reading a pasted email or screenshot, so
+ * anything else (another site, javascript:) is shown as text, never as a link.
+ */
+export function linkedinHref(value: string): string | null {
+  const text = value.trim();
+  if (!text) return null;
+  let url: URL;
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  if ((url.protocol !== "https:" && url.protocol !== "http:") || (host !== "linkedin.com" && host !== "www.linkedin.com")) return null;
+  return url.href;
+}
+
+/**
  * The saved contacts that could be the person in the form, best match first:
  * those with the same LinkedIn profile, else those with the same name, else
  * (when only a first name was given, as in "talked to Meghan again") every

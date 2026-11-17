@@ -17,6 +17,7 @@ import {
   followUpEventFor,
   followUpStatus,
   followUpsFor,
+  linkedinHref,
   markFollowUpDone,
   relationshipLabel,
   reopenStep,
@@ -270,12 +271,13 @@ function PersonCard({
 
   const links = [
     contact.email && { label: contact.email, href: `mailto:${contact.email}` },
-    contact.linkedin && {
-      label: "LinkedIn",
-      href: contact.linkedin.startsWith("http") ? contact.linkedin : `https://${contact.linkedin}`,
-    },
+    // Linked only when it really is a linkedin.com address; the AI can fill this from pasted text, so anything else is shown as text.
+    contact.linkedin &&
+      (linkedinHref(contact.linkedin)
+        ? { label: "LinkedIn", href: linkedinHref(contact.linkedin) }
+        : { label: `LinkedIn: ${contact.linkedin}`, href: null }),
     contact.phone && { label: contact.phone, href: `tel:${contact.phone}` },
-  ].filter((link): link is { label: string; href: string } => Boolean(link));
+  ].filter((link): link is { label: string; href: string | null } => Boolean(link));
 
   const chats = chatsWith(contact);
   // Which earlier chat is being edited (its place in `chats`), if any.
@@ -435,11 +437,17 @@ function PersonCard({
 
         {links.length > 0 && (
           <div className={styles.links}>
-            {links.map((link) => (
-              <a key={link.href} href={link.href} className={styles.chip} target="_blank" rel="noreferrer">
-                {link.label}
-              </a>
-            ))}
+            {links.map((link) =>
+              link.href ? (
+                <a key={link.href} href={link.href} className={styles.chip} target="_blank" rel="noreferrer">
+                  {link.label}
+                </a>
+              ) : (
+                <span key={link.label} className={styles.chip}>
+                  {link.label}
+                </span>
+              ),
+            )}
           </div>
         )}
 
