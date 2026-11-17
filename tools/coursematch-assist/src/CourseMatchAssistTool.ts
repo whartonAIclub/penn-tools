@@ -8,7 +8,7 @@ export class CourseMatchAssistTool extends Tool {
     description: "This tool is a one-stop-shop for making the most of CourseMatch: giving you your recommended schedule based on various inputs, and even exact utilities you should put into CourseMatch",
     contributors: ["Ishi Tripathi", "Sanjana Wadhwa", "Brendan Holleck", "Evens Esperance"],
     mentor: "Manas Sharma",
-    category: "LLM Tools",
+    category: "Other",
     notYetMigrated: true,
   };
 }

@@ -1,0 +1,363 @@
+// Storage against a real Postgres: each run creates a throwaway schema from
+// schema.sql and drops it afterwards. Skipped when no database is configured
+// (DATABASE_URL, or apps/web/.env.local).
+
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import postgres from "postgres";
+import type { Sql } from "postgres";
+import {
+  getContact,
+  getProfile,
+  isListFull,
+  listItems,
+  ListFullError,
+  MAX_ITEMS,
+  removeItem,
+  rescoreItems,
+  saveItem,
+  saveOutreach,
+  saveProfile,
+  saveEmail,
+  saveSchools,
+  setOutreachStyle,
+  type NewItem,
+} from "../storage.js";
+import { askAboutItem, ChatFullError, clearChat, getChat, ItemNotFoundError, MAX_CHAT_MESSAGES } from "../chat.js";
+import type { AI, AIStreamEvent, GenerateRequest } from "@penntools/core/ai";
+import { SAMPLE_PROFILE } from "../samples.js";
+
+const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
+if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
+const databaseUrl = process.env["DATABASE_URL"];
+
+const schemaSql = readFileSync(fileURLToPath(new URL("../../schema.sql", import.meta.url)), "utf8");
+const schema = `recruitinghelper_test_${Date.now()}`;
+
+let admin: Sql;
+let sql: Sql;
+
+function posting(score: number, link: string | null, title = "Partner Manager"): NewItem {
+  return {
+    kind: "posting",
+    company: "Google",
+    title,
+    roleFit: score,
+    reason: "Fits.",
+    leadWith: [],
+    gaps: [],
+    applyBy: null,
+    level: null,
+    summary: null,
+    team: null,
+    teamStated: null,
+    searchKeywords: [],
+    salary: null,
+    score,
+    tier: "target",
+    matchedCompany: "Google",
+    adjustment: "+1 Target",
+    link,
+  };
+}
+
+function contact(score: number, name: string | null, link: string | null = null, company = "Google"): NewItem {
+  return {
+    kind: "contact",
+    link,
+    name,
+    company,
+    title: "Head of Partnerships",
+    relevantRole: true,
+    matchedSignals: [],
+    hook: "Ask about partnerships.",
+    score,
+    priority: score >= 4 ? "High" : "Low",
+    tier: "target",
+    matchedCompany: "Google",
+    points: [],
+    capped: false,
+    schools: [],
+    pennAlum: false,
+  };
+}
+
+/** An AI whose stream answers `answer` in two pieces and records each request. */
+function fakeAI(answer: string) {
+  const requests: GenerateRequest[] = [];
+  const ai = {
+    stream: async function* (request: GenerateRequest): AsyncGenerator<AIStreamEvent> {
+      requests.push(request);
+      yield { type: "text", delta: answer.slice(0, 3) };
+      yield { type: "text", delta: answer.slice(3) };
+      yield {
+        type: "done",
+        result: { text: answer, provider: "anthropic", model: "fake", usage: { inputTokens: 1, outputTokens: 1, reasoningTokens: 0 }, stopReason: "end" },
+      };
+    },
+  } as unknown as AI;
+  return { ai, requests };
+}
+
+/** Asks a question and reads the whole answer. */
+async function ask(userId: string, itemId: string, question: string, ai: AI): Promise<string> {
+  let text = "";
+  for await (const event of await askAboutItem({ sql, ai, userId, itemId, provider: "anthropic", question })) {
+    if (event.type === "text") text += event.delta;
+  }
+  return text;
+}
+
+describe.skipIf(!databaseUrl)("Recruiting Helper storage (Postgres)", () => {
+  beforeAll(async () => {
+    admin = postgres(databaseUrl!, { max: 1, onnotice: () => {} });
+    await admin.unsafe(`CREATE SCHEMA ${schema}`);
+    sql = postgres(databaseUrl!, { max: 1, onnotice: () => {}, connection: { search_path: schema } });
+    await sql.unsafe(schemaSql);
+  });
+
+  afterAll(async () => {
+    await sql?.end();
+    await admin?.unsafe(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+    await admin?.end();
+  });
+
+  it("schema.sql can be applied again to an existing schema", async () => {
+    await expect(sql.unsafe(schemaSql)).resolves.toBeDefined();
+  });
+
+  it("saves, replaces and returns each user's own profile", async () => {
+    expect(await getProfile(sql, "alice")).toBeNull();
+    await saveProfile(sql, "alice", SAMPLE_PROFILE);
+    await saveProfile(sql, "alice", { ...SAMPLE_PROFILE, targetRoles: "Corp dev" });
+    expect((await getProfile(sql, "alice"))?.targetRoles).toBe("Corp dev");
+    expect(await getProfile(sql, "bob")).toBeNull();
+  });
+
+  it("lists a user's jobs and people together, best score first, and only theirs", async () => {
+    await saveItem(sql, "carol", posting(3, null, "Three"));
+    await saveItem(sql, "carol", contact(5, "Five Person"));
+    await saveItem(sql, "carol", posting(4, null, "Four"));
+    await saveItem(sql, "mallory", posting(5, null, "Not Carol's"));
+
+    const items = await listItems(sql, "carol");
+    expect(items.map((i) => i.score)).toEqual([5, 4, 3]);
+    expect(items.map((i) => i.kind)).toEqual(["contact", "posting", "posting"]);
+    expect(items.every((i) => i.id && i.addedAt)).toBe(true);
+  });
+
+  it("replaces a repeat of the same posting link or person, and says so", async () => {
+    const first = await saveItem(sql, "dave", posting(2, "https://jobs.example.com/1"));
+    const again = await saveItem(sql, "dave", posting(4, "https://jobs.example.com/1"));
+    expect(first.replaced).toBe(false);
+    expect(again.replaced).toBe(true);
+    expect(again.item.id).toBe(first.item.id);
+
+    await saveItem(sql, "dave", contact(3, "José O'Neil"));
+    expect((await saveItem(sql, "dave", contact(5, "jose oneil"))).replaced).toBe(true);
+
+    // Postings without links are never the same posting.
+    await saveItem(sql, "dave", posting(1, null));
+    expect((await saveItem(sql, "dave", posting(1, null))).replaced).toBe(false);
+
+    expect((await listItems(sql, "dave")).map((i) => i.score)).toEqual([5, 4, 1, 1]);
+  });
+
+  it("keeps two people with the same name at different companies apart", async () => {
+    const google = await saveItem(sql, "fay", contact(4, "John Smith"));
+    await saveEmail(sql, "fay", google.item.id, "john@google.com");
+    const mckinsey = await saveItem(sql, "fay", contact(3, "John Smith", null, "McKinsey"));
+    expect(mckinsey.replaced).toBe(false);
+    expect(mckinsey.item.kind === "contact" && mckinsey.item.email).toBeUndefined();
+    expect(await listItems(sql, "fay")).toHaveLength(2);
+  });
+
+  it("keeps different roles that share a careers-page link apart", async () => {
+    const careers = "https://careers.example.com/";
+    await saveItem(sql, "fay", posting(4, careers, "Partner Manager"));
+    expect((await saveItem(sql, "fay", posting(3, careers, "Alliances Lead"))).replaced).toBe(false);
+    expect((await saveItem(sql, "fay", posting(5, careers, "Partner Manager"))).replaced).toBe(true);
+  });
+
+  it("refuses new items once the list is full, but still updates repeats", async () => {
+    await sql`
+      INSERT INTO items (user_id, kind, match_key, score, result)
+      SELECT 'full', 'posting', NULL, 1, '{}'::jsonb FROM generate_series(1, ${MAX_ITEMS - 1})
+    `;
+    expect(await isListFull(sql, "full")).toBe(false);
+    await saveItem(sql, "full", contact(3, "Last One"));
+    expect(await isListFull(sql, "full")).toBe(true);
+    await expect(saveItem(sql, "full", contact(3, "One Too Many"))).rejects.toBeInstanceOf(ListFullError);
+    expect((await saveItem(sql, "full", contact(4, "Last One"))).replaced).toBe(true);
+  });
+
+  it("keeps a person's LinkedIn link and outreach draft when they're scored again without a link", async () => {
+    const { item } = await saveItem(sql, "gus", contact(3, "Pat Lee", "https://www.linkedin.com/in/patlee"));
+    expect(await saveOutreach(sql, "gus", item.id, { subject: "Hi", body: "Hello Pat" })).toBe(true);
+
+    const again = await saveItem(sql, "gus", contact(4, "Pat Lee"));
+    expect(again.replaced).toBe(true);
+    expect(again.item.link).toBe("https://www.linkedin.com/in/patlee");
+    expect(again.item.kind === "contact" && again.item.outreach).toEqual({ subject: "Hi", body: "Hello Pat" });
+
+    // A new link replaces the old one.
+    const moved = await saveItem(sql, "gus", contact(4, "Pat Lee", "https://www.linkedin.com/in/pat-lee-2"));
+    expect(moved.item.link).toBe("https://www.linkedin.com/in/pat-lee-2");
+  });
+
+  it("saves outreach drafts only on the user's own people", async () => {
+    const { item } = await saveItem(sql, "hal", contact(3, "Sam Roe"));
+    expect(await saveOutreach(sql, "mallory", item.id, { subject: "x", body: "y" })).toBe(false);
+    expect(await getContact(sql, "mallory", item.id)).toBeNull();
+    const posted = await saveItem(sql, "hal", posting(3, "https://jobs.example.com/9"));
+    expect(await saveOutreach(sql, "hal", posted.item.id, { subject: "x", body: "y" })).toBe(false);
+    expect((await getContact(sql, "hal", item.id))?.name).toBe("Sam Roe");
+  });
+
+  it("re-scores the list against a new profile without AI", async () => {
+    await saveProfile(sql, "ivy", SAMPLE_PROFILE);
+    await saveItem(sql, "ivy", { ...contact(1, "Nvidia Person"), company: "NVIDIA", tier: "off-list", points: [] } as NewItem);
+    await saveItem(sql, "ivy", { ...posting(2, "https://jobs.example.com/nv"), company: "NVIDIA", roleFit: 3, tier: "off-list" } as NewItem);
+
+    const withNvidia = { ...SAMPLE_PROFILE, companies: [{ name: "NVIDIA", tier: "target" as const }] };
+    expect(await rescoreItems(sql, "ivy", withNvidia)).toBe(2);
+
+    const items = await listItems(sql, "ivy");
+    const person = items.find((i) => i.kind === "contact");
+    const job = items.find((i) => i.kind === "posting");
+    expect(person?.score).toBe(4); // 1 + 2 Target + 1 relevant role
+    expect(person?.kind === "contact" && person.schools).toEqual([]);
+    expect(job?.score).toBe(4); // role fit 3 + 1 Target
+    expect(await rescoreItems(sql, "ivy", withNvidia)).toBe(0); // nothing left to change
+  });
+
+  it("re-scores without touching a person's draft or email", async () => {
+    await saveProfile(sql, "zed", SAMPLE_PROFILE);
+    const { item } = await saveItem(sql, "zed", { ...contact(1, "Nvidia Person"), company: "NVIDIA", tier: "off-list" } as NewItem);
+    await saveOutreach(sql, "zed", item.id, { subject: "Hi", body: "Hello" });
+    await saveEmail(sql, "zed", item.id, "p@nvidia.com");
+
+    const withNvidia = { ...SAMPLE_PROFILE, companies: [{ name: "NVIDIA", tier: "target" as const }] };
+    expect(await rescoreItems(sql, "zed", withNvidia)).toBe(1);
+    expect(await getContact(sql, "zed", item.id)).toMatchObject({
+      score: 4,
+      outreach: { subject: "Hi", body: "Hello" },
+      email: "p@nvidia.com",
+    });
+
+    const updated = await saveSchools(sql, "zed", item.id, ["Wharton"], withNvidia);
+    expect(updated).toMatchObject({ schools: ["Wharton"], pennAlum: true, email: "p@nvidia.com" });
+  });
+
+  it("remembers an outreach style until it's cleared, even when the profile is saved again", async () => {
+    expect(await setOutreachStyle(sql, "nobody", "Shorter")).toBe(false); // no profile yet
+    await saveProfile(sql, "jen", SAMPLE_PROFILE);
+    expect(await setOutreachStyle(sql, "jen", "  Keep it under 100 words ")).toBe(true);
+    await saveProfile(sql, "jen", { ...SAMPLE_PROFILE, targetRoles: "Corp dev" });
+    expect(await getProfile(sql, "jen")).toMatchObject({ targetRoles: "Corp dev", outreachStyle: "Keep it under 100 words" });
+
+    await setOutreachStyle(sql, "jen", null);
+    expect(await getProfile(sql, "jen")).not.toHaveProperty("outreachStyle");
+  });
+
+  it("saves schools typed in for the user's own people, re-scored", async () => {
+    const profile = { ...SAMPLE_PROFILE, bonusSignals: ["Wharton"] };
+    const { item } = await saveItem(sql, "kim", { ...contact(4, "Lee Park", "https://www.linkedin.com/in/lee"), schools: null, pennAlum: null } as NewItem);
+    expect(await saveSchools(sql, "mallory", item.id, ["Wharton"], profile)).toBeNull();
+
+    const updated = await saveSchools(sql, "kim", item.id, ["The Wharton School, MBA"], profile);
+    expect(updated).toMatchObject({ pennAlum: true, score: 5, link: "https://www.linkedin.com/in/lee" });
+    const [listed] = await listItems(sql, "kim");
+    expect(listed).toMatchObject({ schools: ["The Wharton School, MBA"], score: 5 });
+  });
+
+  it("saves and clears a person's email, keeps it when they're scored again, and only for the user", async () => {
+    const { item } = await saveItem(sql, "lou", contact(3, "Ana Diaz"));
+    expect(await saveEmail(sql, "mallory", item.id, "ana@upenn.edu")).toBe(false);
+    expect(await saveEmail(sql, "lou", item.id, "ana@upenn.edu")).toBe(true);
+
+    const again = await saveItem(sql, "lou", contact(4, "Ana Diaz"));
+    expect(again.item.kind === "contact" && again.item.email).toBe("ana@upenn.edu");
+
+    await saveEmail(sql, "lou", item.id, null);
+    expect(await getContact(sql, "lou", item.id)).not.toHaveProperty("email");
+  });
+
+  it("loads postings saved before pay was read with no pay, and hides pay an earlier version estimated", async () => {
+    const { salary: _s, ...old } = posting(3, null, "Old") as Extract<NewItem, { kind: "posting" }>;
+    const estimated = { ...posting(2, null, "Estimated"), salary: "$1-$2 a year", salaryStated: false };
+    const stated = { ...posting(1, null, "Stated"), salary: "$3-$4 a year", salaryStated: true };
+    for (const result of [old, estimated, stated]) {
+      await sql`INSERT INTO items (user_id, kind, score, result) VALUES ('pia', 'posting', ${result.score}, ${sql.json(result as never)})`;
+    }
+    const items = await listItems(sql, "pia");
+    expect(items.map((i) => i.kind === "posting" && i.salary)).toEqual([null, null, "$3-$4 a year"]);
+    expect(items.every((i) => !("salaryStated" in i))).toBe(true);
+  });
+
+  it("saves questions and answers about an item, and sends the model the item and earlier messages", async () => {
+    await saveProfile(sql, "quinn", SAMPLE_PROFILE);
+    const { item } = await saveItem(sql, "quinn", { ...posting(4, null), salary: "$150,000-$180,000 a year" } as NewItem);
+    const { ai, requests } = fakeAI("Likely partners: Accenture, Deloitte.");
+
+    expect(await ask("quinn", item.id, "Who would this team partner with?", ai)).toBe("Likely partners: Accenture, Deloitte.");
+    await ask("quinn", item.id, "And in Europe?", ai);
+
+    expect(await getChat(sql, "quinn", item.id)).toEqual([
+      { role: "user", content: "Who would this team partner with?" },
+      { role: "assistant", content: "Likely partners: Accenture, Deloitte." },
+      { role: "user", content: "And in Europe?" },
+      { role: "assistant", content: "Likely partners: Accenture, Deloitte." },
+    ]);
+    const second = requests[1]!;
+    expect(second.tier).toBe("standard");
+    expect(second.messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(second.messages[0]!.content).toContain("Partner Manager at Google");
+    expect(second.messages[0]!.content).toContain("Base pay (stated in the posting): $150,000-$180,000 a year");
+    expect(second.messages[0]!.content).toContain(SAMPLE_PROFILE.targetRoles);
+    expect(second.messages[2]!.content).toBe("And in Europe?");
+  });
+
+  it("keeps each chat to its own user and item, through a repeat, and deletes it with the item", async () => {
+    const { item } = await saveItem(sql, "rae", contact(3, "Chat Person"));
+    const { ai } = fakeAI("Ask about their path.");
+    await ask("rae", item.id, "What should I ask?", ai);
+
+    expect(await getChat(sql, "mallory", item.id)).toBeNull();
+    await expect(askAboutItem({ sql, ai, userId: "mallory", itemId: item.id, provider: "anthropic", question: "Hi" })).rejects.toBeInstanceOf(
+      ItemNotFoundError,
+    );
+    expect(await clearChat(sql, "mallory", item.id)).toBe(false);
+
+    // Scoring the same person again keeps the item, and so its chat.
+    expect((await saveItem(sql, "rae", contact(4, "Chat Person"))).item.id).toBe(item.id);
+    expect(await getChat(sql, "rae", item.id)).toHaveLength(2);
+
+    await removeItem(sql, "rae", item.id);
+    expect(await sql`SELECT 1 FROM messages WHERE item_id = ${item.id}`).toHaveLength(0);
+  });
+
+  it("clears a chat, and refuses questions once a chat is full", async () => {
+    const { item } = await saveItem(sql, "sol", contact(3, "Full Chat"));
+    await sql`
+      INSERT INTO messages (item_id, user_id, role, content)
+      SELECT ${item.id}, 'sol', 'user', 'q' FROM generate_series(1, ${MAX_CHAT_MESSAGES})
+    `;
+    const { ai, requests } = fakeAI("x");
+    await expect(askAboutItem({ sql, ai, userId: "sol", itemId: item.id, provider: "anthropic", question: "One more?" })).rejects.toBeInstanceOf(
+      ChatFullError,
+    );
+    expect(requests).toHaveLength(0);
+    expect(await clearChat(sql, "sol", item.id)).toBe(true);
+    expect(await getChat(sql, "sol", item.id)).toEqual([]);
+  });
+
+  it("removes only the user's own items", async () => {
+    const { item } = await saveItem(sql, "erin", contact(4, "Someone"));
+    expect(await removeItem(sql, "mallory", item.id)).toBe(false);
+    expect(await removeItem(sql, "erin", "not-a-uuid")).toBe(false);
+    expect(await removeItem(sql, "erin", item.id)).toBe(true);
+    expect(await listItems(sql, "erin")).toEqual([]);
+  });
+});

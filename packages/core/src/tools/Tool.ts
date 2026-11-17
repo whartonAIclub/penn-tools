@@ -13,10 +13,31 @@
 
 /**
  * The sections of the site sidebar and the dashboard, in the order they're
- * shown. Every tool, registered or community, belongs to one. "LLM Tools" is
- * the catch-all for tools that don't fit another.
+ * shown. Every tool, registered or community, belongs to one:
+ *
+ * - Recruiting: jobs and internships, interviews, resumes, networking
+ * - Academics: courses, schedules, degree planning, coursework
+ * - Finance: valuation, investing, markets, financial analysis
+ * - Entrepreneurship: starting a venture, pitching, market sizing, customer discovery
+ * - Productivity: planning, writing, email, everyday workflow
+ * - Lifestyle: campus life, events, clubs, housing, food, travel, wellbeing
+ * - Other: the catch-all, for tools that don't fit another
+ * - Platform: the Platform team's own tools
+ *
+ * Only the Platform team adds categories: tool teams that want a new one ask
+ * them. `pnpm new-tool` reads this list from this file, so keep it a plain
+ * array of string literals.
  */
-export const TOOL_CATEGORIES = ["Recruiting", "Academics", "Productivity", "LLM Tools", "Platform"] as const;
+export const TOOL_CATEGORIES = [
+  "Recruiting",
+  "Academics",
+  "Finance",
+  "Entrepreneurship",
+  "Productivity",
+  "Lifestyle",
+  "Other",
+  "Platform",
+] as const;
 export type ToolCategory = (typeof TOOL_CATEGORIES)[number];
 
 export interface ToolManifest {

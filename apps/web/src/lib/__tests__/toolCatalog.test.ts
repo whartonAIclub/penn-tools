@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ToolCategory, ToolManifest } from "@penntools/core/tools";
+import { isCommunityVisitId } from "../../data/communityTools";
 import type { CommunityTool } from "../../data/communityTools";
 import { fullWidthToolIds, toolCatalog, toolInfo } from "../toolCatalog";
 
@@ -17,13 +18,13 @@ const outline = (sections: ReturnType<typeof toolCatalog>) =>
 describe("toolCatalog", () => {
   it("orders sections as TOOL_CATEGORIES does and leaves out empty ones", () => {
     const sections = toolCatalog(
-      [manifest("pg", "Platform"), manifest("a", "LLM Tools")],
+      [manifest("pg", "Platform"), manifest("a", "Other")],
       [community("p", "Productivity"), community("r", "Recruiting")],
     );
     expect(sections.map((s) => [s.id, s.name])).toEqual([
       ["recruiting", "Recruiting"],
       ["productivity", "Productivity"],
-      ["llm-tools", "LLM Tools"],
+      ["other", "Other"],
       ["platform", "Platform"],
     ]);
   });
@@ -39,32 +40,32 @@ describe("toolCatalog", () => {
   it("shows a tool as beta when its manifest says so or it hasn't migrated, and never a community tool", () => {
     const tools = toolCatalog(
       [
-        manifest("done", "LLM Tools"),
-        manifest("trying", "LLM Tools", { beta: true }),
-        manifest("legacy", "LLM Tools", { notYetMigrated: true }),
+        manifest("done", "Other"),
+        manifest("trying", "Other", { beta: true }),
+        manifest("legacy", "Other", { notYetMigrated: true }),
       ],
-      [community("q", "LLM Tools")],
+      [community("q", "Other")],
     ).flatMap((s) => s.tools);
-    expect(Object.fromEntries(tools.map((t) => [t.key, t.beta]))).toEqual({
+    expect(Object.fromEntries(tools.map((t) => [t.visitId, t.beta]))).toEqual({
       "community-q": false,
-      "tool-done": false,
-      "tool-trying": true,
-      "tool-legacy": true,
+      done: false,
+      trying: true,
+      legacy: true,
     });
   });
 
   it("marks a section beta only when every tool in it is", () => {
     const sections = toolCatalog(
       [
-        manifest("a", "LLM Tools", { notYetMigrated: true }),
-        manifest("b", "LLM Tools", { beta: true }),
+        manifest("a", "Other", { notYetMigrated: true }),
+        manifest("b", "Other", { beta: true }),
         manifest("c", "Platform", { beta: true }),
         manifest("d", "Platform"),
       ],
       [],
     );
     expect(sections.map((s) => [s.name, s.beta])).toEqual([
-      ["LLM Tools", true],
+      ["Other", true],
       ["Platform", false],
     ]);
   });
@@ -76,13 +77,21 @@ describe("toolCatalog", () => {
       ["/tools/a", false],
     ]);
   });
+
+  it("records a registered tool's visits under its ID, and a community tool's clicks apart from them", () => {
+    const tools = toolCatalog([manifest("a", "Academics")], [community("a", "Academics")]).flatMap((s) => s.tools);
+    expect(tools.map((t) => [t.visitId, isCommunityVisitId(t.visitId)])).toEqual([
+      ["community-a", true],
+      ["a", false],
+    ]);
+  });
 });
 
 describe("toolInfo", () => {
   it("passes the header's details, and nothing private like notYetMigrated", () => {
     const info = toolInfo([
-      manifest("a", "LLM Tools", { title: "A", description: "Does A.", contributors: ["Ada"], mentor: "Grace", notYetMigrated: true }),
-      manifest("b", "LLM Tools", { mentor: "" }),
+      manifest("a", "Other", { title: "A", description: "Does A.", contributors: ["Ada"], mentor: "Grace", notYetMigrated: true }),
+      manifest("b", "Other", { mentor: "" }),
     ]);
     expect(info["a"]).toEqual({ title: "A", description: "Does A.", contributors: ["Ada"], mentor: "Grace" });
     expect(info["b"]?.mentor).toBeNull();
@@ -94,9 +103,9 @@ describe("fullWidthToolIds", () => {
     expect(
       fullWidthToolIds([
         manifest("chat", "Platform", { fullWidth: true }),
-        manifest("column", "LLM Tools"),
-        manifest("explicit", "LLM Tools", { fullWidth: false }),
-        manifest("canvas", "LLM Tools", { fullWidth: true }),
+        manifest("column", "Other"),
+        manifest("explicit", "Other", { fullWidth: false }),
+        manifest("canvas", "Other", { fullWidth: true }),
       ]),
     ).toEqual(["chat", "canvas"]);
   });

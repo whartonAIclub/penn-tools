@@ -1,0 +1,16 @@
+/* The stats page: one card holding the tool visits table, wide enough for its five columns. */
+
+.page {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}

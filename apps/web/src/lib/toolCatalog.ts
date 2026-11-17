@@ -12,11 +12,17 @@
 import { TOOL_CATEGORIES } from "@penntools/core/tools";
 import type { ToolCategory, ToolManifest } from "@penntools/core/tools";
 // Relative, not @/, so the unit tests (which have no path aliases) can load it.
+import { communityVisitId } from "../data/communityTools";
 import type { CommunityTool } from "../data/communityTools";
 
 export interface CatalogTool {
-  /** Unique across the catalog, for React keys. */
-  key: string;
+  /**
+   * The ID its visits are recorded under (POST /api/visits): a registered
+   * tool's manifest ID, or for a community tool, communityVisitId, recorded
+   * when its link is clicked. Unique across the catalog, so it's also the
+   * React key.
+   */
+  visitId: string;
   title: string;
   description: string;
   builders: string[];
@@ -44,7 +50,7 @@ function sectionId(name: string): string {
 
 function fromCommunity(t: CommunityTool): CatalogTool {
   return {
-    key: `community-${t.id}`,
+    visitId: communityVisitId(t.id),
     title: t.title,
     description: t.description,
     builders: [t.builder],
@@ -57,7 +63,7 @@ function fromCommunity(t: CommunityTool): CatalogTool {
 
 function fromManifest(m: ToolManifest): CatalogTool {
   return {
-    key: `tool-${m.id}`,
+    visitId: m.id,
     title: m.title,
     description: m.description,
     builders: m.contributors,

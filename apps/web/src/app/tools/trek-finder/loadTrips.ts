@@ -1,5 +1,5 @@
 // Where the Trek Finder pages get their trips: the tool's database, filled from
-// the team's Google Sheet. Until the first import has loaded any, the pages
+// the team's Google Sheet. Until it holds any trips, the pages
 // show the sample trips instead, with their photos, and say so.
 
 import type { toolSql } from "@penntools/platform/db";

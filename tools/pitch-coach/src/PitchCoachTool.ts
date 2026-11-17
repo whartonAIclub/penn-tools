@@ -9,7 +9,7 @@ export class PitchCoachTool extends Tool {
       "Practice behavioral interviews and networking pitches with AI-powered feedback on delivery, STAR framework adherence, and communication clarity.",
     contributors: ["Tony Sui", "Hannah Gao", "Ariana Katsanis", "Chithira Mamallan"],
     mentor: "Wharton AI & Analytics Club",
-    category: "LLM Tools",
+    category: "Other",
     notYetMigrated: true,
   };
 }

@@ -4,10 +4,13 @@
 //
 //   pnpm new-tool --id course-finder --title "Course Finder" \
 //     --description "Find Penn courses by topic." \
-//     --contributors "Ada Lovelace, Alan Turing" [--mentor "Grace Hopper"] [--yes]
+//     --contributors "Ada Lovelace, Alan Turing" --category Academics \
+//     [--mentor "Grace Hopper"] [--yes]
 //
 // Options left out are asked for in the terminal. Coding agents collect the
 // answers in conversation (CLAUDE.md section 3) and pass them all with --yes.
+// The category must be one of TOOL_CATEGORIES, which this reads from
+// packages/core/src/tools/Tool.ts; only the Platform team adds categories.
 // Everything is checked before anything is written, so a failed run changes
 // nothing.
 
@@ -25,6 +28,15 @@ function fail(message) {
   process.exit(1);
 }
 
+// The categories a tool can be in: TOOL_CATEGORIES in @penntools/core/tools.
+// This script runs without a build, so it reads them from the source.
+const toolTsPath = join(root, "packages", "core", "src", "tools", "Tool.ts");
+const categoriesSource = existsSync(toolTsPath)
+  ? readFileSync(toolTsPath, "utf8").match(/export const TOOL_CATEGORIES = \[([^\]]*)\]/)
+  : null;
+const categories = categoriesSource ? [...categoriesSource[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]) : [];
+if (categories.length === 0) fail("Could not read TOOL_CATEGORIES from packages/core/src/tools/Tool.ts.");
+
 // ── Answers ──────────────────────────────────────────────────────────────────
 
 const { values: options } = parseArgs({
@@ -33,6 +45,7 @@ const { values: options } = parseArgs({
     title: { type: "string" },
     description: { type: "string" },
     contributors: { type: "string" },
+    category: { type: "string" },
     mentor: { type: "string" },
     yes: { type: "boolean", default: false },
   },
@@ -43,6 +56,7 @@ const questions = [
   { key: "title", required: true, ask: "Title (e.g. Course Finder)" },
   { key: "description", required: true, ask: "One-sentence description" },
   { key: "contributors", required: true, ask: "Contributors (comma-separated names)" },
+  { key: "category", required: true, ask: `Category, its section in the sidebar (${categories.join(", ")})` },
   { key: "mentor", required: false, ask: "Mentor (optional)" },
 ];
 const interactive = process.stdin.isTTY && !options.yes;
@@ -65,7 +79,7 @@ if (missing.length) {
   fail(
     `Missing ${missing.join(", ")}.${why}\n` +
       `  pnpm new-tool --id course-finder --title "Course Finder" --description "Find Penn courses by topic." ` +
-      `--contributors "Ada Lovelace, Alan Turing" [--mentor "Grace Hopper"]`,
+      `--contributors "Ada Lovelace, Alan Turing" --category Academics [--mentor "Grace Hopper"]`,
   );
 }
 
@@ -74,7 +88,17 @@ const contributors = answers.contributors.split(",").map((name) => name.trim()).
 if (!ID_PATTERN.test(id)) {
   fail(`Tool ID "${id}" must be lowercase letters and digits, words joined by hyphens (e.g. course-finder).`);
 }
+// Clicks on community tools' links are counted as visits to community-<id>
+// (apps/web/src/data/communityTools.ts), so registered tools can't use that.
+if (id.startsWith("community-")) fail(`Tool IDs can't start with "community-". Pick another tool ID.`);
 if (contributors.length === 0) fail("Name at least one contributor.");
+const category = categories.find((name) => name.toLowerCase() === answers.category.toLowerCase());
+if (!category) {
+  fail(
+    `"${answers.category}" isn't a category. Pick one of: ${categories.join(", ")}.\n` +
+      `  A tool that fits none goes in Other. To add a category, ask the Platform team.`,
+  );
+}
 for (const [key, value] of Object.entries({ title, description, mentor })) {
   if (/[\r\n]/.test(value)) fail(`--${key} must be a single line.`);
 }
@@ -93,6 +117,12 @@ if (existsSync(nextConfigPath)) {
   if (redirected.includes(id)) {
     fail(`/tools/${id} redirects elsewhere (apps/web/next.config.mjs): the ID belonged to a tool that was renamed or removed. Pick another tool ID.`);
   }
+}
+// A removed tool's data is cleared on every deploy, under its ID
+// (packages/platform/scripts/setup-tools.mjs), so a new tool can't take it.
+const removedToolsPath = join(root, "packages", "platform", "scripts", "removed-tools.json");
+if (existsSync(removedToolsPath) && JSON.parse(readFileSync(removedToolsPath, "utf8")).some((tool) => tool.id === id)) {
+  fail(`"${id}" belonged to a removed tool (packages/platform/scripts/removed-tools.json). Pick another tool ID.`);
 }
 
 const words = id.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join("");
@@ -118,6 +148,7 @@ console.log(`
   Tool:          ${title} (${id})
   Description:   ${description}
   Contributors:  ${contributors.join(", ")}
+  Category:      ${category}
   Mentor:        ${mentor || "(none)"}
 
   Creates tools/${id}/ (${packageName}, class ${className})
@@ -194,8 +225,8 @@ export class ${className} extends Tool {
     description: ${str(description)},
     contributors: [${contributors.map(str).join(", ")}],${mentor ? `\n    mentor: ${str(mentor)},` : ""}
     // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
-    // in @penntools/core/tools. "LLM Tools" is the catch-all.
-    category: "LLM Tools",
+    // in @penntools/core/tools. To add a category, ask the Platform team.
+    category: ${str(category)},
     // Shown as BETA until the tool is ready; delete this line then.
     beta: true,
   };

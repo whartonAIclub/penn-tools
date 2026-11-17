@@ -1,0 +1,3 @@
+# CareerPath exports and anything else with real student data. Never commit them;
+# admins load the data through the tool's upload page instead.
+data/

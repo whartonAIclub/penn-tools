@@ -35,7 +35,7 @@ check_version() {
     || die "$cmd $actual is too old (need $min or later). Install a newer one: $(install_hint "$cmd")"
 }
 
-check_version node 20.12   # process.loadEnvFile, used by db:deploy and AskPenn's database tests
+check_version node 22      # production runs Node 24 (.nvmrc); 22 is the oldest still supported
 check_version pnpm 9
 success "node $(node --version), pnpm $(pnpm --version)"
 

@@ -9,5 +9,6 @@ export class PlatformPlaygroundTool extends Tool {
     contributors: ["Ananya Chandra", "Ritika Agarwal"],
     mentor: "Ananya Chandra",
     category: "Platform",
+    beta: true,
   };
 }

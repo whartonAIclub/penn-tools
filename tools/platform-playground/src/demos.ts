@@ -29,7 +29,7 @@ export function checkText(value: unknown, label: string, maxLength: number): str
 /** One reply to one prompt, on the cheapest tier: a single call, no streaming. */
 export async function generateAnswer(ai: AI, provider: AIProvider, prompt: string): Promise<GenerateResult> {
   return ai.generate({
-    provider, // the tool picks; the user's saved key for it is used
+    provider, // the tool picks; the platform chooses the key (free credit, then the user's)
     tier: "fast",
     reasoning: "low",
     system: "You help Penn students. Keep answers short and concrete.",
