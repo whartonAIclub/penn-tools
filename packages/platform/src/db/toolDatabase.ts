@@ -42,7 +42,7 @@ export function toolDatabasePassword(role: string, adminUrl: string): string {
 }
 
 /**
- * Connection string for a tool's own role (e.g. "compass"), whose search_path
+ * Connection string for a tool's own role (e.g. "askpenn"), whose search_path
  * is the tool's schema. Returns null (and logs why) when DATABASE_URL is
  * missing, malformed, or has no password to derive from.
  */
@@ -76,7 +76,7 @@ const globalForToolSql = globalThis as unknown as {
 const pools = (globalForToolSql.__penntoolsToolSql ??= new Map());
 
 /**
- * Shared connection pool for a tool's own role (e.g. "compass"), or null when
+ * Shared connection pool for a tool's own role (e.g. "askpenn"), or null when
  * DATABASE_URL is not usable. Tools receive this client from their API routes;
  * they never create database connections themselves.
  */

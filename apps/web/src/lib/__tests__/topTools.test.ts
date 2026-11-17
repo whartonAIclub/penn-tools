@@ -30,7 +30,7 @@ const ids = (ranked: ReturnType<typeof topTools>) => ranked.map((r) => r.tool.vi
 describe("topTools", () => {
   const sections = [
     section("Recruiting", ["community-quakercal", "keepintouch"]),
-    section("Academics", ["career-canvas", "deadline-calendar"]),
+    section("Academics", ["choose-mba-major", "deadline-calendar"]),
     section("Platform", ["askpenn", "platform-playground"]),
   ];
 
@@ -39,9 +39,9 @@ describe("topTools", () => {
       count("deadline-calendar", 4, 1),
       count("keepintouch", 9),
       count("community-quakercal", 4, 3),
-      count("career-canvas", 4, 1),
+      count("choose-mba-major", 4, 1),
     ];
-    expect(ids(topTools(counts, sections))).toEqual(["keepintouch", "community-quakercal", "career-canvas"]);
+    expect(ids(topTools(counts, sections))).toEqual(["keepintouch", "community-quakercal", "choose-mba-major"]);
   });
 
   it("leaves out AskPenn, the Platform Playground, tools no longer on the site and tools with no visits", () => {
@@ -50,7 +50,7 @@ describe("topTools", () => {
       count("askpenn", 45),
       count("old-tool", 40),
       count("keepintouch", 2),
-      count("career-canvas", 0),
+      count("choose-mba-major", 0),
     ];
     expect(topTools(counts, sections)).toEqual([{ tool: tool("keepintouch"), visits: 2, users: 1 }]);
   });

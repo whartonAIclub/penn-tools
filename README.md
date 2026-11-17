@@ -96,7 +96,7 @@ Leave the build command empty: Railway runs the root `build` script (`turbo buil
 On each push to the tracked branch, Railway:
 
 1. **Builds** the monorepo.
-2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, adds the first admins if there are none yet (`packages/platform/scripts/seed-platform.mjs`), then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). It also clears removed tools' data (see Removing a tool). If this fails, the previous version keeps serving. On a fresh database, the first deploy takes about a minute longer while Career Canvas embeds the course catalog.
+2. **Runs `db:deploy`** before switching traffic: pushes the platform schema, adds the first admins if there are none yet (`packages/platform/scripts/seed-platform.mjs`), then creates each tool's database role and schema, applies the tool's `schema.sql` and runs its `seed.mjs` if it has one (see `packages/platform/scripts/setup-tools.mjs`). It also clears removed tools' data (see Removing a tool). If this fails, the previous version keeps serving.
 3. **Starts** the app with `next start`.
 
 The database is Railway's pgvector Postgres template (the platform schema needs the `vector` extension). Set these variables on the app service:
@@ -104,7 +104,7 @@ The database is Railway's pgvector Postgres template (the platform schema needs 
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `${{pgvector.DATABASE_URL}}` — a reference to the database service |
-| `OPENAI_API_KEY` | The platform's OpenAI key: embeddings (deploys use it to embed Career Canvas's course catalog, and searches use it for users without their own OpenAI key), the legacy LLM API, and each user's free AI credit ($0.50, then their own keys from Settings) |
+| `OPENAI_API_KEY` | The platform's OpenAI key: embeddings (tool seeds, and searches by users without their own OpenAI key), the legacy LLM API, and each user's free AI credit ($0.50, then their own keys from Settings) |
 | `ANTHROPIC_API_KEY` | The platform's Anthropic key: the free AI credit and the legacy LLM API |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The Google OAuth client (redirect URI `<public URL>/api/auth/callback/google`) |
 | `NEXTAUTH_SECRET` | Signs session cookies; generate with `openssl rand -base64 32` |
@@ -169,8 +169,8 @@ UPDATE tool_visits SET tool_id = 'community-<new id>' WHERE tool_id = 'community
 **Renaming a registered tool** isn't removing it either. Don't list it in `removed-tools.json`: if you did, every deploy would drop the database the renamed tool still uses.
 
 - Rename everything named after its ID: its folders (`tools/<id>/` and `apps/web/src/app/tools/<id>/`), its package (`@penntools/tool-<id>`, also in `apps/web/package.json`), its class, its manifest's `id`, its lines in `container.ts`, its screenshot and its row in `TARGETS`. Then run `pnpm install`.
-- Keep its name in `TOOLS`. The database name doesn't have to match the tool's ID (tool `19` uses `compass`), so its tables carry over unchanged.
-- Redirect its old URL to the new one in `apps/web/next.config.mjs`, as `/tools/1` does. The redirect also stops `pnpm new-tool` from giving the old ID to a new tool.
+- Keep its name in `TOOLS`. The database name doesn't have to match the tool's ID, so its tables carry over unchanged.
+- Redirect its old URL to the new one in `apps/web/next.config.mjs`, as `/tools/7` does. The redirect also stops `pnpm new-tool` from giving the old ID to a new tool.
 - Once the rename is live, move its history to the new ID in each database. Moving its AI usage is safe, because free credit is counted per user, not per tool:
 
   ```sql

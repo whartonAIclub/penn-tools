@@ -337,8 +337,8 @@ Below the header and beside the sidebar, every page renders inside
 For page authors this means:
 
 - Tool pages sit in a centered 720px column. A tool whose manifest sets
-  `fullWidth: true` fills the whole page area instead, as Career Canvas and
-  AskPenn do; the tools layout (`apps/web/src/app/tools/layout.tsx`) reads that
+  `fullWidth: true` fills the whole page area instead, as AskPenn and
+  Non-Wharton Course Manager do; the tools layout (`apps/web/src/app/tools/layout.tsx`) reads that
   from the manifests. A full-width page area is `position: relative` and at least
   as tall as the space, so a layout that should fill it exactly, such as AskPenn's
   chat, uses `position: absolute; inset: 0`. Don't break out of the column with
@@ -427,8 +427,8 @@ Key design choices:
   not on a tool role's `search_path`, so tool SQL schema-qualifies the type and
   operators (`public.vector`, `OPERATOR(public.<=>)`). Each vector is stored
   with the model that made it; searches compare only the current model's
-  vectors, and the seed re-embeds the rest. Career Canvas (`tools/career-canvas`, schema
-  `careercanvas`) is the reference.
+  vectors, and rows from another model are re-embedded. Pass It On
+  (`tools/pass-it-on`, schema `passiton`) is the reference.
 - Tool metadata is not stored in the database; the registry in code is the
   source of truth.
 
@@ -438,14 +438,12 @@ Key design choices:
 
 The platform's env var reads happen in `packages/platform`,
 `apps/web/src/lib/container.ts` and `apps/web/src/lib/auth.ts`; `core` and tool
-packages (`tools/*`) never access `process.env`. One older tool reads its own
-variables in its pages and routes: Compass (`COMPASS_ICS_FEED_URL`,
-`TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`).
+packages (`tools/*`) never access `process.env`.
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
 | `DATABASE_URL` | platform/prisma, `db:deploy` | Postgres admin connection; tool role passwords are derived from it |
-| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy`, platform/llm | The AI API's OpenAI calls while a user has free credit; embeddings: tool seeds (e.g. Career Canvas course embeddings; skipped when unset) and search queries from users without their own OpenAI key. Also the legacy LLM API |
+| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy`, platform/llm | The AI API's OpenAI calls while a user has free credit; embeddings: tool seeds (skipped when unset) and search queries from users without their own OpenAI key. Also the legacy LLM API |
 | `ANTHROPIC_API_KEY` | web/lib/container, platform/llm | The AI API's Anthropic calls while a user has free credit, and the legacy LLM API |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | web/lib/auth | Google sign-in (OAuth client); without them, development signs in as a local user and production disables sign-in |
 | `NEXTAUTH_SECRET` | web/lib/auth | Signs session cookies; required with the Google credentials |

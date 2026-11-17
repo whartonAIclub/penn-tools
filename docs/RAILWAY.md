@@ -110,10 +110,6 @@ Optional:
 - `ANTHROPIC_API_KEY`: pays for Anthropic calls within each user's free AI
   credit, and for older tools still on the legacy LLM API (it's preferred over
   OpenAI there when set).
-- Variables that an older tool reads for itself: Compass
-  (`COMPASS_ICS_FEED_URL`, `TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`).
-  Set these only if you need that tool working. `NEXT_PUBLIC_` values are
-  built into the page, so redeploy after changing them.
 
 ## 6. Get Google sign-in added for your instance
 
@@ -142,9 +138,8 @@ Each deploy:
 
 1. **Builds** the monorepo.
 2. **Runs the pre-deploy command** (`db:deploy`): creates the platform's tables,
-   then each tool's own database role and schema, and runs tool seeds. On a new
-   database this takes about a minute longer while Career Canvas embeds its
-   course catalog. If this step fails, the previous version keeps serving.
+   then each tool's own database role and schema, and runs tool seeds. If this
+   step fails, the previous version keeps serving.
 3. **Starts** the app.
 
 ## 8. Check that it works
@@ -183,7 +178,7 @@ On your public URL:
 | Google says `redirect_uri_mismatch` | Your URL isn't on the staging client yet, was added in the last few hours, or doesn't match exactly (for example after regenerating the domain). See step 6 |
 | Google says access is blocked, or the app isn't verified | Your account isn't one of the staging consent screen's test users: ask the Platform team |
 | Signing in ends on **Penn accounts only** | The Google account's email isn't at upenn.edu: sign in again and choose your Penn account |
-| Semantic search (Career Canvas, the Playground) is off for users without their own OpenAI key | `OPENAI_API_KEY` isn't set |
+| Semantic search (Pass It On's library, the Playground) is off for users without their own OpenAI key | `OPENAI_API_KEY` isn't set |
 
 ## For the Platform team: the staging Google client
 

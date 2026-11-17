@@ -26,27 +26,18 @@ importers:
       '@penntools/platform':
         specifier: workspace:*
         version: link:../../packages/platform
-      '@penntools/tool-19':
-        specifier: workspace:*
-        version: link:../../tools/19
       '@penntools/tool-accounting-practice':
         specifier: workspace:*
         version: link:../../tools/accounting-practice
       '@penntools/tool-askpenn':
         specifier: workspace:*
         version: link:../../tools/askpenn
-      '@penntools/tool-career-canvas':
-        specifier: workspace:*
-        version: link:../../tools/career-canvas
       '@penntools/tool-chatprep':
         specifier: workspace:*
         version: link:../../tools/chatprep
       '@penntools/tool-choose-mba-major':
         specifier: workspace:*
         version: link:../../tools/choose-mba-major
-      '@penntools/tool-coursematch-assist':
-        specifier: workspace:*
-        version: link:../../tools/coursematch-assist
       '@penntools/tool-deadline-calendar':
         specifier: workspace:*
         version: link:../../tools/deadline-calendar
@@ -162,25 +153,6 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1(@types/node@22.20.5)
 
-  tools/19:
-    dependencies:
-      '@penntools/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      node-ical:
-        specifier: ^0.27.6
-        version: 0.27.6
-    devDependencies:
-      postgres:
-        specifier: ^3.4.5
-        version: 3.4.8
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-      vitest:
-        specifier: ^1.6.0
-        version: 1.6.1(@types/node@22.20.5)
-
   tools/accounting-practice:
     dependencies:
       '@penntools/core':
@@ -198,22 +170,6 @@ importers:
         version: 1.6.1(@types/node@22.20.5)
 
   tools/askpenn:
-    dependencies:
-      '@penntools/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-    devDependencies:
-      postgres:
-        specifier: ^3.4.5
-        version: 3.4.8
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-      vitest:
-        specifier: ^1.6.0
-        version: 1.6.1(@types/node@22.20.5)
-
-  tools/career-canvas:
     dependencies:
       '@penntools/core':
         specifier: workspace:*
@@ -247,22 +203,6 @@ importers:
       '@penntools/core':
         specifier: workspace:*
         version: link:../../packages/core
-    devDependencies:
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-      vitest:
-        specifier: ^1.6.0
-        version: 1.6.1(@types/node@22.20.5)
-
-  tools/coursematch-assist:
-    dependencies:
-      '@penntools/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      xlsx:
-        specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
-        version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
     devDependencies:
       typescript:
         specifier: ^5.4.0
@@ -1830,10 +1770,6 @@ packages:
       encoding:
         optional: true
 
-  node-ical@0.27.6:
-    resolution: {integrity: sha512-wtZkvE2Hbldw8tqu07a5INybNlP4TbjCLRjxse6FKmMpuhq9V9vNNFCJZ8SlU2rJ98uSGQ+pIdtqvECzPqb5Nw==}
-    engines: {node: '>=22'}
-
   nopt@5.0.0:
     resolution: {integrity: sha512-Tbj67rffqceeLpcRXrT7vKAN8CwfPeIBgM7E6iBkmKLV7bEMwpGgYLGv0jACUsECaa/vuxP0IjEont6umdMgtQ==}
     engines: {node: '>=6'}
@@ -2069,9 +2005,6 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
-  rrule-temporal@2.2.9:
-    resolution: {integrity: sha512-5Bc+IxlGKZtOF/JtkM+39VtK9uYvg1NRWGzZCy2QQj9KFZ4mMMa949GMtGv0Ud/bzyk2KuGhwxmVDuq8cnbzuA==}
-
   safe-array-concat@1.1.4:
     resolution: {integrity: sha512-wtZlHyOje6OZTGqAoaDKxFkgRtkF9CnHAVnCHKfuj200wAgL+bSJhdsCD2l0Qx/2ekEXjPWcyKkfGb5CPboslg==}
     engines: {node: '>=0.4'}
@@ -2260,15 +2193,6 @@ packages:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
-
-  temporal-polyfill@1.0.8:
-    resolution: {integrity: sha512-RCCGa0GddT099XG49ijdD0tDf86L8vfuZun1+JyJiO4Y2NP9PACQsG0OnvNPXwVLisdvhr/zqL2nhKQmXXx08A==}
-
-  temporal-spec@1.0.1:
-    resolution: {integrity: sha512-wxVoanmDeavXie1vu2JaQ3WIc3JZnWAOYFBsJyATaVsXsycKYUflGsyBmrRSnoCpZJpwPyr38VpgSUlQ8CbFxg==}
-
-  temporal-utils@1.0.4:
-    resolution: {integrity: sha512-4mAcgbWlaxe+gn23gk8g0iHxCVGVOhKzSCfF5HM3lfvH8BdT+/pBmH/R/E4CrIse+koUgs8ThkPzCLnui6Fi8w==}
 
   text-segmentation@1.0.3:
     resolution: {integrity: sha512-iOiPUo/BGnZ6+54OsWxZidGCsdU8YbE4PSpdPinp7DeMtUJNJBoJ/ouUSTJjHkh1KntHaltHl/gDs2FC4i5+Nw==}
@@ -2472,12 +2396,6 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
-
-  xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz:
-    resolution: {tarball: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz}
-    version: 0.20.3
-    engines: {node: '>=0.8'}
-    hasBin: true
 
   xmlbuilder@10.1.1:
     resolution: {integrity: sha512-OyzrcFLL/nb6fMGHbiRDuPup9ljBycsdCypwuyg5AAHvyWzGfChJpCXMG88AGTIMFhGZ9RccFN1e6lhg3hkwKg==}
@@ -3900,11 +3818,6 @@ snapshots:
       whatwg-url: 5.0.0
     optional: true
 
-  node-ical@0.27.6:
-    dependencies:
-      rrule-temporal: 2.2.9
-      temporal-polyfill: 1.0.8
-
   nopt@5.0.0:
     dependencies:
       abbrev: 1.1.1
@@ -4157,10 +4070,6 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.59.0
       fsevents: 2.3.3
 
-  rrule-temporal@2.2.9:
-    dependencies:
-      temporal-spec: 1.0.1
-
   safe-array-concat@1.1.4:
     dependencies:
       call-bind: 1.0.9
@@ -4407,15 +4316,6 @@ snapshots:
       mkdirp: 1.0.4
       yallist: 4.0.0
     optional: true
-
-  temporal-polyfill@1.0.8:
-    dependencies:
-      temporal-spec: 1.0.1
-      temporal-utils: 1.0.4
-
-  temporal-spec@1.0.1: {}
-
-  temporal-utils@1.0.4: {}
 
   text-segmentation@1.0.3:
     dependencies:
@@ -4664,8 +4564,6 @@ snapshots:
     optional: true
 
   wrappy@1.0.2: {}
-
-  xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz: {}
 
   xmlbuilder@10.1.1: {}
 

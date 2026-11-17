@@ -27,7 +27,6 @@ import { createAI, createUserEmbeddings } from "@penntools/platform/ai";
 import { EMBEDDING_MODEL, FREE_CREDIT_USD, MIN_CALL_USD } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
 import { OpenAIAdapter, AnthropicAdapter } from "@penntools/platform/llm";
-import { OpenAIEmbeddingAdapter } from "@penntools/platform/embeddings";
 import type { EmbeddingProvider } from "@penntools/core/embeddings";
 import { toolRegistry } from "@penntools/core/tools";
 import type { LLMProvider } from "@penntools/core/llm";
@@ -38,10 +37,6 @@ import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
 import { ResumeCustomizerTool } from "@penntools/tool-resume-customizer";
 toolRegistry.register(new ResumeCustomizerTool());
-import { CareerCanvasTool } from "@penntools/tool-career-canvas";
-toolRegistry.register(new CareerCanvasTool());
-import { CourseMatchAssistTool } from "@penntools/tool-coursematch-assist";
-toolRegistry.register(new CourseMatchAssistTool());
 import { PitchCoachTool } from "@penntools/tool-pitch-coach";
 toolRegistry.register(new PitchCoachTool());
 import { AskPennTool } from "@penntools/tool-askpenn";
@@ -91,21 +86,6 @@ export const admins: AdminRepository = new PrismaAdminRepository(prisma);
 // Visits to each tool, recorded by POST /api/visits for /admin, /stats and the
 // home page's top tools.
 export const toolVisits: ToolVisitRepository = new PrismaToolVisitRepository(prisma);
-
-// ── Embedding provider ─────────────────────────────────────────────────────
-// The platform's OpenAI key, for tools that embed with it directly (Career
-// Canvas). Null when OPENAI_API_KEY is absent; tools then skip semantic search.
-
-export const embeddingProvider: EmbeddingProvider | null =
-  process.env["OPENAI_API_KEY"]
-    ? new OpenAIEmbeddingAdapter(process.env["OPENAI_API_KEY"])
-    : null;
-
-if (!embeddingProvider) {
-  console.warn(
-    "[PennTools] OPENAI_API_KEY not set — the platform's embeddings are disabled."
-  );
-}
 
 // ── AI API (new tools) ────────────────────────────────────────────────────────
 // Generation uses the platform's keys (OPENAI_API_KEY, ANTHROPIC_API_KEY) while

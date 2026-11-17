@@ -12,13 +12,10 @@
   "dependencies": {
     "@penntools/core": "workspace:*",
     "@penntools/platform": "workspace:*",
-    "@penntools/tool-19": "workspace:*",
     "@penntools/tool-accounting-practice": "workspace:*",
     "@penntools/tool-askpenn": "workspace:*",
-    "@penntools/tool-career-canvas": "workspace:*",
     "@penntools/tool-chatprep": "workspace:*",
     "@penntools/tool-choose-mba-major": "workspace:*",
-    "@penntools/tool-coursematch-assist": "workspace:*",
     "@penntools/tool-deadline-calendar": "workspace:*",
     "@penntools/tool-industry-connector": "workspace:*",
     "@penntools/tool-keepintouch": "workspace:*",

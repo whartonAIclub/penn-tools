@@ -3,7 +3,7 @@
 
 Usage (use `python` or `py` instead of `python3` on Windows):
     python3 scripts/capture-tool-screenshots.py                          # every tool
-    python3 scripts/capture-tool-screenshots.py career-canvas stactab    # just these
+    python3 scripts/capture-tool-screenshots.py askpenn stactab          # just these
 
 Needs Pillow (`pip install pillow`) and Chrome, or Edge, which every Windows
 install has; set CHROME to the browser's path if it isn't found. Images are
@@ -70,8 +70,6 @@ TARGETS = {
     "ai-compass": {"url": "https://akshitkalra.com/aicompass"},
     # Registered tools (tools/*), keyed by manifest id
     "resume-customizer": local("/tools/resume-customizer"),
-    "career-canvas": local("/tools/career-canvas"),
-    "coursematch-assist": local("/tools/coursematch-assist"),
     "pitch-coach": local("/tools/pitch-coach"),
     "platform-playground": local("/tools/platform-playground"),
     "askpenn": local("/tools/askpenn"),

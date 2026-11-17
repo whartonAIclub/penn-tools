@@ -1,5 +1,8 @@
 [
   { "id": "3" },
   { "id": "18" },
-  { "id": "penn-planner" }
+  { "id": "penn-planner" },
+  { "id": "coursematch-assist" },
+  { "id": "career-canvas", "name": "careercanvas" },
+  { "id": "19", "name": "compass" }
 ]
