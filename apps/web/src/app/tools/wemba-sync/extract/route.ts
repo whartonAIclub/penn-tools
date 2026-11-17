@@ -23,8 +23,9 @@ import {
 } from "@penntools/tool-wemba-sync";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
+import { pdfPageCount } from "@/lib/pdf";
 import { db } from "../db";
-import { failure, pageCount, readBody, today } from "../upload";
+import { failure, readBody, today } from "../upload";
 
 /** Saves the weekend for the student; null if it can't be (see the top of this file). */
 async function save(userId: string, filename: string, schedule: WeekendSchedule): Promise<SavedWeekend | null> {
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (problem) return failure(problem, 400);
   const { provider, filename, data } = body as { provider: AIProvider; filename: string; data: string };
 
-  const pages = await pageCount(data);
+  const pages = await pdfPageCount(data);
   if (pages === null) return failure(`${filename} couldn't be read as a PDF.`, 400);
   if (pages > MAX_PDF_PAGES) return failure(`${filename} has ${pages} pages; schedules can have at most ${MAX_PDF_PAGES}.`, 400);
 

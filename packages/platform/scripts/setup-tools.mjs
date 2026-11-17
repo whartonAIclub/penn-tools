@@ -67,6 +67,9 @@ const TOOLS = [
   { name: "accountingpractice", dir: "tools/accounting-practice", connectionLimit: 30 },
   { name: "keepintouch", dir: "tools/keepintouch", connectionLimit: 30 },
   { name: "wembasync", dir: "tools/wemba-sync", connectionLimit: 30 },
+  { name: "industryconnector", dir: "tools/industry-connector", connectionLimit: 30 },
+  { name: "passiton", dir: "tools/pass-it-on", connectionLimit: 30 },
+  { name: "studentdiscountmaximizer", dir: "tools/student-discount-maximizer", connectionLimit: 30 },
   { name: "pennpals", dir: "tools/penn-pals", connectionLimit: 30 },
 ];
 

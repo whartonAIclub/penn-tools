@@ -28,8 +28,9 @@ import {
 import { docxText } from "@penntools/tool-wemba-sync/docx";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
+import { pdfPageCount } from "@/lib/pdf";
 import { STORAGE_UNAVAILABLE, db } from "../db";
-import { failure, pageCount, readBody, today } from "../upload";
+import { failure, readBody, today } from "../upload";
 
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let document: SyllabusDocument;
   if (uploadKind(filename, data) === "pdf") {
-    const pages = await pageCount(data);
+    const pages = await pdfPageCount(data);
     if (pages === null) return failure(`${filename} couldn't be read as a PDF.`, 400);
     if (pages > MAX_SYLLABUS_PAGES) {
       return failure(`${filename} has ${pages} pages; syllabi can have at most ${MAX_SYLLABUS_PAGES}.`, 400);

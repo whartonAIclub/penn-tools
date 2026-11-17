@@ -110,11 +110,10 @@ Optional:
 - `ANTHROPIC_API_KEY`: pays for Anthropic calls within each user's free AI
   credit, and for older tools still on the legacy LLM API (it's preferred over
   OpenAI there when set).
-- Variables that some older tools read for themselves: Compass
-  (`COMPASS_ICS_FEED_URL`, `TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`)
-  and Penn Planner (`NEXT_PUBLIC_GCAL_CLIENT_ID`). Set these only if you need
-  those tools working. `NEXT_PUBLIC_` values are built into the page, so
-  redeploy after changing them.
+- Variables that an older tool reads for itself: Compass
+  (`COMPASS_ICS_FEED_URL`, `TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`).
+  Set these only if you need that tool working. `NEXT_PUBLIC_` values are
+  built into the page, so redeploy after changing them.
 
 ## 6. Get Google sign-in added for your instance
 

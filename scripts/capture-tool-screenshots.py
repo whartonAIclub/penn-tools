@@ -72,7 +72,6 @@ TARGETS = {
     "resume-customizer": local("/tools/resume-customizer"),
     "career-canvas": local("/tools/career-canvas"),
     "coursematch-assist": local("/tools/coursematch-assist"),
-    "penn-planner": local("/tools/penn-planner"),
     "pitch-coach": local("/tools/pitch-coach"),
     "platform-playground": local("/tools/platform-playground"),
     "askpenn": local("/tools/askpenn"),
@@ -83,6 +82,9 @@ TARGETS = {
     "keepintouch": local("/tools/keepintouch"),  # needs sign-in: its image was taken signed in
     "deadline-calendar": local("/tools/deadline-calendar"),  # needs sign-in: its image was taken signed in
     "wemba-sync": local("/tools/wemba-sync"),  # needs sign-in: its image was taken signed in, with sample data
+    "student-discount-maximizer": local("/tools/student-discount-maximizer"),  # needs the seeded deals (db:deploy)
+    "pass-it-on": local("/tools/pass-it-on"),  # needs sign-in and board access: its image was taken signed in, with sample data
+    "chatprep": local("/tools/chatprep"),  # needs sign-in: its image was taken signed in
 }
 
 
