@@ -123,7 +123,7 @@ export function Setup({ ws, analysis, update, ai, onNotice }: TabProps & { ai: A
     if (!ai.provider) return;
     setSuggesting(true);
     try {
-      const reply = await proposeThemes(ai.provider, written);
+      const reply = await proposeThemes(ai.provider, written, ws.setup.themes);
       if (reply.ok) setSuggested(reply.data);
       else onNotice(reply.error.message, "bad");
     } catch {

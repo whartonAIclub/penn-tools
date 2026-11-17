@@ -11,11 +11,14 @@ const scaleText = (value: number, max: number) => `${value} / ${max}`;
 
 type GoTo = (tab: "feedback" | "setup" | "review", show?: Focus | null) => void;
 
+const HIGH_RATING = 4;
+
 export function Summary({ ws, analysis, goTo }: TabProps & { goTo: GoTo }) {
   const lowest = analysis.ratings[0];
   // The top three ratings that aren't marked low, best first.
+  // "Highly rated" means about 4 out of 5 or better, whatever the scale.
   const best = analysis.ratings
-    .filter((r) => !r.low)
+    .filter((r) => r.outOfFive >= HIGH_RATING)
     .slice(-3)
     .reverse();
   return (

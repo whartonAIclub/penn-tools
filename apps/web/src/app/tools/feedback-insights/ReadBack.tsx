@@ -43,7 +43,7 @@ export function ReadBack({ ws, analysis, removed, ai, update, onNotice, onFix, o
     if (!ai.provider) return;
     setBusy(true);
     try {
-      const reply = await proposeThemes(ai.provider, written);
+      const reply = await proposeThemes(ai.provider, written, ws.setup.themes);
       if (reply.ok) setSuggested(reply.data);
       else onNotice(reply.error.message, "bad");
     } catch {

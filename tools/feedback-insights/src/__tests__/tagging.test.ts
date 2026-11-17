@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest } from "@penntools/core/ai";
-import { checkTagRequest, MAX_ANSWERS_PER_BATCH, needsPrivacyLook, suggestThemes, tagAnswers, TaggedAnswers } from "../index.js";
+import { checkTagRequest, MAX_ANSWERS_PER_BATCH, needsPrivacyLook, sentenceCase, suggestThemes, tagAnswers, TaggedAnswers } from "../index.js";
 
 function fakeAI(object: unknown) {
   const requests: GenerateObjectRequest<typeof TaggedAnswers>[] = [];
@@ -84,6 +84,17 @@ describe("checkTagRequest", () => {
 describe("suggestThemes", () => {
   it("returns tidy, distinct names", async () => {
     const { ai } = fakeAI({ themes: [{ name: " Onboarding ", covers: "" }, { name: "onboarding", covers: "" }, { name: "Session  format", covers: "" }, { name: "", covers: "" }] });
-    expect(await suggestThemes(ai, "openai", ["a", "b"])).toEqual(["onboarding", "Session format"]);
+    expect(await suggestThemes(ai, "openai", ["a", "b"])).toEqual(["Onboarding", "Session format"]);
+  });
+
+  it("tells the AI the existing themes and drops suggestions that repeat one", async () => {
+    const { ai, requests } = fakeAI({ themes: [{ name: "TA Office Hours", covers: "" }, { name: "Food Supply", covers: "" }, { name: "Lectures", covers: "" }] });
+    expect(await suggestThemes(ai, "openai", ["a"], ["Office hours", "Lectures"])).toEqual(["Food supply"]);
+    expect(sentText(requests[0]!)).toContain("Office hours");
+  });
+
+  it("writes theme names in sentence case, keeping acronyms", () => {
+    expect(sentenceCase("Audio Visual Equipment")).toBe("Audio visual equipment");
+    expect(sentenceCase("AV and WiFi")).toBe("AV and wifi");
   });
 });

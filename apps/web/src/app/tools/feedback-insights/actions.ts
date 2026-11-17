@@ -10,7 +10,7 @@
 
 import { isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
-import { checkTagRequest, suggestThemes, tagAnswers, type AnswerToTag, type TagReply } from "@penntools/tool-feedback-insights";
+import { checkTagRequest, MAX_THEME_LENGTH, suggestThemes, tagAnswers, type AnswerToTag, type TagReply } from "@penntools/tool-feedback-insights";
 import { getAI } from "@/lib/ai";
 
 const TOOL_ID = "feedback-insights";
@@ -52,12 +52,15 @@ export async function tagBatch(
   return run(() => tagAnswers(ai, provider, { themes, topics, answers }));
 }
 
-/** Up to 8 theme names that cover a sample of written answers. */
-export async function proposeThemes(provider: AIProvider, answers: string[]): Promise<ActionResult<string[]>> {
+/** Up to 8 new theme names that, with the survey's existing ones, cover a sample of written answers. */
+export async function proposeThemes(provider: AIProvider, answers: string[], existing: string[]): Promise<ActionResult<string[]>> {
   const ai = await getAI(TOOL_ID);
   if (!ai) return signedOut;
   if (!Array.isArray(answers) || answers.length === 0 || !answers.every((a) => typeof a === "string")) {
     return { ok: false, error: { message: "There are no written answers to read yet." } };
   }
-  return run(() => suggestThemes(ai, provider, answers));
+  if (!Array.isArray(existing) || !existing.every((t) => typeof t === "string" && t.length <= MAX_THEME_LENGTH)) {
+    return { ok: false, error: { message: "The theme list couldn't be read." } };
+  }
+  return run(() => suggestThemes(ai, provider, answers, existing));
 }

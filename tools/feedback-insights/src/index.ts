@@ -30,6 +30,7 @@ export type { Analysis, RatingSummary, Distribution, TagView, ThemeSummary, Reco
 export {
   tagAnswers,
   suggestThemes,
+  sentenceCase,
   checkTagRequest,
   needsPrivacyLook,
   TaggedAnswers,
@@ -39,6 +40,7 @@ export {
   MAX_THEMES,
   MAX_TOPIC_LENGTH,
   MAX_TOPICS,
+  MAX_THEME_LENGTH,
   MAX_THEME_SAMPLE,
 } from "./tagging.js";
 export type { AnswerToTag, ProposedTag, TagReply } from "./tagging.js";
