@@ -16,6 +16,7 @@
     "@penntools/tool-accounting-practice": "workspace:*",
     "@penntools/tool-askpenn": "workspace:*",
     "@penntools/tool-career-canvas": "workspace:*",
+    "@penntools/tool-chatprep": "workspace:*",
     "@penntools/tool-choose-mba-major": "workspace:*",
     "@penntools/tool-coursematch-assist": "workspace:*",
     "@penntools/tool-deadline-calendar": "workspace:*",

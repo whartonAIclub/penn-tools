@@ -66,6 +66,8 @@ import { PassItOnTool } from "@penntools/tool-pass-it-on";
 toolRegistry.register(new PassItOnTool());
 import { StudentDiscountMaximizerTool } from "@penntools/tool-student-discount-maximizer";
 toolRegistry.register(new StudentDiscountMaximizerTool());
+import { ChatprepTool } from "@penntools/tool-chatprep";
+toolRegistry.register(new ChatprepTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 
