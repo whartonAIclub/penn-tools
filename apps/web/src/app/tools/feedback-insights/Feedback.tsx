@@ -499,20 +499,24 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
                         <td className={styles.rowActions}>
                           <button
                             type="button"
-                            className={styles.buttonSmall}
+                            className={styles.iconButton}
+                            aria-label="Edit tag"
+                            title="Edit tag"
                             onClick={() => {
                               const original = ws.tags[index];
                               if (original) setDraft({ index, ...original, theme: tag.theme, type: tag.type, outside: false });
                             }}
                           >
-                            Edit
+                            ✎
                           </button>
                           <button
                             type="button"
-                            className={styles.buttonSmall}
+                            className={styles.iconButton}
+                            aria-label="Delete tag"
+                            title="Delete tag"
                             onClick={() => update((w) => ({ ...w, tags: w.tags.filter((_, i) => i !== index) }))}
                           >
-                            Delete
+                            ✕
                           </button>
                         </td>
                       </tr>

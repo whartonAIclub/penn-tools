@@ -533,7 +533,7 @@
 
 /* The comment is what people read; give it the room and keep its line a readable length. */
 .table td[data-label="Comment"] {
-  min-width: 280px;
+  min-width: 240px;
   max-width: 60ch;
 }
 
@@ -541,6 +541,11 @@
 .table td[data-label="Response"],
 .table td[data-label="Type"] {
   white-space: nowrap;
+}
+
+/* As narrow as "#12" needs. */
+.table td[data-label="Response"] {
+  width: 1%;
 }
 
 .table td[data-label="Theme"],
@@ -566,8 +571,31 @@
   white-space: nowrap;
 }
 
+.rowActions {
+  width: 1%;
+}
+
 .rowActions button + button {
-  margin-left: 6px;
+  margin-left: 4px;
+}
+
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--section-label);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  color: var(--text);
+  border-color: var(--section-label);
 }
 
 .quote {
