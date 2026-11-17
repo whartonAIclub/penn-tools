@@ -8,6 +8,7 @@ export {
   chatToEdit,
   checkContactLimits,
   editPastChat,
+  ensureStepIds,
   findSameContacts,
   linkedinHref,
   linkedinKey,
@@ -78,12 +79,8 @@ export {
 } from "./network.js";
 export {
   canViewMetrics,
-  checkChatEvent,
-  checkFollowUpEvent,
-  followUpEventFor,
+  eventsFromChanges,
   getMetrics,
-  recordChat,
-  recordFollowUp,
   THANK_YOU_ON_TIME_DAYS,
   type ChatEvent,
   type FollowUpEvent,

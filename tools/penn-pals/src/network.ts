@@ -77,7 +77,12 @@ export function workshopDue(kind: FollowUpKind, meetingDate: string): string {
   return kind === "thankYou" ? addDays(meetingDate, THANK_YOU_DAYS) : addMonths(meetingDate, SUGGESTED_CHECK_IN_MONTHS);
 }
 
-function kindOf(step: NextStep): FollowUpKind | null {
+/** Whether a step is a thank-you or a check-in; null for any other step. */
+export function followUpKindOf(step: Pick<NextStep, "action">): FollowUpKind | null {
+  return kindOf(step);
+}
+
+function kindOf(step: Pick<NextStep, "action">): FollowUpKind | null {
   if (step.action === THANK_YOU_ACTION) return "thankYou";
   if (step.action === FOLLOW_UP_ACTION) return "followUp";
   return null;

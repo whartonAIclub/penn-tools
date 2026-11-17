@@ -14,7 +14,6 @@ import {
   chatToEdit,
   countByKind,
   daysFrom,
-  followUpEventFor,
   followUpStatus,
   followUpsFor,
   linkedinHref,
@@ -28,7 +27,6 @@ import {
   SENIORITY_LABELS,
 } from "@penntools/tool-penn-pals";
 import type { ChatEdit, Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
-import { recordFollowUp } from "./metricsActions";
 import { HowItWorks } from "./HowItWorks";
 import { StorageNote } from "./StorageNote";
 import { useContacts } from "./useContacts";
@@ -510,12 +508,7 @@ export function Landing({ signedIn }: { signedIn: boolean }) {
   const save = (next: Contact[]) => void store.save(next);
 
   const markDone = (followUp: FollowUp) => {
-    const contact = allContacts.find((c) => c.id === followUp.contactId);
-    if (contact) {
-      // Counts toward the team's follow-through numbers (signed-in users only); never holds up or breaks marking it done.
-      const event = followUpEventFor(followUp, contact.meetingDate, todayIso);
-      void recordFollowUp(event.followUpKey, event.kind, event.daysAfterChat).catch(() => undefined);
-    }
+    // (The team's follow-through numbers are recorded by the server when this is saved to the account.)
     save(allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c)));
   };
 

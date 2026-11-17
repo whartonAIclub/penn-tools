@@ -98,8 +98,18 @@ const NextStep = z.object({
   done: z.boolean(),
   /** The day it was marked done; missing or null while open, and for steps finished before this was recorded. */
   doneOn: z.string().nullable().optional(),
+  /** Stays with the step for good (its position in the list changes); given when the step is first saved. Missing on steps saved before it existed. */
+  id: z.string().optional(),
+  /** The date of the chat this step came from, once a later chat has been logged; before that, it belongs to the contact's latest chat. */
+  chatDate: z.string().optional(),
 });
 export type NextStep = z.infer<typeof NextStep>;
+
+/** `contact` with an id on every step that lacks one. `makeId` makes a new unique id (crypto.randomUUID in the browser). */
+export function ensureStepIds(contact: Contact, makeId: () => string): Contact {
+  if (contact.nextSteps.every((step) => step.id)) return contact;
+  return { ...contact, nextSteps: contact.nextSteps.map((step) => (step.id ? step : { ...step, id: makeId() })) };
+}
 
 /** How a check-in repeats once it's done: every `every` weeks, months or years. */
 const Recurrence = z.object({
@@ -376,13 +386,20 @@ export function contactToDraft(contact: Contact): ContactDraft {
 export function updateContact(original: Contact, draft: ContactDraft, today: string): BuildResult {
   const result = buildContact(draft, today, original.id);
   if (!result.ok) return result;
+  // The form rebuilds the open steps; each keeps its id and chat date from the one it replaces (same place in the open list, same action).
+  const openBefore = original.nextSteps.filter((step) => !step.done);
+  const openSteps = result.contact.nextSteps.map((step, i) => {
+    const before = openBefore[i];
+    if (!before || before.action !== step.action) return step;
+    return { ...step, ...(before.id ? { id: before.id } : {}), ...(before.chatDate ? { chatDate: before.chatDate } : {}) };
+  });
   return {
     ok: true,
     contact: {
       ...result.contact,
       createdAt: original.createdAt,
       checkInDate: original.checkInDate,
-      nextSteps: [...original.nextSteps.filter((step) => step.done), ...result.contact.nextSteps],
+      nextSteps: [...original.nextSteps.filter((step) => step.done), ...openSteps],
       ...(original.pastChats ? { pastChats: original.pastChats } : {}),
     },
   };
@@ -436,9 +453,12 @@ export function logAnotherChat(contact: Contact, draft: ContactDraft, today: str
     return { ok: false, errors: [`This chat is dated before your last one with ${contact.name} (${contact.meetingDate}). Log your most recent chat.`] };
   }
   const [previous] = chatsWith(contact);
-  const steps = contact.nextSteps.map((step) =>
-    !step.done && step.action === STEP_ACTIONS[1] ? { ...step, done: true, doneOn: chat.meetingDate } : step,
-  );
+  // Steps so far belong to the chat that's becoming an earlier one: they keep that chat's date, so a thank-you
+  // for it that's still open is judged from then, not from this new chat.
+  const steps = contact.nextSteps.map((step) => {
+    const owned = step.chatDate ? step : { ...step, chatDate: contact.meetingDate };
+    return !step.done && step.action === STEP_ACTIONS[1] ? { ...owned, done: true, doneOn: chat.meetingDate } : owned;
+  });
   return {
     ok: true,
     contact: {
@@ -707,7 +727,9 @@ export function checkContactLimits(contact: Contact): string | null {
     return `${contact.name} has too many or too long takeaways.`;
   }
   if (contact.nextSteps.length > MAX_STORED_STEPS) return `${contact.name} has too many next steps.`;
-  if (contact.nextSteps.some((s) => s.action.length > MAX_FIELD_LENGTH)) return `${contact.name} has a next step that is too long.`;
+  if (contact.nextSteps.some((s) => s.action.length > MAX_FIELD_LENGTH || (s.id?.length ?? 0) > 100 || (s.chatDate?.length ?? 0) > 40)) {
+    return `${contact.name} has a next step that is too long.`;
+  }
   const past = contact.pastChats ?? [];
   if (past.length > MAX_STORED_CHATS) return `${contact.name} has too many chats.`;
   if (past.some((p) => p.notes.length > MAX_NOTES_LENGTH || p.takeaways.length > MAX_TAKEAWAYS || p.takeaways.some((t) => t.length > MAX_TAKEAWAY_LENGTH))) {

@@ -3,15 +3,15 @@
 // save, how many different people they've talked to, whether they follow up
 // (thank-yous and check-ins done) and whether they come back.
 //
-// Counts only. A signed-in user's saved chat, or a follow-up marked done, is
-// recorded as opaque keys and a few numbers (see schema.sql); no names, notes
-// or contact details ever reach the database. Callers pass the database client (toolSql("pennpals")) and the
-// signed-in user's id.
+// Counts only. When a signed-in user's save adds a chat or finishes a thank-you
+// or check-in, the server records opaque keys and a few numbers (see schema.sql);
+// no names, notes or contact details ever reach these tables. The counts come
+// from the saved contacts themselves (storage.ts), never from the browser.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Sql } from "postgres";
-
-const MAX_KEY_LENGTH = 100;
+import { chatsWith, type Contact } from "./contacts.js";
+import { followUpKindOf } from "./network.js";
 
 export interface ChatEvent {
   /** The contact's id, random and made in the browser. */
@@ -20,14 +20,62 @@ export interface ChatEvent {
   chatKey: string;
 }
 
-/** A problem with a reported chat, or null when it's fine. The browser sends these, so check them. */
-export function checkChatEvent(personKey: unknown, chatKey: unknown): string | null {
-  for (const [label, value] of [["person", personKey], ["chat", chatKey]] as const) {
-    if (typeof value !== "string" || !value.trim() || value.length > MAX_KEY_LENGTH) {
-      return `The ${label} key is missing or longer than ${MAX_KEY_LENGTH} characters.`;
+/** A thank-you counts as sent on time when it's done within this many days of the chat. */
+export const THANK_YOU_ON_TIME_DAYS = 2;
+
+export type FollowUpEventKind = "thankYou" | "followUp";
+
+export interface FollowUpEvent {
+  /** The step's own id, which stays with it however the list is reordered, so the same follow-up is counted once. */
+  followUpKey: string;
+  kind: FollowUpEventKind;
+  /** Whole days from the chat the step belongs to until it was done, never negative. */
+  daysAfterChat: number;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole days from `from` to `to` (both YYYY-MM-DD), never negative; 0 when either isn't a date. */
+function daysBetween(from: string, to: string): number {
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
+  return Number.isFinite(days) ? Math.max(0, days) : 0;
+}
+
+/**
+ * The counts a save adds, worked out from the contacts as they were and as
+ * they are now, so they come from what was really saved and not from anything
+ * the browser reports:
+ *   - a chat is counted when the contact has more chats than before (numbered
+ *     within the contact, so the same chat is never counted twice);
+ *   - a thank-you or check-in is counted when its step goes from open to done,
+ *     keyed by the step's id, and its days are counted from the chat the step
+ *     belongs to (its own `chatDate`, else the contact's latest chat) up to the
+ *     day it was marked done.
+ * Steps without an id aren't counted: ids are given when a step is saved.
+ */
+export function eventsFromChanges(changes: { before: Contact | null; after: Contact }[]): {
+  chats: ChatEvent[];
+  followUps: FollowUpEvent[];
+} {
+  const chats: ChatEvent[] = [];
+  const followUps: FollowUpEvent[] = [];
+  for (const { before, after } of changes) {
+    const had = before ? chatsWith(before).length : 0;
+    for (let n = had + 1; n <= chatsWith(after).length; n++) {
+      chats.push({ personKey: after.id, chatKey: `${after.id}:${n}` });
     }
+    after.nextSteps.forEach((step, index) => {
+      if (!step.done || !step.id) return;
+      const kind = followUpKindOf(step);
+      if (!kind) return;
+      // The same step before this save: by id, or, for one saved before ids existed, the one in its place.
+      const prior = before?.nextSteps.find((s) => s.id === step.id) ?? (before?.nextSteps[index]?.id ? undefined : before?.nextSteps[index]);
+      if (!prior || prior.done) return;
+      const doneOn = step.doneOn ?? after.meetingDate;
+      followUps.push({ followUpKey: step.id, kind, daysAfterChat: daysBetween(step.chatDate ?? after.meetingDate, doneOn) });
+    });
   }
-  return null;
+  return { chats, followUps };
 }
 
 /** Records a saved chat. True when it was new, false when it had already been recorded. */
@@ -41,47 +89,6 @@ export async function recordChat(sql: Sql, userId: string, event: ChatEvent): Pr
   return rows.length > 0;
 }
 
-/** A thank-you counts as sent on time when it's done within this many days of the chat. */
-export const THANK_YOU_ON_TIME_DAYS = 2;
-
-export type FollowUpEventKind = "thankYou" | "followUp";
-
-export interface FollowUpEvent {
-  /** `<contact id>:<step number>`, so the same follow-up is counted once. */
-  followUpKey: string;
-  kind: FollowUpEventKind;
-  /** Whole days from the chat to completion, never negative. */
-  daysAfterChat: number;
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** The event for a follow-up finished on `today`, with the days counted from the contact's chat date (both YYYY-MM-DD). */
-export function followUpEventFor(
-  followUp: { contactId: string; stepIndex: number; kind: FollowUpEventKind },
-  meetingDate: string,
-  today: string,
-): FollowUpEvent {
-  const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${meetingDate}T00:00:00Z`)) / DAY_MS);
-  return {
-    followUpKey: `${followUp.contactId}:${followUp.stepIndex}`,
-    kind: followUp.kind,
-    daysAfterChat: Number.isFinite(days) ? Math.max(0, days) : 0,
-  };
-}
-
-/** A problem with a reported follow-up, or null when it's fine. The browser sends these, so check them. */
-export function checkFollowUpEvent(followUpKey: unknown, kind: unknown, daysAfterChat: unknown): string | null {
-  if (typeof followUpKey !== "string" || !followUpKey.trim() || followUpKey.length > MAX_KEY_LENGTH) {
-    return `The follow-up key is missing or longer than ${MAX_KEY_LENGTH} characters.`;
-  }
-  if (kind !== "thankYou" && kind !== "followUp") return "The follow-up kind must be thankYou or followUp.";
-  if (typeof daysAfterChat !== "number" || !Number.isInteger(daysAfterChat) || daysAfterChat < 0 || daysAfterChat > 36500) {
-    return "The days after the chat must be a whole number from 0 up.";
-  }
-  return null;
-}
-
 /** Records a follow-up marked done. True when it was new, false when it had already been recorded. */
 export async function recordFollowUp(sql: Sql, userId: string, event: FollowUpEvent): Promise<boolean> {
   const rows = await sql`
@@ -91,6 +98,13 @@ export async function recordFollowUp(sql: Sql, userId: string, event: FollowUpEv
     RETURNING id
   `;
   return rows.length > 0;
+}
+
+/** Records what a save changed (see eventsFromChanges). */
+export async function recordChanges(sql: Sql, userId: string, changes: { before: Contact | null; after: Contact }[]): Promise<void> {
+  const { chats, followUps } = eventsFromChanges(changes);
+  for (const event of chats) await recordChat(sql, userId, event);
+  for (const event of followUps) await recordFollowUp(sql, userId, event);
 }
 
 export interface PennPalsMetrics {

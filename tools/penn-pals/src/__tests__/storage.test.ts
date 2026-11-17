@@ -237,6 +237,56 @@ describe.skipIf(!databaseUrl)("Penn Pals contact storage (Postgres)", () => {
     expect(updated.changes).toEqual([{ before: maria, after: edited }]);
   });
 
+  describe("usage counts come from what was saved", () => {
+    const withSteps = (c: Contact): Contact => ({
+      ...c,
+      nextSteps: [{ action: "Send a thank-you email", owner: "me", dueDate: "2026-11-17", done: false, doneOn: null, id: `${c.id}-ty` }],
+    });
+    const counts = async () => ({
+      chats: (await sql`SELECT chat_key FROM chat_events ORDER BY chat_key`).map((r) => r.chat_key as string),
+      followUps: (await sql`SELECT follow_up_key, kind, days_after_chat FROM follow_up_events`).map((r) => [r.follow_up_key, r.kind, r.days_after_chat]),
+    });
+    beforeEach(async () => {
+      await sql`TRUNCATE chat_events, follow_up_events`;
+    });
+
+    it("counts a new contact's chat and a finished thank-you, once, as the user saves", async () => {
+      const m = withSteps(maria);
+      await saveContacts(sql, "u1", fresh(m));
+      expect(await counts()).toEqual({ chats: ["c-maria:1"], followUps: [] });
+      const done = { ...m, nextSteps: m.nextSteps.map((s) => ({ ...s, done: true, doneOn: "2026-11-18" })) };
+      await saveContacts(sql, "u1", [{ contact: done, version: 1 }]);
+      expect((await counts()).followUps).toEqual([["c-maria-ty", "thankYou", 2]]); // chat on the 16th, done the 18th
+      await saveContacts(sql, "u1", [{ contact: { ...done, role: "PM" }, version: 2 }]);
+      expect((await counts()).followUps).toHaveLength(1); // saving again doesn't count it again
+    });
+
+    it("counts nothing for a repeated save, or one refused as a conflict", async () => {
+      const m = withSteps(maria);
+      await saveContacts(sql, "u1", fresh(m));
+      await saveContacts(sql, "u1", fresh(m)); // a retry after a lost reply
+      await saveContacts(sql, "u1", [{ contact: { ...m, nextSteps: m.nextSteps.map((s) => ({ ...s, done: true, doneOn: "2026-11-18" })) }, version: 99 }]); // stale
+      expect(await counts()).toEqual({ chats: ["c-maria:1"], followUps: [] });
+    });
+
+    it("keeps each user's counts apart", async () => {
+      await saveContacts(sql, "u1", fresh(maria));
+      await saveContacts(sql, "u2", fresh(maria));
+      const rows = await sql`SELECT user_id FROM chat_events ORDER BY user_id`;
+      expect(rows.map((r) => r.user_id)).toEqual(["u1", "u2"]);
+    });
+
+    it("can't stop a save: if recording fails, the contact is still saved", async () => {
+      await sql`ALTER TABLE chat_events RENAME TO chat_events_away`;
+      try {
+        await expect(saveContacts(sql, "u1", fresh(maria))).resolves.toMatchObject({ versions: { "c-maria": 1 } });
+      } finally {
+        await sql`ALTER TABLE chat_events_away RENAME TO chat_events`;
+      }
+      expect(await ids("u1")).toEqual(["c-maria"]);
+    });
+  });
+
   it("saving some contacts never removes others (another device's)", async () => {
     await saveContacts(sql, "u1", fresh(maria, zach));
     await saveContacts(sql, "u1", [{ contact: { ...maria, role: "PM" }, version: 1 }]);

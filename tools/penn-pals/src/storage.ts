@@ -15,6 +15,7 @@
 
 import type { JSONValue, Sql, TransactionSql } from "postgres";
 import { checkContactLimits, parseContact, type Contact } from "./contacts.js";
+import { recordChanges } from "./metrics.js";
 
 /**
  * The transaction as a query function. postgres.js's TransactionSql type drops
@@ -252,6 +253,14 @@ export async function saveContacts(sql: Sql, userId: string, items: ContactToSav
       for (const row of rows) result.versions[row.id] = row.version;
     }
     await enforceLimits(tx, userId);
+
+    // The team's counts come from what was saved, in the same transaction. They can never stop a save:
+    // a failure is undone back to the savepoint, logged, and the save goes on.
+    try {
+      await transaction.savepoint(async (savepoint) => recordChanges(query(savepoint as unknown as TransactionSql), userId, result.changes));
+    } catch (error) {
+      console.error("[penn-pals] couldn't record usage counts", error);
+    }
   });
   return result;
 }

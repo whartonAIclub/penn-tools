@@ -21,6 +21,7 @@ import {
   batchContacts,
   CONTACTS_STORAGE_KEY,
   contactChanges,
+  ensureStepIds,
   parseStoredContacts,
   type Contact,
   type SkippedContact,
@@ -51,6 +52,10 @@ export interface ContactsStore {
   skipMove: () => void;
   /** Contacts that couldn't be moved and are still only in this browser. */
   stuck: SkippedContact[];
+}
+
+function newStepId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 }
 
 function readBrowser(): Contact[] {
@@ -263,7 +268,10 @@ export function useContacts(signedIn: boolean): ContactsStore {
   }, [resolveConflicts]);
 
   const save = useCallback(
-    (next: Contact[]): Promise<boolean> => {
+    (requested: Contact[]): Promise<boolean> => {
+      // Every step of a contact that changed gets an id that stays with it for good (the team's counts key on it).
+      const changedIds = new Set(contactChanges(current.current, requested).changed.map((c) => c.id));
+      const next = requested.map((c) => (changedIds.has(c.id) ? ensureStepIds(c, newStepId) : c));
       current.current = next;
       setContacts(next);
       if (!signedIn) {

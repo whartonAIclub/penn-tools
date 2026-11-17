@@ -8,15 +8,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import {
-  canViewMetrics,
-  checkChatEvent,
-  checkFollowUpEvent,
-  followUpEventFor,
-  getMetrics,
-  recordChat,
-  recordFollowUp,
-} from "../metrics.js";
+import { buildContact, contactToDraft, emptyDraft, logAnotherChat, type Contact } from "../contacts.js";
+import { canViewMetrics, eventsFromChanges, getMetrics, recordChat, recordFollowUp } from "../metrics.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -181,54 +174,86 @@ describe.skipIf(!databaseUrl)("Penn Pals metrics (Postgres)", () => {
   });
 });
 
-describe("checkChatEvent", () => {
-  it("accepts ordinary keys", () => {
-    expect(checkChatEvent("3f6c0c1e-9d2a-4b7e-8a53-1c2d3e4f5a6b", "3f6c0c1e-9d2a-4b7e-8a53-1c2d3e4f5a6b:2")).toBeNull();
-  });
-
-  it.each([
-    ["a missing person key", "", "k:1"],
-    ["a blank chat key", "p", "   "],
-    ["a non-string", 5, "k:1"],
-    ["a key that's too long", "p", "x".repeat(101)],
-  ])("rejects %s", (_label, personKey, chatKey) => {
-    expect(checkChatEvent(personKey, chatKey)).toEqual(expect.any(String));
-  });
+const TODAY = "2026-11-16";
+function person(overrides: Partial<Contact> = {}): Contact {
+  const built = buildContact({ ...emptyDraft("2026-11-10"), name: "Maria Chen", meetingDate: "2026-11-10" }, TODAY, "c1");
+  if (!built.ok) throw new Error("fixture is invalid");
+  const steps = [
+    { action: "Send a thank-you email", owner: "me" as const, dueDate: "2026-11-11", done: false, doneOn: null, id: "step-ty" },
+    { action: "Follow up", owner: "me" as const, dueDate: "2027-01-10", done: false, doneOn: null, id: "step-ci" },
+  ];
+  return { ...built.contact, nextSteps: steps, ...overrides };
+}
+const doneStep = (contact: Contact, id: string, doneOn: string): Contact => ({
+  ...contact,
+  nextSteps: contact.nextSteps.map((s) => (s.id === id ? { ...s, done: true, doneOn } : s)),
 });
 
-describe("followUpEventFor", () => {
-  const thankYou = { contactId: "c1", stepIndex: 0, kind: "thankYou" as const };
-
-  it("counts the days from the chat to the day it was done", () => {
-    expect(followUpEventFor(thankYou, "2026-11-10", "2026-11-12")).toEqual({ followUpKey: "c1:0", kind: "thankYou", daysAfterChat: 2 });
-    expect(followUpEventFor(thankYou, "2026-11-10", "2026-11-10").daysAfterChat).toBe(0);
+describe("eventsFromChanges", () => {
+  it("counts a new contact as one chat", () => {
+    expect(eventsFromChanges([{ before: null, after: person() }])).toEqual({ chats: [{ personKey: "c1", chatKey: "c1:1" }], followUps: [] });
   });
 
-  it("never goes negative, e.g. when a later chat moved the contact's date", () => {
-    expect(followUpEventFor(thankYou, "2026-11-20", "2026-11-12").daysAfterChat).toBe(0);
+  it("counts a thank-you when its step goes from open to done, keyed by the step's id, with days from the chat", () => {
+    const before = person();
+    const { chats, followUps } = eventsFromChanges([{ before, after: doneStep(before, "step-ty", "2026-11-12") }]);
+    expect(chats).toEqual([]);
+    expect(followUps).toEqual([{ followUpKey: "step-ty", kind: "thankYou", daysAfterChat: 2 }]);
   });
 
-  it("copes with a bad date by counting 0 days", () => {
-    expect(followUpEventFor(thankYou, "not a date", "2026-11-12").daysAfterChat).toBe(0);
-  });
-});
-
-describe("checkFollowUpEvent", () => {
-  it("accepts a normal event", () => {
-    expect(checkFollowUpEvent("c1:0", "thankYou", 2)).toBeNull();
-    expect(checkFollowUpEvent("c1:3", "followUp", 0)).toBeNull();
+  it("counts a check-in separately", () => {
+    const before = person();
+    expect(eventsFromChanges([{ before, after: doneStep(before, "step-ci", "2026-12-01") }]).followUps[0]).toMatchObject({ kind: "followUp", followUpKey: "step-ci" });
   });
 
-  it.each([
-    ["a missing key", "", "thankYou", 1],
-    ["a key that's too long", "x".repeat(101), "thankYou", 1],
-    ["an unknown kind", "c1:0", "email", 1],
-    ["negative days", "c1:0", "thankYou", -1],
-    ["fractional days", "c1:0", "thankYou", 1.5],
-    ["days that aren't a number", "c1:0", "thankYou", "2"],
-    ["absurd days", "c1:0", "thankYou", 99999],
-  ])("rejects %s", (_label, key, kind, days) => {
-    expect(checkFollowUpEvent(key, kind, days)).toEqual(expect.any(String));
+  it("counts nothing for a save that changes neither chats nor steps, or for a step that was already done", () => {
+    const before = doneStep(person(), "step-ty", "2026-11-12");
+    expect(eventsFromChanges([{ before, after: { ...before, company: "Stripe" } }])).toEqual({ chats: [], followUps: [] });
+  });
+
+  it("keeps counting right when steps move: the key follows the step, not its position", () => {
+    const before = person();
+    const reordered = { ...before, nextSteps: [before.nextSteps[1]!, before.nextSteps[0]!] };
+    const after = doneStep(reordered, "step-ty", "2026-11-11"); // the thank-you is now at index 1
+    expect(eventsFromChanges([{ before, after }]).followUps).toEqual([{ followUpKey: "step-ty", kind: "thankYou", daysAfterChat: 1 }]);
+  });
+
+  it("counts a later follow-up under its own key even after a finished step was removed ahead of it", () => {
+    const first = doneStep(person(), "step-ty", "2026-11-11");
+    const reopenedAndRemoved = { ...first, nextSteps: first.nextSteps.filter((s) => s.id !== "step-ty") }; // positions shift
+    const after = doneStep(reopenedAndRemoved, "step-ci", "2026-12-02");
+    expect(eventsFromChanges([{ before: reopenedAndRemoved, after }]).followUps.map((f) => f.followUpKey)).toEqual(["step-ci"]);
+  });
+
+  it("measures a late thank-you from the chat it belongs to, not from a newer chat", () => {
+    // The thank-you for the 10th is still open when a second chat on the 30th is logged; it's done on Dec 1.
+    const older = person();
+    const logged = logAnotherChat(older, { ...contactToDraft(older), meetingDate: "2026-11-30", nextSteps: [] }, "2026-11-30");
+    if (!logged.ok) throw new Error("fixture failed");
+    const after = doneStep(logged.contact, "step-ty", "2026-12-01");
+    const [event] = eventsFromChanges([{ before: logged.contact, after }]).followUps;
+    expect(event).toEqual({ followUpKey: "step-ty", kind: "thankYou", daysAfterChat: 21 }); // 21 days after Nov 10, not 1 day after Nov 30
+  });
+
+  it("counts each new chat once, numbered within the contact", () => {
+    const one = person();
+    const two = logAnotherChat(one, { ...contactToDraft(one), meetingDate: "2026-11-12", nextSteps: [] }, TODAY);
+    if (!two.ok) throw new Error("fixture failed");
+    expect(eventsFromChanges([{ before: one, after: two.contact }]).chats).toEqual([{ personKey: "c1", chatKey: "c1:2" }]);
+    expect(eventsFromChanges([{ before: null, after: two.contact }]).chats.map((c) => c.chatKey)).toEqual(["c1:1", "c1:2"]);
+  });
+
+  it("doesn't count steps that have no id yet (they get one when saved)", () => {
+    const before = person();
+    const noIds = { ...before, nextSteps: before.nextSteps.map(({ id: _id, ...rest }) => rest) };
+    const after = { ...noIds, nextSteps: noIds.nextSteps.map((s, i) => (i === 0 ? { ...s, done: true, doneOn: "2026-11-11" } : s)) };
+    expect(eventsFromChanges([{ before: noIds, after }]).followUps).toEqual([]);
+  });
+
+  it("copes with a bad date by counting 0 days, and never goes negative", () => {
+    const before = person();
+    expect(eventsFromChanges([{ before, after: doneStep(before, "step-ty", "2026-11-01") }]).followUps[0]?.daysAfterChat).toBe(0);
+    expect(eventsFromChanges([{ before, after: doneStep(before, "step-ty", "not a date") }]).followUps[0]?.daysAfterChat).toBe(0);
   });
 });
 

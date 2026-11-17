@@ -7,20 +7,24 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { DEFAULT_FOLLOW_UP_DAYS, THANK_YOU_DAYS } from "@penntools/tool-penn-pals";
+import { SUGGESTED_CHECK_IN_MONTHS, THANK_YOU_DAYS } from "@penntools/tool-penn-pals";
 import styles from "./HowItWorks.module.css";
 
 const HIDDEN_KEY = "penn-pals:how-it-works-hidden";
 
-/** "a day", "3 days", "2 weeks". */
-const span = (days: number) => (days === 1 ? "a day" : days % 7 === 0 ? `${days / 7} week${days === 7 ? "" : "s"}` : `${days} days`);
+/** "a day", "3 days". */
+const days = (n: number) => (n === 1 ? "a day" : `${n} days`);
 
 const STEPS = [
-  { icon: "📝", title: "Log a chat", text: "Paste your notes or a screenshot. AI fills in the details." },
+  {
+    icon: "📝",
+    title: "Log a chat",
+    text: "Tell AI how it went, or drop in Granola notes or a screenshot. It fills in the rest.",
+  },
   {
     icon: "⏰",
     title: "Get reminders",
-    text: `A nudge to say thanks within ${span(THANK_YOU_DAYS)}, then to check in after ${span(DEFAULT_FOLLOW_UP_DAYS)}.`,
+    text: `A nudge to say thanks within ${days(THANK_YOU_DAYS)}, then to check in after ${SUGGESTED_CHECK_IN_MONTHS} months.`,
   },
   { icon: "🤝", title: "Stay in touch", text: "Mark follow-ups done here. Your whole network in one place." },
 ];
