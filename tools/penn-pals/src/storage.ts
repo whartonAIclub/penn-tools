@@ -173,7 +173,7 @@ export async function listContacts(sql: Sql, userId: string): Promise<SavedConta
 /** How many contacts and bytes the user has saved. */
 async function usage(sql: Sql, userId: string): Promise<{ saved: number; bytes: number }> {
   const [row] = await sql<{ saved: number; bytes: number }[]>`
-    SELECT COUNT(*)::int AS saved, COALESCE(SUM(octet_length(data::text)), 0)::float8 AS bytes
+    SELECT COUNT(*)::int AS saved, COALESCE(SUM(bytes), 0)::float8 AS bytes
     FROM contacts WHERE user_id = ${userId}
   `;
   return { saved: row?.saved ?? 0, bytes: row?.bytes ?? 0 };
@@ -237,15 +237,15 @@ export async function saveContacts(sql: Sql, userId: string, items: ContactToSav
 
     if (inserts.length > 0) {
       const rows = await tx<{ id: string; version: number }[]>`
-        INSERT INTO contacts (user_id, id, data)
-        SELECT ${userId}, r.id, r.data FROM jsonb_to_recordset(${json(tx, inserts)}) AS r(id text, data jsonb)
+        INSERT INTO contacts (user_id, id, data, bytes)
+        SELECT ${userId}, r.id, r.data, octet_length(r.data::text) FROM jsonb_to_recordset(${json(tx, inserts)}) AS r(id text, data jsonb)
         RETURNING id, version
       `;
       for (const row of rows) result.versions[row.id] = row.version;
     }
     if (updates.length > 0) {
       const rows = await tx<{ id: string; version: number }[]>`
-        UPDATE contacts c SET data = r.data, version = c.version + 1, updated_at = NOW()
+        UPDATE contacts c SET data = r.data, bytes = octet_length(r.data::text), version = c.version + 1, updated_at = NOW()
         FROM jsonb_to_recordset(${json(tx, updates)}) AS r(id text, data jsonb)
         WHERE c.user_id = ${userId} AND c.id = r.id
         RETURNING c.id, c.version
@@ -281,8 +281,8 @@ export async function importContacts(sql: Sql, userId: string, contacts: Contact
   return sql.begin(async (transaction) => {
     const tx = query(transaction);
     const rows = await tx<{ id: string }[]>`
-      INSERT INTO contacts (user_id, id, data)
-      SELECT ${userId}, r.id, r.data
+      INSERT INTO contacts (user_id, id, data, bytes)
+      SELECT ${userId}, r.id, r.data, octet_length(r.data::text)
       FROM jsonb_to_recordset(${json(tx, contacts.map((c) => ({ id: c.id, data: c })))}) AS r(id text, data jsonb)
       ON CONFLICT (user_id, id) DO NOTHING
       RETURNING id

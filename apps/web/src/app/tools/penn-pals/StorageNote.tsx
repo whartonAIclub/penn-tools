@@ -58,7 +58,7 @@ export function StorageNote({ store }: { store: ContactsStore }) {
       {store.stuck.length > 0 && (
         <p className={`${styles.note} ${styles.error}`} role="status">
           {store.stuck.length === 1 ? "1 contact couldn't be moved and is still only in this browser" : `${store.stuck.length} contacts couldn't be moved and are still only in this browser`}:{" "}
-          {store.stuck.map((s) => s.name).join(", ")}. Their notes may be too long.
+          {store.stuck.map((s) => (s.reason.includes(s.name) ? s.reason : `${s.name}: ${s.reason}`)).join(" ")}
         </p>
       )}
       <p className={styles.note}>

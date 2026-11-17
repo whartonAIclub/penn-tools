@@ -9,7 +9,7 @@
 // from the saved contacts themselves (storage.ts), never from the browser.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { Sql } from "postgres";
+import type { JSONValue, Sql } from "postgres";
 import { chatsWith, type Contact } from "./contacts.js";
 import { followUpKindOf } from "./network.js";
 
@@ -100,11 +100,25 @@ export async function recordFollowUp(sql: Sql, userId: string, event: FollowUpEv
   return rows.length > 0;
 }
 
-/** Records what a save changed (see eventsFromChanges). */
+/** Records what a save changed (see eventsFromChanges): one insert for the chats and one for the follow-ups, whatever their number. */
 export async function recordChanges(sql: Sql, userId: string, changes: { before: Contact | null; after: Contact }[]): Promise<void> {
   const { chats, followUps } = eventsFromChanges(changes);
-  for (const event of chats) await recordChat(sql, userId, event);
-  for (const event of followUps) await recordFollowUp(sql, userId, event);
+  if (chats.length > 0) {
+    await sql`
+      INSERT INTO chat_events (user_id, person_key, chat_key)
+      SELECT ${userId}, r."personKey", r."chatKey"
+      FROM jsonb_to_recordset(${sql.json(chats as unknown as JSONValue)}) AS r("personKey" text, "chatKey" text)
+      ON CONFLICT (user_id, chat_key) DO NOTHING
+    `;
+  }
+  if (followUps.length > 0) {
+    await sql`
+      INSERT INTO follow_up_events (user_id, follow_up_key, kind, days_after_chat)
+      SELECT ${userId}, r."followUpKey", r.kind, r."daysAfterChat"
+      FROM jsonb_to_recordset(${sql.json(followUps as unknown as JSONValue)}) AS r("followUpKey" text, kind text, "daysAfterChat" integer)
+      ON CONFLICT (user_id, follow_up_key) DO NOTHING
+    `;
+  }
 }
 
 export interface PennPalsMetrics {

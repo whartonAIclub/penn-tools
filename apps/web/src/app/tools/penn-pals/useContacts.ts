@@ -30,6 +30,8 @@ import { deleteMyContacts, importMyContacts, loadMyContacts, saveMyContacts } fr
 
 /** An earlier version kept a full backup of moved contacts here; it's deleted now, wherever it's found. */
 const LEGACY_BACKUP_KEY = `${CONTACTS_STORAGE_KEY}:moved-to-account`;
+/** Set when the user answers "Not now" to moving browser contacts, so they aren't asked again until the tab is closed. */
+const SKIP_MOVE_KEY = `${CONTACTS_STORAGE_KEY}:skip-move`;
 
 export interface ContactsStore {
   /** Null while loading. */
@@ -48,7 +50,7 @@ export interface ContactsStore {
   waiting: number;
   /** Moves the waiting contacts into the account. */
   moveWaiting: () => Promise<void>;
-  /** Leaves them in the browser for now. */
+  /** Leaves them in the browser, and doesn't ask again until this tab is closed. */
   skipMove: () => void;
   /** Contacts that couldn't be moved and are still only in this browser. */
   stuck: SkippedContact[];
@@ -72,6 +74,22 @@ function writeBrowser(contacts: Contact[]) {
     else localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
   } catch {
     // Storage full or blocked: keep working in memory.
+  }
+}
+
+function moveSkipped(): boolean {
+  try {
+    return sessionStorage.getItem(SKIP_MOVE_KEY) === "1";
+  } catch {
+    return false; // storage blocked: ask again
+  }
+}
+
+function rememberSkip() {
+  try {
+    sessionStorage.setItem(SKIP_MOVE_KEY, "1");
+  } catch {
+    // Blocked: "Not now" lasts until the page is loaded again.
   }
 }
 
@@ -139,7 +157,7 @@ export function useContacts(signedIn: boolean): ContactsStore {
     const local = readBrowser();
     const others = local.filter((c) => !inAccount.has(c.id));
     if (others.length < local.length) writeBrowser(others);
-    setWaiting(others.length);
+    setWaiting(moveSkipped() ? 0 : others.length);
   }, [signedIn, loadAccount]);
 
   const load = useCallback(() => {
@@ -190,7 +208,10 @@ export function useContacts(signedIn: boolean): ContactsStore {
     }
   }, [loadAccount]);
 
-  const skipMove = useCallback(() => setWaiting(0), []);
+  const skipMove = useCallback(() => {
+    rememberSkip();
+    setWaiting(0);
+  }, []);
 
   /** Loads the newer copies of contacts another device saved, and says so. Returns false: the save didn't go through. */
   const resolveConflicts = useCallback(

@@ -28,8 +28,9 @@ CREATE INDEX IF NOT EXISTS chat_events_user_idx ON chat_events (user_id);
 -- chat_events: no names or notes, just opaque keys, the kind of follow-up and
 -- how many days after the chat it was done.
 --
---   follow_up_key    `<person_key>:<step number>`, so the same follow-up is
---                    counted once even if it's un-done and done again
+--   follow_up_key    the step's own id, which stays with it however the list
+--                    is reordered, so the same follow-up is counted once even
+--                    if it's un-done and done again
 --   kind             'thankYou' or 'followUp' (a check-in)
 --   days_after_chat  whole days from the chat to completion, never negative
 CREATE TABLE IF NOT EXISTS follow_up_events (
@@ -54,6 +55,8 @@ CREATE INDEX IF NOT EXISTS follow_up_events_user_idx ON follow_up_events (user_i
 --   updated_at  when it was last saved
 --   version     counts saves of this contact; a save names the version it was
 --               based on and is refused if another device has saved since
+--   bytes       the size of `data` as text, set on every write, so a user's
+--               total can be checked without re-reading every contact
 CREATE TABLE IF NOT EXISTS contacts (
   user_id    TEXT        NOT NULL,
   id         TEXT        NOT NULL,
@@ -63,3 +66,6 @@ CREATE TABLE IF NOT EXISTS contacts (
   PRIMARY KEY (user_id, id)
 );
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bytes INTEGER;
+-- Rows saved before `bytes` existed get their size once; every write sets it after that.
+UPDATE contacts SET bytes = octet_length(data::text) WHERE bytes IS NULL;
