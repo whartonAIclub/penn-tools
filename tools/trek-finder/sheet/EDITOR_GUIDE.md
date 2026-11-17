@@ -10,17 +10,24 @@ You only do this once.
 1. In Google Sheets, go to **File > Import > Upload** and choose `trek-finder-template.csv`.
 2. Select the whole Sheet and choose **Format > Number > Plain text**. This stops Google changing how dates and times are
    written, which would make the import skip those trips.
-3. Go to **File > Share > Publish to web**, pick the tab and **Comma-separated values (.csv)**, and publish.
-4. Send the link it gives you to the Trek Finder developers.
-
-> **Publishing makes the Sheet's contents public.** Anyone with that link can read every cell, so use club or program email
-> addresses, not personal ones, and keep private notes somewhere else.
 
 ## How your edits reach the site
 
-- Changes appear **the next time PennTools is deployed**, not the moment you type them.
-- After a deploy, sign in to PennTools and open `/tools/trek-finder/status`. It shows what loaded and lists any rows that
-  were skipped, with the reason. Fix those rows, and they'll load at the next deploy.
+The site doesn't read the Sheet directly. It loads a copy of it, `tools/trek-finder/sheet/trips.csv`, that's saved in
+PennTools' code. To put your edits on the site:
+
+1. In the Sheet, go to **File > Download > Comma-separated values (.csv)**. This downloads the tab you're on.
+2. Send the file to the Trek Finder developers. They replace `trips.csv` with it, and the tests check every row before it
+   goes in.
+3. The trips change **the next time PennTools is deployed**.
+
+> **The copy in the code can be seen by anyone who can see PennTools' code.** Use club or program email addresses, not
+> personal ones, and keep private notes somewhere else.
+
+After a deploy:
+
+- Sign in to PennTools and open `/tools/trek-finder/status`. It shows what loaded and lists any rows that were skipped,
+  with the reason. Fix those rows in the Sheet and send a new download.
 - If a row has a problem, only that trip is skipped. The others still load.
 - If the Sheet looks empty, or has fewer than half the trips currently listed, the import stops and the site stays as it
   was. The status page will say so.

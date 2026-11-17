@@ -8,7 +8,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
-import { importSheet, parseCsv, recordFailedImport } from "../importSheet.js";
+import { importSheet, parseCsv } from "../importSheet.js";
+import { parseTripRow } from "../sheet.js";
 import { listImportRuns } from "../db.js";
 import { SHEET_COLUMNS } from "../sheet.js";
 import { REGIONS, TIMINGS, TRIP_TYPES } from "../trips.js";
@@ -34,6 +35,25 @@ describe("parseCsv", () => {
 
   it("returns no rows for empty text", () => {
     expect(parseCsv("")).toEqual([]);
+  });
+
+  it("turns a Windows line ending inside a cell into a plain line break", () => {
+    expect(parseCsv('"Day 1\r\nDay 2"\r\n')).toEqual([["Day 1\nDay 2"]]);
+  });
+});
+
+describe("sheet/trips.csv", () => {
+  it("has every column, and every trip in it loads without problems", () => {
+    const [headers = [], ...rows] = parseCsv(readFileSync(new URL("../../sheet/trips.csv", import.meta.url), "utf8"));
+    expect(headers).toEqual(SHEET_COLUMNS);
+    const trips = rows.filter((cells) => cells.some((cell) => cell.trim() !== ""));
+    expect(trips.length).toBeGreaterThan(0);
+    for (const cells of trips) {
+      const result = parseTripRow(Object.fromEntries(headers.map((header, i) => [header, cells[i]])));
+      expect(result.ok ? [] : result.problems, cells[0]).toEqual([]);
+    }
+    const ids = trips.map((cells) => cells[0]);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
@@ -184,19 +204,10 @@ describe.skipIf(!databaseUrl)("importSheet (Postgres)", () => {
     expect(await listedIds()).toEqual(["alpha"]);
   });
 
-  it("fails with one clear problem when the download isn't the Sheet", async () => {
+  it("fails with one clear problem when the file isn't the Sheet", async () => {
     const result = await importSheet(sql, "<!DOCTYPE html><html><body>Sign in</body></html>");
     expect(result.status).toBe("failed");
     expect(result.problems).toHaveLength(1);
     expect(result.problems[0]!.message).toContain("isn't the Trek Finder Sheet");
-  });
-
-  it("logs a failed download", async () => {
-    await recordFailedImport(sql, "Couldn't download the Sheet. Nothing changed.");
-    expect(await lastRun()).toMatchObject({
-      status: "failed",
-      tripsLoaded: 0,
-      problems: [{ tab: null, row: null, tripId: null, message: "Couldn't download the Sheet. Nothing changed." }],
-    });
   });
 });

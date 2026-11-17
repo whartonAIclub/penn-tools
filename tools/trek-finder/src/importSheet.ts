@@ -1,9 +1,9 @@
-// One Sheet import, from the downloaded CSV text to the stored trips and a
-// logged import run. seed.mjs downloads the CSV on every deploy and hands it
-// here; keeping the download out of this file keeps it testable.
+// One Sheet import, from CSV text to the stored trips and a logged import run.
+// seed.mjs reads sheet/trips.csv (a download of the Sheet) on every deploy and
+// hands it here; keeping the file reading out of this module keeps it testable.
 //
 // Bad rows are skipped with a reason rather than failing the import. Imports
-// that look like a mistake change nothing: a download that isn't the Sheet, a
+// that look like a mistake change nothing: a file that isn't the Sheet, a
 // Sheet with no good trips, or one with fewer than half the trips listed now.
 //
 // Problems appear on the import status page, so they name rows and columns but
@@ -18,7 +18,8 @@ const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /**
  * Splits CSV text into rows of cells: quoted cells may hold commas, line breaks
- * and doubled quotes (""). Handles \r\n line ends and a leading byte-order mark.
+ * and doubled quotes (""). Handles \r\n line ends and a leading byte-order mark;
+ * a \r\n inside a cell becomes \n, so Windows line endings change nothing.
  */
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -35,6 +36,8 @@ export function parseCsv(text: string): string[][] {
         i++;
       } else if (char === '"') {
         quoted = false;
+      } else if (char === "\r" && input[i + 1] === "\n") {
+        // Dropped; the \n that follows is kept.
       } else {
         value += char;
       }
@@ -83,11 +86,6 @@ async function recordRun(sql: Sql, status: ImportRunStatus, tripsLoaded: number,
   `;
 }
 
-/** Logs an import that couldn't start, such as a failed download. Nothing else changes. */
-export async function recordFailedImport(sql: Sql, message: string): Promise<void> {
-  await recordRun(sql, "failed", 0, [problem(message)]);
-}
-
 /**
  * Imports the Sheet's CSV: checks every row, then, unless the import looks like
  * a mistake, makes the stored trips match the good rows. Always logs the run.
@@ -102,7 +100,7 @@ export async function importSheet(sql: Sql, csv: string): Promise<ImportResult> 
   const headers = headerRow.map((header) => header.trim());
   const missing = missingColumns(headers);
   if (missing.length === SHEET_COLUMNS.length) {
-    return finish("failed", [problem("The download isn't the Trek Finder Sheet (none of its columns were found). Nothing changed.")]);
+    return finish("failed", [problem("The file isn't the Trek Finder Sheet (none of its columns were found). Nothing changed.")]);
   }
   if (missing.length > 0) {
     return finish("failed", missing.map((column) => problem(`The Sheet is missing the column "${column}". Nothing changed.`)));
