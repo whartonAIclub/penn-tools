@@ -28,6 +28,8 @@ export interface ExcerptDraft {
  * `max` on its own.
  */
 export function packUnits(units: string[], max = MAX_EXCERPT_CHARS, separator = "\n"): string[] {
+  // splitLong could never shorten a unit to fit in 0 characters, and would loop until memory runs out.
+  if (!(max >= 1)) throw new RangeError(`Excerpt size must be at least 1, not ${max}`);
   const pieces: string[] = [];
   let current = "";
   for (const unit of units.map((u) => u.trim()).filter(Boolean)) {

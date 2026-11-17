@@ -106,16 +106,21 @@ function fromParagraphs(text: string, meta: ExcerptDraft["meta"]): ExcerptDraft[
   return packUnits(text.split(/\n\s*\n/), MAX_EXCERPT_CHARS, "\n\n").map((t) => ({ text: t, meta }));
 }
 
+/** The most of each excerpt the repeated header row may take, so the rows always have room. */
+const MAX_HEADER_CHARS = MAX_EXCERPT_CHARS / 2;
+
 /**
  * A table as excerpts: one line per row, cells joined with " | ". The first
- * row (usually the headers) starts every excerpt, so each one reads alone.
+ * row (usually the headers) starts every excerpt, so each one reads alone;
+ * a header longer than half an excerpt is cut short where it repeats.
  */
 function fromRows(rows: string[][], meta: ExcerptDraft["meta"]): ExcerptDraft[] {
   const lines = rows.map((cells) => cells.map((c) => c.trim()).join(" | ")).filter((l) => l.replace(/[\s|]/g, ""));
   if (lines.length === 0) return [];
-  const [header, ...body] = lines;
-  if (body.length === 0) return [{ text: header!, meta }];
-  return packUnits(body, MAX_EXCERPT_CHARS - header!.length - 1).map((t) => ({ text: `${header}\n${t}`, meta }));
+  const [fullHeader, ...body] = lines;
+  if (body.length === 0) return packUnits([fullHeader!]).map((text) => ({ text, meta }));
+  const header = fullHeader!.length > MAX_HEADER_CHARS ? `${fullHeader!.slice(0, MAX_HEADER_CHARS - 1)}…` : fullHeader!;
+  return packUnits(body, MAX_EXCERPT_CHARS - header.length - 1).map((t) => ({ text: `${header}\n${t}`, meta }));
 }
 
 function extensionOf(name: string): string {

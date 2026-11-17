@@ -27,6 +27,7 @@ export function Upload({ events }: { events: { id: string; title: string }[] }) 
       return;
     }
     if (confirmed) formData.set("confirm", "yes");
+    setConfirmed(false); // a confirmation covers one upload, never the next file or a retry
     setOutcome({ kind: "busy" });
     try {
       const response = await fetch("/tools/pass-it-on/library/upload", { method: "POST", body: formData });
@@ -42,7 +43,6 @@ export function Upload({ events }: { events: { id: string; title: string }[] }) 
             kind: "saved",
             text: `Added ${body["excerpts"]} passages.${body["searchable"] ? "" : " It can't be searched yet: no OpenAI key is set up (add yours in Settings)."}${skipped ? ` ${skipped} file(s) inside were skipped.` : ""}`,
           });
-          setConfirmed(false);
           router.refresh();
           return;
         }
@@ -73,7 +73,17 @@ export function Upload({ events }: { events: { id: string; title: string }[] }) 
       </p>
       <label className={styles.field}>
         File (.docx, .xlsx, .csv, .txt, .md, .pdf, or a .zip of them)
-        <input className={styles.input} type="file" name="file" accept=".docx,.xlsx,.csv,.txt,.md,.pdf,.zip" />
+        <input
+          className={styles.input}
+          type="file"
+          name="file"
+          accept=".docx,.xlsx,.csv,.txt,.md,.pdf,.zip"
+          onChange={() => {
+            // A new file has to be checked on its own: drop the last file's warning and tick.
+            setConfirmed(false);
+            setOutcome({ kind: "idle" });
+          }}
+        />
       </label>
       <label className={styles.field}>
         Tags (comma-separated, optional)

@@ -6,6 +6,7 @@ import { strToU8, zipSync } from "fflate";
 import ExcelJS from "exceljs";
 import { parseCsv } from "../imports/csv.js";
 import { documentExcerpts, MAX_ZIP_FILES, ZipTooLargeError } from "../imports/documents.js";
+import { MAX_EXCERPT_CHARS, packUnits } from "../imports/excerpts.js";
 
 /** A minimal Word document whose paragraphs are `paragraphs`. */
 function docx(paragraphs: string[]): Uint8Array {
@@ -97,9 +98,27 @@ describe("documentExcerpts", () => {
     expect(excerpts.every((e) => e.text.startsWith("Event | Lesson\n") && e.text.length <= 1500)).toBe(true);
   });
 
+  it("shortens a header row too long to repeat in full, instead of hanging", async () => {
+    // 120 columns join to well over MAX_EXCERPT_CHARS, which once left no room for the rows.
+    const header = Array.from({ length: 120 }, (_, i) => `Column number ${i}`);
+    const rows = Array.from({ length: 20 }, (_, r) => header.map((_, c) => `r${r}c${c}`));
+    const csv = [header, ...rows].map((cells) => cells.join(",")).join("\n");
+    const { excerpts, skipped } = await documentExcerpts("Wide.csv", strToU8(csv));
+    expect(skipped).toEqual([]);
+    expect(excerpts.length).toBeGreaterThan(1);
+    expect(excerpts.every((e) => e.text.startsWith("Column number 0 | ") && e.text.length <= MAX_EXCERPT_CHARS)).toBe(true);
+  });
+
   it("refuses a zip with too many files", async () => {
     const files = Object.fromEntries(Array.from({ length: MAX_ZIP_FILES + 1 }, (_, i) => [`f${i}.txt`, strToU8("x")]));
     await expect(documentExcerpts("Huge.zip", zipSync(files))).rejects.toBeInstanceOf(ZipTooLargeError);
+  });
+});
+
+describe("packUnits", () => {
+  it("refuses a size of zero or less, which could never shorten a long unit", () => {
+    expect(() => packUnits(["a long line of text"], 0)).toThrow("Excerpt size must be at least 1");
+    expect(() => packUnits(["a long line of text"], -5)).toThrow("Excerpt size must be at least 1");
   });
 });
 
