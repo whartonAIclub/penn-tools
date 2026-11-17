@@ -84,6 +84,7 @@ TARGETS = {
     "wemba-sync": local("/tools/wemba-sync"),  # needs sign-in: its image was taken signed in, with sample data
     "student-discount-maximizer": local("/tools/student-discount-maximizer"),  # needs the seeded deals (db:deploy)
     "pass-it-on": local("/tools/pass-it-on"),  # needs sign-in and board access: its image was taken signed in, with sample data
+    "chatprep": local("/tools/chatprep"),  # needs sign-in: its image was taken signed in
 }
 
 
