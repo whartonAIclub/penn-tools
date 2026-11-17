@@ -95,6 +95,13 @@ describe("suggestThemes", () => {
 
   it("writes theme names in sentence case, keeping acronyms", () => {
     expect(sentenceCase("Audio Visual Equipment")).toBe("Audio visual equipment");
-    expect(sentenceCase("AV and WiFi")).toBe("AV and wifi");
+    expect(sentenceCase("AV and WiFi")).toBe("AV and WiFi");
+  });
+});
+
+describe("theme suggestions after the second review", () => {
+  it("keeps suggestions that only share a one-word theme or Other, and keeps product names", async () => {
+    const { ai } = fakeAI({ themes: [{ name: "Hackathon Schedule", covers: "" }, { name: "Other Logistics", covers: "" }, { name: "PennTools Platform", covers: "" }, { name: "Claude Code Onboarding", covers: "" }, { name: "hackathon", covers: "" }] });
+    expect(await suggestThemes(ai, "openai", ["a"], ["Hackathon", "Other"])).toEqual(["Hackathon schedule", "Other logistics", "PennTools platform", "Claude code onboarding"]);
   });
 });

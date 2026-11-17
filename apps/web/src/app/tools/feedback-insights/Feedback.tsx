@@ -459,7 +459,7 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>From</th>
+                    <th>Response</th>
                     <th>Comment</th>
                     <th>Theme</th>
                     <th>Topic</th>
@@ -479,8 +479,8 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
                       </tr>
                     ) : (
                       <tr key={index} className={tag.dropped ? styles.rowMuted : undefined}>
-                        <td data-label="From">
-                          {tag.other ? `${tag.source} · ${tag.responseId}` : tag.responseNumber != null ? `Response ${tag.responseNumber}` : "Unknown response"}
+                        <td data-label="Response">
+                          {tag.other ? `${tag.source} · ${tag.responseId}` : tag.responseNumber != null ? `#${tag.responseNumber}` : "Unknown"}
                           {tag.dropped && <span className={styles.quote}>{DROPPED[tag.dropped]}</span>}
                         </td>
                         <td data-label="Comment">

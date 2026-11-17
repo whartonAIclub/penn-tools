@@ -16,6 +16,13 @@ const NOT_NAMES = new Set(
     " ",
   ),
 );
+// Capitalized words after "thanks" or "mentor" that name an organization or product, not a person.
+const NOT_PEOPLE = new Set(
+  "penn penntools wharton upenn claude anthropic openai chatgpt gpt google microsoft apple amazon meta linkedin slack zoom github notion canvas waiac pmt ai companies company firms organizers organizer everyone team club".split(" "),
+);
+// "Thanks Acme team", "mentor Google engineer": a group or job after the word.
+const GROUP_AFTER = /^(?:\s+[A-Z][\w'-]*)*\s+(?:team|teams|club|clubs|platform|staff|folks|people|crew|engineers?|companies|company|firm|program|school|center|office)\b/i;
+
 // A lowercase word after a role is a name only when the sentence goes on like this.
 const AFTER_NAME = /^\s*(?:$|[,.!;)]|(?:was|is|were|helped|did|didn't|never|always|said|told|kept|and|who|really|actually|literally|basically|carried|saved)\b)/i;
 
@@ -35,6 +42,8 @@ function namesIn(text: string): { start: number; end: number }[] {
     if (NOT_NAMES.has(word.toLowerCase())) continue;
     const after = m.index + m[0].length;
     if (!/^[A-Z]/.test(word) && !AFTER_NAME.test(text.slice(after))) continue;
+    // "Thanks PennTools", "thank you Wharton AI Club", "Partner Companies": an organization, not a person.
+    if (NOT_PEOPLE.has(word.toLowerCase()) || /^[A-Z][a-z]*[A-Z]/.test(word) || GROUP_AFTER.test(text.slice(after))) continue;
     // "Jamie Lee": capitalized words right after a capitalized name are the rest of it.
     const rest = /^[A-Z]/.test(word) ? text.slice(after).match(/^(?:\s+[A-Z][a-z'-]+)+/) : null;
     found.push({ start: after - word.length, end: after + (rest ? rest[0].length : 0) });

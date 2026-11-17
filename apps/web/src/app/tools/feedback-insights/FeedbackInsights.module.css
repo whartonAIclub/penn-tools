@@ -48,7 +48,7 @@
 .surveyName {
   margin: 2px 0 0;
   color: var(--section-label);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .intro {
@@ -68,7 +68,7 @@
   margin: 0;
   font-size: 0.92rem;
   font-weight: 650;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .muted {
@@ -315,7 +315,7 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .badge {
@@ -352,7 +352,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-columns: 172px minmax(0, 1fr);
   align-items: start;
   gap: 24px;
 }
@@ -466,7 +466,7 @@
   margin: 0;
   color: var(--section-label);
   font-size: 0.82rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .cards {
@@ -502,7 +502,7 @@
   line-height: 1.5;
   text-align: left;
   vertical-align: top;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .table th {
@@ -524,6 +524,17 @@
 .table td[data-label="Comment"] {
   min-width: 280px;
   max-width: 60ch;
+}
+
+/* Short columns stay on one line, so "#12", "Pain point" and a theme name never break mid-word. */
+.table td[data-label="Response"],
+.table td[data-label="Type"] {
+  white-space: nowrap;
+}
+
+.table td[data-label="Theme"],
+.table td[data-label="Topic"] {
+  min-width: 120px;
 }
 
 .table tr:last-child td {
@@ -618,7 +629,7 @@
   margin: 0;
   font-size: 1.02rem;
   font-weight: 650;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .rankStats {
@@ -653,7 +664,7 @@
 
 .pairs dd {
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .stackHead,
@@ -706,7 +717,7 @@
 
 .barLabel,
 .optionLabel {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .barTrack {
@@ -778,7 +789,7 @@
 
 .answerText {
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
 }
 
@@ -801,7 +812,7 @@
 
 .answers dd {
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .filters {

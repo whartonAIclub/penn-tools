@@ -96,3 +96,14 @@ describe("themes from ratings", () => {
     expect(w.setup.themes).toEqual(["Food", "Lectures", "Other"]);
   });
 });
+
+describe("second review", () => {
+  it("doesn't mask organizations and products as names", () => {
+    expect(maskPersonalInfo("Thanks PennTools team")).toBe("Thanks PennTools team");
+    expect(maskPersonalInfo("Thank you Wharton AI Club")).toBe("Thank you Wharton AI Club");
+    expect(maskPersonalInfo("our mentor Google engineer")).toBe("our mentor Google engineer");
+    expect(maskPersonalInfo("Partner Companies were great")).toBe("Partner Companies were great");
+    expect(maskPersonalInfo("thanks Claude")).toBe("thanks Claude");
+    expect(maskPersonalInfo("Thanks Ananya!")).toBe("Thanks [name]!");
+  });
+});
