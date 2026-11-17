@@ -7,7 +7,7 @@
 // development user counts as a site admin, so the upload page can be tried.
 
 export const TOOL_ADMIN_IDS: readonly string[] = [
-  // Avvalzameer Bhatia: (add live user id)
+  "4e522d7d-4de3-4110-90b2-f02bcc2ed8cc", // Avvalzameer Bhatia
   // Yolanda Ye: (add live user id)
   // Shatakshi Mohan: (add live user id)
 ];
