@@ -35,3 +35,5 @@ export { parseTripRow } from "./sheet.js";
 export { missingColumns } from "./sheet.js";
 export { SHEET_COLUMNS } from "./sheet.js";
 export type { SheetRow } from "./sheet.js";
+export { importSheet, recordFailedImport, parseCsv } from "./importSheet.js";
+export type { ImportResult } from "./importSheet.js";
