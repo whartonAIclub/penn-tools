@@ -65,7 +65,7 @@ export function Summary({ ws, analysis, goTo }: TabProps & { goTo: GoTo }) {
         <h2 className={styles.h2}>What to change first</h2>
         {analysis.recommendations.length === 0 ? (
           <p className={styles.empty}>
-            Nothing to rank yet. Recommendations come from written answers tagged as pain points.{" "}
+            Nothing to rank yet. Recommendations come from written answers tagged as pain points or ideas.{" "}
             <button type="button" className={styles.linkButton} onClick={() => goTo("feedback")}>
               Tag the written answers
             </button>
@@ -91,7 +91,7 @@ export function Summary({ ws, analysis, goTo }: TabProps & { goTo: GoTo }) {
                             type="button"
                             className={styles.countLink}
                             title="See the comments behind this"
-                            onClick={() => goTo("feedback", { theme: r.theme, type: "Pain point" })}
+                            onClick={() => goTo("feedback", { theme: r.theme, type: r.problemMentions > 0 ? "Pain point" : "Idea" })}
                           >
                             <strong>{r.people}</strong> {plural(r.people, "person", "people")} · see comments
                           </button>
@@ -106,7 +106,7 @@ export function Summary({ ws, analysis, goTo }: TabProps & { goTo: GoTo }) {
                           )}
                         </span>
                         <span
-                          title={`Score ${r.score}: ${r.people} × a rating gap of ${r.rating == null ? ws.setup.noRatingGap : Math.round((5 - r.rating) * 100) / 100}`}
+                          title={`Score ${r.score}: ${r.people} × a rating gap of ${r.rating == null ? ws.setup.noRatingGap : Math.round((5 - r.rating) * 100) / 100}${r.problemMentions > 0 ? "" : " × ½ (suggestions only)"}`}
                         >
                           <Badge tone={r.priority >= 4 ? "bad" : r.priority === 3 ? "warn" : "info"}>Priority {r.priority} of 5</Badge>
                         </span>
@@ -429,7 +429,8 @@ export function HowItWorks({ ws, analysis }: TabProps) {
       <p>
         Each theme gets a score: the number of different people who raised a pain point in it × how far its rating is from 5. A theme named the same as a rating
         question uses that rating; any other theme uses a gap of {ws.setup.noRatingGap}. Ten people complaining about something rated 2.9 outranks three people
-        complaining about something rated 4.1.
+        complaining about something rated 4.1. A theme where people only made suggestions, without describing a problem, counts at half: people who
+        suggested something × the gap × ½.
       </p>
       <p>
         The score is then put on a 1 to 5 scale against the highest score in the survey, so the top problem is always 5 and one with half its score is a 3.
