@@ -79,6 +79,10 @@ describe("validateTrip", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("accepts a trip with no organizer name", () => {
+    expect(problemsOf({ organizerName: "" })).toEqual([]);
+  });
+
   it("accepts every sample trip", () => {
     for (const trip of SAMPLE_TRIPS) expect(validateTrip(trip)).toEqual({ ok: true, trip });
   });
@@ -98,7 +102,6 @@ describe("validateTrip", () => {
     ["a blank city", { cities: ["Tokyo", " "] }, "Cities has a blank"],
     ["an old region", { region: "Latin America" }, "Region"],
     ["an unknown timing", { timing: "summer" }, "Timing"],
-    ["a blank organizer", { organizerName: "" }, "Organizer name is required"],
     ["a date in the wrong format", { startDate: "3/6/2027" }, "Start date must be"],
     ["a date that doesn't exist", { endDate: "2027-02-30" }, "End date must be"],
     ["a trip that ends before it starts", { endDate: "2027-03-05" }, "End date is before"],

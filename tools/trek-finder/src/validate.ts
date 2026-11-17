@@ -100,7 +100,6 @@ function checkTrip(draft: TripDraft): string[] {
   if (draft.cities.some((city) => !isFilled(city))) problems.push("Cities has a blank entry.");
   if (!isOneOf(REGIONS, draft.region)) problems.push("Region isn't one of the allowed regions.");
   if (!isOneOf(TIMINGS, draft.timing)) problems.push("Timing must be break, opportunity_week or other.");
-  if (!isFilled(draft.organizerName)) problems.push("Organizer name is required.");
 
   const startOk = isDate(draft.startDate);
   const endOk = isDate(draft.endDate);

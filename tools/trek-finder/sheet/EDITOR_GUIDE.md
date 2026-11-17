@@ -65,7 +65,7 @@ You only do this once.
 
 | Column | What to enter | Example |
 |---|---|---|
-| **Organizer name** | The club or department running it | `Wharton Asia Club` |
+| Organizer name | The club or department running it. Leave blank if there isn't one. | `Wharton Asia Club` |
 | Organizer contact | A person's name | `Alex Example` |
 | Organizer email | Use a club address, since the Sheet is public | `treks@example.edu` |
 | Application URL | Full link, starting with `https://` | |
