@@ -21,6 +21,7 @@
     "@penntools/tool-choose-mba-major": "workspace:*",
     "@penntools/tool-coursematch-assist": "workspace:*",
     "@penntools/tool-deadline-calendar": "workspace:*",
+    "@penntools/tool-industry-connector": "workspace:*",
     "@penntools/tool-keepintouch": "workspace:*",
     "@penntools/tool-non-wharton-course-manager": "workspace:*",
     "@penntools/tool-pass-it-on": "workspace:*",

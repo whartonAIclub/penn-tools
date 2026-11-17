@@ -53,6 +53,9 @@ importers:
       '@penntools/tool-deadline-calendar':
         specifier: workspace:*
         version: link:../../tools/deadline-calendar
+      '@penntools/tool-industry-connector':
+        specifier: workspace:*
+        version: link:../../tools/industry-connector
       '@penntools/tool-keepintouch':
         specifier: workspace:*
         version: link:../../tools/keepintouch
@@ -293,6 +296,22 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/industry-connector:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
