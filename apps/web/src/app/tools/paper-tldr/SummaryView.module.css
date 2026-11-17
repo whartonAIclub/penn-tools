@@ -1,0 +1,214 @@
+.sheet {
+  --blue: #1a5fb4;
+  --tint: #eef3fb;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--input-shadow);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.sheet p {
+  margin: 0 0 8px;
+}
+
+.header {
+  margin-bottom: 14px;
+}
+
+.topline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 0.72rem;
+  color: var(--section-label);
+  margin-bottom: 8px;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.authors {
+  font-size: 0.82rem;
+}
+
+.venue {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--section-label);
+}
+
+.claim {
+  background: var(--tint);
+  border-left: 4px solid var(--blue);
+  padding: 12px 14px;
+  border-radius: 0 6px 6px 0;
+  margin: 0 0 18px !important;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+
+@media (max-width: 640px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.column {
+  min-width: 0;
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.h3 {
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.accent {
+  color: var(--blue);
+}
+
+.terms {
+  margin: 8px 0 0;
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+}
+
+.termRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 34%) 1fr;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.termRow dt {
+  font-weight: 700;
+}
+
+.termRow dd {
+  margin: 0;
+}
+
+.symbol {
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+}
+
+.callout {
+  background: #f3f4f6;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.steps,
+.bullets,
+.plusMinus {
+  margin: 6px 0 8px;
+  padding-left: 18px;
+}
+
+.steps li,
+.bullets li {
+  margin-bottom: 4px;
+}
+
+.equation {
+  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 8px;
+  background: #fafafa;
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.table th {
+  text-align: left;
+  border-bottom: 1.5px solid #333;
+  padding: 4px 6px;
+}
+
+.table td {
+  border-bottom: 1px solid #e3e3e3;
+  padding: 4px 6px;
+  vertical-align: top;
+}
+
+.confidence {
+  background: #f3f4f6;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.plusMinus {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.plusMinus li {
+  padding-left: 16px;
+  position: relative;
+  margin-bottom: 3px;
+}
+
+.plus::before,
+.minus::before {
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}
+
+.plus::before {
+  content: "+";
+  color: var(--blue);
+}
+
+.minus::before {
+  content: "–";
+  color: #c01c28;
+}
+
+.footer {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 0.76rem;
+  color: #333;
+}
