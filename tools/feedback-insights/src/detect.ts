@@ -223,6 +223,9 @@ export function splitOptions(cell: string, known: string[]): string[] {
   return [...picked, ...pieces];
 }
 
+// A standalone rating of the whole event or program, not of one part of it.
+const OVERALL = /\b(overall|in general|as a whole)\b|\b(satisf\w*|happy) (were you |are you )?(with|about) (the|this|our) (\w+ )?(program|event|hackathon|bootcamp|course|class|workshop|series|conference|retreat|trek|cohort)\b/i;
+
 /** The column that identifies responses: one named like a timestamp whose cells are dates and times. */
 export function detectTimestampColumn(table: Table): string | null {
   const named = table.columns.filter((c) => /^(timestamp|submitted( at)?|submission (time|date)|date submitted|start time|completion time)$/i.test(c.trim()));
@@ -306,7 +309,8 @@ export function detectSetup(table: Table): Setup {
       // Identity columns are normally stripped before this; one that gets here is never analyzed unless someone turns it on.
       return isIdentityColumn(column) || NOT_A_QUESTION.test(column.trim()) ? { ...q, kind: "ignore" } : q;
     });
-  const rated = questions.filter((q) => q.kind === "rating").map((q) => q.label);
+  // Each rated part is a theme; a rating of the whole thing ("How satisfied were you overall?") isn't one, or every comment would fit it.
+  const rated = questions.filter((q) => q.kind === "rating" && !(q.group == null && OVERALL.test(q.column))).map((q) => q.label);
   return {
     timestampColumn,
     questions,

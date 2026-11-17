@@ -89,3 +89,10 @@ describe("themeSample", () => {
     expect(themeSample(excluded, 2)).toEqual(["Worked thing number 1", "Change thing number 1"]);
   });
 });
+
+describe("themes from ratings", () => {
+  it("makes a theme of each rated part, but not of an overall rating", () => {
+    const w = ws(["Timestamp,How useful was the bootcamp overall?,How satisfied were you with the hackathon?,How was the food?,Rate each part: [Lectures]", "2026-11-01 10:00:00,4,5,3,4", "2026-11-01 11:00:00,2,4,2,5"].join("\n"));
+    expect(w.setup.themes).toEqual(["Food", "Lectures", "Other"]);
+  });
+});

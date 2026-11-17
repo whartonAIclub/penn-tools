@@ -69,7 +69,7 @@ const SYSTEM = `You tag written answers from an anonymous feedback survey so the
 For each answer, return one tag per separate point it makes. Most answers make one point; split only when an answer clearly makes two.
 - quote: the part of the answer the tag is about, copied word for word. If the answer names a person, replace the name with their role in square brackets, like [mentor] or [teammate].
 - theme: exactly one theme from the list given. Pick the theme the fix would belong to. Use "${OTHER_THEME}" only when nothing else fits.
-- topic: a 2-4 word label for the specific issue, such as "Slow PR review". Reuse a topic from the existing list when it means the same thing.
+- topic: a 2-4 word label for the specific issue, such as "Slow PR review". Reuse a topic from the existing list when it means the same thing, and give answers in this request that make the same point the same topic ("Too fast" for both "went way too fast" and "couldn't keep up"), so they are counted together.
 - type: "Pain point" if something went wrong, slowed people down or wasn't useful; "Working" if something helped and should be kept; "Idea" if it suggests a change or addition. Judge by what the answer says, not by which question it answers.
 
 Return no tags for an answer that says nothing to act on (for example "n/a", "nothing", "idk").

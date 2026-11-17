@@ -207,6 +207,8 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
     setProgress({ done: 0, total: todo.length });
     let added = 0;
     let nothing = 0;
+    // Answers the AI skipped without saying why: they stay to tag.
+    let missed = 0;
     let privacy = 0;
     let knownTopics = topics;
     const made = new Set<string>();
@@ -231,6 +233,7 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
         privacy += proposed.filter(needsPrivacyLook).length;
         added += proposed.length;
         nothing += empty.length;
+        missed += batch.length - empty.length - new Set(proposed.map((p) => p.ref)).size;
         update((w): Workspace => {
           const tags: Tag[] = [...w.tags];
           for (const p of proposed) {
@@ -258,12 +261,13 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
     }
     setFresh(made);
     setProgress(null);
-    if (added + nothing > 0) {
+    if (added + nothing + missed > 0) {
       setOnlyNew(added > 0);
       setResult(
         `AI added ${added} ${plural(added, "tag", "tags")}` +
           (nothing ? ` and found nothing to tag in ${nothing} ${plural(nothing, "answer", "answers")}` : "") +
           ". Read through them below and edit or delete any that are wrong." +
+          (missed ? ` It skipped ${missed} ${plural(missed, "answer", "answers")}; they are still in the list to sort, so run it again or tag them by hand.` : "") +
           (privacy ? ` ${privacy} may still show a name: see the warning at the top of the page.` : ""),
       );
     }
