@@ -5,7 +5,7 @@
 
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
-import { CATEGORIES, DEAL_TYPES, KINDS, NEIGHBORHOODS } from "./discounts.js";
+import { CATEGORIES, DEAL_TYPES, KINDS, LIMITS, NEIGHBORHOODS, isWebLink, sortKinds } from "./discounts.js";
 
 export const MAX_PASTED_TEXT_LENGTH = 8000;
 
@@ -56,7 +56,31 @@ export function checkPastedText(value: unknown): string | null {
   return null;
 }
 
-/** The deal described in `pastedText`, as a draft for the form. */
+/**
+ * The draft cut to what the form accepts, so the student never sees a value
+ * that only fails on save: text is shortened to LIMITS, kinds lose repeats,
+ * and a link that isn't https, or a code too long to be real, is dropped
+ * rather than cut, since half a link or code would be wrong.
+ */
+export function fitDraft(draft: DealDraft): DealDraft {
+  const cut = (value: string | null, max: number) => (value === null ? null : value.trim().slice(0, max).trim() || null);
+  const url = draft.url?.trim() ?? null;
+  const code = draft.code?.trim() ?? null;
+  return {
+    ...draft,
+    kinds: draft.kinds ? sortKinds(draft.kinds) : null,
+    business: cut(draft.business, LIMITS.business),
+    title: cut(draft.title, LIMITS.title),
+    appliesTo: cut(draft.appliesTo, LIMITS.appliesTo),
+    discount: cut(draft.discount, LIMITS.discount),
+    code: code && code.length <= LIMITS.code ? code : null,
+    location: cut(draft.location, LIMITS.location),
+    url: url && isWebLink(url) ? url : null,
+    howToClaim: cut(draft.howToClaim, LIMITS.howToClaim),
+  };
+}
+
+/** The deal described in `pastedText`, as a draft for the form (see fitDraft). */
 export async function fillFromText(ai: AI, provider: AIProvider, pastedText: string): Promise<DealDraft> {
   const { object } = await ai.generateObject({
     provider,
@@ -66,5 +90,5 @@ export async function fillFromText(ai: AI, provider: AIProvider, pastedText: str
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: pastedText }],
   });
-  return object;
+  return fitDraft(object);
 }

@@ -1,7 +1,7 @@
 // The tool's database client, and how to tell "not set up yet" from a real
-// failure. The studentdiscountmaximizer role and schema exist only once the
-// Platform team lists the tool in TOOLS in packages/platform/scripts/setup-tools.mjs
-// and db:deploy has run.
+// failure. The studentdiscountmaximizer role and schema are created by
+// db:deploy (packages/platform/scripts/setup-tools.mjs), which every deploy
+// runs, so "not set up" only happens locally before it has run.
 
 import "server-only";
 import { toolSql } from "@penntools/platform/db";
@@ -9,11 +9,11 @@ import { toolSql } from "@penntools/platform/db";
 export const DB_ROLE = "studentdiscountmaximizer";
 
 export const NOT_SET_UP_MESSAGE =
-  "Student Discount Central's database isn't set up yet. It needs the Platform team to register the tool's database.";
+  "Student Discount Central's database isn't set up yet. Locally, run db:deploy (see Common commands in README.md) to create it.";
 
 export const OUT_OF_DATE_MESSAGE =
   "Student Discount Central's database is out of date: the code expects a newer schema.sql than the database has. " +
-  "It updates on the next deploy; locally, re-apply schema.sql.";
+  "Locally, run db:deploy (see Common commands in README.md) to update it.";
 
 export function db() {
   return toolSql(DB_ROLE);

@@ -9,13 +9,19 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { Sql } from "postgres";
 import {
+  DAILY_STATUS_CHANGE_LIMIT,
   DAILY_SUBMISSION_LIMIT,
   DiscountError,
+  PAGE_SIZE,
   addDiscount,
   checkNewDiscount,
+  compareDeals,
   dealSummary,
   type DealType,
+  type Discount,
+  listDiscountPage,
   listDiscounts,
+  matchesFilters,
   mapsUrl,
   markExpired,
   restore,
@@ -37,7 +43,7 @@ let admin: Sql;
 let sql: Sql;
 
 const DEAL = {
-  kind: "code",
+  kinds: ["code"],
   business: "Test Bagels",
   title: "Bagel deal",
   dealType: "percent",
@@ -53,7 +59,7 @@ const DEAL = {
 
 const LOCAL = {
   ...DEAL,
-  kind: "local",
+  kinds: ["local"],
   code: null,
   location: "3601 Walnut St",
   neighborhood: "university-city",
@@ -70,7 +76,7 @@ describe("mapsUrl", () => {
 });
 
 describe("dealSummary", () => {
-  const summary = (dealType: DealType | null, amount: number | null, appliesTo: string | null, discount = "") =>
+  const summary = (dealType: DealType, amount: number | null, appliesTo: string | null, discount = "") =>
     dealSummary({ dealType, amount, appliesTo, discount });
 
   it("builds a headline from the deal type", () => {
@@ -84,9 +90,9 @@ describe("dealSummary", () => {
     expect(summary("student_price", null, null)).toBe("Student price");
   });
 
-  it("uses the details for other and older deals", () => {
+  it("uses the details for other deals", () => {
     expect(summary("other", null, null, "Free coffee refills")).toBe("Free coffee refills");
-    expect(summary(null, null, null, "50% off")).toBe("50% off");
+    expect(summary("other", null, null)).toBe("Student discount");
   });
 });
 
@@ -130,6 +136,34 @@ describe("checkNewDiscount", () => {
     expect(() => checkNewDiscount({ business: "X", dealType: "other" })).toThrow("Enter details.");
   });
 
+  it("accepts only plain decimal amounts above zero once rounded to the cent", () => {
+    for (const amount of ["0.001", "0.004", "0x14", "2e1", "-5", "1.2.3", "Infinity", "NaN"]) {
+      expect(() => checkNewDiscount({ business: "X", dealType: "percent", amount })).toThrow("as a number");
+    }
+    expect(checkNewDiscount({ business: "X", dealType: "amount", amount: "0.005" }).amount).toBe(0.01);
+    expect(checkNewDiscount({ business: "X", dealType: "amount", amount: ".5" }).amount).toBe(0.5);
+    expect(checkNewDiscount({ business: "X", dealType: "amount", amount: "1,000" }).amount).toBe(1000);
+    expect(checkNewDiscount({ business: "X", dealType: "percent", amount: 20 }).amount).toBe(20);
+  });
+
+  it("drops fields that don't apply to the deal, whatever the browser sends", () => {
+    // A code typed before unticking "Promo code", and an address before unticking "In person".
+    expect(checkNewDiscount({ ...DEAL, kinds: ["online"], code: "PENN37" }).code).toBeNull();
+    expect(checkNewDiscount({ ...LOCAL, kinds: ["online"] })).toMatchObject({ location: null, neighborhood: null });
+    // Too long, but not saved, so not a problem either.
+    expect(checkNewDiscount({ ...DEAL, kinds: ["online"], code: "C".repeat(500) }).code).toBeNull();
+    // What it applies to, left over from switching the deal type to "other".
+    expect(checkNewDiscount({ ...DEAL, dealType: "other", appliesTo: "bowls" }).appliesTo).toBeNull();
+    // An amount for a deal type that has none.
+    expect(checkNewDiscount({ ...DEAL, dealType: "bogo", amount: "37" }).amount).toBeNull();
+    // Kept when they apply.
+    expect(checkNewDiscount({ ...LOCAL, kinds: ["code", "local"], code: "PENN37" })).toMatchObject({
+      code: "PENN37",
+      location: "3601 Walnut St",
+      neighborhood: "university-city",
+    });
+  });
+
   it("requires a code for promo codes; address, link and neighborhood are optional", () => {
     expect(() => checkNewDiscount({ ...DEAL, code: "" })).toThrow("Enter code.");
     expect(checkNewDiscount({ ...LOCAL, location: " ", url: "" })).toMatchObject({ location: null, url: null });
@@ -145,22 +179,24 @@ describe("checkNewDiscount", () => {
 
   it("takes more than one way to use a deal, in a fixed order without repeats", () => {
     expect(checkNewDiscount({ ...LOCAL, kinds: ["local", "online", "local"] }).kinds).toEqual(["online", "local"]);
-    expect(checkNewDiscount({ ...LOCAL, kind: undefined, kinds: [] }).kinds).toEqual(["local"]);
-    expect(checkNewDiscount({ ...DEAL, kind: "online", code: null }).kinds).toEqual(["online"]);
+    expect(checkNewDiscount({ ...LOCAL, kinds: [] }).kinds).toEqual(["local"]);
+    expect(checkNewDiscount({ ...LOCAL, kinds: undefined }).kinds).toEqual(["local"]);
+    expect(checkNewDiscount({ ...DEAL, kinds: ["online"], code: null }).kinds).toEqual(["online"]);
     // In person among others keeps the neighborhood; a promo code among others still needs the code.
     expect(checkNewDiscount({ ...LOCAL, kinds: ["online", "local"] }).neighborhood).toBe("university-city");
     expect(() => checkNewDiscount({ ...LOCAL, kinds: ["code", "local"] })).toThrow("Enter code.");
     expect(() => checkNewDiscount({ ...LOCAL, kinds: ["local", "coupon"] })).toThrow("Choose where the deal is used");
   });
 
-  it("rejects links that aren't web addresses", () => {
-    for (const url of ["javascript:alert(1)", "bagels.example.com", "https://", "ftp://example.com/x"]) {
+  it("rejects links that aren't https web addresses", () => {
+    for (const url of ["javascript:alert(1)", "bagels.example.com", "https://", "ftp://example.com/x", "http://bagels.example.com"]) {
       expect(() => checkNewDiscount({ ...DEAL, url })).toThrow(DiscountError);
     }
   });
 
   it("rejects unknown kinds and categories, and overlong text", () => {
-    expect(() => checkNewDiscount({ ...DEAL, kind: "coupon" })).toThrow("Choose where the deal is used");
+    expect(() => checkNewDiscount({ ...DEAL, kinds: ["coupon"] })).toThrow("Choose where the deal is used");
+    expect(() => checkNewDiscount({ ...DEAL, kinds: "code" })).toThrow("Choose where the deal is used");
     expect(() => checkNewDiscount({ ...DEAL, dealType: "raffle" })).toThrow("Choose what kind of deal");
     expect(() => checkNewDiscount({ ...DEAL, category: "pets" })).toThrow("Choose a category");
     expect(() => checkNewDiscount({ ...DEAL, title: "x".repeat(151) })).toThrow("at most 150");
@@ -169,6 +205,59 @@ describe("checkNewDiscount", () => {
 
   it("accepts every starter deal", () => {
     for (const deal of starterDeals) expect(() => checkNewDiscount(deal)).not.toThrow();
+  });
+});
+
+describe("matchesFilters and compareDeals", () => {
+  const deal = (fields: Partial<Discount>): Discount => ({
+    id: "1",
+    kinds: ["local"],
+    business: "Loop Tacos",
+    title: null,
+    dealType: "bogo",
+    amount: null,
+    appliesTo: "tacos",
+    summary: "Buy one, get one free: tacos",
+    discount: "",
+    code: null,
+    location: "3601 Walnut St",
+    neighborhood: "university-city",
+    mapsUrl: null,
+    url: null,
+    howToClaim: "",
+    category: "food",
+    pennSpecific: false,
+    source: "student",
+    status: "active",
+    expiredReason: null,
+    statusChangedAt: "2026-11-01T00:00:00.000Z",
+    createdAt: "2026-11-01T00:00:00.000Z",
+    works: 0,
+    notWorking: 0,
+    myVote: null,
+    ...fields,
+  });
+
+  it("says whether a deal belongs in the list the board is showing", () => {
+    const tacos = deal({});
+    expect(matchesFilters(tacos, { status: "active" })).toBe(true);
+    expect(matchesFilters(tacos, { status: "expired" })).toBe(false);
+    // Restoring tacos while filtered to pizza promo codes: it doesn't belong.
+    expect(matchesFilters(tacos, { status: "active", kind: "code", search: "pizza" })).toBe(false);
+    expect(matchesFilters(tacos, { status: "active", kind: "local", category: "food", neighborhood: "university-city", search: " TACO " })).toBe(true);
+    expect(matchesFilters(tacos, { status: "active", audience: "penn" })).toBe(false);
+    expect(matchesFilters(tacos, { status: "active", audience: "general" })).toBe(true);
+    expect(matchesFilters(tacos, { status: "active", search: "walnut" })).toBe(true);
+    expect(matchesFilters(tacos, { status: "active", category: "tech" })).toBe(false);
+  });
+
+  it("orders deals as the database does for each sort", () => {
+    const a = deal({ id: "a", business: "apple", createdAt: "2026-11-01T00:00:00.000Z", works: 1 });
+    const b = deal({ id: "b", business: "Banana", createdAt: "2026-11-02T00:00:00.000Z", works: 5, notWorking: 1 });
+    const sorted = (sort: "az" | "top" | "new") => [b, a].sort((x, y) => compareDeals(x, y, sort)).map((d) => d.id);
+    expect(sorted("az")).toEqual(["a", "b"]);
+    expect([a, b].sort((x, y) => compareDeals(x, y, "new")).map((d) => d.id)).toEqual(["b", "a"]);
+    expect(sorted("top")).toEqual(["b", "a"]);
   });
 });
 
@@ -340,13 +429,43 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
     expect((await listDiscounts(sql, { userId: null, status: "expired" })).map((d) => d.id)).toContain(deal.id);
   });
 
-  it("restoring a deal clears its votes, so it starts fresh", async () => {
+  it("restoring a deal keeps its votes, but only new votes can expire it again", async () => {
     const deal = await addDiscount(sql, "gina", { ...DEAL, title: "Restore" });
+    await vote(sql, "w", deal.id, true);
     for (const user of ["a", "b", "c"]) await vote(sql, user, deal.id, false);
 
     const restored = await restore(sql, "gina", deal.id);
-    expect(restored).toMatchObject({ status: "active", expiredReason: null, works: 0, notWorking: 0 });
+    expect(restored).toMatchObject({ status: "active", expiredReason: null, works: 1, notWorking: 3 });
+    // 4 "doesn't work" in all, but only 1 since the restore.
+    expect((await vote(sql, "d", deal.id, false)).status).toBe("active");
+    // Voting again counts as a new vote.
     expect((await vote(sql, "a", deal.id, false)).status).toBe("active");
+    expect(await vote(sql, "b", deal.id, false)).toMatchObject({ status: "expired", expiredReason: "votes", works: 1, notWorking: 4 });
+  });
+
+  it("restoring a well-trusted deal that was marked expired keeps its record", async () => {
+    const deal = await addDiscount(sql, "gina", { ...DEAL, title: "Trusted" });
+    for (const user of ["t1", "t2", "t3", "t4"]) await vote(sql, user, deal.id, true);
+    await markExpired(sql, "troll", deal.id);
+    expect(await restore(sql, "gina", deal.id)).toMatchObject({ status: "active", works: 4, notWorking: 0 });
+  });
+
+  it(`limits each student to ${DAILY_STATUS_CHANGE_LIMIT} marks and ${DAILY_STATUS_CHANGE_LIMIT} restores a day`, async () => {
+    const deals = [];
+    for (let i = 0; i <= DAILY_STATUS_CHANGE_LIMIT; i++) deals.push(await addDiscount(sql, "owner", { ...DEAL, title: `Limit ${i}` }));
+    const last = deals[DAILY_STATUS_CHANGE_LIMIT]!;
+
+    for (const deal of deals.slice(0, DAILY_STATUS_CHANGE_LIMIT)) await markExpired(sql, "eraser", deal.id);
+    await expect(markExpired(sql, "eraser", last.id)).rejects.toThrow(`mark up to ${DAILY_STATUS_CHANGE_LIMIT} deals expired a day`);
+    // Marking a deal that's already expired changes nothing, and isn't refused for it either way.
+    expect((await markExpired(sql, "someone", deals[0]!.id)).status).toBe("expired");
+    // Other students aren't limited by it.
+    expect((await markExpired(sql, "someone", last.id)).status).toBe("expired");
+
+    for (const deal of deals.slice(0, DAILY_STATUS_CHANGE_LIMIT)) await restore(sql, "eraser", deal.id);
+    await expect(restore(sql, "eraser", last.id)).rejects.toThrow(`restore up to ${DAILY_STATUS_CHANGE_LIMIT} deals a day`);
+    // Voting isn't limited.
+    expect((await vote(sql, "eraser", deals[0]!.id, false)).myVote).toBe(false);
   });
 
   it("lets a student mark a deal expired, and anyone restore it", async () => {
@@ -362,6 +481,51 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
     await expect(vote(sql, "jo", "not-a-uuid", true)).rejects.toThrow("doesn't exist");
     await expect(markExpired(sql, "jo", missing)).rejects.toThrow("doesn't exist");
     await expect(restore(sql, "jo", missing)).rejects.toThrow("doesn't exist");
+  });
+
+  it("keeps to the daily limits when a student's requests arrive at the same moment", async () => {
+    // A client with several connections, so the requests really run at once.
+    const parallel = postgres(databaseUrl!, { max: 10, onnotice: () => {}, connection: { search_path: schema } });
+    try {
+      const adds = await Promise.allSettled(
+        Array.from({ length: DAILY_SUBMISSION_LIMIT + 10 }, (_, i) => addDiscount(parallel, "burst", { ...DEAL, title: `Burst ${i}` })),
+      );
+      expect(adds.filter((r) => r.status === "fulfilled")).toHaveLength(DAILY_SUBMISSION_LIMIT);
+
+      const targets = (await listDiscountPage(parallel, { userId: null, status: "active", search: "Burst" })).deals;
+      const marks = await Promise.allSettled(targets.map((d) => markExpired(parallel, "burst-eraser", d.id)));
+      expect(marks.filter((r) => r.status === "fulfilled")).toHaveLength(DAILY_STATUS_CHANGE_LIMIT);
+    } finally {
+      await parallel.end();
+    }
+  });
+
+  it(`shows ${PAGE_SIZE} deals at a time, and says when there are more`, async () => {
+    // More deals than one page, added directly (the daily limit would stop a student).
+    const rows = Array.from({ length: PAGE_SIZE + 5 }, (_, i) => ({
+      kinds: ["online"],
+      business: `Pgx ${String(i).padStart(3, "0")}`,
+      deal_type: "bogo",
+      category: "other",
+      source: "student",
+      created_by: "pager",
+    }));
+    await sql`INSERT INTO discounts ${sql(rows)}`;
+
+    const first = await listDiscountPage(sql, { userId: null, status: "active", search: "Pgx", sort: "az" });
+    expect(first.deals).toHaveLength(PAGE_SIZE);
+    expect(first.hasMore).toBe(true);
+    const second = await listDiscountPage(sql, { userId: null, status: "active", search: "Pgx", sort: "az", offset: PAGE_SIZE });
+    expect(second).toMatchObject({ hasMore: false });
+    expect(second.deals.map((d) => d.business)).toEqual(rows.slice(PAGE_SIZE).map((r) => r.business));
+    expect(new Set([...first.deals, ...second.deals].map((d) => d.id)).size).toBe(PAGE_SIZE + 5);
+  });
+
+  it("rejects a deal the database wouldn't accept even without the checks", async () => {
+    const bad = { kinds: ["coupon"], business: "X", deal_type: "bogo", category: "other", source: "student" };
+    await expect(sql`INSERT INTO discounts ${sql(bad)}`).rejects.toThrow();
+    await expect(sql`INSERT INTO discounts ${sql({ ...bad, kinds: [] })}`).rejects.toThrow();
+    await expect(sql`INSERT INTO discounts ${sql({ ...bad, kinds: ["online"], amount: 0 })}`).rejects.toThrow();
   });
 
   it(`limits each student to ${DAILY_SUBMISSION_LIMIT} new deals a day`, async () => {

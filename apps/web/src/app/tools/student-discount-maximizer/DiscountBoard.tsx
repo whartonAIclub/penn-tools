@@ -5,15 +5,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AIProvider } from "@penntools/core/ai";
-import type {
-  Discount,
-  DiscountAudience,
-  DiscountCategory,
-  DiscountKind,
-  Neighborhood,
-} from "@penntools/tool-student-discount-maximizer";
+import {
+  compareDeals,
+  matchesFilters,
+  type Discount,
+  type DiscountAudience,
+  type DiscountCategory,
+  type DiscountKind,
+  type DiscountPage,
+  type Neighborhood,
+} from "@penntools/tool-student-discount-maximizer/discounts";
 import { castVote, expireDeal, loadDiscounts, restoreDeal, type ActionResult, type Filters } from "./actions";
 import { AddDiscountForm, type DealTypeOption, type FormLimits } from "./AddDiscountForm";
+import { callAction } from "./callAction";
 import styles from "./DiscountBoard.module.css";
 
 export interface Option<T extends string> {
@@ -27,19 +31,27 @@ const AUDIENCES: { value: DiscountAudience | null; label: string }[] = [
   { value: "general", label: "General" },
 ];
 
-const SIGN_IN_HINT ="Sign in with the button at the top right to vote, add deals or mark them expired.";
+const SIGN_IN_HINT = "Sign in with the button at the top right to vote, add deals or mark them expired.";
 
-/** Runs a server action; if the call itself fails (e.g. offline), that's an error too. */
-async function call<T>(action: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
-  try {
-    return await action();
-  } catch {
-    return { ok: false, error: { message: "Something went wrong. Try again." } };
-  }
+/** The Expired section lists every expired deal, newest first. */
+const EXPIRED_FILTERS: Filters = {
+  status: "expired",
+  kind: null,
+  category: null,
+  audience: null,
+  neighborhood: null,
+  search: "",
+  sort: "new",
+};
+
+/** `more` added after `deals`, leaving out any already there (the list can shift between pages). */
+function appendNew(deals: Discount[], more: Discount[]): Discount[] {
+  const seen = new Set(deals.map((d) => d.id));
+  return [...deals, ...more.filter((d) => !seen.has(d.id))];
 }
 
 export function DiscountBoard({
-  initialDeals,
+  initialPage,
   signedIn,
   providers,
   providerLabels,
@@ -49,7 +61,8 @@ export function DiscountBoard({
   dealTypes,
   limits,
 }: {
-  initialDeals: Discount[];
+  /** The first page of active deals, A–Z. */
+  initialPage: DiscountPage;
   signedIn: boolean;
   /** Providers the student has saved AI keys for; empty when signed out or none. */
   providers: AIProvider[];
@@ -61,7 +74,9 @@ export function DiscountBoard({
   dealTypes: DealTypeOption[];
   limits: FormLimits;
 }) {
-  const [deals, setDeals] = useState(initialDeals);
+  const [deals, setDeals] = useState(initialPage.deals);
+  const [hasMore, setHasMore] = useState(initialPage.hasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [kind, setKind] = useState<DiscountKind | null>(null);
   const [category, setCategory] = useState<DiscountCategory | null>(null);
   const [neighborhood, setNeighborhood] = useState<Neighborhood | null>(null);
@@ -72,7 +87,10 @@ export function DiscountBoard({
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [expired, setExpired] = useState<Discount[] | null>(null);
+  const [expiredHasMore, setExpiredHasMore] = useState(false);
   const [showExpired, setShowExpired] = useState(false);
+
+  const filters: Filters = { status: "active", kind, category, audience, neighborhood, search, sort };
 
   const kindLabels = Object.fromEntries(kinds.map((k) => [k.value, k.label])) as Record<DiscountKind, string>;
   const categoryLabels = Object.fromEntries(categories.map((c) => [c.value, c.label])) as Record<DiscountCategory, string>;
@@ -105,13 +123,14 @@ export function DiscountBoard({
     const request = ++latest.current;
     const timer = setTimeout(async () => {
       setLoading(true);
-      const result = await call(() =>
+      const result = await callAction(() =>
         loadDiscounts({ status: "active", kind, category, audience, neighborhood, search, sort }),
       );
       if (request !== latest.current) return;
       setLoading(false);
       if (result.ok) {
-        setDeals(result.data);
+        setDeals(result.data.deals);
+        setHasMore(result.data.hasMore);
         setError(null);
       } else {
         setError(result.error.message);
@@ -120,36 +139,55 @@ export function DiscountBoard({
     return () => clearTimeout(timer);
   }, [kind, category, audience, neighborhood, search, sort]);
 
-  async function loadExpired() {
-    const result = await call(() =>
-      loadDiscounts({
-        status: "expired",
-        kind: null,
-        category: null,
-        audience: null,
-        neighborhood: null,
-        search: "",
-        sort: "new",
-      }),
-    );
-    if (result.ok) setExpired(result.data);
-    else setError(result.error.message);
+  async function loadMore() {
+    const request = latest.current;
+    setLoadingMore(true);
+    const result = await callAction(() => loadDiscounts(filters, deals.length));
+    setLoadingMore(false);
+    // The filters changed while this page loaded: it belongs to the old list.
+    if (request !== latest.current) return;
+    if (result.ok) {
+      setDeals((current) => appendNew(current, result.data.deals));
+      setHasMore(result.data.hasMore);
+      setError(null);
+    } else {
+      setError(result.error.message);
+    }
+  }
+
+  async function loadExpired(offset: number) {
+    const result = await callAction(() => loadDiscounts(EXPIRED_FILTERS, offset));
+    if (result.ok) {
+      setExpired((current) => appendNew(offset > 0 ? (current ?? []) : [], result.data.deals));
+      setExpiredHasMore(result.data.hasMore);
+    } else {
+      setError(result.error.message);
+    }
   }
 
   function toggleExpired() {
-    if (!showExpired) void loadExpired();
+    // Loaded once: applyChange keeps it up to date after that.
+    if (!showExpired && expired === null) void loadExpired(0);
     setShowExpired(!showExpired);
   }
 
-  /** Applies a changed deal: it moves between the active list and Expired as its status says. */
+  /**
+   * Applies a changed deal: it moves between the active list and Expired as
+   * its status says. In the active list it shows only if it matches the
+   * filters, in its place in the sort order.
+   */
   function applyChange(deal: Discount) {
-    setDeals((current) =>
-      deal.status === "active"
-        ? current.some((d) => d.id === deal.id)
-          ? current.map((d) => (d.id === deal.id ? deal : d))
-          : [deal, ...current]
-        : current.filter((d) => d.id !== deal.id),
-    );
+    setDeals((current) => {
+      const rest = current.filter((d) => d.id !== deal.id);
+      if (!matchesFilters(deal, filters)) return rest;
+      const at = current.findIndex((d) => d.id === deal.id);
+      // Already on screen: update it in place, so it doesn't jump away after a vote.
+      if (at >= 0) return current.map((d) => (d.id === deal.id ? deal : d));
+      const before = rest.findIndex((d) => compareDeals(deal, d, sort) < 0);
+      // Sorts after everything loaded: it'll come with "Load more", if there is more.
+      if (before < 0) return hasMore ? rest : [...rest, deal];
+      return [...rest.slice(0, before), deal, ...rest.slice(before)];
+    });
     setExpired((current) => {
       if (current === null) return null;
       const rest = current.filter((d) => d.id !== deal.id);
@@ -158,7 +196,7 @@ export function DiscountBoard({
   }
 
   async function act(action: () => Promise<ActionResult<Discount>>) {
-    const result = await call(action);
+    const result = await callAction(action);
     if (result.ok) {
       applyChange(result.data);
       setError(null);
@@ -301,6 +339,14 @@ export function DiscountBoard({
             })
           : deals.map(activeCard)}
       </div>
+      {hasMore && (
+        <div className={styles.loadMore}>
+          <p className={styles.meta}>Showing the first {deals.length} deals. Search or filter to narrow them down.</p>
+          <button className={styles.smallButton} disabled={loadingMore} onClick={() => void loadMore()}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
 
       <section className={styles.expiredSection}>
         <button className={styles.linkButton} onClick={toggleExpired} aria-expanded={showExpired}>
@@ -321,6 +367,11 @@ export function DiscountBoard({
                 onRestore={() => act(() => restoreDeal(deal.id))}
               />
             ))}
+            {expiredHasMore && expired && (
+              <button className={styles.smallButton} onClick={() => void loadExpired(expired.length)}>
+                Load more
+              </button>
+            )}
           </div>
         )}
       </section>

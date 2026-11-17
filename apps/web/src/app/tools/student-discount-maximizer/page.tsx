@@ -18,7 +18,7 @@ import {
   MAX_PASTED_TEXT_LENGTH,
   NEIGHBORHOODS,
   NEIGHBORHOOD_LABELS,
-  listDiscounts,
+  listDiscountPage,
 } from "@penntools/tool-student-discount-maximizer";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
@@ -35,10 +35,10 @@ export default async function StudentDiscountCentralPage() {
   const sql = db();
   if (!sql) throw new Error("The database is not configured (check DATABASE_URL).");
 
-  let initialDeals;
+  let initialPage;
   try {
     // Alphabetical, matching the board's default sort.
-    initialDeals = await listDiscounts(sql, { userId: user?.id ?? null, status: "active", sort: "az" });
+    initialPage = await listDiscountPage(sql, { userId: user?.id ?? null, status: "active", sort: "az" });
   } catch (error) {
     const problem = setupProblem(error);
     if (!problem) throw error;
@@ -54,7 +54,7 @@ export default async function StudentDiscountCentralPage() {
 
   return (
     <DiscountBoard
-      initialDeals={initialDeals}
+      initialPage={initialPage}
       signedIn={user !== null}
       providers={providers}
       providerLabels={PROVIDER_LABELS}

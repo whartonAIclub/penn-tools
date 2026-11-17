@@ -17,7 +17,8 @@ import type {
   DiscountKind,
   Neighborhood,
 } from "@penntools/tool-student-discount-maximizer";
-import { addDeal, fillForm, type ActionResult } from "./actions";
+import { addDeal, fillForm } from "./actions";
+import { callAction } from "./callAction";
 import type { Option } from "./DiscountBoard";
 import styles from "./DiscountBoard.module.css";
 
@@ -87,14 +88,6 @@ const WHERE: { value: DiscountKind; label: string }[] = [
 // Errors about the student's AI key, or their used-up free AI credit, send them to Settings.
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
-async function call<T>(action: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
-  try {
-    return await action();
-  } catch {
-    return { ok: false, error: { message: "Something went wrong. Try again." } };
-  }
-}
-
 export function AddDiscountForm({
   providers,
   providerLabels,
@@ -155,12 +148,18 @@ export function AddDiscountForm({
   async function save(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
+    // Only what's on screen is sent: a field hidden by a later choice (a code
+    // typed before unticking "Promo code", say) keeps its text in case the
+    // student switches back, but isn't saved. The server drops them too.
     const { specificItems, ...fields } = form;
-    const result = await call(() =>
+    const result = await callAction(() =>
       addDeal({
         ...fields,
         amount: type?.amount === "none" ? "" : fields.amount,
-        appliesTo: specificItems ? fields.appliesTo : "",
+        appliesTo: specificItems && form.dealType !== "other" ? fields.appliesTo : "",
+        code: form.kinds.includes("code") ? fields.code : "",
+        location: inPerson ? fields.location : "",
+        neighborhood: inPerson ? fields.neighborhood : "",
       }),
     );
     setSaving(false);
@@ -393,7 +392,7 @@ function FillWithAI({
 
   async function fill() {
     setFilling(true);
-    const result = await call(() => fillForm(provider!, text));
+    const result = await callAction(() => fillForm(provider!, text));
     setFilling(false);
     if (result.ok) {
       onDraft(result.data);

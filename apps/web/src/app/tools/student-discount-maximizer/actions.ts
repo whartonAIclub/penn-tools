@@ -18,12 +18,13 @@ import {
   addDiscount,
   checkPastedText,
   fillFromText,
-  listDiscounts,
+  listDiscountPage,
   markExpired,
   restore,
   vote,
   type Discount,
   type DiscountAudience,
+  type DiscountPage,
   type DiscountCategory,
   type DiscountKind,
   type DiscountSort,
@@ -79,12 +80,16 @@ function database() {
   return sql;
 }
 
-/** Deals matching the filters, with the student's own votes when signed in. */
-export async function loadDiscounts(filters: Filters): Promise<ActionResult<Discount[]>> {
+/**
+ * A page of deals matching the filters, starting `offset` deals in, with the
+ * student's own votes when signed in.
+ */
+export async function loadDiscounts(filters: Filters, offset = 0): Promise<ActionResult<DiscountPage>> {
   const f = (filters ?? {}) as Partial<Filters>;
   const user = await getCurrentUser();
   return run(() =>
-    listDiscounts(database(), {
+    listDiscountPage(database(), {
+      offset: typeof offset === "number" && Number.isFinite(offset) ? offset : 0,
       userId: user?.id ?? null,
       status: f.status === "expired" ? "expired" : "active",
       kind: KINDS.includes(f.kind as DiscountKind) ? (f.kind as DiscountKind) : null,

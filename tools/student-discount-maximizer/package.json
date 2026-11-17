@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./discounts": {
+      "types": "./dist/discounts.d.ts",
+      "import": "./dist/discounts.js"
     }
   },
   "main": "./dist/index.js",

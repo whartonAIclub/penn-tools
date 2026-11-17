@@ -337,6 +337,14 @@
   align-self: stretch;
 }
 
+.loadMore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 /* ── Add a deal ────────────────────────────────────────────────────────────── */
 
 .formCard {

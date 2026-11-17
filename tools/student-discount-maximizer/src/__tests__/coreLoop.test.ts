@@ -39,7 +39,7 @@ const MINIMAL = { business: "Loop Tacos", dealType: "bogo" };
 
 /** A deal with every field filled in, each at its longest allowed length. */
 const AT_LIMITS = {
-  kind: "code",
+  kinds: ["code", "local"],
   business: "b".repeat(LIMITS.business),
   title: "t".repeat(LIMITS.title),
   dealType: "percent",
@@ -79,7 +79,7 @@ describe("empty inputs", () => {
   it("turns blank optional fields into nothing, and blank choices into their defaults", () => {
     const blank = {
       ...MINIMAL,
-      kind: "",
+      kinds: [],
       title: "  ",
       amount: "  ",
       appliesTo: "",
@@ -119,7 +119,7 @@ describe("empty inputs", () => {
 
   it("needs words for an 'other' deal and a code for a promo code", () => {
     expect(() => checkNewDiscount({ ...MINIMAL, dealType: "other", discount: "   " })).toThrow("Enter details.");
-    expect(() => checkNewDiscount({ ...MINIMAL, kind: "code", code: "  " })).toThrow("Enter code.");
+    expect(() => checkNewDiscount({ ...MINIMAL, kinds: ["code"], code: "  " })).toThrow("Enter code.");
   });
 
   it("rejects blank pasted text for the AI fill-in", () => {
@@ -229,9 +229,10 @@ describe.skipIf(!databaseUrl)("core loop (Postgres)", () => {
     expect((await listDiscounts(sql, { userId: null, status: "expired", search: "Loop Tacos" })).map((d) => d.id)).toEqual([added.id]);
     await expect(vote(sql, "late", added.id, true)).rejects.toThrow("has expired");
 
-    // A student who knows it still works restores it, and it starts fresh.
+    // A student who knows it still works restores it. It keeps its votes, but
+    // only votes from now on count toward expiring it again.
     const restored = await restore(sql, "fan", added.id);
-    expect(restored).toMatchObject({ status: "active", expiredReason: null, works: 0, notWorking: 0, myVote: null });
+    expect(restored).toMatchObject({ status: "active", expiredReason: null, works: 1, notWorking: 3, myVote: true });
     expect((await vote(sql, "doubter1", added.id, false)).status).toBe("active");
 
     // Later it really ends, and a student marks it expired by hand.
@@ -241,7 +242,7 @@ describe.skipIf(!databaseUrl)("core loop (Postgres)", () => {
     // Restoring twice, or expiring twice, changes nothing more.
     expect((await restore(sql, "adder", added.id)).status).toBe("active");
     expect((await restore(sql, "adder", added.id)).status).toBe("active");
-    expect((await getDiscount(sql, added.id, "adder"))?.works).toBe(0);
+    expect(await getDiscount(sql, added.id, "adder")).toMatchObject({ works: 1, notWorking: 3 });
   });
 
   it("stores and returns a deal with every field at its limit", async () => {
@@ -253,6 +254,7 @@ describe.skipIf(!databaseUrl)("core loop (Postgres)", () => {
       appliesTo: AT_LIMITS.appliesTo,
       discount: AT_LIMITS.discount,
       code: AT_LIMITS.code,
+      location: AT_LIMITS.location,
       url: AT_LIMITS.url,
       howToClaim: AT_LIMITS.howToClaim,
       amount: 100,

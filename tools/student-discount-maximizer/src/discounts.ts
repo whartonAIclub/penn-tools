@@ -4,10 +4,14 @@
 // user's id.
 //
 // A deal expires when a student marks it expired, or on its own once enough
-// students say it doesn't work (see vote). Restoring a deal clears its
-// votes, so it starts fresh.
+// students say it doesn't work (see vote). Restoring a deal keeps its votes;
+// only votes cast since then count toward expiring it again. Each student can
+// mark and restore a few deals a day (DAILY_STATUS_CHANGE_LIMIT).
 
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
+
+/** A transaction, as the Sql it is: postgres.js's TransactionSql type drops the call signature. */
+const asSql = (tx: TransactionSql): Sql => tx as unknown as Sql;
 
 export const KINDS = ["code", "online", "local"] as const;
 export type DiscountKind = (typeof KINDS)[number];
@@ -85,6 +89,10 @@ export type DiscountAudience = "penn" | "general";
 
 /** Most deals a student can add in a day, to keep spam down. */
 export const DAILY_SUBMISSION_LIMIT = 20;
+/** Most deals a student can mark expired in a day, and separately restore, so no one account can empty the board. */
+export const DAILY_STATUS_CHANGE_LIMIT = 5;
+/** How many deals the board loads at a time. */
+export const PAGE_SIZE = 100;
 /** "Doesn't work" votes needed before votes alone can expire a deal. */
 export const EXPIRE_MIN_NOT_WORKING = 3;
 
@@ -107,8 +115,7 @@ export interface Discount {
   business: string;
   /** An optional headline; cards fall back to `summary`. */
   title: string | null;
-  /** Null for older deals added before deal types; they show `discount` instead. */
-  dealType: DealType | null;
+  dealType: DealType;
   /** The number for % off, $ off or a student price. */
   amount: number | null;
   /** What it's for, e.g. "bowls"; null for everything. */
@@ -139,6 +146,12 @@ export interface Discount {
   notWorking: number;
   /** The signed-in student's vote: true "works", false "doesn't work", null none. */
   myVote: boolean | null;
+}
+
+/** A page of deals, and whether more match after it. */
+export interface DiscountPage {
+  deals: Discount[];
+  hasMore: boolean;
 }
 
 /**
@@ -176,6 +189,8 @@ export interface ListOptions {
   search?: string | null;
   sort?: DiscountSort;
   limit?: number;
+  /** How many matching deals to skip, for the board's "Load more". */
+  offset?: number;
 }
 
 /** A problem to show the student: bad input, a missing deal, or the daily limit. */
@@ -184,8 +199,15 @@ export class DiscountError extends Error {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** An http(s) address with a host and no spaces. */
-const WEB_LINK_RE = /^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?([/?#]\S*)?$/i;
+/** An https address with a host and no spaces. */
+const WEB_LINK_RE = /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?([/?#]\S*)?$/i;
+/** An amount as the form sends it once "$", "%", commas and spaces are gone: digits, with an optional decimal part. */
+const AMOUNT_RE = /^(\d+(\.\d+)?|\.\d+)$/;
+
+/** True for a link checkNewDiscount accepts: https, with a host. */
+export function isWebLink(value: string): boolean {
+  return value.length <= LIMITS.url && WEB_LINK_RE.test(value);
+}
 
 // ── Checking input ────────────────────────────────────────────────────────────
 
@@ -211,8 +233,8 @@ function link(value: unknown, required: boolean): string | null {
 }
 
 /**
- * A positive number from the form (which sends text, maybe with "$" or "%"),
- * or null when empty: blank, or only symbols, counts as empty.
+ * A positive number, to the cent, from the form (which sends text, maybe with
+ * "$" or "%"), or null when empty: blank, or only symbols, counts as empty.
  */
 function amountOf(value: unknown, dealType: DealType): number | null {
   const digits = typeof value === "number" ? String(value) : String(value ?? "").replace(/[$%,\s]/g, "");
@@ -222,52 +244,61 @@ function amountOf(value: unknown, dealType: DealType): number | null {
     }
     return null;
   }
-  const amount = Number(digits);
+  // Only plain decimals: Number() would also read "0x14" and "2e1" as 20.
+  if (!AMOUNT_RE.test(digits)) throw new DiscountError("Enter the amount as a number, like 20.");
+  // Rounded before the check, so 0.001 (stored as 0.00) is rejected too.
+  const amount = Math.round(Number(digits) * 100) / 100;
   if (!Number.isFinite(amount) || amount <= 0) throw new DiscountError("Enter the amount as a number, like 20.");
   if (dealType === "percent" && amount > 100) throw new DiscountError("A percentage off can't be more than 100.");
   if (amount >= 100000) throw new DiscountError("That amount looks too large.");
-  return Math.round(amount * 100) / 100;
+  return amount;
+}
+
+/** Where a deal is used: a list of kinds. Optional: with none chosen it's in person, as most deals students add are. */
+function kindsOf(value: unknown): DiscountKind[] {
+  if (value === undefined || value === null) return ["local"];
+  if (!Array.isArray(value) || value.some((k) => !KINDS.includes(k as DiscountKind))) {
+    throw new DiscountError("Choose where the deal is used.");
+  }
+  return value.length > 0 ? sortKinds(value as DiscountKind[]) : ["local"];
 }
 
 /**
- * Where a deal is used: a list of kinds, or one kind as text (older callers).
- * Optional: with none chosen it's in person, as most deals students add are.
+ * A new deal from the browser's input, checked; throws DiscountError if
+ * something's wrong. Fields that don't apply to the deal are dropped, whatever
+ * the browser sends: the code unless it's used with a promo code, the address
+ * and neighborhood unless it's used in person, what it applies to for "other"
+ * deals, and the amount for deal types without one.
  */
-function kindsOf(value: unknown): DiscountKind[] {
-  const list = Array.isArray(value) ? value : value ? [value] : [];
-  if (list.some((k) => !KINDS.includes(k as DiscountKind))) throw new DiscountError("Choose where the deal is used.");
-  return list.length > 0 ? sortKinds(list as DiscountKind[]) : ["local"];
-}
-
-/** A new deal from the browser's input, checked; throws DiscountError if something's wrong. */
 export function checkNewDiscount(input: unknown): NewDiscount {
   if (typeof input !== "object" || input === null) throw new DiscountError("Fill in the deal's details.");
   const raw = input as Record<string, unknown>;
   const business = text(raw["business"], "Establishment name", LIMITS.business, true)!;
-  const dealType = raw["dealType"];
-  if (!DEAL_TYPES.includes(dealType as DealType)) throw new DiscountError("Choose what kind of deal it is.");
-  const kinds = kindsOf(raw["kinds"] ?? raw["kind"]);
+  const dealType = raw["dealType"] as DealType;
+  if (!DEAL_TYPES.includes(dealType)) throw new DiscountError("Choose what kind of deal it is.");
+  const kinds = kindsOf(raw["kinds"]);
   const inPerson = kinds.includes("local");
+  const withCode = kinds.includes("code");
   const category = raw["category"] || "other";
   if (!CATEGORIES.includes(category as DiscountCategory)) throw new DiscountError("Choose a category.");
-  // Only deals used in person have a neighborhood; it's ignored for the others.
   const neighborhood = inPerson ? raw["neighborhood"] || null : null;
   if (neighborhood !== null && !NEIGHBORHOODS.includes(neighborhood as Neighborhood)) {
     throw new DiscountError("Choose a neighborhood from the list.");
   }
+  const takesAmount = DEAL_TYPES_NEEDING_AMOUNT.includes(dealType) || dealType === "student_price";
 
   return {
     kinds,
     business,
     title: text(raw["title"], "Title", LIMITS.title, false),
-    dealType: dealType as DealType,
-    amount: amountOf(raw["amount"], dealType as DealType),
-    appliesTo: text(raw["appliesTo"], "What it applies to", LIMITS.appliesTo, false),
+    dealType,
+    amount: takesAmount ? amountOf(raw["amount"], dealType) : null,
+    appliesTo: dealType === "other" ? null : text(raw["appliesTo"], "What it applies to", LIMITS.appliesTo, false),
     // "Other" has no structure of its own, so it needs words.
     discount: text(raw["discount"], "Details", LIMITS.discount, dealType === "other") ?? "",
     // A promo code deal needs the code.
-    code: text(raw["code"], "Code", LIMITS.code, kinds.includes("code")),
-    location: text(raw["location"], "Address", LIMITS.location, false),
+    code: withCode ? text(raw["code"], "Code", LIMITS.code, true) : null,
+    location: inPerson ? text(raw["location"], "Address", LIMITS.location, false) : null,
     neighborhood: neighborhood as Neighborhood | null,
     url: link(raw["url"], false),
     howToClaim: text(raw["howToClaim"], "How to claim", LIMITS.howToClaim, false) ?? "",
@@ -283,11 +314,10 @@ function formatAmount(amount: number): string {
 
 /**
  * The deal's headline, e.g. "20% off bowls", "$5 off", "Buy one, get one free",
- * "Free admission" or "$4.50 student price". Deals with no deal type, or
- * "other", use their details.
+ * "Free admission" or "$4.50 student price". "Other" deals use their details.
  */
 export function dealSummary(deal: {
-  dealType: DealType | null;
+  dealType: DealType;
   amount: number | null;
   appliesTo: string | null;
   discount: string;
@@ -317,7 +347,7 @@ interface DiscountRow {
   kinds: DiscountKind[];
   business: string;
   title: string | null;
-  deal_type: DealType | null;
+  deal_type: DealType;
   /** NUMERIC comes back as text. */
   amount: string | null;
   applies_to: string | null;
@@ -402,7 +432,7 @@ function likePattern(search: string): string {
 
 /** Deals matching the filters, each with its vote counts and the student's own vote. */
 export async function listDiscounts(sql: Sql, options: ListOptions): Promise<Discount[]> {
-  const { userId, status, kind, category, audience, neighborhood, sort = "top", limit = 200 } = options;
+  const { userId, status, kind, category, audience, neighborhood, sort = "top", limit = PAGE_SIZE, offset = 0 } = options;
   const search = options.search?.trim().slice(0, LIMITS.search);
   const pattern = search ? likePattern(search) : null;
 
@@ -431,10 +461,51 @@ export async function listDiscounts(sql: Sql, options: ListOptions): Promise<Dis
           : sql``
       }
     GROUP BY d.id
-    ORDER BY ${order}
-    LIMIT ${limit}
+    ORDER BY ${order}, d.id
+    LIMIT ${limit} OFFSET ${offset}
   `;
   return rows.map(toDiscount);
+}
+
+/**
+ * Up to PAGE_SIZE deals matching the filters, starting `offset` deals in, and
+ * whether more match after them, for the board's "Load more".
+ */
+export async function listDiscountPage(sql: Sql, options: Omit<ListOptions, "limit">): Promise<DiscountPage> {
+  const offset = Math.max(0, Math.floor(options.offset ?? 0));
+  const deals = await listDiscounts(sql, { ...options, offset, limit: PAGE_SIZE + 1 });
+  return { deals: deals.slice(0, PAGE_SIZE), hasMore: deals.length > PAGE_SIZE };
+}
+
+/**
+ * Whether listDiscounts would list `deal` with these filters, so the board can
+ * tell if a deal just added or restored belongs in what's on screen.
+ */
+export function matchesFilters(deal: Discount, filters: Omit<ListOptions, "userId" | "limit" | "offset" | "sort">): boolean {
+  const { status, kind, category, audience, neighborhood } = filters;
+  const search = filters.search?.trim().slice(0, LIMITS.search).toLowerCase();
+  if (deal.status !== status) return false;
+  if (kind && !deal.kinds.includes(kind)) return false;
+  if (category && deal.category !== category) return false;
+  if (audience && deal.pennSpecific !== (audience === "penn")) return false;
+  if (neighborhood && !(deal.kinds.includes("local") && deal.neighborhood === neighborhood)) return false;
+  if (search) {
+    const fields = [deal.business, deal.title, deal.discount, deal.appliesTo, deal.location];
+    if (!fields.some((f) => f?.toLowerCase().includes(search))) return false;
+  }
+  return true;
+}
+
+/** Compares two active deals in the board's `sort` order, as listDiscounts sorts them. */
+export function compareDeals(a: Discount, b: Discount, sort: DiscountSort): number {
+  const newestFirst = b.createdAt.localeCompare(a.createdAt);
+  if (sort === "new") return newestFirst;
+  if (sort === "az") {
+    const byText = (x: string | null, y: string | null) =>
+      x === y ? 0 : x === null ? 1 : y === null ? -1 : x.toLowerCase().localeCompare(y.toLowerCase());
+    return byText(a.business, b.business) || byText(a.title, b.title) || newestFirst;
+  }
+  return b.works - b.notWorking - (a.works - a.notWorking) || newestFirst;
 }
 
 /** One deal with its votes, or null if there's no such deal. */
@@ -452,26 +523,39 @@ export async function getDiscount(sql: Sql, id: string, userId: string | null): 
 
 // ── Writing ───────────────────────────────────────────────────────────────────
 
+/**
+ * Takes a lock on this student's daily limits until the transaction ends, so
+ * their simultaneous requests are counted one after another rather than all
+ * seeing the same count.
+ */
+async function lockStudent(tx: Sql, userId: string): Promise<void> {
+  await tx`SELECT pg_advisory_xact_lock(hashtext(${`studentdiscountmaximizer:${userId}`}))`;
+}
+
 /** Adds a student's deal (checked with checkNewDiscount) and returns it. */
 export async function addDiscount(sql: Sql, userId: string, input: unknown): Promise<Discount> {
   const deal = checkNewDiscount(input);
-  const [recent] = await sql<{ count: string }[]>`
-    SELECT COUNT(*) AS count FROM discounts
-    WHERE created_by = ${userId} AND created_at > NOW() - INTERVAL '1 day'
-  `;
-  if (Number(recent!.count) >= DAILY_SUBMISSION_LIMIT) {
-    throw new DiscountError(`You can add up to ${DAILY_SUBMISSION_LIMIT} deals a day. Try again tomorrow.`);
-  }
-
-  const [row] = await sql<{ id: string }[]>`
-    INSERT INTO discounts (kind, kinds, business, title, deal_type, amount, applies_to, discount, code, location,
-                           neighborhood, url, how_to_claim, category, penn_specific, source, created_by)
-    VALUES (${deal.kinds[0]!}, ${sql.array(deal.kinds)}, ${deal.business}, ${deal.title}, ${deal.dealType}, ${deal.amount}, ${deal.appliesTo},
-            ${deal.discount}, ${deal.code}, ${deal.location}, ${deal.neighborhood}, ${deal.url}, ${deal.howToClaim},
-            ${deal.category}, ${deal.pennSpecific}, 'student', ${userId})
-    RETURNING id
-  `;
-  return (await getDiscount(sql, row!.id, userId))!;
+  const id = await sql.begin(async (t) => {
+    const tx = asSql(t);
+    await lockStudent(tx, userId);
+    const [recent] = await tx<{ count: string }[]>`
+      SELECT COUNT(*) AS count FROM discounts
+      WHERE created_by = ${userId} AND created_at > NOW() - INTERVAL '1 day'
+    `;
+    if (Number(recent!.count) >= DAILY_SUBMISSION_LIMIT) {
+      throw new DiscountError(`You can add up to ${DAILY_SUBMISSION_LIMIT} deals a day. Try again tomorrow.`);
+    }
+    const [row] = await tx<{ id: string }[]>`
+      INSERT INTO discounts (kinds, business, title, deal_type, amount, applies_to, discount, code, location,
+                             neighborhood, url, how_to_claim, category, penn_specific, source, created_by)
+      VALUES (${tx.array(deal.kinds)}, ${deal.business}, ${deal.title}, ${deal.dealType}, ${deal.amount}, ${deal.appliesTo},
+              ${deal.discount}, ${deal.code}, ${deal.location}, ${deal.neighborhood}, ${deal.url}, ${deal.howToClaim},
+              ${deal.category}, ${deal.pennSpecific}, 'student', ${userId})
+      RETURNING id
+    `;
+    return row!.id;
+  });
+  return (await getDiscount(sql, id, userId))!;
 }
 
 /**
@@ -503,48 +587,73 @@ export async function vote(sql: Sql, userId: string, discountId: string, works: 
   }
 
   // Votes expire a deal once "doesn't work" reaches EXPIRE_MIN_NOT_WORKING and
-  // outnumbers "works" at least two to one.
+  // outnumbers "works" at least two to one, counting only votes cast since the
+  // deal last changed status: a restored deal keeps its votes for everyone to
+  // see, but the votes that expired it before don't expire it again.
   await sql`
-    UPDATE discounts
+    UPDATE discounts d
     SET status = 'expired', expired_reason = 'votes', status_changed_at = NOW(), status_changed_by = NULL
-    WHERE id = ${discountId} AND status = 'active'
-      AND (SELECT COUNT(*) FILTER (WHERE NOT works) >= ${EXPIRE_MIN_NOT_WORKING}
-              AND COUNT(*) FILTER (WHERE NOT works) >= 2 * COUNT(*) FILTER (WHERE works)
-           FROM votes WHERE discount_id = ${discountId})
+    WHERE d.id = ${discountId} AND d.status = 'active'
+      AND (SELECT COUNT(*) FILTER (WHERE NOT v.works) >= ${EXPIRE_MIN_NOT_WORKING}
+              AND COUNT(*) FILTER (WHERE NOT v.works) >= 2 * COUNT(*) FILTER (WHERE v.works)
+           FROM votes v WHERE v.discount_id = d.id AND v.updated_at >= d.status_changed_at)
   `;
   return (await getDiscount(sql, discountId, userId))!;
 }
 
-/** Moves an active deal to Expired, on a student's say-so. */
+/**
+ * Moves a deal between active and Expired on a student's say-so, within their
+ * daily limit for that action. A deal already in that state is left as it is,
+ * and doesn't count toward the limit.
+ */
+async function changeStatus(sql: Sql, userId: string, discountId: string, action: "expire" | "restore"): Promise<Discount> {
+  if (!UUID_RE.test(discountId)) throw new DiscountError("That deal doesn't exist.");
+  await sql.begin(async (t) => {
+    const tx = asSql(t);
+    await lockStudent(tx, userId);
+    const [recent] = await tx<{ count: string }[]>`
+      SELECT COUNT(*) AS count FROM status_changes
+      WHERE user_id = ${userId} AND action = ${action} AND created_at > NOW() - INTERVAL '1 day'
+    `;
+    if (Number(recent!.count) >= DAILY_STATUS_CHANGE_LIMIT) {
+      throw new DiscountError(
+        `You can ${action === "expire" ? "mark" : "restore"} up to ${DAILY_STATUS_CHANGE_LIMIT} deals${action === "expire" ? " expired" : ""} a day. ` +
+          (action === "expire" ? "You can still vote that a deal doesn't work." : "Try again tomorrow."),
+      );
+    }
+    const changed =
+      action === "expire"
+        ? await tx`
+            UPDATE discounts
+            SET status = 'expired', expired_reason = 'marked', status_changed_at = NOW(), status_changed_by = ${userId}
+            WHERE id = ${discountId} AND status = 'active'
+            RETURNING id
+          `
+        : await tx`
+            UPDATE discounts
+            SET status = 'active', expired_reason = NULL, status_changed_at = NOW(), status_changed_by = ${userId}
+            WHERE id = ${discountId} AND status = 'expired'
+            RETURNING id
+          `;
+    if (changed.length === 0) {
+      const [exists] = await tx`SELECT 1 FROM discounts WHERE id = ${discountId}`;
+      if (!exists) throw new DiscountError("That deal doesn't exist.");
+      return;
+    }
+    await tx`INSERT INTO status_changes (discount_id, user_id, action) VALUES (${discountId}, ${userId}, ${action})`;
+  });
+  return (await getDiscount(sql, discountId, userId))!;
+}
+
+/** Moves an active deal to Expired, on a student's say-so (up to DAILY_STATUS_CHANGE_LIMIT a day). */
 export async function markExpired(sql: Sql, userId: string, discountId: string): Promise<Discount> {
-  if (!UUID_RE.test(discountId)) throw new DiscountError("That deal doesn't exist.");
-  const updated = await sql`
-    UPDATE discounts
-    SET status = 'expired', expired_reason = 'marked', status_changed_at = NOW(), status_changed_by = ${userId}
-    WHERE id = ${discountId} AND status = 'active'
-  `;
-  if (updated.count === 0) await assertExists(sql, discountId);
-  return (await getDiscount(sql, discountId, userId))!;
+  return changeStatus(sql, userId, discountId, "expire");
 }
 
-/** Brings an expired deal back, with its votes cleared so it starts fresh. */
+/**
+ * Brings an expired deal back (up to DAILY_STATUS_CHANGE_LIMIT a day). It keeps
+ * its votes, but only votes cast from now on count toward expiring it again.
+ */
 export async function restore(sql: Sql, userId: string, discountId: string): Promise<Discount> {
-  if (!UUID_RE.test(discountId)) throw new DiscountError("That deal doesn't exist.");
-  // One statement, so no vote can land between the restore and the clearing.
-  const restored = await sql`
-    WITH restored AS (
-      UPDATE discounts
-      SET status = 'active', expired_reason = NULL, status_changed_at = NOW(), status_changed_by = ${userId}
-      WHERE id = ${discountId} AND status = 'expired'
-      RETURNING id
-    )
-    DELETE FROM votes WHERE discount_id IN (SELECT id FROM restored)
-  `;
-  if (restored.count === 0) await assertExists(sql, discountId);
-  return (await getDiscount(sql, discountId, userId))!;
-}
-
-async function assertExists(sql: Sql, discountId: string): Promise<void> {
-  const [row] = await sql`SELECT 1 FROM discounts WHERE id = ${discountId}`;
-  if (!row) throw new DiscountError("That deal doesn't exist.");
+  return changeStatus(sql, userId, discountId, "restore");
 }
