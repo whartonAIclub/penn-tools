@@ -1,6 +1,6 @@
 // Student Discount Central: student deals that students vote on and expire.
 // Anyone can browse; signing in lets students vote, add deals and mark them
-// expired, and fill in a new deal from pasted text with AI (free credit, then
+// expired, and fill in a new deal from a screenshot, a photo or pasted text with AI (free credit, then
 // their own key).
 
 import type { Metadata } from "next";
@@ -16,8 +16,11 @@ import {
   KIND_LABELS,
   LIMITS,
   MAX_PASTED_TEXT_LENGTH,
+  MAX_SCREENSHOT_BYTES,
   NEIGHBORHOODS,
   NEIGHBORHOOD_LABELS,
+  SCOPES,
+  SCOPE_LABELS,
   listDiscountPage,
 } from "@penntools/tool-student-discount-maximizer";
 import { getAI } from "@/lib/ai";
@@ -59,6 +62,7 @@ export default async function StudentDiscountCentralPage() {
       providers={providers}
       providerLabels={PROVIDER_LABELS}
       kinds={KINDS.map((k) => ({ value: k, label: KIND_LABELS[k] }))}
+      scopes={SCOPES.map((sc) => ({ value: sc, label: SCOPE_LABELS[sc] }))}
       categories={CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c] }))}
       neighborhoods={NEIGHBORHOODS.map((n) => ({ value: n, label: NEIGHBORHOOD_LABELS[n] }))}
       dealTypes={DEAL_TYPES.map((t) => ({
@@ -66,7 +70,8 @@ export default async function StudentDiscountCentralPage() {
         label: DEAL_TYPE_LABELS[t],
         amount: DEAL_TYPES_NEEDING_AMOUNT.includes(t) ? "required" : t === "student_price" ? "optional" : "none",
       }))}
-      limits={{ ...LIMITS, pastedText: MAX_PASTED_TEXT_LENGTH }}
+      limits={{ ...LIMITS, pastedText: MAX_PASTED_TEXT_LENGTH, screenshot: MAX_SCREENSHOT_BYTES }}
+      defaultAddedBy={user?.name ?? user?.email ?? ""}
     />
   );
 }

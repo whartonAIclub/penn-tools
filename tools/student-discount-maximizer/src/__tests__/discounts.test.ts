@@ -55,6 +55,7 @@ const DEAL = {
   url: "https://bagels.example.com/order",
   howToClaim: "Enter the code at checkout.",
   category: "food",
+  addedBy: "Test Student",
 };
 
 const LOCAL = {
@@ -105,7 +106,8 @@ describe("checkNewDiscount", () => {
   });
 
   it("needs only the establishment and the deal type, defaulting to an in-person deal", () => {
-    expect(checkNewDiscount({ business: "Sweetgreen", dealType: "bogo" })).toEqual({
+    expect(checkNewDiscount({ business: "Sweetgreen", dealType: "bogo", addedBy: "Test Student" })).toEqual({
+      scope: "general",
       kinds: ["local"],
       business: "Sweetgreen",
       title: null,
@@ -120,30 +122,32 @@ describe("checkNewDiscount", () => {
       howToClaim: "",
       category: "other",
       pennSpecific: false,
+      expiresOn: null,
+      addedBy: "Test Student",
     });
     expect(() => checkNewDiscount({ dealType: "bogo" })).toThrow("Enter establishment name.");
     expect(() => checkNewDiscount({ business: "Sweetgreen" })).toThrow("Choose what kind of deal");
   });
 
   it("needs an amount for % off and $ off, and details for other deals", () => {
-    expect(() => checkNewDiscount({ business: "X", dealType: "percent" })).toThrow("Enter the percentage off.");
-    expect(() => checkNewDiscount({ business: "X", dealType: "amount", amount: "" })).toThrow("Enter how many dollars off.");
-    expect(checkNewDiscount({ business: "X", dealType: "percent", amount: "20%" }).amount).toBe(20);
-    expect(checkNewDiscount({ business: "X", dealType: "amount", amount: "$4.5" }).amount).toBe(4.5);
-    expect(checkNewDiscount({ business: "X", dealType: "student_price" }).amount).toBeNull();
-    expect(() => checkNewDiscount({ business: "X", dealType: "percent", amount: "150" })).toThrow("more than 100");
-    expect(() => checkNewDiscount({ business: "X", dealType: "percent", amount: "lots" })).toThrow("as a number");
-    expect(() => checkNewDiscount({ business: "X", dealType: "other" })).toThrow("Enter details.");
+    expect(() => checkNewDiscount({ addedBy: "x", business: "X", dealType: "percent" })).toThrow("Enter the percentage off.");
+    expect(() => checkNewDiscount({ addedBy: "x", business: "X", dealType: "amount", amount: "" })).toThrow("Enter how many dollars off.");
+    expect(checkNewDiscount({ addedBy: "x", business: "X", dealType: "percent", amount: "20%" }).amount).toBe(20);
+    expect(checkNewDiscount({ addedBy: "x", business: "X", dealType: "amount", amount: "$4.5" }).amount).toBe(4.5);
+    expect(checkNewDiscount({ addedBy: "x", business: "X", dealType: "student_price" }).amount).toBeNull();
+    expect(() => checkNewDiscount({ addedBy: "x", business: "X", dealType: "percent", amount: "150" })).toThrow("more than 100");
+    expect(() => checkNewDiscount({ addedBy: "x", business: "X", dealType: "percent", amount: "lots" })).toThrow("as a number");
+    expect(() => checkNewDiscount({ addedBy: "x", business: "X", dealType: "other" })).toThrow("Enter details.");
   });
 
   it("accepts only plain decimal amounts above zero once rounded to the cent", () => {
     for (const amount of ["0.001", "0.004", "0x14", "2e1", "-5", "1.2.3", "Infinity", "NaN"]) {
-      expect(() => checkNewDiscount({ business: "X", dealType: "percent", amount })).toThrow("as a number");
+      expect(() => checkNewDiscount({ addedBy: "x", business: "X", dealType: "percent", amount })).toThrow("as a number");
     }
-    expect(checkNewDiscount({ business: "X", dealType: "amount", amount: "0.005" }).amount).toBe(0.01);
-    expect(checkNewDiscount({ business: "X", dealType: "amount", amount: ".5" }).amount).toBe(0.5);
-    expect(checkNewDiscount({ business: "X", dealType: "amount", amount: "1,000" }).amount).toBe(1000);
-    expect(checkNewDiscount({ business: "X", dealType: "percent", amount: 20 }).amount).toBe(20);
+    expect(checkNewDiscount({ addedBy: "x", business: "X", dealType: "amount", amount: "0.005" }).amount).toBe(0.01);
+    expect(checkNewDiscount({ addedBy: "x", business: "X", dealType: "amount", amount: ".5" }).amount).toBe(0.5);
+    expect(checkNewDiscount({ addedBy: "x", business: "X", dealType: "amount", amount: "1,000" }).amount).toBe(1000);
+    expect(checkNewDiscount({ addedBy: "x", business: "X", dealType: "percent", amount: 20 }).amount).toBe(20);
   });
 
   it("drops fields that don't apply to the deal, whatever the browser sends", () => {
@@ -203,14 +207,40 @@ describe("checkNewDiscount", () => {
     expect(() => checkNewDiscount(null)).toThrow(DiscountError);
   });
 
+  it("takes a type of discount, defaulting to a general student discount", () => {
+    expect(checkNewDiscount(DEAL).scope).toBe("general");
+    expect(checkNewDiscount({ ...DEAL, scope: "wharton" }).scope).toBe("wharton");
+    expect(checkNewDiscount({ ...DEAL, scope: "local" }).scope).toBe("local");
+    expect(() => checkNewDiscount({ ...DEAL, scope: "everyone" })).toThrow("Choose the type of discount.");
+  });
+
+  it("requires an Added by name, trimmed", () => {
+    expect(checkNewDiscount({ ...DEAL, addedBy: "  Sam  " }).addedBy).toBe("Sam");
+    for (const addedBy of ["", "   ", null, undefined]) {
+      expect(() => checkNewDiscount({ ...DEAL, addedBy })).toThrow("Enter added by.");
+    }
+  });
+
+  it("takes an optional expiration date that hasn't passed", () => {
+    expect(checkNewDiscount(DEAL).expiresOn).toBeNull();
+    expect(checkNewDiscount({ ...DEAL, expiresOn: "" }).expiresOn).toBeNull();
+    expect(checkNewDiscount({ ...DEAL, expiresOn: "2999-12-31" }).expiresOn).toBe("2999-12-31");
+    expect(() => checkNewDiscount({ ...DEAL, expiresOn: "2020-01-01" })).toThrow("already passed");
+    for (const expiresOn of ["2999-02-30", "next week", "12/31/2999", 20991231]) {
+      expect(() => checkNewDiscount({ ...DEAL, expiresOn })).toThrow("Enter the expiration date");
+    }
+  });
+
   it("accepts every starter deal", () => {
-    for (const deal of starterDeals) expect(() => checkNewDiscount(deal)).not.toThrow();
+    // Starter deals have no Added by, which students must give.
+    for (const deal of starterDeals) expect(() => checkNewDiscount({ ...(deal as object), addedBy: "x" })).not.toThrow();
   });
 });
 
 describe("matchesFilters and compareDeals", () => {
   const deal = (fields: Partial<Discount>): Discount => ({
     id: "1",
+    scope: "local",
     kinds: ["local"],
     business: "Loop Tacos",
     title: null,
@@ -228,6 +258,8 @@ describe("matchesFilters and compareDeals", () => {
     category: "food",
     pennSpecific: false,
     source: "student",
+    expiresOn: null,
+    addedBy: "Loop Tester",
     status: "active",
     expiredReason: null,
     statusChangedAt: "2026-11-01T00:00:00.000Z",
@@ -249,6 +281,8 @@ describe("matchesFilters and compareDeals", () => {
     expect(matchesFilters(tacos, { status: "active", audience: "general" })).toBe(true);
     expect(matchesFilters(tacos, { status: "active", search: "walnut" })).toBe(true);
     expect(matchesFilters(tacos, { status: "active", category: "tech" })).toBe(false);
+    expect(matchesFilters(tacos, { status: "active", scope: "local" })).toBe(true);
+    expect(matchesFilters(tacos, { status: "active", scope: "wharton" })).toBe(false);
   });
 
   it("orders deals as the database does for each sort", () => {
@@ -473,6 +507,32 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
     expect(await markExpired(sql, "hank", deal.id)).toMatchObject({ status: "expired", expiredReason: "marked" });
     expect((await markExpired(sql, "ivy", deal.id)).status).toBe("expired"); // already expired: no change
     expect((await restore(sql, "ivy", deal.id)).status).toBe("active");
+  });
+
+  it("stores the type of discount and who added it, and filters by type", async () => {
+    const deal = await addDiscount(sql, "lou", { ...DEAL, scope: "wharton", title: "Wharton only", addedBy: "Lou" });
+    expect(deal).toMatchObject({ scope: "wharton", addedBy: "Lou", expiresOn: null });
+    const wharton = await listDiscounts(sql, { userId: null, status: "active", scope: "wharton" });
+    expect(wharton.map((d) => d.id)).toContain(deal.id);
+    expect(wharton.every((d) => d.scope === "wharton")).toBe(true);
+    expect((await listDiscounts(sql, { userId: null, status: "active", scope: "general" })).map((d) => d.id)).not.toContain(deal.id);
+  });
+
+  it("shows a deal until its expiration date, then as expired; restoring drops the date", async () => {
+    const deal = await addDiscount(sql, "lou", { ...DEAL, title: "Dated", expiresOn: "2999-12-31" });
+    expect(deal).toMatchObject({ status: "active", expiresOn: "2999-12-31", expiredReason: null });
+
+    await sql`UPDATE discounts SET expires_on = CURRENT_DATE WHERE id = ${deal.id}`;
+    const [lastDay] = await listDiscounts(sql, { userId: null, status: "active", search: "Dated" });
+    expect(lastDay?.status).toBe("active"); // still works on its last day
+
+    await sql`UPDATE discounts SET expires_on = CURRENT_DATE - 1 WHERE id = ${deal.id}`;
+    expect(await listDiscounts(sql, { userId: null, status: "active", search: "Dated" })).toEqual([]);
+    const [ended] = await listDiscounts(sql, { userId: null, status: "expired", search: "Dated" });
+    expect(ended).toMatchObject({ id: deal.id, status: "expired", expiredReason: "date" });
+    await expect(vote(sql, "lou", deal.id, true)).rejects.toThrow("has expired");
+
+    expect(await restore(sql, "lou", deal.id)).toMatchObject({ status: "active", expiresOn: null, expiredReason: null });
   });
 
   it("reports deals that don't exist", async () => {

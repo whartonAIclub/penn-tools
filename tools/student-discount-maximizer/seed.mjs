@@ -17,6 +17,9 @@ const DATA_PATH = new URL("./data/starter-discounts.json", import.meta.url);
 export default async function seed({ sql }) {
   const deals = JSON.parse(fs.readFileSync(DATA_PATH, "utf8")).map((deal) => ({
     slug: deal.slug,
+    // The type of discount, when the file gives one; else local for deals used
+    // in person, general for the rest. Only set when a deal is first added.
+    scope: deal.scope ?? (deal.kinds.includes("local") ? "local" : "general"),
     kinds: deal.kinds,
     business: deal.business,
     title: deal.title ?? null,

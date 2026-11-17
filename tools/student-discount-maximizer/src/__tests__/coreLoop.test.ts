@@ -35,7 +35,7 @@ let admin: Sql;
 let sql: Sql;
 
 /** The smallest deal the form accepts. */
-const MINIMAL = { business: "Loop Tacos", dealType: "bogo" };
+const MINIMAL = { business: "Loop Tacos", dealType: "bogo", addedBy: "Loop Tester" };
 
 /** A deal with every field filled in, each at its longest allowed length. */
 const AT_LIMITS = {
@@ -52,6 +52,7 @@ const AT_LIMITS = {
   howToClaim: "h".repeat(LIMITS.howToClaim),
   category: "food",
   pennSpecific: true,
+  addedBy: "n".repeat(LIMITS.addedBy),
 };
 
 // ── Empty inputs ──────────────────────────────────────────────────────────────
@@ -70,6 +71,12 @@ describe("empty inputs", () => {
     }
   });
 
+  it("requires who added it", () => {
+    for (const addedBy of ["", "   ", null, undefined]) {
+      expect(() => checkNewDiscount({ ...MINIMAL, addedBy })).toThrow("Enter added by.");
+    }
+  });
+
   it("requires a deal type", () => {
     for (const dealType of ["", null, undefined, "   "]) {
       expect(() => checkNewDiscount({ ...MINIMAL, dealType })).toThrow("Choose what kind of deal it is.");
@@ -80,6 +87,8 @@ describe("empty inputs", () => {
     const blank = {
       ...MINIMAL,
       kinds: [],
+      scope: "",
+      expiresOn: "",
       title: "  ",
       amount: "  ",
       appliesTo: "",
@@ -92,6 +101,7 @@ describe("empty inputs", () => {
       category: "",
     };
     expect(checkNewDiscount(blank)).toEqual({
+      scope: "general",
       kinds: ["local"],
       business: "Loop Tacos",
       title: null,
@@ -106,6 +116,8 @@ describe("empty inputs", () => {
       howToClaim: "",
       category: "other",
       pennSpecific: false,
+      expiresOn: null,
+      addedBy: "Loop Tester",
     });
   });
 
@@ -139,6 +151,7 @@ describe("very long inputs", () => {
       discount: AT_LIMITS.discount,
       url: AT_LIMITS.url,
       howToClaim: AT_LIMITS.howToClaim,
+      addedBy: AT_LIMITS.addedBy,
     });
   });
 
@@ -152,6 +165,7 @@ describe("very long inputs", () => {
       ["location", "l".repeat(LIMITS.location + 1), "address"],
       ["url", `${AT_LIMITS.url}p`, "link"],
       ["howToClaim", "h".repeat(LIMITS.howToClaim + 1), "how to claim"],
+      ["addedBy", "n".repeat(LIMITS.addedBy + 1), "added by"],
     ];
     for (const [field, value, label] of over) {
       expect(() => checkNewDiscount({ ...AT_LIMITS, [field]: value })).toThrow(`Keep ${label} to at most`);

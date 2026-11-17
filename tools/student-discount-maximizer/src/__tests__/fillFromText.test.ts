@@ -25,6 +25,7 @@ function fakeAI(reply: unknown) {
 }
 
 const EMPTY_DRAFT = {
+  scope: null,
   kinds: null,
   business: null,
   title: null,
@@ -39,6 +40,7 @@ const EMPTY_DRAFT = {
   howToClaim: null,
   category: null,
   pennSpecific: null,
+  expiresOn: null,
 };
 
 describe("fillFromText", () => {
@@ -74,7 +76,7 @@ describe("fillFromText", () => {
     expect(draft.discount).toHaveLength(LIMITS.discount);
     expect(draft.howToClaim).toHaveLength(LIMITS.howToClaim);
     // What it filled in saves as it is.
-    expect(() => checkNewDiscount({ ...draft, amount: String(draft.amount) })).not.toThrow();
+    expect(() => checkNewDiscount({ ...draft, amount: String(draft.amount), addedBy: "x" })).not.toThrow();
 
     const { ai: withLink } = fakeAI({ ...EMPTY_DRAFT, url: " https://sweetgreen.example.com/students ", code: "PENN20" });
     expect(await fillFromText(withLink, "anthropic", "text")).toMatchObject({ url: "https://sweetgreen.example.com/students", code: "PENN20" });

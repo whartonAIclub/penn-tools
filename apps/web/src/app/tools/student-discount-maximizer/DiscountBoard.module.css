@@ -177,8 +177,7 @@
 }
 
 .card,
-.cardExpired,
-.formCard {
+.cardExpired {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -347,11 +346,6 @@
 
 /* ── Add a deal ────────────────────────────────────────────────────────────── */
 
-.formCard {
-  gap: 12px;
-  background: var(--sidebar-bg);
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -458,4 +452,81 @@
   border: 1px solid #dce3ff;
   border-radius: 8px;
   background: #f5f7ff;
+}
+
+/* The Add a deal pop-up. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow-y: auto;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 560px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.closeButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: none;
+  color: var(--section-label);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.closeButton:hover { background: var(--nav-hover); }
+
+/* Screenshot or photo drop zone in the AI fill-in box. */
+.dropZone,
+.dropZoneActive {
+  width: 100%;
+  padding: 18px 12px;
+  border: 2px dashed var(--input-border);
+  border-radius: 10px;
+  color: var(--section-label);
+  font-size: 0.875rem;
+  text-align: center;
+  cursor: pointer;
+}
+.dropZone:hover,
+.dropZoneActive {
+  border-color: var(--penn-blue);
+  background: var(--nav-hover);
+}
+
+.shot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.shotImg {
+  max-width: 100%;
+  max-height: 220px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }

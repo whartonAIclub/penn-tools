@@ -15,6 +15,7 @@ import {
   DiscountError,
   KINDS,
   NEIGHBORHOODS,
+  SCOPES,
   addDiscount,
   checkPastedText,
   fillFromText,
@@ -27,6 +28,7 @@ import {
   type DiscountPage,
   type DiscountCategory,
   type DiscountKind,
+  type DiscountScope,
   type DiscountSort,
   type DealDraft,
   type Neighborhood,
@@ -46,6 +48,7 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: Action
 export interface Filters {
   status: "active" | "expired";
   kind: DiscountKind | null;
+  scope: DiscountScope | null;
   category: DiscountCategory | null;
   audience: DiscountAudience | null;
   neighborhood: Neighborhood | null;
@@ -93,6 +96,7 @@ export async function loadDiscounts(filters: Filters, offset = 0): Promise<Actio
       userId: user?.id ?? null,
       status: f.status === "expired" ? "expired" : "active",
       kind: KINDS.includes(f.kind as DiscountKind) ? (f.kind as DiscountKind) : null,
+      scope: SCOPES.includes(f.scope as DiscountScope) ? (f.scope as DiscountScope) : null,
       category: CATEGORIES.includes(f.category as DiscountCategory) ? (f.category as DiscountCategory) : null,
       audience: f.audience === "penn" || f.audience === "general" ? f.audience : null,
       neighborhood: NEIGHBORHOODS.includes(f.neighborhood as Neighborhood) ? (f.neighborhood as Neighborhood) : null,

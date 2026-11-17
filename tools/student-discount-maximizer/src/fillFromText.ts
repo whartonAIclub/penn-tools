@@ -1,17 +1,21 @@
 // Fills in the Add a deal form from text a student pasted, such as a deal's
-// web page, an email, or text copied from a photo of a sign, with the AI API
+// web page or an email, with the AI API
 // (free credit, then the student's own key). The student checks the result
 // before saving it: nothing here is saved.
 
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
-import { CATEGORIES, DEAL_TYPES, KINDS, LIMITS, NEIGHBORHOODS, isWebLink, sortKinds } from "./discounts.js";
+import { CATEGORIES, DEAL_TYPES, KINDS, LIMITS, NEIGHBORHOODS, SCOPES, isWebLink, sortKinds } from "./discounts.js";
 
 export const MAX_PASTED_TEXT_LENGTH = 8000;
 
 // Fields the text may not mention are .nullable(), so the model leaves them empty
 // rather than guessing.
 export const DealDraft = z.object({
+  scope: z
+    .enum(SCOPES)
+    .nullable()
+    .describe("general: a discount for any student; wharton: only for Wharton students; local: an in-person place in Philadelphia. Null if unclear"),
   kinds: z
     .array(z.enum(KINDS))
     .nullable()
@@ -40,12 +44,17 @@ export const DealDraft = z.object({
     .boolean()
     .nullable()
     .describe("true if only Penn students can get it (e.g. with a PennCard), false if any student can, null if unclear"),
+  expiresOn: z
+    .string()
+    .nullable()
+    .describe("The last day the deal works, as YYYY-MM-DD, only if an end date is given; else null"),
 });
 export type DealDraft = z.infer<typeof DealDraft>;
 
-const SYSTEM_PROMPT = [
-  "You read text about a student discount (from a web page, an email, or copied from a photo of a sign, so it may be jumbled) and fill in a form describing it for Penn students.",
-  "Use only what the text says. Leave a field null rather than guess, and never invent codes or links.",
+/** Shared with fillFromScreenshot. */
+export const FILL_SYSTEM_PROMPT = [
+  "You read text or an image about a student discount (a web page, an email, a screenshot or a photo of a sign, so it may be jumbled) and fill in a form describing it for Penn students.",
+  "Use only what it says. Leave a field null rather than guess, and never invent codes or links.",
   "Keep every field short.",
 ].join(" ");
 
@@ -60,7 +69,8 @@ export function checkPastedText(value: unknown): string | null {
  * The draft cut to what the form accepts, so the student never sees a value
  * that only fails on save: text is shortened to LIMITS, kinds lose repeats,
  * and a link that isn't https, or a code too long to be real, is dropped
- * rather than cut, since half a link or code would be wrong.
+ * rather than cut, since half a link or code would be wrong. An end date
+ * that isn't YYYY-MM-DD is dropped too.
  */
 export function fitDraft(draft: DealDraft): DealDraft {
   const cut = (value: string | null, max: number) => (value === null ? null : value.trim().slice(0, max).trim() || null);
@@ -77,6 +87,7 @@ export function fitDraft(draft: DealDraft): DealDraft {
     location: cut(draft.location, LIMITS.location),
     url: url && isWebLink(url) ? url : null,
     howToClaim: cut(draft.howToClaim, LIMITS.howToClaim),
+    expiresOn: draft.expiresOn && /^\d{4}-\d{2}-\d{2}$/.test(draft.expiresOn.trim()) ? draft.expiresOn.trim() : null,
   };
 }
 
@@ -87,7 +98,7 @@ export async function fillFromText(ai: AI, provider: AIProvider, pastedText: str
     tier: "fast",
     reasoning: "low",
     schema: DealDraft,
-    system: SYSTEM_PROMPT,
+    system: FILL_SYSTEM_PROMPT,
     messages: [{ role: "user", content: pastedText }],
   });
   return fitDraft(object);

@@ -71,3 +71,19 @@ CREATE TABLE IF NOT EXISTS status_changes (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS status_changes_user_idx ON status_changes (user_id, action, created_at);
+
+-- The type of discount (SCOPES in src/discounts.ts, which checks it): a
+-- general student discount, a Wharton discount or a local Philly discount.
+-- Deals from before this column get local if they're used in person, else
+-- general; seed.mjs sets starter deals' the same way.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS scope TEXT;
+UPDATE discounts SET scope = CASE WHEN 'local' = ANY(kinds) THEN 'local' ELSE 'general' END WHERE scope IS NULL;
+ALTER TABLE discounts ALTER COLUMN scope SET DEFAULT 'general';
+ALTER TABLE discounts ALTER COLUMN scope SET NOT NULL;
+
+-- The last day the deal works; null if it doesn't end. The day after, the
+-- deal counts as expired (see listDiscounts in src/discounts.ts).
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS expires_on DATE;
+
+-- Who added the deal, as they gave their name; null for starter deals.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS added_by TEXT;

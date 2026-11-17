@@ -3,10 +3,11 @@
 // (toolSql("studentdiscountmaximizer")) and, where it matters, the signed-in
 // user's id.
 //
-// A deal expires when a student marks it expired, or on its own once enough
-// students say it doesn't work (see vote). Restoring a deal keeps its votes;
-// only votes cast since then count toward expiring it again. Each student can
-// mark and restore a few deals a day (DAILY_STATUS_CHANGE_LIMIT).
+// A deal expires when a student marks it expired, on its own once enough
+// students say it doesn't work (see vote), or the day after its end date.
+// Restoring a deal keeps its votes; only votes cast since then count toward
+// expiring it again. Each student can mark and restore a few deals a day
+// (DAILY_STATUS_CHANGE_LIMIT).
 
 import type { Sql, TransactionSql } from "postgres";
 
@@ -26,6 +27,16 @@ export const KIND_LABELS: Record<DiscountKind, string> = {
 export function sortKinds(kinds: readonly DiscountKind[]): DiscountKind[] {
   return KINDS.filter((k) => kinds.includes(k));
 }
+
+/** The type of discount: who it's for, or that it's a Philly spot. */
+export const SCOPES = ["general", "wharton", "local"] as const;
+export type DiscountScope = (typeof SCOPES)[number];
+
+export const SCOPE_LABELS: Record<DiscountScope, string> = {
+  general: "General student discount",
+  wharton: "Wharton discount",
+  local: "Local Philly discount",
+};
 
 export const CATEGORIES = ["food", "entertainment", "tech", "shopping", "travel", "culture", "fitness", "other"] as const;
 export type DiscountCategory = (typeof CATEGORIES)[number];
@@ -105,11 +116,13 @@ export const LIMITS = {
   location: 200,
   url: 500,
   howToClaim: 1000,
+  addedBy: 100,
   search: 100,
 } as const;
 
 export interface Discount {
   id: string;
+  scope: DiscountScope;
   /** Every way the deal is used, in KINDS order; never empty. */
   kinds: DiscountKind[];
   business: string;
@@ -136,9 +149,13 @@ export interface Discount {
   /** Only for Penn students, rather than any student. */
   pennSpecific: boolean;
   source: "starter" | "student";
+  /** The last day the deal works, as YYYY-MM-DD; null if it doesn't end. */
+  expiresOn: string | null;
+  /** Who added it, as they gave their name; null for starter deals. */
+  addedBy: string | null;
   status: DiscountStatus;
-  /** Why it expired: a student marked it, or votes did. Null while active. */
-  expiredReason: "marked" | "votes" | null;
+  /** Why it expired: a student marked it, votes did, or its end date passed. Null while active. */
+  expiredReason: "marked" | "votes" | "date" | null;
   /** ISO timestamp of the last status change. */
   statusChangedAt: string;
   createdAt: string;
@@ -155,11 +172,12 @@ export interface DiscountPage {
 }
 
 /**
- * A deal a student adds. Only the business and the deal type are required
- * (plus the amount for % off and $ off, and details for "other"); empty
- * optional fields are null.
+ * A deal a student adds. Only the business, the deal type and who added it
+ * are required (plus the amount for % off and $ off, and details for
+ * "other"); empty optional fields are null.
  */
 export interface NewDiscount {
+  scope: DiscountScope;
   kinds: DiscountKind[];
   business: string;
   title: string | null;
@@ -174,6 +192,8 @@ export interface NewDiscount {
   howToClaim: string;
   category: DiscountCategory;
   pennSpecific: boolean;
+  expiresOn: string | null;
+  addedBy: string;
 }
 
 export interface ListOptions {
@@ -182,6 +202,7 @@ export interface ListOptions {
   status: DiscountStatus;
   /** Only deals that can be used this way (among others). */
   kind?: DiscountKind | null;
+  scope?: DiscountScope | null;
   category?: DiscountCategory | null;
   audience?: DiscountAudience | null;
   /** Only in-person deals in this neighborhood. */
@@ -207,6 +228,13 @@ const AMOUNT_RE = /^(\d+(\.\d+)?|\.\d+)$/;
 /** True for a link checkNewDiscount accepts: https, with a host. */
 export function isWebLink(value: string): boolean {
   return value.length <= LIMITS.url && WEB_LINK_RE.test(value);
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Today's date as YYYY-MM-DD, `daysAgo` days back, in UTC. */
+function utcDate(daysAgo = 0): string {
+  return new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
 }
 
 // ── Checking input ────────────────────────────────────────────────────────────
@@ -263,6 +291,22 @@ function kindsOf(value: unknown): DiscountKind[] {
   return value.length > 0 ? sortKinds(value as DiscountKind[]) : ["local"];
 }
 
+/** An optional end date, YYYY-MM-DD; empty means the deal has none. */
+function endDate(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "string" || !DATE_RE.test(value.trim())) {
+    throw new DiscountError("Enter the expiration date as a date, or leave it empty.");
+  }
+  const date = value.trim();
+  // A real calendar date: Date rolls 2026-02-30 over to March, so compare it back.
+  if (new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date) {
+    throw new DiscountError("Enter the expiration date as a date, or leave it empty.");
+  }
+  // A day of slack, since the student's "today" can be the day before UTC's.
+  if (date < utcDate(1)) throw new DiscountError("That expiration date has already passed.");
+  return date;
+}
+
 /**
  * A new deal from the browser's input, checked; throws DiscountError if
  * something's wrong. Fields that don't apply to the deal are dropped, whatever
@@ -277,6 +321,9 @@ export function checkNewDiscount(input: unknown): NewDiscount {
   const dealType = raw["dealType"] as DealType;
   if (!DEAL_TYPES.includes(dealType)) throw new DiscountError("Choose what kind of deal it is.");
   const kinds = kindsOf(raw["kinds"]);
+  // Defaults to a general student discount, the most common type.
+  const scope = raw["scope"] || "general";
+  if (!SCOPES.includes(scope as DiscountScope)) throw new DiscountError("Choose the type of discount.");
   const inPerson = kinds.includes("local");
   const withCode = kinds.includes("code");
   const category = raw["category"] || "other";
@@ -288,6 +335,7 @@ export function checkNewDiscount(input: unknown): NewDiscount {
   const takesAmount = DEAL_TYPES_NEEDING_AMOUNT.includes(dealType) || dealType === "student_price";
 
   return {
+    scope: scope as DiscountScope,
     kinds,
     business,
     title: text(raw["title"], "Title", LIMITS.title, false),
@@ -304,6 +352,8 @@ export function checkNewDiscount(input: unknown): NewDiscount {
     howToClaim: text(raw["howToClaim"], "How to claim", LIMITS.howToClaim, false) ?? "",
     category: category as DiscountCategory,
     pennSpecific: raw["pennSpecific"] === true,
+    expiresOn: endDate(raw["expiresOn"]),
+    addedBy: text(raw["addedBy"], "Added by", LIMITS.addedBy, true)!,
   };
 }
 
@@ -344,6 +394,7 @@ export function dealSummary(deal: {
 
 interface DiscountRow {
   id: string;
+  scope: DiscountScope;
   kinds: DiscountKind[];
   business: string;
   title: string | null;
@@ -360,6 +411,10 @@ interface DiscountRow {
   category: DiscountCategory;
   penn_specific: boolean;
   source: "starter" | "student";
+  /** YYYY-MM-DD. */
+  expires_on: string | null;
+  past_end_date: boolean;
+  added_by: string | null;
   status: DiscountStatus;
   expired_reason: "marked" | "votes" | null;
   status_changed_at: Date;
@@ -372,6 +427,7 @@ interface DiscountRow {
 function toDiscount(row: DiscountRow): Discount {
   return {
     id: row.id,
+    scope: row.scope,
     kinds: sortKinds(row.kinds),
     business: row.business,
     title: row.title,
@@ -394,8 +450,11 @@ function toDiscount(row: DiscountRow): Discount {
     category: row.category,
     pennSpecific: row.penn_specific,
     source: row.source,
-    status: row.status,
-    expiredReason: row.expired_reason,
+    expiresOn: row.expires_on,
+    addedBy: row.added_by,
+    // A deal past its end date is expired whatever its status column says.
+    status: row.past_end_date ? "expired" : row.status,
+    expiredReason: row.status === "expired" ? row.expired_reason : row.past_end_date ? "date" : null,
     statusChangedAt: row.status_changed_at.toISOString(),
     createdAt: row.created_at.toISOString(),
     works: Number(row.works),
@@ -416,9 +475,11 @@ export function mapsUrl(business: string, location: string): string {
 /** The columns of a DiscountRow, for a query over discounts d LEFT JOIN votes v, grouped by d.id. */
 function discountColumns(sql: Sql, userId: string | null) {
   return sql`
-    d.id, d.kinds, d.business, d.title, d.deal_type, d.amount, d.applies_to, d.discount, d.code,
+    d.id, d.scope, d.kinds, d.business, d.title, d.deal_type, d.amount, d.applies_to, d.discount, d.code,
     d.location, d.neighborhood, d.url, d.how_to_claim, d.category, d.penn_specific, d.source,
-    d.status, d.expired_reason, d.status_changed_at, d.created_at,
+    d.status, d.expired_reason, d.status_changed_at, d.created_at, d.added_by,
+    TO_CHAR(d.expires_on, 'YYYY-MM-DD') AS expires_on,
+    COALESCE(d.expires_on < CURRENT_DATE, FALSE) AS past_end_date,
     COUNT(v.user_id) FILTER (WHERE v.works) AS works,
     COUNT(v.user_id) FILTER (WHERE NOT v.works) AS not_working,
     BOOL_OR(v.works) FILTER (WHERE v.user_id = ${userId ?? ""}) AS my_vote
@@ -432,13 +493,13 @@ function likePattern(search: string): string {
 
 /** Deals matching the filters, each with its vote counts and the student's own vote. */
 export async function listDiscounts(sql: Sql, options: ListOptions): Promise<Discount[]> {
-  const { userId, status, kind, category, audience, neighborhood, sort = "top", limit = PAGE_SIZE, offset = 0 } = options;
+  const { userId, status, kind, scope, category, audience, neighborhood, sort = "top", limit = PAGE_SIZE, offset = 0 } = options;
   const search = options.search?.trim().slice(0, LIMITS.search);
   const pattern = search ? likePattern(search) : null;
 
   const order =
     status === "expired"
-      ? sql`d.status_changed_at DESC`
+      ? sql`COALESCE(d.expires_on::timestamptz, d.status_changed_at) DESC`
       : sort === "new"
         ? sql`d.created_at DESC`
         : sort === "az"
@@ -449,8 +510,14 @@ export async function listDiscounts(sql: Sql, options: ListOptions): Promise<Dis
     SELECT ${discountColumns(sql, userId)}
     FROM discounts d
     LEFT JOIN votes v ON v.discount_id = d.id
-    WHERE d.status = ${status}
+    WHERE ${
+      // Deals past their end date count as expired.
+      status === "active"
+        ? sql`d.status = 'active' AND (d.expires_on IS NULL OR d.expires_on >= CURRENT_DATE)`
+        : sql`(d.status = 'expired' OR d.expires_on < CURRENT_DATE)`
+    }
       ${kind ? sql`AND ${kind} = ANY(d.kinds)` : sql``}
+      ${scope ? sql`AND d.scope = ${scope}` : sql``}
       ${category ? sql`AND d.category = ${category}` : sql``}
       ${audience ? sql`AND d.penn_specific = ${audience === "penn"}` : sql``}
       ${neighborhood ? sql`AND 'local' = ANY(d.kinds) AND d.neighborhood = ${neighborhood}` : sql``}
@@ -482,10 +549,11 @@ export async function listDiscountPage(sql: Sql, options: Omit<ListOptions, "lim
  * tell if a deal just added or restored belongs in what's on screen.
  */
 export function matchesFilters(deal: Discount, filters: Omit<ListOptions, "userId" | "limit" | "offset" | "sort">): boolean {
-  const { status, kind, category, audience, neighborhood } = filters;
+  const { status, kind, scope, category, audience, neighborhood } = filters;
   const search = filters.search?.trim().slice(0, LIMITS.search).toLowerCase();
   if (deal.status !== status) return false;
   if (kind && !deal.kinds.includes(kind)) return false;
+  if (scope && deal.scope !== scope) return false;
   if (category && deal.category !== category) return false;
   if (audience && deal.pennSpecific !== (audience === "penn")) return false;
   if (neighborhood && !(deal.kinds.includes("local") && deal.neighborhood === neighborhood)) return false;
@@ -546,11 +614,12 @@ export async function addDiscount(sql: Sql, userId: string, input: unknown): Pro
       throw new DiscountError(`You can add up to ${DAILY_SUBMISSION_LIMIT} deals a day. Try again tomorrow.`);
     }
     const [row] = await tx<{ id: string }[]>`
-      INSERT INTO discounts (kinds, business, title, deal_type, amount, applies_to, discount, code, location,
-                             neighborhood, url, how_to_claim, category, penn_specific, source, created_by)
-      VALUES (${tx.array(deal.kinds)}, ${deal.business}, ${deal.title}, ${deal.dealType}, ${deal.amount}, ${deal.appliesTo},
+      INSERT INTO discounts (scope, kinds, business, title, deal_type, amount, applies_to, discount, code, location,
+                             neighborhood, url, how_to_claim, category, penn_specific, expires_on, added_by,
+                             source, created_by)
+      VALUES (${deal.scope}, ${tx.array(deal.kinds)}, ${deal.business}, ${deal.title}, ${deal.dealType}, ${deal.amount}, ${deal.appliesTo},
               ${deal.discount}, ${deal.code}, ${deal.location}, ${deal.neighborhood}, ${deal.url}, ${deal.howToClaim},
-              ${deal.category}, ${deal.pennSpecific}, 'student', ${userId})
+              ${deal.category}, ${deal.pennSpecific}, ${deal.expiresOn}, ${deal.addedBy}, 'student', ${userId})
       RETURNING id
     `;
     return row!.id;
@@ -573,10 +642,12 @@ export async function vote(sql: Sql, userId: string, discountId: string, works: 
       ? await sql`
           DELETE FROM votes v USING discounts d
           WHERE v.discount_id = d.id AND d.id = ${discountId} AND d.status = 'active' AND v.user_id = ${userId}
+            AND (d.expires_on IS NULL OR d.expires_on >= CURRENT_DATE)
         `
       : await sql`
           INSERT INTO votes (discount_id, user_id, works)
-          SELECT id, ${userId}, ${works} FROM discounts WHERE id = ${discountId} AND status = 'active'
+          SELECT id, ${userId}, ${works} FROM discounts
+          WHERE id = ${discountId} AND status = 'active' AND (expires_on IS NULL OR expires_on >= CURRENT_DATE)
           ON CONFLICT (discount_id, user_id) DO UPDATE SET works = EXCLUDED.works, updated_at = NOW()
         `;
   if (changed.count === 0) {
@@ -631,8 +702,9 @@ async function changeStatus(sql: Sql, userId: string, discountId: string, action
           `
         : await tx`
             UPDATE discounts
-            SET status = 'active', expired_reason = NULL, status_changed_at = NOW(), status_changed_by = ${userId}
-            WHERE id = ${discountId} AND status = 'expired'
+            SET status = 'active', expired_reason = NULL, status_changed_at = NOW(), status_changed_by = ${userId},
+                expires_on = CASE WHEN expires_on < CURRENT_DATE THEN NULL ELSE expires_on END
+            WHERE id = ${discountId} AND (status = 'expired' OR expires_on < CURRENT_DATE)
             RETURNING id
           `;
     if (changed.length === 0) {
@@ -652,7 +724,8 @@ export async function markExpired(sql: Sql, userId: string, discountId: string):
 
 /**
  * Brings an expired deal back (up to DAILY_STATUS_CHANGE_LIMIT a day). It keeps
- * its votes, but only votes cast from now on count toward expiring it again.
+ * its votes, but only votes cast from now on count toward expiring it again. A
+ * deal that expired because its end date passed loses the end date.
  */
 export async function restore(sql: Sql, userId: string, discountId: string): Promise<Discount> {
   return changeStatus(sql, userId, discountId, "restore");
