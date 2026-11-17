@@ -6,7 +6,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
-import type { OutreachDraft, Person } from "@penntools/tool-industry-connector";
+import type { OutreachDraft, PersonCard } from "@penntools/tool-industry-connector";
 import { draftNote, type ActionError } from "./actions";
 import styles from "./IndustryConnector.module.css";
 
@@ -30,16 +30,28 @@ export interface OutreachOptions {
   afterConversation: string[];
 }
 
+/** The student's own details: kept by the page, so they're typed once for every person. */
+export interface SenderDetails {
+  senderName: string;
+  senderProgram: string;
+  senderBackground: string;
+  recruitingGoal: string;
+}
+
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 export function OutreachForm({
   person,
   industry,
   options,
+  sender,
+  onSenderChange,
 }: {
-  person: Person;
+  person: PersonCard;
   industry: string;
   options: OutreachOptions;
+  sender: SenderDetails;
+  onSenderChange: (sender: SenderDetails) => void;
 }) {
   const [provider, setProvider] = useState<AIProvider | undefined>(options.providers[0]);
   const [answers, setAnswers] = useState({
@@ -48,10 +60,6 @@ export function OutreachForm({
     referralJob: "",
     introductionTarget: "",
     conversationNotes: "",
-    senderName: options.senderName,
-    senderProgram: "",
-    senderBackground: "",
-    recruitingGoal: "",
     sharedConnection: "",
     tone: options.tones[0]!.id,
     length: options.lengths[0]!.id,
@@ -65,6 +73,8 @@ export function OutreachForm({
   const firstName = person.name.split(" ")[0];
   const set = (field: keyof typeof answers) => (e: { target: { value: string } }) =>
     setAnswers((a) => ({ ...a, [field]: e.target.value }));
+  const setSender = (field: keyof SenderDetails) => (e: { target: { value: string } }) =>
+    onSenderChange({ ...sender, [field]: e.target.value });
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,7 +82,7 @@ export function OutreachForm({
     setCopied(false);
     startTransition(async () => {
       try {
-        const res = await draftNote({ personId: person.id, industry, provider, answers });
+        const res = await draftNote({ personId: person.id, industry, provider, answers: { ...answers, ...sender } });
         if (res.ok) {
           setError(null);
           setDraft(res.data);
@@ -146,19 +156,19 @@ export function OutreachForm({
         <div className={styles.row}>
           <label className={styles.field}>
             Your name
-            <input value={answers.senderName} onChange={set("senderName")} maxLength={100} required />
+            <input value={sender.senderName} onChange={setSender("senderName")} maxLength={100} required />
           </label>
           <label className={styles.field}>
             Your program and class year
-            <input value={answers.senderProgram} onChange={set("senderProgram")} maxLength={100} placeholder="FT MBA, Class of 2027" />
+            <input value={sender.senderProgram} onChange={setSender("senderProgram")} maxLength={100} placeholder="FT MBA, Class of 2027" />
           </label>
         </div>
 
         <label className={styles.field}>
           Your background in a sentence or two (optional)
           <textarea
-            value={answers.senderBackground}
-            onChange={set("senderBackground")}
+            value={sender.senderBackground}
+            onChange={setSender("senderBackground")}
             maxLength={400}
             rows={2}
             placeholder="e.g. Three years in product at a healthcare startup before Wharton."
@@ -168,8 +178,8 @@ export function OutreachForm({
         <label className={styles.field}>
           What are you recruiting for? (optional)
           <input
-            value={answers.recruitingGoal}
-            onChange={set("recruitingGoal")}
+            value={sender.recruitingGoal}
+            onChange={setSender("recruitingGoal")}
             maxLength={200}
             placeholder="e.g. Summer associate roles in venture capital"
           />

@@ -1,4 +1,6 @@
-export interface Person {
+/** A student or alum as the results list shows them. */
+export interface PersonCard {
+  /** Stable across uploads (see person_key in schema.sql). */
   id: string;
   name: string;
   /** Graduation year. */
@@ -9,11 +11,10 @@ export interface Person {
   /** Empty when CareerPath has no current job for them. */
   currentEmployer: string;
   currentTitle: string;
-  /** Every industry (from INDUSTRIES) they have worked in, before or after Wharton. */
-  industries: string[];
 }
 
-export interface SearchFilters {
-  program?: string | undefined;
-  classYear?: number | undefined;
+/** A person with their industries: what the outreach draft needs. */
+export interface Person extends PersonCard {
+  /** Every industry (from INDUSTRIES) they have worked in, before or after Wharton. */
+  industries: string[];
 }

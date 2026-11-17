@@ -1,29 +1,38 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import type { Person } from "@penntools/tool-industry-connector";
+import Link from "next/link";
+import type { PersonCard } from "@penntools/tool-industry-connector";
 import { searchIndustry } from "./actions";
-import { OutreachForm, type OutreachOptions } from "./OutreachForm";
+import { OutreachForm, type OutreachOptions, type SenderDetails } from "./OutreachForm";
 import styles from "./IndustryConnector.module.css";
 
 interface Props {
   industries: string[];
   /** People who have worked in each industry. */
   counts: Record<string, number>;
+  /** Whether to show the link to the upload page. */
+  canUpload: boolean;
   outreach: OutreachOptions;
 }
 
-/** Results shown at first, and added by each "Show more". */
-const PAGE = 50;
+/** A search's results, kept with the industry they were searched for. */
+interface Results {
+  industry: string;
+  people: PersonCard[];
+  total: number;
+}
 
 interface Section {
   title: string;
   items: { name: string; label: string }[];
 }
 
+const FAILED = "Something went wrong. Check your connection and try again.";
+
 // "Health Care: Digital Health" is listed as "Digital Health" under "Health Care".
 // Industries with no prefix go together under "More industries", unless another
-// industry shares their name as a prefix (Manufacturing).
+// industry shares their name as a prefix (Energy).
 function buildSections(industries: string[]): Section[] {
   const prefixes = new Set(industries.filter((i) => i.includes(": ")).map((i) => i.split(": ")[0]!));
   const sections = new Map<string, Section>();
@@ -41,13 +50,19 @@ function buildSections(industries: string[]): Section[] {
   return [...sections.values(), loose];
 }
 
-export function IndustryConnector({ industries, counts, outreach }: Props) {
+export function IndustryConnector({ industries, counts, canUpload, outreach }: Props) {
   const [industry, setIndustry] = useState("");
   const [filter, setFilter] = useState("");
-  const [results, setResults] = useState<Person[] | null>(null);
+  const [results, setResults] = useState<Results | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draftingFor, setDraftingFor] = useState<string | null>(null); // the person with the outreach form open
-  const [shown, setShown] = useState(PAGE);
+  // The student's own details, typed once and kept for every person they write to.
+  const [sender, setSender] = useState<SenderDetails>({
+    senderName: outreach.senderName,
+    senderProgram: "",
+    senderBackground: "",
+    recruitingGoal: "",
+  });
   const [pending, startTransition] = useTransition();
 
   const sections = useMemo(() => buildSections(industries), [industries]);
@@ -57,18 +72,40 @@ export function IndustryConnector({ industries, counts, outreach }: Props) {
     .filter((s) => s.items.length > 0);
 
   function seeStudents() {
+    const searched = industry;
     startTransition(async () => {
-      const res = await searchIndustry(industry);
-      if (res.ok) {
+      try {
+        const res = await searchIndustry({ industry: searched, offset: 0 });
+        if (!res.ok) return setError(res.error.message);
         setError(null);
-        setResults(res.data);
+        setResults({ industry: searched, ...res.data });
         setDraftingFor(null);
-        setShown(PAGE);
-      } else {
-        setError(res.error.message);
+      } catch {
+        setError(FAILED);
       }
     });
   }
+
+  function showMore() {
+    if (!results) return;
+    const current = results;
+    startTransition(async () => {
+      try {
+        const res = await searchIndustry({ industry: current.industry, offset: current.people.length });
+        if (!res.ok) return setError(res.error.message);
+        setError(null);
+        setResults({ industry: current.industry, total: res.data.total, people: [...current.people, ...res.data.people] });
+      } catch {
+        setError(FAILED);
+      }
+    });
+  }
+
+  const errorMessage = error && (
+    <p className={styles.error} role="alert">
+      {error}
+    </p>
+  );
 
   if (results) {
     return (
@@ -77,17 +114,17 @@ export function IndustryConnector({ industries, counts, outreach }: Props) {
           <button type="button" className={styles.back} onClick={() => setResults(null)}>
             ← Choose a different industry
           </button>
-          <h1 className={styles.title}>{industry}</h1>
+          <h1 className={styles.title}>{results.industry}</h1>
           <p className={styles.muted}>
-            {results.length} {results.length === 1 ? "person has" : "people have"} worked in this industry.
+            {results.total} {results.total === 1 ? "person has" : "people have"} worked in this industry.
           </p>
         </header>
-        {results.length === 0 ? (
-          <p className={styles.muted}>No one in the data has worked in this industry yet.</p>
+        {results.people.length === 0 ? (
+          <p className={styles.muted}>No one in the directory has worked in this industry yet.</p>
         ) : (
           <>
             <ul className={styles.list}>
-              {results.slice(0, shown).map((person) => (
+              {results.people.map((person) => (
                 <li key={person.id} className={styles.card}>
                   <div className={styles.cardHeader}>
                     <div>
@@ -112,13 +149,22 @@ export function IndustryConnector({ industries, counts, outreach }: Props) {
                       {draftingFor === person.id ? "Close" : "Draft outreach note"}
                     </button>
                   </div>
-                  {draftingFor === person.id && <OutreachForm person={person} industry={industry} options={outreach} />}
+                  {draftingFor === person.id && (
+                    <OutreachForm
+                      person={person}
+                      industry={results.industry}
+                      options={outreach}
+                      sender={sender}
+                      onSenderChange={setSender}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
-            {shown < results.length && (
-              <button type="button" className={styles.secondaryButton} onClick={() => setShown(shown + PAGE)}>
-                Show more ({results.length - shown} left)
+            {errorMessage}
+            {results.people.length < results.total && (
+              <button type="button" className={styles.secondaryButton} onClick={showMore} disabled={pending}>
+                {pending ? "Loading…" : `Show more (${results.total - results.people.length} left)`}
               </button>
             )}
           </>
@@ -134,6 +180,13 @@ export function IndustryConnector({ industries, counts, outreach }: Props) {
         <p className={styles.muted}>
           Choose the industry you&apos;re recruiting for to find Wharton MBA students and alumni who have worked in it.
         </p>
+        {canUpload && (
+          <p>
+            <Link href="/tools/industry-connector/admin" className={styles.link}>
+              Upload data (admins)
+            </Link>
+          </p>
+        )}
       </header>
 
       <section aria-labelledby="pick-industry">
@@ -157,6 +210,8 @@ export function IndustryConnector({ industries, counts, outreach }: Props) {
                   type="button"
                   className={`${styles.chip} ${item.name === industry ? styles.chipActive : ""}`}
                   aria-pressed={item.name === industry}
+                  // Locked while a search runs, so the results can't end up under another industry.
+                  disabled={pending}
                   onClick={() => setIndustry(item.name === industry ? "" : item.name)}
                 >
                   {item.label}
@@ -168,7 +223,7 @@ export function IndustryConnector({ industries, counts, outreach }: Props) {
         ))}
       </section>
 
-      {error && <p className={styles.error} role="alert">{error}</p>}
+      {errorMessage}
 
       <footer className={styles.footer}>
         <div>

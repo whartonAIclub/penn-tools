@@ -1,7 +1,7 @@
 // The outreach logic with a fake AI: no API keys, no network, no cost.
 import { describe, expect, it } from "vitest";
 import type { AI, GenerateObjectRequest } from "@penntools/core/ai";
-import { draftOutreach, OutreachAnswers, OutreachDraft, outreachPrompt, type Person } from "../index.js";
+import { DraftRequest, draftOutreach, OutreachAnswers, OutreachDraft, outreachPrompt, recipientProblem, type Person } from "../index.js";
 
 const recipient: Person = {
   id: "p1", name: "Jordan Example", classYear: 2025, program: "FT MBA", isAlumni: true,
@@ -80,5 +80,26 @@ describe("draftOutreach", () => {
     expect(requests[0]?.provider).toBe("anthropic");
     expect(requests[0]?.schema).toBe(OutreachDraft);
     expect(requests[0]?.system).toContain("Never invent");
+  });
+});
+
+describe("DraftRequest", () => {
+  const ok = { personId: "3f2c8a5e-1b2d-4c3e-9f0a-1234567890ab", industry: "Consulting", provider: "anthropic", answers: answers() };
+
+  it("accepts a whole, valid request", () => {
+    expect(DraftRequest.safeParse(ok).success).toBe(true);
+  });
+
+  it("rejects malformed requests instead of throwing", () => {
+    for (const bad of [null, undefined, "x", 1, [], {}, { ...ok, personId: "p1" }, { ...ok, industry: "Basket Weaving" }, { ...ok, provider: "other" }, { ...ok, answers: null }]) {
+      expect(DraftRequest.safeParse(bad).success).toBe(false);
+    }
+  });
+});
+
+describe("recipientProblem", () => {
+  it("allows only an industry the recipient has worked in", () => {
+    expect(recipientProblem(recipient, "Financial Services: Venture Capital")).toBeNull();
+    expect(recipientProblem(recipient, "Real Estate")).toContain("hasn't worked in Real Estate");
   });
 });

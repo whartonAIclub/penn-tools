@@ -12,14 +12,12 @@
 .chipActive { background: #011f5b; border-color: #011f5b; color: #fff; }
 .count { font-size: 0.75rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: #e8edf7; color: #011f5b; }
 .chipActive .count { background: rgba(255, 255, 255, 0.2); color: #fff; }
-.filters { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; font-weight: 600; }
-.field select { padding: 0.5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; }
+.field select { padding: 0.5rem; font-size: 1rem; font-weight: 400; border: 1px solid #ccc; border-radius: 6px; }
 .error { color: #b00020; margin: 0; }
 .list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .card { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem; }
 .name { font-weight: 600; }
-.jobs { margin: 0.4rem 0 0; padding-left: 1.1rem; }
 .tag { font-size: 0.75rem; color: #011f5b; background: #e8edf7; border-radius: 4px; padding: 0.05rem 0.4rem; margin-left: 0.3rem; }
 .footer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; border-top: 1px solid #ddd; padding-top: 1rem; }
 .button { padding: 0.55rem 1.1rem; font-size: 1rem; border: 0; border-radius: 6px; background: #011f5b; color: #fff; cursor: pointer; }
@@ -36,7 +34,15 @@
 .row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .row > .field { flex: 1 1 12rem; }
 .field input, .field textarea { padding: 0.5rem; font: inherit; font-weight: 400; border: 1px solid #ccc; border-radius: 6px; width: 100%; box-sizing: border-box; }
-.field select { font-weight: 400; }
 .draft { display: flex; flex-direction: column; gap: 0.6rem; background: #f7f9fc; border: 1px solid #e3e8f2; border-radius: 8px; padding: 0.9rem; }
 .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .link { color: #011f5b; text-decoration: underline; }
+
+.secondaryButton:disabled, .chip:disabled { opacity: 0.5; cursor: default; }
+/* Upload page */
+.notice { padding: 0.75rem 1rem; border-radius: 8px; background: #f7f9fc; border: 1px solid #e3e8f2; margin: 0; }
+.problems { margin: 0; padding-left: 1.2rem; color: #b00020; }
+.table { border-collapse: collapse; font-size: 0.9rem; }
+.table th, .table td { text-align: left; padding: 0.25rem 1rem 0.25rem 0; border-bottom: 1px solid #eee; }
+.table td:last-child { text-align: right; }
+.code { background: #f3f3f3; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; overflow-x: auto; margin: 0; }

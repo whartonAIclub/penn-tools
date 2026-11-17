@@ -4,8 +4,9 @@
 // recipient (looked up on the server, never taken from the browser) and the
 // answers, checked here against OutreachAnswers.
 
-import { z } from "@penntools/core/ai";
+import { AI_PROVIDERS, z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
+import { INDUSTRIES } from "./industries.js";
 import type { Person } from "./types.js";
 
 // ── The questions ─────────────────────────────────────────────────────────────
@@ -81,6 +82,23 @@ export const OutreachAnswers = z
     }
   });
 export type OutreachAnswers = z.infer<typeof OutreachAnswers>;
+
+/** A whole draft request from the browser: who to write to, for which industry, with which provider, and the answers. */
+export const DraftRequest = z.object({
+  personId: z.string().uuid(),
+  industry: z.enum(INDUSTRIES),
+  provider: z.enum(AI_PROVIDERS as [AIProvider, ...AIProvider[]]),
+  answers: OutreachAnswers,
+});
+export type DraftRequest = z.infer<typeof DraftRequest>;
+
+/**
+ * Why a note to `recipient` about `industry` can't be drafted, or null. The
+ * prompt tells the model the recipient worked in the industry, so it must be true.
+ */
+export function recipientProblem(recipient: Person, industry: string): string | null {
+  return recipient.industries.includes(industry) ? null : `${recipient.name} hasn't worked in ${industry}. Search again.`;
+}
 
 /** The draft: a subject line and a plain-text body. */
 export const OutreachDraft = z.object({
