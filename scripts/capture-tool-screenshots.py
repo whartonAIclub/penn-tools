@@ -70,7 +70,7 @@ TARGETS = {
     "ai-compass": {"url": "https://akshitkalra.com/aicompass"},
     # Registered tools (tools/*), keyed by manifest id
     "resume-customizer": local("/tools/resume-customizer"),
-    "pitch-coach": local("/tools/pitch-coach"),
+    "pitch-coach": local("/tools/pitch-coach"),  # needs sign-in: its image was taken signed in
     "platform-playground": local("/tools/platform-playground"),
     "askpenn": local("/tools/askpenn"),
     "recruiting-helper": local("/tools/recruiting-helper"),  # needs sign-in: its image was taken signed in
