@@ -19,7 +19,7 @@ import {
   updateProposal,
 } from "../calendarStorage.js";
 import { listTasks } from "../tasks.js";
-import { createPlannedEvent, deletePlannedEvent, deletePlannedEvents, getPlannedEvent, listPlannedEvents, updatePlannedEvent, type PlannedEventInput } from "../planning.js";
+import { createPlannedEvent, deletePlannedEvent, deletePlannedEvents, getPlannedEvent, getPlannedEvents, listPlannedEvents, plannedEventExists, updatePlannedEvent, type PlannedEventInput } from "../planning.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -105,6 +105,69 @@ describe.skipIf(!databaseUrl)("calendar storage", () => {
     expect((await listPlannedEvents(sql)).filter((e) => e.title === "Oktoberfest")).toHaveLength(1);
     expect(await getPlannedEvent(sql, eventId)).toMatchObject({ importId: id, venue: "Armory", roles: [{ role: "Pub Leader 1", person: "Diva" }] });
     expect((await getCalendarImport(sql, id))!.proposals[0]).toMatchObject({ status: "approved", eventId });
+  });
+
+  it("gives an event created by approval its checklist, unless it's cancelled", async () => {
+    const id = await createCalendarImport(sql, {
+      filename: "Checklist.xlsx",
+      uploadedBy: "u1",
+      proposals: [proposal(1, input("Checklist Pub", { eventDate: "2027-03-11" })), proposal(2, input("Called Off Pub", { eventDate: "2027-03-18", cancelled: true }))],
+    });
+    const [live, cancelled] = (await getCalendarImport(sql, id))!.proposals;
+    const a = (await approveProposal(sql, live!.id, "u1")) as { eventId: string };
+    const b = (await approveProposal(sql, cancelled!.id, "u1")) as { eventId: string };
+    const templateTasks = async (eventId: string) => (await listTasks(sql, { eventIds: [eventId] })).filter((t) => t.templateItemKey !== null);
+    expect((await templateTasks(a.eventId)).length).toBeGreaterThan(0);
+    expect(await templateTasks(b.eventId)).toEqual([]);
+    // Approving again changes nothing: still one checklist.
+    const before = (await templateTasks(a.eventId)).length;
+    await approveProposal(sql, live!.id, "u1");
+    expect((await templateTasks(a.eventId)).length).toBe(before);
+  });
+
+  it("lists every planned event, so upcoming ones never drop out behind years of past ones", async () => {
+    // 250 past Pubs, written directly; then one upcoming.
+    await sql`
+      INSERT INTO events (title, event_type, event_date, organizer_name, created_by)
+      SELECT 'Old Pub ' || n, 'pub', DATE '2000-01-01' + n, 'Unassigned', 'u1' FROM generate_series(1, 250) AS n`;
+    await createPlannedEvent(sql, input("Next Pub", { eventDate: "2030-01-10" }), "u1");
+    const titles = (await listPlannedEvents(sql)).map((e) => e.title);
+    expect(titles.filter((t) => t.startsWith("Old Pub "))).toHaveLength(250);
+    expect(titles).toContain("Next Pub");
+    await sql`DELETE FROM events WHERE title LIKE 'Old Pub %'`;
+  });
+
+  it("getPlannedEvents loads several events at once, each with its own clubs, vendors and roles", async () => {
+    const a = await createPlannedEvent(sql, input("Batch Pub A", { eventDate: "2030-03-01", partnerClubs: ["Asia Club"], vendors: [{ name: "Bistro", role: "catering" }], roles: [{ role: "Pub Leader 1", person: "Ana" }] }), "u1");
+    const b = await createPlannedEvent(sql, input("Batch Pub B", { eventDate: "2030-03-08", partnerClubs: [], vendors: [], roles: [{ role: "Ops Lead", person: "Ben" }] }), "u1");
+    const events = await getPlannedEvents(sql, [a, b, "not-a-uuid", "00000000-0000-0000-0000-000000000000", a]);
+    expect([...events.keys()].sort()).toEqual([a, b].sort());
+    for (const id of [a, b]) expect(events.get(id)).toEqual(await getPlannedEvent(sql, id));
+    expect(events.get(a)).toMatchObject({ partnerClubs: ["Asia Club"], vendors: [{ name: "Bistro", role: "catering" }], roles: [{ role: "Pub Leader 1", person: "Ana" }] });
+    expect(events.get(b)).toMatchObject({ partnerClubs: [], vendors: [], roles: [{ role: "Ops Lead", person: "Ben" }] });
+    expect((await getPlannedEvents(sql, [])).size).toBe(0);
+    // A UUID in capitals is the same event.
+    expect(await getPlannedEvent(sql, a.toUpperCase())).toEqual(events.get(a));
+  });
+
+  it("plannedEventExists is false for a malformed id or a deleted event", async () => {
+    const id = await createPlannedEvent(sql, input("Exists Pub", { eventDate: "2030-02-01" }), "u1");
+    expect(await plannedEventExists(sql, id)).toBe(true);
+    expect(await plannedEventExists(sql, "not-a-uuid")).toBe(false);
+    await deletePlannedEvent(sql, id);
+    expect(await plannedEventExists(sql, id)).toBe(false);
+  });
+
+  it("approveAllPending gives each new event its checklist", async () => {
+    const id = await createCalendarImport(sql, {
+      filename: "All.xlsx",
+      uploadedBy: "u1",
+      proposals: [proposal(1, input("All Pub One", { eventDate: "2027-09-02" })), proposal(2, input("All Pub Two", { eventDate: "2027-09-09" }))],
+    });
+    expect(await approveAllPending(sql, id, "u1")).toBe(2);
+    for (const p of (await getCalendarImport(sql, id))!.proposals) {
+      expect((await listTasks(sql, { eventIds: [p.eventId!] })).some((t) => t.templateItemKey !== null)).toBe(true);
+    }
   });
 
   it("doesn't call stored roles in a different order a change", async () => {

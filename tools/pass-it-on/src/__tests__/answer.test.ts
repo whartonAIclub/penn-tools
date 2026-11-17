@@ -66,6 +66,31 @@ describe("answerFromLibrary", () => {
     expect(result.found && result.citations.map((c) => c.passage.excerptId)).toEqual([2]);
   });
 
+  it("doesn't count a quote too short to show support, such as one word or a symbol", async () => {
+    for (const quote of ["the", "$", "14 days", "the event"]) {
+      const { ai } = fakeAI({ found: true, answer: "Within 14 days.", citations: [{ excerptId: 1, quote }] });
+      expect(await answerFromLibrary(ai, "openai", "When are receipts due?", [reimbursement])).toEqual({ found: false, message: NOT_FOUND_MESSAGE });
+    }
+  });
+
+  it("accepts a short quote that is the whole passage", async () => {
+    const cell = passage(3, "Vendor: Bistro");
+    const { ai } = fakeAI({ found: true, answer: "Bistro.", citations: [{ excerptId: 3, quote: "Vendor: Bistro" }] });
+    expect((await answerFromLibrary(ai, "openai", "Who caters?", [cell])).found).toBe(true);
+  });
+
+  it("accepts a whole short passage even when the model straightens its curly quotes", async () => {
+    const cell = passage(4, "Don’t bring cash");
+    const { ai } = fakeAI({ found: true, answer: "No cash.", citations: [{ excerptId: 4, quote: "Don't bring cash" }] });
+    expect((await answerFromLibrary(ai, "openai", "Cash?", [cell])).found).toBe(true);
+  });
+
+  it("doesn't count the | between spreadsheet cells as words", async () => {
+    const table = passage(5, "Event | Cost | Paid\nOktoberfest Pub | 5 | 0 | yes");
+    const { ai } = fakeAI({ found: true, answer: "Five.", citations: [{ excerptId: 5, quote: "Pub | 5 | 0" }] });
+    expect(await answerFromLibrary(ai, "openai", "Cost?", [table])).toEqual({ found: false, message: NOT_FOUND_MESSAGE });
+  });
+
   it("says it couldn't find an answer when no citation survives", async () => {
     const { ai } = fakeAI({ found: true, answer: "Probably 30 days.", citations: [{ excerptId: 1, quote: "within 30 days" }] });
     expect(await answerFromLibrary(ai, "openai", "q", [reimbursement])).toEqual({ found: false, message: NOT_FOUND_MESSAGE });

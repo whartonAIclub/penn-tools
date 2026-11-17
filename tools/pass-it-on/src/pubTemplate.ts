@@ -228,41 +228,43 @@ const BUILT_IN: PubTemplate[] = [PUB_TEMPLATE_V1, PUB_TEMPLATE_V2];
  * same time. Versions made by "revert" aren't built-ins and are left alone.
  */
 export async function ensureTemplate(sql: Sql): Promise<number> {
-  return sql.begin(async (transaction) => {
-    const tx = transaction as unknown as Sql;
-    await tx`LOCK TABLE template_versions IN SHARE ROW EXCLUSIVE MODE`;
-    let newest = 0;
-    for (const template of BUILT_IN) {
-      const [existing] = await tx<{ id: string }[]>`SELECT id FROM template_versions WHERE source = ${template.source}`;
-      if (existing) {
-        newest = Number(existing.id);
-        continue;
-      }
-      const [row] = await tx<{ id: string }[]>`
-        INSERT INTO template_versions (version, note, source)
-        VALUES ((SELECT COALESCE(MAX(version), 0) + 1 FROM template_versions), ${template.note}, ${template.source})
-        RETURNING id`;
-      const versionId = row!.id;
-      for (const m of template.modules) {
-        await tx`INSERT INTO template_modules (version_id, key, name, description)
-                 VALUES (${versionId}, ${m.key}, ${m.name}, ${m.description})`;
-      }
-      for (const i of template.items) {
-        await tx`INSERT INTO template_items
-                   (version_id, key, module_key, parent_key, title, phase, area, offset_days,
-                    anchor_weekday, default_role, notes, sort, is_postmortem, repeat_for, time_hint)
-                 VALUES (${versionId}, ${i.key}, ${i.moduleKey}, ${i.parentKey}, ${i.title}, ${i.phase},
-                    ${i.area}, ${i.offsetDays}, ${i.anchorWeekday}, ${i.defaultRole}, ${i.notes},
-                    ${i.sort}, ${i.isPostmortem}, ${i.repeatFor}, ${i.timeHint})`;
-      }
-      for (const issue of template.issues) {
-        await tx`INSERT INTO template_issues (version_id, item_key, text)
-                 VALUES (${versionId}, ${issue.itemKey}, ${issue.text})`;
-      }
-      newest = Number(versionId);
+  return sql.begin(async (transaction) => ensureTemplateIn(transaction as unknown as Sql));
+}
+
+/** ensureTemplate inside a transaction the caller already opened (`tx`); the table lock lasts until it ends. */
+export async function ensureTemplateIn(tx: Sql): Promise<number> {
+  await tx`LOCK TABLE template_versions IN SHARE ROW EXCLUSIVE MODE`;
+  let newest = 0;
+  for (const template of BUILT_IN) {
+    const [existing] = await tx<{ id: string }[]>`SELECT id FROM template_versions WHERE source = ${template.source}`;
+    if (existing) {
+      newest = Number(existing.id);
+      continue;
     }
-    return newest;
-  });
+    const [row] = await tx<{ id: string }[]>`
+      INSERT INTO template_versions (version, note, source)
+      VALUES ((SELECT COALESCE(MAX(version), 0) + 1 FROM template_versions), ${template.note}, ${template.source})
+      RETURNING id`;
+    const versionId = row!.id;
+    for (const m of template.modules) {
+      await tx`INSERT INTO template_modules (version_id, key, name, description)
+               VALUES (${versionId}, ${m.key}, ${m.name}, ${m.description})`;
+    }
+    for (const i of template.items) {
+      await tx`INSERT INTO template_items
+                 (version_id, key, module_key, parent_key, title, phase, area, offset_days,
+                  anchor_weekday, default_role, notes, sort, is_postmortem, repeat_for, time_hint)
+               VALUES (${versionId}, ${i.key}, ${i.moduleKey}, ${i.parentKey}, ${i.title}, ${i.phase},
+                  ${i.area}, ${i.offsetDays}, ${i.anchorWeekday}, ${i.defaultRole}, ${i.notes},
+                  ${i.sort}, ${i.isPostmortem}, ${i.repeatFor}, ${i.timeHint})`;
+    }
+    for (const issue of template.issues) {
+      await tx`INSERT INTO template_issues (version_id, item_key, text)
+               VALUES (${versionId}, ${issue.itemKey}, ${issue.text})`;
+    }
+    newest = Number(versionId);
+  }
+  return newest;
 }
 
 interface ItemRow {

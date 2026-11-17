@@ -60,8 +60,8 @@ export async function structureAnswers(ai: AI, provider: AIProvider, answers: Re
  * curly versus straight quotes, which models often change when copying.
  */
 export function containsQuote(text: string, quote: string): boolean {
-  const needle = normalize(quote);
-  return needle.length > 0 && normalize(text).includes(needle);
+  const needle = normalizeQuoteText(quote);
+  return needle.length > 0 && normalizeQuoteText(text).includes(needle);
 }
 
 /** Marks each lesson with whether its quote is in the text it cites. */
@@ -69,7 +69,8 @@ export function checkQuotes<T extends { quote: string }>(lessons: T[], textOf: (
   return lessons.map((lesson) => ({ ...lesson, quoteFound: containsQuote(textOf(lesson), lesson.quote) }));
 }
 
-function normalize(value: string): string {
+/** Text as quotes are compared: curly quotes made straight, whitespace collapsed, lower case. */
+export function normalizeQuoteText(value: string): string {
   return value
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')

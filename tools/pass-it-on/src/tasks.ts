@@ -76,57 +76,65 @@ export async function createEventTasks(
   options: { templateVersionId?: number; moduleKeys?: string[] } = {},
 ): Promise<number> {
   if (!UUID.test(eventId)) throw new RangeError(`Unknown event: ${eventId}`);
-  return sql.begin(async (transaction) => {
-    const tx = transaction as unknown as Sql;
-    const [event] = await tx<{ id: string }[]>`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
-    if (!event) throw new RangeError(`Unknown event: ${eventId}`);
+  return sql.begin(async (transaction) => createEventTasksIn(transaction as unknown as Sql, eventId, drafts, options));
+}
 
-    // Ids of tasks by template key, from earlier runs and from this one.
-    const ids = new Map<string, number>();
-    const existing = await tx<{ key: string; id: string }[]>`
-      SELECT template_item_key AS key, id::text FROM tasks
-      WHERE event_id = ${eventId} AND template_item_key IS NOT NULL`;
-    for (const row of existing) ids.set(row.key, Number(row.id));
+/** createEventTasks inside a transaction the caller already opened (`tx`). */
+export async function createEventTasksIn(
+  tx: Sql,
+  eventId: string,
+  drafts: TaskDraft[],
+  options: { templateVersionId?: number; moduleKeys?: string[] } = {},
+): Promise<number> {
+  if (!UUID.test(eventId)) throw new RangeError(`Unknown event: ${eventId}`);
+  const [event] = await tx<{ id: string }[]>`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
+  if (!event) throw new RangeError(`Unknown event: ${eventId}`);
 
-    const draftKeys = new Set(drafts.map((d) => d.templateItemKey));
-    let pending = [...drafts];
-    let inserted = 0;
-    while (pending.length > 0) {
-      // Insertable: no parent, a parent outside the drafts, or a parent already handled.
-      const handled = new Set(drafts.map((d) => d.templateItemKey).filter((k) => !pending.some((p) => p.templateItemKey === k)));
-      const ready = pending.filter(
-        (d) => d.parentKey === null || !draftKeys.has(d.parentKey) || handled.has(d.parentKey) || d.parentKey === d.templateItemKey,
-      );
-      // A cycle can't be ordered; insert what's left without waiting.
-      const batch = ready.length > 0 ? ready : pending;
-      for (const d of batch) {
-        const parentId = d.parentKey === null || d.parentKey === d.templateItemKey ? null : (ids.get(d.parentKey) ?? null);
-        const [row] = await tx<{ id: string }[]>`
-          INSERT INTO tasks (event_id, template_item_key, parent_task_id, title, phase, area, offset_days, owner, owner_role,
-                             is_postmortem, notes, time_hint, partner, source, confirmed)
-          VALUES (${eventId}, ${d.templateItemKey}, ${parentId}, ${d.title}, ${d.phase}, ${d.area}, ${d.offsetDays},
-                  ${d.owner}, ${d.ownerRole}, ${d.isPostmortem}, ${d.notes}, ${d.timeHint}, ${d.partner}, ${d.source}, ${d.confirmed})
-          ON CONFLICT (event_id, template_item_key) WHERE event_id IS NOT NULL AND template_item_key IS NOT NULL DO NOTHING
-          RETURNING id::text`;
-        if (row) {
-          inserted++;
-          ids.set(d.templateItemKey, Number(row.id));
-        }
+  // Ids of tasks by template key, from earlier runs and from this one.
+  const ids = new Map<string, number>();
+  const existing = await tx<{ key: string; id: string }[]>`
+    SELECT template_item_key AS key, id::text FROM tasks
+    WHERE event_id = ${eventId} AND template_item_key IS NOT NULL`;
+  for (const row of existing) ids.set(row.key, Number(row.id));
+
+  const draftKeys = new Set(drafts.map((d) => d.templateItemKey));
+  let pending = [...drafts];
+  let inserted = 0;
+  while (pending.length > 0) {
+    // Insertable: no parent, a parent outside the drafts, or a parent already handled.
+    const handled = new Set(drafts.map((d) => d.templateItemKey).filter((k) => !pending.some((p) => p.templateItemKey === k)));
+    const ready = pending.filter(
+      (d) => d.parentKey === null || !draftKeys.has(d.parentKey) || handled.has(d.parentKey) || d.parentKey === d.templateItemKey,
+    );
+    // A cycle can't be ordered; insert what's left without waiting.
+    const batch = ready.length > 0 ? ready : pending;
+    for (const d of batch) {
+      const parentId = d.parentKey === null || d.parentKey === d.templateItemKey ? null : (ids.get(d.parentKey) ?? null);
+      const [row] = await tx<{ id: string }[]>`
+        INSERT INTO tasks (event_id, template_item_key, parent_task_id, title, phase, area, offset_days, owner, owner_role,
+                           is_postmortem, notes, time_hint, partner, source, confirmed)
+        VALUES (${eventId}, ${d.templateItemKey}, ${parentId}, ${d.title}, ${d.phase}, ${d.area}, ${d.offsetDays},
+                ${d.owner}, ${d.ownerRole}, ${d.isPostmortem}, ${d.notes}, ${d.timeHint}, ${d.partner}, ${d.source}, ${d.confirmed})
+        ON CONFLICT (event_id, template_item_key) WHERE event_id IS NOT NULL AND template_item_key IS NOT NULL DO NOTHING
+        RETURNING id::text`;
+      if (row) {
+        inserted++;
+        ids.set(d.templateItemKey, Number(row.id));
       }
-      const done = new Set(batch);
-      pending = pending.filter((d) => !done.has(d));
     }
+    const done = new Set(batch);
+    pending = pending.filter((d) => !done.has(d));
+  }
 
-    if (options.templateVersionId !== undefined) {
-      await tx`UPDATE events SET template_version_id = ${options.templateVersionId} WHERE id = ${eventId}`;
-    }
-    for (const key of new Set(options.moduleKeys ?? [])) {
-      await tx`INSERT INTO event_modules (event_id, module_key) VALUES (${eventId}, ${key}) ON CONFLICT DO NOTHING`;
-    }
-    // Roles may have changed since the drafts were built (the event is locked now), so resolve role-owned owners again from the current roles.
-    await reassignRoleOwners(tx, eventId);
-    return inserted;
-  });
+  if (options.templateVersionId !== undefined) {
+    await tx`UPDATE events SET template_version_id = ${options.templateVersionId} WHERE id = ${eventId}`;
+  }
+  for (const key of new Set(options.moduleKeys ?? [])) {
+    await tx`INSERT INTO event_modules (event_id, module_key) VALUES (${eventId}, ${key}) ON CONFLICT DO NOTHING`;
+  }
+  // Roles may have changed since the drafts were built (the event is locked now), so resolve role-owned owners again from the current roles.
+  await reassignRoleOwners(tx, eventId);
+  return inserted;
 }
 
 interface RawTask {

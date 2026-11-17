@@ -5,7 +5,8 @@
 import type { Sql } from "postgres";
 import type { EventProposal } from "./calendar.js";
 import { normalizeRoles } from "./roles.js";
-import { createPlannedEventIn, getPlannedEvent, updatePlannedEventIn, type PlannedEvent, type PlannedEventInput } from "./planning.js";
+import { generateEventChecklistIn } from "./eventChecklist.js";
+import { createPlannedEventIn, getPlannedEvent, getPlannedEvents, updatePlannedEventIn, type PlannedEvent, type PlannedEventInput } from "./planning.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -121,10 +122,13 @@ export async function createCalendarImport(sql: Sql, args: { filename: string; u
   `;
   const byKey = new Map(existing.map((e) => [`${norm(e.title)}\u0000${e.event_date ?? ""}`, e.id]));
 
+  const matchIdOf = (p: EventProposal) => (p.input ? (byKey.get(`${norm(p.input.title)}\u0000${p.input.eventDate ?? ""}`) ?? null) : null);
+  const matches = await getPlannedEvents(sql, args.proposals.map(matchIdOf).filter((id): id is string => id !== null));
+
   const prepared: { p: EventProposal; matchId: string | null; kind: MatchKind; skipReason: string | null }[] = [];
   for (const p of args.proposals) {
-    const matchId = p.input ? (byKey.get(`${norm(p.input.title)}\u0000${p.input.eventDate ?? ""}`) ?? null) : null;
-    const match = matchId ? await getPlannedEvent(sql, matchId) : null;
+    const matchId = matchIdOf(p);
+    const match = matchId ? (matches.get(matchId) ?? null) : null;
     const kind: MatchKind = !match ? "new" : p.input && differences(p.input, match).length > 0 ? "changed" : "unchanged";
     prepared.push({ p, matchId: match ? matchId : null, kind, skipReason: p.skipReason ?? (kind === "unchanged" ? "Already on the calendar, unchanged" : null) });
   }
@@ -173,25 +177,25 @@ export async function getCalendarImport(sql: Sql, id: string): Promise<{ id: str
   const [imp] = await sql<{ id: string; filename: string }[]>`SELECT id, filename FROM calendar_imports WHERE id = ${id}`;
   if (!imp) return null;
   const rows = await sql<ProposalRow[]>`SELECT * FROM calendar_proposals WHERE import_id = ${id} ORDER BY position`;
-  const proposals = await Promise.all(
-    rows.map(async (r): Promise<StoredProposal> => {
-      const match = r.match_kind === "changed" && r.match_event_id && r.proposal ? await getPlannedEvent(sql, r.match_event_id) : null;
-      return {
-        id: Number(r.id),
-        importId: r.import_id,
-        sheet: r.sheet,
-        row: r.row_number,
-        sourceText: r.source_text,
-        skipReason: r.skip_reason,
-        input: r.proposal,
-        matchKind: r.match_kind,
-        matchEventId: r.match_event_id,
-        changes: match && r.proposal ? differences(r.proposal, match) : [],
-        status: r.status,
-        eventId: r.event_id,
-      };
-    }),
-  );
+  const changed = rows.filter((r) => r.match_kind === "changed" && r.match_event_id && r.proposal).map((r) => r.match_event_id!);
+  const matches = await getPlannedEvents(sql, changed);
+  const proposals = rows.map((r): StoredProposal => {
+    const match = r.match_kind === "changed" && r.match_event_id && r.proposal ? (matches.get(r.match_event_id) ?? null) : null;
+    return {
+      id: Number(r.id),
+      importId: r.import_id,
+      sheet: r.sheet,
+      row: r.row_number,
+      sourceText: r.source_text,
+      skipReason: r.skip_reason,
+      input: r.proposal,
+      matchKind: r.match_kind,
+      matchEventId: r.match_event_id,
+      changes: match && r.proposal ? differences(r.proposal, match) : [],
+      status: r.status,
+      eventId: r.event_id,
+    };
+  });
   return { id: imp.id, filename: imp.filename, proposals };
 }
 
@@ -216,7 +220,8 @@ export async function restoreProposal(sql: Sql, proposalId: number): Promise<boo
  * event is already on the calendar, updates it (a "changed" proposal, keeping
  * what people added by hand) or just links it (an "unchanged" one). The
  * proposal's row is locked, so approving twice, even at the same moment,
- * gives one event; if anything fails, nothing is saved.
+ * gives one event; if anything fails, nothing is saved. A new event that isn't
+ * cancelled gets its checklist, as one made by hand does.
  */
 export async function approveProposal(sql: Sql, proposalId: number, createdBy: string): Promise<{ ok: true; eventId: string } | { ok: false; message: string }> {
   return sql.begin(async (transaction): Promise<{ ok: true; eventId: string } | { ok: false; message: string }> => {
@@ -236,7 +241,11 @@ export async function approveProposal(sql: Sql, proposalId: number, createdBy: s
         eventId = existing.id;
       }
     }
-    eventId ??= await createPlannedEventIn(tx, row.proposal, createdBy, row.import_id);
+    if (eventId === null) {
+      eventId = await createPlannedEventIn(tx, row.proposal, createdBy, row.import_id);
+      // A new event gets its checklist as one made by hand does (saveEvent), in this same transaction.
+      if (!row.proposal.cancelled) await generateEventChecklistIn(tx, eventId);
+    }
     await tx`UPDATE calendar_proposals SET status = 'approved', event_id = ${eventId} WHERE id = ${proposalId}`;
     return { ok: true, eventId };
   });

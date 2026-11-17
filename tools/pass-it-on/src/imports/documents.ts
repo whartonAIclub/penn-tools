@@ -112,15 +112,23 @@ const MAX_HEADER_CHARS = MAX_EXCERPT_CHARS / 2;
 /**
  * A table as excerpts: one line per row, cells joined with " | ". The first
  * row (usually the headers) starts every excerpt, so each one reads alone;
- * a header longer than half an excerpt is cut short where it repeats.
+ * a header longer than half an excerpt is cut short where it repeats, and
+ * kept in full in excerpts of its own.
  */
 function fromRows(rows: string[][], meta: ExcerptDraft["meta"]): ExcerptDraft[] {
   const lines = rows.map((cells) => cells.map((c) => c.trim()).join(" | ")).filter((l) => l.replace(/[\s|]/g, ""));
   if (lines.length === 0) return [];
   const [fullHeader, ...body] = lines;
   if (body.length === 0) return packUnits([fullHeader!]).map((text) => ({ text, meta }));
-  const header = fullHeader!.length > MAX_HEADER_CHARS ? `${fullHeader!.slice(0, MAX_HEADER_CHARS - 1)}…` : fullHeader!;
-  return packUnits(body, MAX_EXCERPT_CHARS - header.length - 1).map((t) => ({ text: `${header}\n${t}`, meta }));
+  if (fullHeader!.length <= MAX_HEADER_CHARS) {
+    return packUnits(body, MAX_EXCERPT_CHARS - fullHeader!.length - 1).map((t) => ({ text: `${fullHeader}\n${t}`, meta }));
+  }
+  // Too long to repeat: the full header gets excerpts of its own, so every column name stays searchable.
+  const header = `${fullHeader!.slice(0, MAX_HEADER_CHARS - 1)}…`;
+  return [
+    ...packUnits(fullHeader!.split(" | "), MAX_EXCERPT_CHARS, " | ").map((text) => ({ text, meta })),
+    ...packUnits(body, MAX_EXCERPT_CHARS - header.length - 1).map((t) => ({ text: `${header}\n${t}`, meta })),
+  ];
 }
 
 function extensionOf(name: string): string {

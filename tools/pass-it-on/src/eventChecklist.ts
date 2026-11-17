@@ -5,9 +5,9 @@
 import type { Sql } from "postgres";
 import { generateTasks, suggestedModules } from "./checklist.js";
 import { getPlannedEvent } from "./planning.js";
-import { ensureTemplate, getTemplate } from "./pubTemplate.js";
+import { ensureTemplate, ensureTemplateIn, getTemplate } from "./pubTemplate.js";
 import { listRoleDefaults } from "./roles.js";
-import { createEventTasks } from "./tasks.js";
+import { createEventTasks, createEventTasksIn } from "./tasks.js";
 
 export interface ChecklistResult {
   /** Tasks added by this run. */
@@ -29,10 +29,27 @@ export async function generateEventChecklist(
   eventId: string,
   options: { moduleKeys?: string[] } = {},
 ): Promise<ChecklistResult | null> {
+  return buildChecklist(sql, eventId, options, false);
+}
+
+/**
+ * generateEventChecklist inside a transaction the caller already opened
+ * (`tx`), so the checklist is saved with whatever else the transaction does
+ * (approving a calendar proposal). It holds the template lock until `tx` ends.
+ */
+export async function generateEventChecklistIn(
+  tx: Sql,
+  eventId: string,
+  options: { moduleKeys?: string[] } = {},
+): Promise<ChecklistResult | null> {
+  return buildChecklist(tx, eventId, options, true);
+}
+
+async function buildChecklist(sql: Sql, eventId: string, options: { moduleKeys?: string[] }, inTransaction: boolean): Promise<ChecklistResult | null> {
   const event = await getPlannedEvent(sql, eventId);
   if (!event) return null;
 
-  await ensureTemplate(sql);
+  await (inTransaction ? ensureTemplateIn(sql) : ensureTemplate(sql));
   const [current] = await sql<{ version: string | null }[]>`SELECT template_version_id::text AS version FROM events WHERE id = ${event.id}`;
   const template = await getTemplate(sql, current?.version ? Number(current.version) : undefined);
   if (!template) return null;
@@ -48,6 +65,7 @@ export async function generateEventChecklist(
     roleDefaults: await listRoleDefaults(sql),
     partnerClubs: event.partnerClubs,
   });
-  const created = await createEventTasks(sql, event.id, drafts, { templateVersionId: template.versionId, moduleKeys });
+  const taskOptions = { templateVersionId: template.versionId, moduleKeys };
+  const created = await (inTransaction ? createEventTasksIn(sql, event.id, drafts, taskOptions) : createEventTasks(sql, event.id, drafts, taskOptions));
   return { created, moduleKeys, versionId: template.versionId };
 }

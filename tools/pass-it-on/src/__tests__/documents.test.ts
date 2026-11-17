@@ -106,7 +106,13 @@ describe("documentExcerpts", () => {
     const { excerpts, skipped } = await documentExcerpts("Wide.csv", strToU8(csv));
     expect(skipped).toEqual([]);
     expect(excerpts.length).toBeGreaterThan(1);
-    expect(excerpts.every((e) => e.text.startsWith("Column number 0 | ") && e.text.length <= MAX_EXCERPT_CHARS)).toBe(true);
+    expect(excerpts.every((e) => e.text.length <= MAX_EXCERPT_CHARS)).toBe(true);
+    const withRows = excerpts.filter((e) => /\br\d+c\d+\b/.test(e.text));
+    expect(withRows.length).toBeGreaterThan(0);
+    expect(withRows.every((e) => e.text.startsWith("Column number 0 | ") && e.text.split("\n")[0]!.endsWith("…"))).toBe(true);
+    // The cut header is kept in full elsewhere, so the last column's name can still be found.
+    expect(excerpts.some((e) => e.text.includes("Column number 119"))).toBe(true);
+    expect(excerpts.some((e) => e.text.includes("r19c119"))).toBe(true);
   });
 
   it("refuses a zip with too many files", async () => {

@@ -25,13 +25,15 @@ export default async function RolesPage({ searchParams }: { searchParams: Record
 
   // Names used since the list was last filled (and the club's default leads) join it before it's shown.
   await syncMembers(db());
-  const [assignments, upcoming, defaults, openTasks, members] = await Promise.all([
+  const [assignments, upcomingOnly, defaults, openTasks, members] = await Promise.all([
     listRoleAssignments(db(), showPast ? {} : { from: today }),
-    listRoleAssignments(db(), { from: today }),
+    // With past events hidden, the table already holds just the upcoming ones, so they aren't asked for twice.
+    showPast ? listRoleAssignments(db(), { from: today }) : null,
     listRoleDefaults(db()),
     listTasks(db(), { statuses: ["todo", "doing", "blocked"] }),
     listMembers(db()),
   ]);
+  const upcoming = upcomingOnly ?? assignments;
 
   const defaultOf: Record<string, string> = {};
   for (const d of defaults) if (d.person) defaultOf[d.role] = d.person;

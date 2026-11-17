@@ -378,49 +378,79 @@ export async function listPlannedEvents(sql: Sql): Promise<PlannedEventSummary[]
     SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time, cancelled
     FROM events WHERE event_type = ${DEFAULT_EVENT_TYPE}
     ORDER BY event_date ASC NULLS LAST, created_at DESC
-    LIMIT 200
   `;
   return rows.map(toSummary);
 }
 
+/** Whether a planned event with this id exists; false for a malformed id. */
+export async function plannedEventExists(sql: Sql, id: string): Promise<boolean> {
+  if (!UUID_RE.test(id)) return false;
+  const rows = await sql`SELECT 1 FROM events WHERE id = ${id} AND event_type = ${DEFAULT_EVENT_TYPE}`;
+  return rows.length > 0;
+}
+
 /** One planned event with its partner clubs and vendors, or null if it doesn't exist. */
 export async function getPlannedEvent(sql: Sql, id: string): Promise<PlannedEvent | null> {
-  if (!UUID_RE.test(id)) return null;
-  const [row] = await sql<DetailRow[]>`
+  // Postgres returns ids in lower case; the id asked for may not be.
+  return (await getPlannedEvents(sql, [id])).get(id.toLowerCase()) ?? null;
+}
+
+/**
+ * Several planned events by id, with one query per table however many there
+ * are. The map's keys are lower-case ids; ids that are malformed or don't
+ * exist are left out.
+ */
+export async function getPlannedEvents(sql: Sql, ids: string[]): Promise<Map<string, PlannedEvent>> {
+  const valid = [...new Set(ids.filter((id) => typeof id === "string" && UUID_RE.test(id)))];
+  const events = new Map<string, PlannedEvent>();
+  if (valid.length === 0) return events;
+  const rows = await sql<DetailRow[]>`
     SELECT id, title, event_date::text AS event_date, theme, venue, budget::text AS budget, pub_leader, event_time, cancelled, import_id,
            notes, confirmed_club, confirmed_venue, club_contact, total_attendees, drop_ins,
            ticket_revenue::text AS ticket_revenue, costs::text AS costs, needs_equipment, equipment
-    FROM events WHERE id = ${id}
+    FROM events WHERE id = ANY(${valid}::uuid[])
   `;
-  if (!row) return null;
-  const clubs = await sql<{ name: string }[]>`
-    SELECT c.name FROM event_partner_clubs ec JOIN partner_clubs c ON c.id = ec.partner_club_id
-    WHERE ec.event_id = ${id} ORDER BY c.name
+  if (rows.length === 0) return events;
+  const found = rows.map((r) => r.id);
+  const clubs = await sql<{ event_id: string; name: string }[]>`
+    SELECT ec.event_id, c.name FROM event_partner_clubs ec JOIN partner_clubs c ON c.id = ec.partner_club_id
+    WHERE ec.event_id = ANY(${found}::uuid[]) ORDER BY c.name
   `;
-  const vendors = await sql<{ name: string; role: string | null }[]>`
-    SELECT v.name, ev.role FROM event_vendors ev JOIN vendors v ON v.id = ev.vendor_id
-    WHERE ev.event_id = ${id} ORDER BY v.name
+  const vendors = await sql<{ event_id: string; name: string; role: string | null }[]>`
+    SELECT ev.event_id, v.name, ev.role FROM event_vendors ev JOIN vendors v ON v.id = ev.vendor_id
+    WHERE ev.event_id = ANY(${found}::uuid[]) ORDER BY v.name
   `;
-  const roles = await sql<{ role: string; person: string | null }[]>`
-    SELECT role, person FROM event_roles WHERE event_id = ${id} ORDER BY position
+  const roles = await sql<{ event_id: string; role: string; person: string | null }[]>`
+    SELECT event_id, role, person FROM event_roles WHERE event_id = ANY(${found}::uuid[]) ORDER BY position
   `;
-  return {
-    ...toSummary(row),
-    importId: row.import_id,
-    roles: roles.map((r) => ({ role: r.role, person: r.person })),
-    notes: row.notes,
-    confirmedClub: row.confirmed_club,
-    confirmedVenue: row.confirmed_venue,
-    clubContact: row.club_contact,
-    totalAttendees: row.total_attendees,
-    dropIns: row.drop_ins,
-    ticketRevenue: row.ticket_revenue === null ? null : Number(row.ticket_revenue),
-    costs: row.costs === null ? null : Number(row.costs),
-    partnerClubs: clubs.map((c) => c.name),
-    vendors: vendors.map((v) => ({ name: v.name, role: v.role })),
-    needsEquipment: row.needs_equipment,
-    equipment: row.equipment ? row.equipment.split("\n") : [],
+  const byEvent = <T extends { event_id: string }>(list: T[]) => {
+    const grouped = new Map<string, T[]>();
+    for (const item of list) grouped.set(item.event_id, [...(grouped.get(item.event_id) ?? []), item]);
+    return (eventId: string) => grouped.get(eventId) ?? [];
   };
+  const clubsOf = byEvent(clubs);
+  const vendorsOf = byEvent(vendors);
+  const rolesOf = byEvent(roles);
+  for (const row of rows) {
+    events.set(row.id, {
+      ...toSummary(row),
+      importId: row.import_id,
+      roles: rolesOf(row.id).map((r) => ({ role: r.role, person: r.person })),
+      notes: row.notes,
+      confirmedClub: row.confirmed_club,
+      confirmedVenue: row.confirmed_venue,
+      clubContact: row.club_contact,
+      totalAttendees: row.total_attendees,
+      dropIns: row.drop_ins,
+      ticketRevenue: row.ticket_revenue === null ? null : Number(row.ticket_revenue),
+      costs: row.costs === null ? null : Number(row.costs),
+      partnerClubs: clubsOf(row.id).map((c) => c.name),
+      vendors: vendorsOf(row.id).map((v) => ({ name: v.name, role: v.role })),
+      needsEquipment: row.needs_equipment,
+      equipment: row.equipment ? row.equipment.split("\n") : [],
+    });
+  }
+  return events;
 }
 
 /** Marks the calendar-import proposals behind these events as skipped (restorable), so they don't show as approved once the events are gone. */

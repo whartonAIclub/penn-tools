@@ -49,6 +49,8 @@ export {
   createPlannedEvent,
   updatePlannedEvent,
   getPlannedEvent,
+  getPlannedEvents,
+  plannedEventExists,
   listPlannedEvents,
   deletePlannedEvent,
   deletePlannedEvents,

@@ -8,7 +8,7 @@
 // Accounts document are always blocked.
 
 import type { NextRequest } from "next/server";
-import { checkTags, databaseProblem, databaseProblemMessage } from "@penntools/tool-pass-it-on";
+import { checkTags, databaseProblem, databaseProblemMessage, plannedEventExists } from "@penntools/tool-pass-it-on";
 import { uploadLibraryFile, ZipTooLargeError } from "@penntools/tool-pass-it-on/imports";
 import { getEmbeddings } from "@/lib/ai";
 import { routeMember } from "../../access";
@@ -28,6 +28,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   const tags = checkTags(String(form.get("tags") ?? "").split(","));
   if (!tags.ok) return Response.json({ error: tags.message }, { status: 400 });
   const eventId = String(form.get("eventId") ?? "") || null;
+  const NO_EVENT = "That event no longer exists. Reload the page and choose another, or No event.";
+  try {
+    if (eventId !== null && !(await plannedEventExists(sql, eventId))) return Response.json({ error: NO_EVENT }, { status: 400 });
+  } catch (error) {
+    const problem = databaseProblem(error);
+    if (problem) return Response.json({ error: databaseProblemMessage(problem) }, { status: 503 });
+    throw error;
+  }
 
   try {
     const result = await uploadLibraryFile({
@@ -43,6 +51,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     return Response.json(result);
   } catch (error) {
     if (error instanceof ZipTooLargeError) return Response.json({ error: error.message }, { status: 400 });
+    // 23503: the event was deleted after the check above, before the file was saved.
+    const fk = error as { code?: unknown; constraint_name?: unknown };
+    if (fk?.code === "23503" && fk.constraint_name === "sources_event_id_fkey") return Response.json({ error: NO_EVENT }, { status: 400 });
     const problem = databaseProblem(error);
     if (problem) return Response.json({ error: databaseProblemMessage(problem) }, { status: 503 });
     throw error;
