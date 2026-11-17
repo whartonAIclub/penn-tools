@@ -1,5 +1,6 @@
 // The one check of who may use Pass It On: a signed-in user whose email is on
-// the board's list (the Access tab). The layout, every page, every server
+// the board's list (the Access tab), or a PennTools site admin (isAdmin, the
+// admins who run the site from /admin). The layout, every page, every server
 // action and both upload routes call it. The layout alone isn't enough: a page's
 // content can be requested without its layout running, and actions and routes
 // are reached directly.
@@ -7,10 +8,16 @@
 import { cache } from "react";
 import type { User } from "@penntools/core/types";
 import { databaseProblem, databaseProblemMessage, hasBoardAccess } from "@penntools/tool-pass-it-on";
+import { isAdmin } from "@/lib/admin";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
 import { maybeDb } from "./db";
 
-export type Access = { kind: "member"; user: User } | { kind: "signed_out" } | { kind: "not_member"; email: string | null } | { kind: "unavailable"; message: string };
+/** A member is on the board's list ("board") or gets in as a site admin ("admin"). */
+export type Access =
+  | { kind: "member"; user: User; via: "board" | "admin" }
+  | { kind: "signed_out" }
+  | { kind: "not_member"; email: string | null }
+  | { kind: "unavailable"; message: string };
 
 export const NOT_MEMBER_MESSAGE = "Pass It On is only for the Pub board. Ask someone on the board to add your Penn email in the Access tab.";
 const SIGNED_OUT_MESSAGE = "Sign in with the button at the top right to use Pass It On.";
@@ -22,12 +29,14 @@ export const getAccess = cache(async (): Promise<Access> => {
   const sql = maybeDb();
   if (!sql) return { kind: "unavailable", message: "Pass It On's database is not configured." };
   try {
-    return (await hasBoardAccess(sql, user.email)) ? { kind: "member", user } : { kind: "not_member", email: user.email };
+    if (await hasBoardAccess(sql, user.email)) return { kind: "member", user, via: "board" };
   } catch (error) {
     const problem = databaseProblem(error);
     if (problem) return { kind: "unavailable", message: databaseProblemMessage(problem) };
     throw error;
   }
+  // Site admins get in on top of the board's list, without being on it.
+  return (await isAdmin(user)) ? { kind: "member", user, via: "admin" } : { kind: "not_member", email: user.email };
 });
 
 /**

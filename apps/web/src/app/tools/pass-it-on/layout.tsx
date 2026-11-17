@@ -1,6 +1,6 @@
 // The page shell: sign-in, a check that the tool's database is ready, that the
-// user is on the board's list, and the tabs. Each page checks the list again
-// (see access.ts): a page can be requested without this layout running.
+// user is on the board's list or is a site admin, and the tabs. Each page checks
+// again (see access.ts): a page can be requested without this layout running.
 
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
