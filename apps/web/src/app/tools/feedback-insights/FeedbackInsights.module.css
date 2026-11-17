@@ -1,9 +1,10 @@
-/* The tool's own ground: a soft grey, so the white cards and tables stand out from it. */
+/* The tool's own ground: a warm sand, so the white cards and tables stand out from it. */
 .shell {
-  --ground: #f1f3f6;
+  --ground: #f6f1ea;
   --surface: #ffffff;
-  --rule: #dfe3e9;
-  --stripe: #f8f9fb;
+  --rule: #e6ddd1;
+  --stripe: #fbf8f3;
+  --penn-red: #990000;
   min-height: 100%;
   background: var(--ground);
 }
@@ -13,10 +14,12 @@
   --bad-bg: #fef3f2;
   --warn: #93370d;
   --warn-bg: #fffaeb;
-  --good: #067647;
-  --good-bg: #ecfdf3;
-  --info-bg: #eef2f9;
-  --track: #e6e9ee;
+  --good: #2e7d4f;
+  --good-bg: #eef7f0;
+  --idea: #b86e00;
+  --idea-bg: #fdf3e1;
+  --info-bg: #edf1f8;
+  --track: #ece4d9;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -39,6 +42,9 @@
 
 .title {
   margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 3px solid var(--penn-red);
+  width: fit-content;
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -343,6 +349,11 @@
   color: var(--penn-blue);
 }
 
+.badgeIdea {
+  background: var(--idea-bg);
+  color: var(--idea);
+}
+
 .badgeGood {
   background: var(--good-bg);
   color: var(--good);
@@ -589,8 +600,14 @@
   gap: 16px;
   padding: 18px 20px;
   border: 1px solid var(--rule);
+  border-left: 4px solid var(--penn-red);
   border-radius: 12px;
   background: var(--surface);
+  box-shadow: 0 1px 2px rgb(60 40 20 / 5%);
+}
+
+.rankCard:has(.rankNumberGood) {
+  border-left-color: var(--good);
 }
 
 .rankNumber,
@@ -600,7 +617,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--penn-blue);
+  background: var(--penn-red);
   color: #fff;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -667,18 +684,53 @@
   overflow-wrap: break-word;
 }
 
-.stackHead,
-.stackCell {
-  width: 22%;
-  min-width: 90px;
-}
-
 .stack {
   display: flex;
-  height: 10px;
-  margin-top: 5px;
-  border-radius: 5px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 4px;
   overflow: hidden;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.legendPain,
+.legendWorking,
+.legendIdea {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendPain::before,
+.legendWorking::before,
+.legendIdea::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--bad);
+}
+
+.legendWorking::before {
+  background: var(--good);
+}
+
+.legendIdea::before {
+  background: var(--idea);
+}
+
+.scaleNote {
+  color: var(--section-label);
+  font-size: 0.78em;
+  font-weight: 400;
 }
 
 .stackPain {
@@ -690,7 +742,7 @@
 }
 
 .stackIdea {
-  background: var(--penn-blue);
+  background: var(--idea);
 }
 
 /* ── Bars ──────────────────────────────────────────────────────────────────── */
@@ -964,10 +1016,6 @@
     content: attr(data-label) ": ";
     color: var(--section-label);
     font-size: 0.78rem;
-  }
-
-  .stackCell {
-    display: none !important;
   }
 
   .barRow {

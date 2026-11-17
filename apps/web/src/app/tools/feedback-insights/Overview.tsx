@@ -7,7 +7,21 @@ import type { Focus } from "./Feedback";
 import { Badge, plural, Short, typeTone, type TabProps } from "./shared";
 import styles from "./FeedbackInsights.module.css";
 
-const scaleText = (value: number, max: number) => `${value} / ${max}`;
+/** Every rating out of 5, so a 1-3 question and a 1-7 question compare at a glance; the original scale follows in small text. */
+function RatingValue({ r }: { r: { average: number; outOfFive: number; min: number; max: number } }) {
+  const same = r.min === 1 && r.max === 5;
+  return (
+    <>
+      {r.outOfFive.toFixed(1)} / 5
+      {!same && (
+        <span className={styles.scaleNote}>
+          {" "}
+          ({r.average} on {r.min}–{r.max})
+        </span>
+      )}
+    </>
+  );
+}
 
 type GoTo = (tab: "feedback" | "setup" | "review", show?: Focus | null) => void;
 
@@ -46,7 +60,7 @@ export function Summary({ ws, analysis, goTo }: TabProps & { goTo: GoTo }) {
         </div>
         <div className={styles.tile}>
           <p className={styles.tileLabel}>Lowest rated</p>
-          <p className={styles.tileValue}>{lowest ? scaleText(lowest.average, lowest.max) : "–"}</p>
+          <p className={styles.tileValue}>{lowest ? <RatingValue r={lowest} /> : "–"}</p>
           <p className={styles.tileSub}>{lowest ? lowest.label : "No rating questions found"}</p>
         </div>
         <div className={styles.tile}>
@@ -162,7 +176,9 @@ export function Summary({ ws, analysis, goTo }: TabProps & { goTo: GoTo }) {
                 {best.map((r) => (
                   <div key={r.column} className={styles.tileGood}>
                     <p className={styles.tileLabel}>Highly rated</p>
-                    <p className={styles.tileValue}>{scaleText(r.average, r.max)}</p>
+                    <p className={styles.tileValue}>
+                      <RatingValue r={r} />
+                    </p>
                     <p className={styles.tileSub}>{r.label}</p>
                   </div>
                 ))}
@@ -253,16 +269,18 @@ export function Ratings({ ws, analysis }: TabProps) {
       {ratings.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.h2}>Ratings, lowest first</h2>
-          <p className={styles.muted}>Average of the responses that answered. “Low” marks anything under {ws.setup.flagBelow} out of 5.</p>
+          <p className={styles.muted}>
+            Average of the responses that answered, all shown out of 5 so they compare directly. “Low” marks anything under {ws.setup.flagBelow} out of 5.
+          </p>
           <div className={styles.bars}>
             {ratings.map((r) => (
               <div key={r.column} className={styles.barRow}>
                 <span className={styles.barLabel} title={r.group ? `${r.group} [${r.label}]` : r.label}>
                   {r.label}
                 </span>
-                <Bar fraction={r.max > r.min ? (r.average - r.min) / (r.max - r.min) : 0} low={r.low} />
+                <Bar fraction={(r.outOfFive - 1) / 4} low={r.low} />
                 <span className={styles.barValue}>
-                  {scaleText(r.average, r.max)} {r.low && <Badge tone="bad">Low</Badge>}
+                  <RatingValue r={r} /> {r.low && <Badge tone="bad">Low</Badge>}
                   <span className={styles.barCount}>{r.answered} answered</span>
                 </span>
               </div>
@@ -316,6 +334,12 @@ export function Themes({ analysis, goTo }: TabProps & { goTo: GoTo }) {
     <>
       <section className={styles.section}>
         <h2 className={styles.h2}>Comments by theme</h2>
+        <p className={styles.legend}>
+          <span className={styles.legendPain}>Pain points</span>
+          <span className={styles.legendWorking}>Working</span>
+          <span className={styles.legendIdea}>Ideas</span>
+          <span className={styles.muted}>Bar length is the theme&apos;s share of all comments.</span>
+        </p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
@@ -325,7 +349,6 @@ export function Themes({ analysis, goTo }: TabProps & { goTo: GoTo }) {
                 <th className={styles.num}>Working</th>
                 <th className={styles.num}>Ideas</th>
                 <th className={styles.num}>All</th>
-                <th aria-hidden="true" className={styles.stackHead} />
               </tr>
             </thead>
             <tbody>
@@ -340,6 +363,16 @@ export function Themes({ analysis, goTo }: TabProps & { goTo: GoTo }) {
                     >
                       <strong>{t.theme || "(no theme)"}</strong>
                     </button>
+                    <span
+                      className={styles.stack}
+                      style={{ width: `${Math.max(8, (t.total / top) * 100)}%` }}
+                      role="img"
+                      aria-label={`${t.pain} pain points, ${t.working} working, ${t.idea} ideas`}
+                    >
+                      {t.pain > 0 && <span className={styles.stackPain} style={{ flexGrow: t.pain }} />}
+                      {t.working > 0 && <span className={styles.stackWorking} style={{ flexGrow: t.working }} />}
+                      {t.idea > 0 && <span className={styles.stackIdea} style={{ flexGrow: t.idea }} />}
+                    </span>
                   </td>
                   <td data-label="Pain points" className={styles.num}>
                     {t.pain}
@@ -352,13 +385,6 @@ export function Themes({ analysis, goTo }: TabProps & { goTo: GoTo }) {
                   </td>
                   <td data-label="All" className={styles.num}>
                     {t.total}
-                  </td>
-                  <td aria-hidden="true" className={styles.stackCell}>
-                    <span className={styles.stack} style={{ width: `${(t.total / top) * 100}%` }}>
-                      {t.pain > 0 && <span className={styles.stackPain} style={{ flexGrow: t.pain }} />}
-                      {t.working > 0 && <span className={styles.stackWorking} style={{ flexGrow: t.working }} />}
-                      {t.idea > 0 && <span className={styles.stackIdea} style={{ flexGrow: t.idea }} />}
-                    </span>
                   </td>
                 </tr>
               ))}

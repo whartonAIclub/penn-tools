@@ -23,12 +23,13 @@ export interface AIAccess {
   setProvider: (provider: AIProvider) => void;
 }
 
-export type Tone = "bad" | "warn" | "info" | "good";
+export type Tone = "bad" | "warn" | "info" | "good" | "idea";
 
 const TONE_CLASS: Record<Tone, string | undefined> = {
   bad: styles.badgeBad,
   warn: styles.badgeWarn,
   info: styles.badgeInfo,
+  idea: styles.badgeIdea,
   good: styles.badgeGood,
 };
 
@@ -37,7 +38,7 @@ export function Badge({ tone, children }: { tone: Tone; children: React.ReactNod
 }
 
 export function typeTone(type: string): Tone {
-  return type === "Pain point" ? "bad" : type === "Working" ? "good" : type === "Idea" ? "info" : "warn";
+  return type === "Pain point" ? "bad" : type === "Working" ? "good" : type === "Idea" ? "idea" : "warn";
 }
 
 /** A header trimmed for a table cell; the full text stays in the title. */
