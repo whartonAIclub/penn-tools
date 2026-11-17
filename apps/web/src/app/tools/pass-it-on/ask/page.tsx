@@ -8,8 +8,10 @@ import { MAX_SEARCH_QUERY_LENGTH, listSources } from "@penntools/tool-pass-it-on
 import { getAI } from "@/lib/ai";
 import { db } from "../db";
 import { AskLibrary } from "./AskLibrary";
+import { isBoardMember } from "../access";
 
 export default async function AskPage() {
+  if (!(await isBoardMember())) return null;
   const providers = await (await getAI("pass-it-on"))!.providers();
   const tags = [...new Set((await listSources(db())).flatMap((s) => s.tags))].sort();
   return <AskLibrary providers={providers} labels={PROVIDER_LABELS} tags={tags} maxLength={MAX_SEARCH_QUERY_LENGTH} />;

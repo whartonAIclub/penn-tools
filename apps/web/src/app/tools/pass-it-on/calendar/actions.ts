@@ -15,12 +15,11 @@ import {
   skipProposal,
   updateProposal,
 } from "@penntools/tool-pass-it-on";
-import { getCurrentUser } from "@/lib/auth";
+import { boardMember } from "../access";
 import { db } from "../db";
 import type { ActionResult, EventFormValues } from "../actions";
 
 const fail = (message: string): ActionResult<never> => ({ ok: false, message });
-const signedOut = fail("Sign in with the button at the top right to use Pass It On.");
 
 async function run<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
@@ -35,8 +34,9 @@ async function run<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<
 const proposalId = (id: unknown): number | null => (typeof id === "number" && Number.isSafeInteger(id) && id > 0 ? id : null);
 
 export async function approveProposalAction(id: number): Promise<ActionResult<{ eventId: string }>> {
-  const user = await getCurrentUser();
-  if (!user) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
+  const user = gate.user;
   const pid = proposalId(id);
   if (pid === null) return fail("That proposal no longer exists.");
   return run(async () => {
@@ -46,26 +46,30 @@ export async function approveProposalAction(id: number): Promise<ActionResult<{ 
 }
 
 export async function approveAllAction(importId: string): Promise<ActionResult<{ approved: number }>> {
-  const user = await getCurrentUser();
-  if (!user) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
+  const user = gate.user;
   return run(async () => ({ ok: true, data: { approved: await approveAllPending(db(), String(importId), user.id) } }));
 }
 
 export async function skipProposalAction(id: number): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   const pid = proposalId(id);
   return run(async () => (pid !== null && (await skipProposal(db(), pid)) ? { ok: true, data: null } : fail("That proposal can't be skipped.")));
 }
 
 export async function restoreProposalAction(id: number): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   const pid = proposalId(id);
   return run(async () => (pid !== null && (await restoreProposal(db(), pid)) ? { ok: true, data: null } : fail("That proposal can't be restored.")));
 }
 
 /** Saves edits to a proposal's event details before approval. */
 export async function saveProposalAction(id: number, values: EventFormValues): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   const pid = proposalId(id);
   if (pid === null) return fail("That proposal no longer exists.");
   const checked = checkPlannedEventInput({ ...values, vendors: parseVendorLines(String(values?.vendors ?? "")) });
@@ -74,6 +78,7 @@ export async function saveProposalAction(id: number, values: EventFormValues): P
 }
 
 export async function deleteImportAction(importId: string): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   return run(async () => ((await deleteCalendarImport(db(), String(importId))) ? { ok: true, data: null } : fail("That import no longer exists.")));
 }

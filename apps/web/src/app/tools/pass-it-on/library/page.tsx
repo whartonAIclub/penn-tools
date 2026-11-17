@@ -5,8 +5,10 @@ import { db } from "../db";
 import styles from "../PassItOn.module.css";
 import { DeleteFileButton } from "./DeleteFileButton";
 import { Upload } from "./Upload";
+import { isBoardMember } from "../access";
 
 export default async function LibraryPage() {
+  if (!(await isBoardMember())) return null;
   const [sources, events] = await Promise.all([listSources(db()), listPlannedEvents(db())]);
 
   return (

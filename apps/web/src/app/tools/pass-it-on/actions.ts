@@ -29,7 +29,7 @@ import {
   type Passage,
 } from "@penntools/tool-pass-it-on";
 import { getAI, getEmbeddings } from "@/lib/ai";
-import { getCurrentUser } from "@/lib/auth";
+import { boardMember } from "./access";
 import { db } from "./db";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; message: string; kind?: string };
@@ -79,8 +79,9 @@ export interface EventFormValues {
  * tasks (done inside updatePlannedEvent). `tasks` is how many tasks were added.
  */
 export async function saveEvent(id: string | null, values: EventFormValues): Promise<ActionResult<{ id: string; tasks: number }>> {
-  const user = await getCurrentUser();
-  if (!user) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
+  const user = gate.user;
   const checked = checkPlannedEventInput({
     ...values,
     vendors: parseVendorLines(String(values?.vendors ?? "")),
@@ -101,19 +102,23 @@ export async function saveEvent(id: string | null, values: EventFormValues): Pro
 }
 
 export async function deleteEvent(id: string): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   return run(async () => ((await deletePlannedEvent(db(), String(id))) ? { ok: true, data: null } : fail("That event no longer exists.")));
 }
 
 /** Deletes several events at once; returns how many were deleted. */
 export async function deleteEvents(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!Array.isArray(ids)) return fail("Choose the events to delete.");
   return run(async () => ({ ok: true, data: { deleted: await deletePlannedEvents(db(), ids.map(String)) } }));
 }
 
 /** Answers a question from the library, with citations, or says it couldn't find one. */
 export async function askLibrary(provider: AIProvider, question: string, tags: string[]): Promise<ActionResult<CitedAnswer>> {
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   const ai = await getAI("pass-it-on");
   if (!ai) return signedOut;
   const problem = checkSearchQuery(question);
@@ -133,7 +138,8 @@ export async function askLibrary(provider: AIProvider, question: string, tags: s
 
 /** Passages containing the question's words. Needs no AI key or embeddings, so it works without any API key. */
 export async function searchPassages(question: string, tags: string[]): Promise<ActionResult<Passage[]>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   const problem = checkSearchQuery(question);
   if (problem) return fail(problem);
   const checkedTags = checkTags(tags);
@@ -143,6 +149,7 @@ export async function searchPassages(question: string, tags: string[]): Promise<
 
 /** Deletes an uploaded file and everything taken from it. */
 export async function deleteFile(id: string): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   return run(async () => ((await deleteSource(db(), String(id))) ? { ok: true, data: null } : fail("That file no longer exists.")));
 }

@@ -10,6 +10,7 @@ import { addDays, today as todayInPhilly } from "../today";
 import { AddTodo } from "./Board";
 import { ShowDoneToggle } from "./ShowDoneToggle";
 import { ChecklistTable, type ChecklistGroup, type ChecklistRow, type OwnerChoices } from "./ChecklistTable";
+import { isBoardMember } from "../access";
 
 const WINDOWS = {
   all: "Any date",
@@ -24,6 +25,7 @@ const last = (v: string | string[] | undefined) => (Array.isArray(v) ? v[v.lengt
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function BoardPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+  if (!(await isBoardMember())) return null;
   const params: Params = { owner: first(searchParams["owner"]), window: first(searchParams["window"]), event: first(searchParams["event"]), done: last(searchParams["done"]) };
   const today = todayInPhilly();
   const window: WindowKey = params.window !== undefined && params.window in WINDOWS ? (params.window as WindowKey) : "all";

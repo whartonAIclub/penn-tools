@@ -66,6 +66,7 @@ export async function checkDatabaseReady(sql: Sql): Promise<DatabaseProblem | nu
     await sql`SELECT id, tags FROM sources LIMIT 0`;
     await sql`SELECT id, embedding_model FROM excerpts LIMIT 0`;
     await sql`SELECT id FROM vendors LIMIT 0`;
+    await sql`SELECT email FROM board_access LIMIT 0`;
     return null;
   } catch (error) {
     const problem = databaseProblem(error);

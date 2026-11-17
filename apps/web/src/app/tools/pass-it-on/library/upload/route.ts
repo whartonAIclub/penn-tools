@@ -11,12 +11,13 @@ import type { NextRequest } from "next/server";
 import { checkTags, databaseProblem, databaseProblemMessage } from "@penntools/tool-pass-it-on";
 import { uploadLibraryFile, ZipTooLargeError } from "@penntools/tool-pass-it-on/imports";
 import { getEmbeddings } from "@/lib/ai";
-import { getCurrentUser, signInRequired } from "@/lib/auth";
+import { routeMember } from "../../access";
 import { maybeDb } from "../../db";
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const user = await getCurrentUser();
-  if (!user) return signInRequired();
+  const gate = await routeMember();
+  if (!gate.ok) return gate.response;
+  const user = gate.user;
   const sql = maybeDb();
   if (!sql) return Response.json({ error: "Pass It On's database is not configured." }, { status: 500 });
 

@@ -7,6 +7,7 @@ import { categoryOf, describeTiming, getTemplate, listTemplateVersions, type Tem
 import { db } from "../db";
 import styles from "../PassItOn.module.css";
 import { IssueButton, RevertButton } from "./TemplateActions";
+import { isBoardMember } from "../access";
 
 const AREA_LABELS: Record<string, string> = {
   general: "General",
@@ -23,6 +24,7 @@ const SECTIONS = [
 ] as const;
 
 export default async function TemplatePage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+  if (!(await isBoardMember())) return null;
   const raw = Array.isArray(searchParams["v"]) ? searchParams["v"][0] : searchParams["v"];
   const requested = raw !== undefined && /^\d+$/.test(raw) ? Number(raw) : undefined;
   const [versions, template] = await Promise.all([listTemplateVersions(db()), getTemplate(db(), requested)]);

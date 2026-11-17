@@ -5,12 +5,14 @@ import { notFound } from "next/navigation";
 import { getExcerpt, type StoredExcerpt } from "@penntools/tool-pass-it-on";
 import { db } from "../../../db";
 import styles from "../../../PassItOn.module.css";
+import { isBoardMember } from "../../../access";
 
 function where(meta: StoredExcerpt["meta"]): string {
   return [meta.file, meta.sheet && `sheet ${meta.sheet}`, meta.page && `page ${meta.page}`, meta.date].filter(Boolean).join(" · ");
 }
 
 export default async function PassagePage({ params, searchParams }: { params: { id: string }; searchParams: { quote?: string } }) {
+  if (!(await isBoardMember())) return null;
   const passage = await getExcerpt(db(), Number(params.id));
   if (!passage) notFound();
   const quote = typeof searchParams.quote === "string" ? searchParams.quote : "";

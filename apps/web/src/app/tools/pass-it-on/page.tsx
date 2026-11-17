@@ -5,10 +5,12 @@ import { eventsWithoutLeader, groupByMonth, listPlannedEvents, splitByToday } fr
 import { db } from "./db";
 import styles from "./PassItOn.module.css";
 import { today } from "./today";
+import { isBoardMember } from "./access";
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export default async function PassItOnPage() {
+  if (!(await isBoardMember())) return null;
   const [events, noLeader] = await Promise.all([listPlannedEvents(db()), eventsWithoutLeader(db(), today()).then((ids) => new Set(ids))]);
 
   const { upcoming, undated, past } = splitByToday(events, today());

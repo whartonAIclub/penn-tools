@@ -15,6 +15,7 @@ const TABS = [
   { href: `${BASE}/template`, label: "Template", active: (p: string) => p.startsWith(`${BASE}/template`) },
   { href: `${BASE}/library`, label: "Library", active: (p: string) => p.startsWith(`${BASE}/library`) },
   { href: `${BASE}/ask`, label: "Ask", active: (p: string) => p.startsWith(`${BASE}/ask`) },
+  { href: `${BASE}/access`, label: "Access", active: (p: string) => p.startsWith(`${BASE}/access`) },
 ];
 
 export function Nav() {

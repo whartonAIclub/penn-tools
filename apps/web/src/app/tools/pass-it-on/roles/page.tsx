@@ -8,6 +8,7 @@ import styles from "../PassItOn.module.css";
 import { today as todayInPhilly } from "../today";
 import { PeopleEditor, type PersonRow } from "./PeopleEditor";
 import { RoleDefaultsForm, RolesGrid } from "./RolesGrid";
+import { isBoardMember } from "../access";
 
 const LEAD_ROLES: RoleSlot[] = ["Ops Lead", "Marketing Lead", "Finance Lead", "Entertainment Lead"];
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -18,6 +19,7 @@ const names = (value: string) =>
     .filter((n) => n !== "" && n !== "Unassigned");
 
 export default async function RolesPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+  if (!(await isBoardMember())) return null;
   const showPast = first(searchParams["past"]) === "1";
   const today = todayInPhilly();
 

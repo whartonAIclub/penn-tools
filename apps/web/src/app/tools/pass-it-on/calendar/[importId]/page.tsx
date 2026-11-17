@@ -9,8 +9,10 @@ import styles from "../../PassItOn.module.css";
 import { ApprovedList } from "../ApprovedList";
 import { ImportActions } from "../ImportActions";
 import { ProposalCard } from "../ProposalCard";
+import { isBoardMember } from "../../access";
 
 export default async function ImportPage({ params }: { params: { importId: string } }) {
+  if (!(await isBoardMember())) return null;
   const found = await getCalendarImport(db(), params.importId);
   if (!found) notFound();
   const pending = found.proposals.filter((p) => p.status === "pending");

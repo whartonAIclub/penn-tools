@@ -90,4 +90,6 @@ export type { ChecklistResult } from "./eventChecklist.js";
 export { createEventTasks, listTasks, updateTask, createTodo, deleteTask, MAX_TASK_TITLE } from "./tasks.js";
 export type { TaskStatus, TaskRow } from "./tasks.js";
 export { listMembers, addMember, setMemberActive, syncMembers, renameMember } from "./members.js";
+export { normalizeEmail, hasBoardAccess, listBoardAccess, grantBoardAccess, revokeBoardAccess, MAX_EMAIL_LENGTH } from "./access.js";
+export type { BoardMember, RevokeResult } from "./access.js";
 export type { Member } from "./members.js";

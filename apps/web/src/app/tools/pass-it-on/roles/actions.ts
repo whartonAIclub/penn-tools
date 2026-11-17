@@ -4,12 +4,11 @@
 // browser's input, and returns problems as data, like ../actions.ts.
 
 import { MAX_FIELD_LENGTH, ROLE_SLOTS, addMember, databaseProblem, databaseProblemMessage, renameMember, setEventRole, setMemberActive, setRoleDefault, syncMembers, type RoleSlot } from "@penntools/tool-pass-it-on";
-import { getCurrentUser } from "@/lib/auth";
+import { boardMember } from "../access";
 import { db } from "../db";
 import type { ActionResult } from "../actions";
 
 const fail = (message: string): ActionResult<never> => ({ ok: false, message });
-const signedOut = fail("Sign in with the button at the top right to use Pass It On.");
 
 async function run<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
@@ -28,7 +27,8 @@ const clean = (value: unknown): string => (typeof value === "string" ? value.tri
 
 /** Names who holds `role` on an event. A blank person removes the holder. */
 export async function setEventRoleAction(eventId: string, role: string, person: string): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (typeof eventId !== "string" || eventId === "") return fail("That event no longer exists.");
   if (!isSlot(role)) return fail("Unknown role.");
   return run(async () => {
@@ -42,7 +42,8 @@ export async function setEventRoleAction(eventId: string, role: string, person: 
 
 /** Sets a club default: its person (blank for none) and comma-separated alternates. */
 export async function setRoleDefaultAction(role: string, person: string, alternates: string): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!isSlot(role)) return fail("Unknown role.");
   return run(async () => {
     const name = clean(person);
@@ -62,7 +63,8 @@ const personId = (id: unknown): id is number => typeof id === "number" && Number
 
 /** Adds someone to the people list (or shows them again if they were hidden). */
 export async function addPersonAction(name: string): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   return run(async () => {
     const id = await addMember(db(), clean(name));
     await setMemberActive(db(), id, true);
@@ -72,7 +74,8 @@ export async function addPersonAction(name: string): Promise<ActionResult<null>>
 
 /** Renames someone everywhere their exact name is used; onto an existing name, the two are merged. */
 export async function renamePersonAction(id: number, name: string): Promise<ActionResult<{ merged: boolean }>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!personId(id)) return fail("That person is no longer on the list.");
   return run(async () => {
     const result = await renameMember(db(), id, clean(name));
@@ -82,7 +85,8 @@ export async function renamePersonAction(id: number, name: string): Promise<Acti
 
 /** Hides someone from every drop-down (they keep any roles and tasks they already have), or shows them again. */
 export async function setPersonHiddenAction(id: number, hidden: boolean): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!personId(id) || typeof hidden !== "boolean") return fail("That person is no longer on the list.");
   return run(async () => ((await setMemberActive(db(), id, !hidden)) ? { ok: true, data: null } : fail("That person is no longer on the list.")));
 }

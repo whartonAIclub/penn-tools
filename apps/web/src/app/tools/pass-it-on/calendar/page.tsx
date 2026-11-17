@@ -9,8 +9,10 @@ import { getAI } from "@/lib/ai";
 import { db } from "../db";
 import styles from "../PassItOn.module.css";
 import { CalendarUpload } from "./CalendarUpload";
+import { isBoardMember } from "../access";
 
 export default async function CalendarPage() {
+  if (!(await isBoardMember())) return null;
   const ai = await getAI("pass-it-on");
   const providers = ai ? await ai.providers() : [];
   if (providers.length === 0) return <ApiKeyPrompt title="Calendar" />;

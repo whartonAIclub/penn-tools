@@ -16,12 +16,11 @@ import {
   updateTask,
   type TaskStatus,
 } from "@penntools/tool-pass-it-on";
-import { getCurrentUser } from "@/lib/auth";
+import { boardMember } from "../access";
 import { db } from "../db";
 import type { ActionResult } from "../actions";
 
 const fail = (message: string): ActionResult<never> => ({ ok: false, message });
-const signedOut = fail("Sign in with the button at the top right to use Pass It On.");
 
 async function run<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
@@ -47,7 +46,8 @@ export interface TaskChange {
 }
 
 export async function updateTaskAction(id: number, change: TaskChange): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!wholeNumber(id) || typeof change !== "object" || change === null) return fail("That task no longer exists.");
   return run(async () => {
     const update: Parameters<typeof updateTask>[2] = {};
@@ -69,7 +69,8 @@ export async function addTodoAction(input: {
   offsetDays: string;
   dueDate: string;
 }): Promise<ActionResult<{ id: number }>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (typeof input !== "object" || input === null) return fail("Fill in the to-do.");
   const eventId = text(input.eventId);
   const offsetText = text(input.offsetDays);
@@ -87,14 +88,16 @@ export async function addTodoAction(input: {
 }
 
 export async function deleteTaskAction(id: number): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!wholeNumber(id)) return fail("That task no longer exists.");
   return run(async () => ((await deleteTask(db(), id)) ? { ok: true, data: null } : fail("That task no longer exists.")));
 }
 
 /** Gives an event its checklist, or adds what's new (a partner club, a module). Returns how many tasks were added. */
 export async function generateChecklistAction(eventId: string, moduleKeys: string[]): Promise<ActionResult<{ created: number }>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (typeof eventId !== "string" || !Array.isArray(moduleKeys)) return fail("That event no longer exists.");
   return run(async () => {
     const result = await generateEventChecklist(db(), eventId, { moduleKeys: moduleKeys.map(String) });
@@ -105,13 +108,15 @@ export async function generateChecklistAction(eventId: string, moduleKeys: strin
 }
 
 export async function revertTemplateAction(versionId: number): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!wholeNumber(versionId)) return fail("That version no longer exists.");
   return run(async () => ((await revertTemplate(db(), versionId)) === null ? fail("That version no longer exists.") : { ok: true, data: null }));
 }
 
 export async function setIssueStatusAction(issueId: number, status: "open" | "resolved"): Promise<ActionResult<null>> {
-  if (!(await getCurrentUser())) return signedOut;
+  const gate = await boardMember();
+  if (!gate.ok) return gate;
   if (!wholeNumber(issueId)) return fail("That issue no longer exists.");
   return run(async () => ((await setTemplateIssueStatus(db(), issueId, status)) ? { ok: true, data: null } : fail("That issue no longer exists.")));
 }

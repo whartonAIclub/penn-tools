@@ -414,3 +414,17 @@ FROM (
 ) l
 WHERE l.id = e.id
   AND (e.pub_leader IS DISTINCT FROM l.leader OR e.organizer_name IS DISTINCT FROM COALESCE(l.leader, 'Unassigned'));
+
+-- Who may use Pass It On: the board's Penn emails, stored lower case. Any
+-- member can add or remove others in the Access tab; the last one can't be
+-- removed. While the list is empty (a new database), the first two members
+-- are added here; once anyone is on it, this insert does nothing.
+CREATE TABLE IF NOT EXISTS board_access (
+  email    TEXT        PRIMARY KEY CHECK (email = lower(email) AND email = btrim(email)),
+  added_by TEXT,
+  added_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO board_access (email)
+SELECT email FROM (VALUES ('joehard@wharton.upenn.edu'), ('bpaulman@wharton.upenn.edu')) AS first_members (email)
+WHERE NOT EXISTS (SELECT 1 FROM board_access);

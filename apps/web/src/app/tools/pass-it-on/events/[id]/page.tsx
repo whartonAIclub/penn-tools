@@ -4,8 +4,10 @@ import { db } from "../../db";
 import { nameSuggestions } from "../../people";
 import { ChecklistPanel } from "../ChecklistPanel";
 import { EventForm } from "../EventForm";
+import { isBoardMember } from "../../access";
 
 export default async function EditEventPage({ params }: { params: { id: string } }) {
+  if (!(await isBoardMember())) return null;
   const event = await getPlannedEvent(db(), params.id);
   if (!event) notFound();
 
