@@ -58,6 +58,14 @@ import { AccountingPracticeTool } from "@penntools/tool-accounting-practice";
 toolRegistry.register(new AccountingPracticeTool());
 import { ChooseMbaMajorTool } from "@penntools/tool-choose-mba-major";
 toolRegistry.register(new ChooseMbaMajorTool());
+import { NonWhartonCourseManagerTool } from "@penntools/tool-non-wharton-course-manager";
+toolRegistry.register(new NonWhartonCourseManagerTool());
+import { KeepintouchTool } from "@penntools/tool-keepintouch";
+toolRegistry.register(new KeepintouchTool());
+import { DeadlineCalendarTool } from "@penntools/tool-deadline-calendar";
+toolRegistry.register(new DeadlineCalendarTool());
+import { WembaSyncTool } from "@penntools/tool-wemba-sync";
+toolRegistry.register(new WembaSyncTool());
 import { PassItOnTool } from "@penntools/tool-pass-it-on";
 toolRegistry.register(new PassItOnTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
@@ -80,7 +88,8 @@ export const aiUsage: AiUsageRepository = new PrismaAiUsageRepository(prisma);
 // Who can open /admin; see lib/admin.ts.
 export const admins: AdminRepository = new PrismaAdminRepository(prisma);
 
-// Visits to each tool, recorded by POST /api/visits for the admin page.
+// Visits to each tool, recorded by POST /api/visits for /admin, /stats and the
+// home page's top tools.
 export const toolVisits: ToolVisitRepository = new PrismaToolVisitRepository(prisma);
 
 // ── Embedding provider ─────────────────────────────────────────────────────

@@ -6,9 +6,10 @@ import { ChecklistPanel } from "../ChecklistPanel";
 import { EventForm } from "../EventForm";
 import { isBoardMember } from "../../access";
 
-export default async function EditEventPage({ params }: { params: { id: string } }) {
+export default async function EditEventPage({ params }: PageProps<"/tools/pass-it-on/events/[id]">) {
   if (!(await isBoardMember())) return null;
-  const event = await getPlannedEvent(db(), params.id);
+  const { id } = await params;
+  const event = await getPlannedEvent(db(), id);
   if (!event) notFound();
 
   // The module list comes from the template version the event was built from, else the latest.

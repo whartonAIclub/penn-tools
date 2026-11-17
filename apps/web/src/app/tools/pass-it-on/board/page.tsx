@@ -24,9 +24,10 @@ type Params = { owner: string | undefined; window: string | undefined; event: st
 const last = (v: string | string[] | undefined) => (Array.isArray(v) ? v[v.length - 1] : v);
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-export default async function BoardPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function BoardPage({ searchParams }: PageProps<"/tools/pass-it-on/board">) {
   if (!(await isBoardMember())) return null;
-  const params: Params = { owner: first(searchParams["owner"]), window: first(searchParams["window"]), event: first(searchParams["event"]), done: last(searchParams["done"]) };
+  const query = await searchParams;
+  const params: Params = { owner: first(query["owner"]), window: first(query["window"]), event: first(query["event"]), done: last(query["done"]) };
   const today = todayInPhilly();
   const window: WindowKey = params.window !== undefined && params.window in WINDOWS ? (params.window as WindowKey) : "all";
   // Done tasks are hidden across all events and shown when one event is picked; the form sends `done` (1 or 0) only when the Show done box overrides that.

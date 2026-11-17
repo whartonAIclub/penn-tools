@@ -63,7 +63,12 @@ export function Upload({ events }: { events: { id: string; title: string }[] }) 
   return (
     <form
       className={styles.card}
-      action={submit}
+      // onSubmit, not action: React 19 clears a form after its action runs, which
+      // would drop the chosen file before "Upload anyway".
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit(new FormData(e.currentTarget));
+      }}
       onChange={() => outcome.kind === "confirm" || setOutcome({ kind: "idle" })}
     >
       <h2 className={styles.heading}>Add a file</h2>

@@ -12,6 +12,12 @@
 //   - imports the platform's admins or tool visits (admins, toolVisits)
 //   - imports Prisma or platform internals; the one platform import allowed is
 //     toolSql from @penntools/platform/db
+//   - opens a PDF with pdfjs's getDocument without isEvalSupported: false
+//     (a malicious PDF could run code, CVE-2024-4367), or imports pdfjs's
+//     legacy build, which only the server uses: server code opens PDFs with
+//     withPdf / pdfPageCount from @/lib/pdf. These checks read the source
+//     text, so they catch mistakes, not deliberate workarounds (a renamed
+//     getDocument, or options built in another variable)
 //
 // It also checks that each tool's manifest says whether it's still on the
 // legacy LLM API (POST /api/llm/complete): notYetMigrated: true when the tool's
@@ -68,10 +74,38 @@ const RULES = [
     test: platformImports,
     fix: "the only platform import tools may use is toolSql from @penntools/platform/db",
   },
+  {
+    name: "unsafe PDF",
+    test: unsafeGetDocument,
+    fix: "pass isEvalSupported: false to getDocument, or on the server use withPdf / pdfPageCount from @/lib/pdf",
+  },
+  {
+    name: "pdfjs legacy build",
+    test: (src) => matches(src, /["']pdfjs-dist\/legacy\//g),
+    fix: "open PDFs on the server with withPdf / pdfPageCount from @/lib/pdf",
+  },
 ];
 
 function matches(src, regex) {
   return [...src.matchAll(regex)].map((m) => m.index);
+}
+
+/** getDocument(...) calls whose arguments don't include isEvalSupported: false. */
+function unsafeGetDocument(src) {
+  const found = [];
+  for (const m of src.matchAll(/\bgetDocument\s*\(/g)) {
+    // The arguments run to the parenthesis that closes the call.
+    let depth = 1;
+    let end = m.index + m[0].length;
+    while (end < src.length && depth > 0) {
+      if (src[end] === "(") depth++;
+      else if (src[end] === ")") depth--;
+      end++;
+    }
+    const args = src.slice(m.index + m[0].length, end - 1);
+    if (!/\bisEvalSupported\s*:\s*false\b/.test(args)) found.push(m.index);
+  }
+  return found;
 }
 
 /** Imports from @penntools/platform other than `{ toolSql }` from @penntools/platform/db. */

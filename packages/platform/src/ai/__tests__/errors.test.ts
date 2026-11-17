@@ -10,15 +10,21 @@ function anthropicError(status: number, type: string, message: string) {
   return Anthropic.APIError.generate(status, { type: "error", error: { type, message } }, undefined, new Headers());
 }
 
-function openaiError(status: number, code: string, message: string) {
-  return OpenAI.APIError.generate(status, { error: { code, type: code, message } }, undefined, new Headers());
+function openaiError(status: number, code: string, message: string, type: string = code) {
+  return OpenAI.APIError.generate(status, { error: { code, type, message } }, undefined, new Headers());
 }
 
 describe("toAIError", () => {
   it.each([
     [401, "authentication_error", "invalid x-api-key", "invalid_key"],
     [403, "permission_error", "not allowed", "invalid_key"],
-    [402, "billing_error", "Your credit balance is too low", "no_credit"],
+    [402, "billing_error", "There's an issue with your payment details", "no_credit"],
+    [
+      400,
+      "invalid_request_error",
+      "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.",
+      "no_credit",
+    ],
     [429, "rate_limit_error", "slow down", "rate_limited"],
     [413, "request_too_large", "too big", "too_long"],
     [400, "invalid_request_error", "prompt is too long: 300000 tokens > 200000 maximum", "too_long"],
@@ -48,6 +54,14 @@ describe("toAIError", () => {
   ])("maps OpenAI %i %s to %s", (status, code, message, kind) => {
     expect(toAIError("openai", openaiError(status, code, message), logger())).toMatchObject({ kind, provider: "openai" });
   });
+
+  it.each(["credit_balance_exhausted", "organization_spend_limit_exceeded", "project_spend_limit_exceeded"])(
+    "maps an OpenAI 429 insufficient_quota with code %s to no_credit, not rate_limited",
+    (code) => {
+      const error = openaiError(429, code, "You exceeded your current quota", "insufficient_quota");
+      expect(toAIError("openai", error, logger())).toMatchObject({ kind: "no_credit", provider: "openai" });
+    },
+  );
 
   it("never passes the provider's message on, which can echo part of the key", () => {
     const log = logger();

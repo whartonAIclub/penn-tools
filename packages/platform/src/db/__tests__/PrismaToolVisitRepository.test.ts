@@ -85,5 +85,38 @@ describe.skipIf(!databaseUrl)("PrismaToolVisitRepository (Postgres)", () => {
 
   it("is empty before anyone visits", async () => {
     expect(await visits.report()).toEqual([]);
+    expect(await visits.visitsSince(7)).toEqual([]);
+  });
+
+  it("counts only the window's visits, most first, ties broken by users, signed-out visitors as one user", async () => {
+    const alice = await user("alice");
+    const bob = await user("bob");
+    const at = (days: number) => new Date(Date.now() - days * DAY);
+    await db.toolVisit.createMany({
+      data: [
+        // Two visits each this week; career-canvas's are from two people.
+        { toolId: "askpenn", userId: alice, createdAt: at(1) },
+        { toolId: "askpenn", userId: alice, createdAt: at(2) },
+        { toolId: "career-canvas", userId: alice, createdAt: at(1) },
+        { toolId: "career-canvas", userId: bob, createdAt: at(3) },
+        // Older than a week, so only in the month.
+        { toolId: "askpenn", userId: null, createdAt: at(10) },
+        { toolId: "deadline-calendar", userId: null, createdAt: at(10) },
+        // Older than the month.
+        { toolId: "deadline-calendar", userId: bob, createdAt: at(40) },
+      ],
+    });
+
+    expect(await visits.visitsSince(7)).toEqual([
+      { toolId: "career-canvas", visits: 2, users: 2 },
+      { toolId: "askpenn", visits: 2, users: 1 },
+    ]);
+    // AskPenn: alice, and one for its signed-out visit. Deadline Calendar's
+    // only visit in the month is signed out, which still makes one user.
+    expect(await visits.visitsSince(30)).toEqual([
+      { toolId: "askpenn", visits: 3, users: 2 },
+      { toolId: "career-canvas", visits: 2, users: 2 },
+      { toolId: "deadline-calendar", visits: 1, users: 1 },
+    ]);
   });
 });

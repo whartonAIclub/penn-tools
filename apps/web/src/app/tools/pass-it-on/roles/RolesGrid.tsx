@@ -112,7 +112,15 @@ export function RoleDefaultsForm({ defaults }: { defaults: { role: string; perso
   }
 
   return (
-    <form action={submit} className={styles.card}>
+    <form
+      // onSubmit, not action: React 19 clears a form after its action runs, which
+      // would undo what was typed if a save fails.
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit(new FormData(e.currentTarget));
+      }}
+      className={styles.card}
+    >
       {defaults.map((d) => (
         <div key={d.role} className={styles.row}>
           <strong className={styles.rolesDefaultLabel}>{d.role}</strong>

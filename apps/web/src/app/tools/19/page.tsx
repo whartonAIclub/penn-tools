@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DM_Sans } from "next/font/google";
 import { C } from "./lib/tokens";
 import { matchesTags } from "./lib/tags";
 import { getWeekKey, getAvailableWeeks } from "./lib/weeks";
@@ -17,8 +16,6 @@ import { useCompassEvents } from "./hooks/useCompassEvents";
 import { useSavedEvents } from "./hooks/useSavedEvents";
 import { useReflections } from "./hooks/useReflections";
 import type { TimeFilter } from "./lib/types";
-
-const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 
 export default function CompassPage() {
   const adminHeaderValue = process.env.NEXT_PUBLIC_TOOL19_ADMIN_KEY || "";
@@ -108,7 +105,7 @@ export default function CompassPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, color: C.text, fontFamily: dmSans.style.fontFamily }}>
+    <div style={{ minHeight: "100vh", background: C.pageBg, color: C.text }}>
       <CompassHeader isSyncing={isSyncing} onSync={handleSync} />
 
       <main style={{ maxWidth: 1152, margin: "0 auto", padding: "28px 24px 80px" }}>

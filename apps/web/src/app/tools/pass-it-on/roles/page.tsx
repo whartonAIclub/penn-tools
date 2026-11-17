@@ -18,9 +18,9 @@ const names = (value: string) =>
     .map((n) => n.trim())
     .filter((n) => n !== "" && n !== "Unassigned");
 
-export default async function RolesPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function RolesPage({ searchParams }: PageProps<"/tools/pass-it-on/roles">) {
   if (!(await isBoardMember())) return null;
-  const showPast = first(searchParams["past"]) === "1";
+  const showPast = first((await searchParams)["past"]) === "1";
   const today = todayInPhilly();
 
   // Names used since the list was last filled (and the club's default leads) join it before it's shown.

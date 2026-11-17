@@ -11,11 +11,12 @@ function where(meta: StoredExcerpt["meta"]): string {
   return [meta.file, meta.sheet && `sheet ${meta.sheet}`, meta.page && `page ${meta.page}`, meta.date].filter(Boolean).join(" · ");
 }
 
-export default async function PassagePage({ params, searchParams }: { params: { id: string }; searchParams: { quote?: string } }) {
+export default async function PassagePage({ params, searchParams }: PageProps<"/tools/pass-it-on/library/passage/[id]">) {
   if (!(await isBoardMember())) return null;
-  const passage = await getExcerpt(db(), Number(params.id));
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const passage = await getExcerpt(db(), Number(id));
   if (!passage) notFound();
-  const quote = typeof searchParams.quote === "string" ? searchParams.quote : "";
+  const quote = typeof query["quote"] === "string" ? query["quote"] : "";
 
   // Highlight the cited words when they're in the passage exactly as the model quoted them.
   const at = quote ? passage.text.toLowerCase().indexOf(quote.toLowerCase()) : -1;

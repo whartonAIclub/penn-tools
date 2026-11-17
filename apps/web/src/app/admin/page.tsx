@@ -9,13 +9,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FREE_CREDIT_USD } from "@penntools/core/ai";
-import { VISIT_RECENT_DAYS } from "@penntools/core/repositories";
 import { toolRegistry } from "@penntools/core/tools";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { admins, aiUsage, toolVisits } from "@/lib/container";
-import { communityToolByVisitId, communityTools, communityVisitId, isCommunityVisitId } from "@/data/communityTools";
+import { communityToolByVisitId, communityTools } from "@/data/communityTools";
+import { visitsForEveryTool } from "@/lib/visitReport";
 import cardPage from "@/components/layout/CardPage.module.css";
+import table from "@/components/layout/DataTable.module.css";
+import { ToolVisitsTable } from "@/components/stats/ToolVisitsTable";
 import { Admins } from "./Admins";
 import styles from "./page.module.css";
 
@@ -57,14 +59,11 @@ export default async function AdminPage() {
     toolVisits.report(),
     admins.list(),
   ]);
-  // Every tool on the site, so ones no one has opened show too.
-  const unvisited = [
-    ...toolRegistry.listManifests().map((manifest) => manifest.id),
-    ...communityTools.map((tool) => communityVisitId(tool.id)),
-  ]
-    .filter((toolId) => !visited.some((tool) => tool.toolId === toolId))
-    .map((toolId) => ({ toolId, visits: 0, users: 0, recentVisits: 0, recentUsers: 0 }));
-  const visits = [...visited, ...unvisited];
+  // Keeps rows for IDs no longer on the site: a removed tool's are deleted
+  // before its removal goes live, so these are a renamed tool's old ID, whose
+  // visits haven't been moved to the new one yet (see "Removing a tool" in the
+  // README).
+  const visits = visitsForEveryTool(visited, toolRegistry.listManifests(), communityTools, { onlySiteTools: false });
 
   return (
     <div className={styles.page}>
@@ -99,29 +98,29 @@ export default async function AdminPage() {
 
       <section className={cardPage.card}>
         <h2 className={styles.heading}>By tool</h2>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
+        <div className={table.tableWrap}>
+          <table className={table.table}>
             <thead>
               <tr>
                 <th>Tool</th>
-                <th className={styles.num}>Calls</th>
-                <th className={styles.num}>Users</th>
-                <th className={styles.num}>Input tokens</th>
-                <th className={styles.num}>Output tokens</th>
-                <th className={styles.num}>Free credit</th>
-                <th className={styles.num}>Own key</th>
+                <th className={table.num}>Calls</th>
+                <th className={table.num}>Users</th>
+                <th className={table.num}>Input tokens</th>
+                <th className={table.num}>Output tokens</th>
+                <th className={table.num}>Free credit</th>
+                <th className={table.num}>Own key</th>
               </tr>
             </thead>
             <tbody>
               {byTool.map((tool) => (
                 <tr key={tool.toolId}>
                   <td>{toolName(tool.toolId)}</td>
-                  <td className={styles.num}>{count(tool.calls)}</td>
-                  <td className={styles.num}>{count(tool.users)}</td>
-                  <td className={styles.num}>{count(tool.inputTokens)}</td>
-                  <td className={styles.num}>{count(tool.outputTokens)}</td>
-                  <td className={styles.num}>{usd(tool.platformUsd)}</td>
-                  <td className={styles.num}>{usd(tool.userKeyUsd)}</td>
+                  <td className={table.num}>{count(tool.calls)}</td>
+                  <td className={table.num}>{count(tool.users)}</td>
+                  <td className={table.num}>{count(tool.inputTokens)}</td>
+                  <td className={table.num}>{count(tool.outputTokens)}</td>
+                  <td className={table.num}>{usd(tool.platformUsd)}</td>
+                  <td className={table.num}>{usd(tool.userKeyUsd)}</td>
                 </tr>
               ))}
             </tbody>
@@ -132,15 +131,15 @@ export default async function AdminPage() {
 
       <section className={cardPage.card}>
         <h2 className={styles.heading}>By user</h2>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
+        <div className={table.tableWrap}>
+          <table className={table.table}>
             <thead>
               <tr>
                 <th>User</th>
-                <th className={styles.num}>Calls</th>
-                <th className={styles.num}>Free credit used</th>
-                <th className={styles.num}>Own key</th>
-                <th className={styles.num}>Last used</th>
+                <th className={table.num}>Calls</th>
+                <th className={table.num}>Free credit used</th>
+                <th className={table.num}>Own key</th>
+                <th className={table.num}>Last used</th>
               </tr>
             </thead>
             <tbody>
@@ -150,12 +149,12 @@ export default async function AdminPage() {
                     <div>{row.name ?? "—"}</div>
                     <div className={cardPage.muted}>{row.email ?? row.userId}</div>
                   </td>
-                  <td className={styles.num}>{count(row.calls)}</td>
-                  <td className={`${styles.num} ${row.platformUsd >= LOW_CREDIT_USD ? styles.atLimit : ""}`}>
+                  <td className={table.num}>{count(row.calls)}</td>
+                  <td className={`${table.num} ${row.platformUsd >= LOW_CREDIT_USD ? styles.atLimit : ""}`}>
                     {usd(row.platformUsd)}
                   </td>
-                  <td className={styles.num}>{usd(row.userKeyUsd)}</td>
-                  <td className={styles.num}>{row.lastUsedAt.toISOString().slice(0, 10)}</td>
+                  <td className={table.num}>{usd(row.userKeyUsd)}</td>
+                  <td className={table.num}>{row.lastUsedAt.toISOString().slice(0, 10)}</td>
                 </tr>
               ))}
             </tbody>
@@ -168,38 +167,7 @@ export default async function AdminPage() {
 
       <h2 className={styles.heading}>Tool visits</h2>
       <section className={cardPage.card}>
-        <p className={cardPage.muted}>
-          A visit is opening a tool, signed in or not; moving between its pages isn&apos;t another one. For an
-          external tool, it&apos;s a click on its link in the sidebar or on the dashboard, so people who reach its
-          site another way aren&apos;t counted. Users counts signed-in people only.
-        </p>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Tool</th>
-                <th className={styles.num}>Visits ({VISIT_RECENT_DAYS} days)</th>
-                <th className={styles.num}>Users ({VISIT_RECENT_DAYS} days)</th>
-                <th className={styles.num}>Visits (all time)</th>
-                <th className={styles.num}>Users (all time)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visits.map((tool) => (
-                <tr key={tool.toolId}>
-                  <td>
-                    {toolName(tool.toolId)}
-                    {isCommunityVisitId(tool.toolId) && <span className={cardPage.muted}> · external</span>}
-                  </td>
-                  <td className={styles.num}>{count(tool.recentVisits)}</td>
-                  <td className={styles.num}>{count(tool.recentUsers)}</td>
-                  <td className={styles.num}>{count(tool.visits)}</td>
-                  <td className={styles.num}>{count(tool.users)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ToolVisitsTable visits={visits} />
       </section>
 
       <section className={cardPage.card}>

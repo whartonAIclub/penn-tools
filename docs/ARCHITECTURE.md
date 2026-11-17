@@ -221,8 +221,10 @@ section 4; this section covers the design.
   toward the user's free credit but aren't reserved or refused, since they
   cost so little (text-embedding-3-small is $0.02 per million tokens).
 - **Enforcement.** `pnpm check:tools` (`scripts/check-tool-imports.mjs`) fails
-  if tool code imports a vendor SDK, calls a provider API, or touches users'
-  keys or platform internals.
+  if tool code imports a vendor SDK, calls a provider API, touches users'
+  keys or platform internals, or opens a PDF with pdfjs's code execution on
+  (`getDocument` without `isEvalSupported: false`, or pdfjs's legacy build
+  instead of `withPdf` / `pdfPageCount` from `@/lib/pdf`).
 
 ---
 
@@ -278,8 +280,9 @@ need a user for everything use the standard screens: `SignInPrompt` with just
 their title ("Sign in to use AskPenn."), and, if they run on the AI API,
 `ApiKeyPrompt` when the user has used their free AI credit and hasn't saved a
 key (`ai.providers()` is empty), pointing to Settings. Because
-`getCurrentUser()` reads the request's cookies, every page renders per request
-rather than being prerendered; it is cached per request, so the header and the
+`getCurrentUser()` calls `connection()`, and the root layout reads the
+sidebar's cookies, every page renders per request rather than being
+prerendered; it is cached per request, so the header and the
 page share one user lookup.
 
 ### Tool catalog
@@ -387,10 +390,21 @@ Key design choices:
   `community-<id>` (`communityVisitId`) so it stays apart from registered
   tools' IDs. People who reach its site any other way aren't counted. `/admin`
   shows visits and distinct signed-in users per tool, for the last 30 days and
-  all time. Anyone can call the route, and some ad blockers stop the beacon, so
-  the counts are a guide, not an audit. A removed tool's rows are deleted on
-  every deploy once it's listed in `removed-tools.json` (see **Removing a
-  tool** in the README). Tool code must not import `toolVisits` or `admins`.
+  all time. `/stats`, linked from the dashboard's top tools and its footer,
+  shows the same table to anyone, signed in or not, for the tools still on the
+  site (`components/stats/ToolVisitsTable.tsx`, with rows from
+  `lib/visitReport.ts`). It reads the report at most once a minute, so its
+  counts are never more than a minute old (`cachedFor` in `lib/cache.ts`).
+  The home page leads with the most-visited tools of the last 7 and 30 days
+  (`lib/topTools.ts`, `components/dashboard/TopTools.tsx`), every tool but the
+  Platform team's AskPenn and Platform Playground. It reads them at most once
+  a minute too, but doesn't wait long on the database: if a read fails or
+  takes over 2 seconds, it shows the last counts read (`cachedOrStale`), or
+  none just after the server starts, and retries a minute later. Anyone can call
+  the route, and some ad blockers stop the beacon, so the counts are a guide,
+  not an audit. A removed tool's rows are deleted on every deploy once it's
+  listed in `removed-tools.json` (see **Removing a tool** in the README). Tool
+  code must not import `toolVisits` or `admins`.
 - `admins` lists, by email, who can open `/admin` (AI usage, tool visits, and
   the admins themselves, who add and remove each other there; no one can remove
   themselves). `db:deploy` adds the first admins

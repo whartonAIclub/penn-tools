@@ -50,7 +50,15 @@ export function CalendarUpload({ providers, labels }: { providers: string[]; lab
   }
 
   return (
-    <form className={styles.card} action={submit}>
+    <form
+      className={styles.card}
+      // onSubmit, not action: React 19 clears a form after its action runs, which
+      // would drop the chosen file before "Upload anyway".
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit(new FormData(e.currentTarget));
+      }}
+    >
       <h2 className={styles.heading}>Upload your calendar</h2>
       <p className={styles.muted}>
         Upload the club&apos;s annual calendar as an Excel file (.xlsx). The AI proposes an event for each row, and nothing is added to the calendar until you approve it.

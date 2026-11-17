@@ -65,6 +65,8 @@ const TOOLS = [
   { name: "askpenn", dir: "tools/askpenn", connectionLimit: 30 },
   { name: "recruitinghelper", dir: "tools/recruiting-helper", connectionLimit: 30 },
   { name: "accountingpractice", dir: "tools/accounting-practice", connectionLimit: 30 },
+  { name: "keepintouch", dir: "tools/keepintouch", connectionLimit: 30 },
+  { name: "wembasync", dir: "tools/wemba-sync", connectionLimit: 30 },
   { name: "passiton", dir: "tools/pass-it-on", connectionLimit: 30 },
 ];
 

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CatalogSection, CatalogTool } from "@/lib/toolCatalog";
-import { trackClicks } from "@/lib/visits";
+import type { TopTools } from "@/lib/topTools";
+import { ToolLink } from "./ToolLink";
+import { TopToolsSection } from "./TopTools";
 import styles from "./Dashboard.module.css";
 
 function hostOf(url: string): string {
@@ -14,13 +16,16 @@ function hostOf(url: string): string {
   }
 }
 
-export function Dashboard({ sections }: { sections: CatalogSection[] }) {
+/** `top` is null when the visit counts couldn't be read; the page shows no top tools then. */
+export function Dashboard({ sections, top }: { sections: CatalogSection[]; top: TopTools | null }) {
   return (
     <div className={styles.content}>
       <header className={styles.hero}>
         <h1 className={styles.title}>PennTools</h1>
         <p className={styles.subtitle}>Tools built by the Penn community, all in one place.</p>
       </header>
+
+      {top && <TopToolsSection top={top} />}
 
       {sections.map((section) => (
         <section
@@ -56,6 +61,8 @@ export function Dashboard({ sections }: { sections: CatalogSection[] }) {
         </p>
         <p>
           <Link href="/privacy" className={styles.footerLink}>Privacy policy</Link>
+          {" · "}
+          <Link href="/stats" className={styles.footerLink}>Stats</Link>
           {" · "}
           <a href="mailto:waiac.platform@gmail.com" className={styles.footerLink}>Contact</a>
         </p>
@@ -103,16 +110,9 @@ function ToolTile({ tool }: { tool: CatalogTool }) {
     </>
   );
 
-  // Community tools open in a new tab, counting the click; registered tools
-  // navigate within the app, as the sidebar's links do, so the page doesn't
-  // fully reload (ToolsShell records those visits).
-  return tool.external ? (
-    <a href={tool.href} className={styles.tile} target="_blank" rel="noopener noreferrer" {...trackClicks(tool.visitId)}>
+  return (
+    <ToolLink tool={tool} className={styles.tile}>
       {content}
-    </a>
-  ) : (
-    <Link href={tool.href} className={styles.tile}>
-      {content}
-    </Link>
+    </ToolLink>
   );
 }

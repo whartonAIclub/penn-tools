@@ -23,9 +23,10 @@ const SECTIONS = [
   { key: "run_of_show", label: "Run of show" },
 ] as const;
 
-export default async function TemplatePage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function TemplatePage({ searchParams }: PageProps<"/tools/pass-it-on/template">) {
   if (!(await isBoardMember())) return null;
-  const raw = Array.isArray(searchParams["v"]) ? searchParams["v"][0] : searchParams["v"];
+  const v = (await searchParams)["v"];
+  const raw = Array.isArray(v) ? v[0] : v;
   const requested = raw !== undefined && /^\d+$/.test(raw) ? Number(raw) : undefined;
   const [versions, template] = await Promise.all([listTemplateVersions(db()), getTemplate(db(), requested)]);
 

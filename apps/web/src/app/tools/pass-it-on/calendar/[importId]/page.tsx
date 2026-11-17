@@ -11,9 +11,10 @@ import { ImportActions } from "../ImportActions";
 import { ProposalCard } from "../ProposalCard";
 import { isBoardMember } from "../../access";
 
-export default async function ImportPage({ params }: { params: { importId: string } }) {
+export default async function ImportPage({ params }: PageProps<"/tools/pass-it-on/calendar/[importId]">) {
   if (!(await isBoardMember())) return null;
-  const found = await getCalendarImport(db(), params.importId);
+  const { importId } = await params;
+  const found = await getCalendarImport(db(), importId);
   if (!found) notFound();
   const pending = found.proposals.filter((p) => p.status === "pending");
   const approved = found.proposals.filter((p) => p.status === "approved");
