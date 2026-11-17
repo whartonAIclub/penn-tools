@@ -441,11 +441,15 @@ export function HowItWorks({ ws, analysis }: TabProps) {
 
       <h2 className={styles.h2}>Privacy</h2>
       <ul>
-        <li>Your file is read in this browser and kept in this browser&apos;s storage. PennTools does not store it.</li>
-        <li>Responses are shown by number, never by timestamp, and columns named like Name or Email are ignored unless you turn them on.</li>
         <li>
-          Tag with AI sends only the written answers you haven&apos;t tagged, with emails, phone numbers and @handles masked. A name written inside an answer is
-          sent as written; the AI is told to replace it with a role like [mentor], and the page warns you if one slips through.
+          Your file is read in this browser and kept in this browser&apos;s storage, even after you sign out, until you use Start over. PennTools does not
+          store it. On a shared computer, use Start over when you finish.
+        </li>
+        <li>Responses are shown by number, never by timestamp. Columns named like Name, Email or Penn ID are removed as the file is read.</li>
+        <li>
+          Tag with AI sends only the written answers you haven&apos;t tagged, with emails, phone numbers, @handles and names after words like “thanks” or
+          “mentor” masked. Other names are sent as written; the AI is told to replace them with a role like [mentor], and the page warns you if one slips
+          through.
         </li>
       </ul>
 

@@ -19,7 +19,7 @@ import {
   type QuestionKind,
   type Setup as SetupData,
 } from "@penntools/tool-feedback-insights";
-import { applyPreset, matchPreset } from "@penntools/tool-feedback-insights";
+import { applyPreset, matchPreset, MAX_THEME_SAMPLE, themeSample } from "@penntools/tool-feedback-insights";
 import { proposeThemes } from "./actions";
 import { Short, type AIAccess, type TabProps } from "./shared";
 import { download, slug } from "./storage";
@@ -117,13 +117,13 @@ export function Setup({ ws, analysis, update, ai, onNotice }: TabProps & { ai: A
   const preset = matchPreset(ws.table);
   const presetMissing = preset ? preset.themes.some((t) => !has(t)) : false;
   const used = new Set(analysis.comments.map((c) => c.theme.toLowerCase()));
-  const written = analysis.responses.flatMap((r) => r.tagColumns.map((c) => String(r.values[c] ?? "")));
+  const written = themeSample(analysis, MAX_THEME_SAMPLE);
 
   async function suggest() {
     if (!ai.provider) return;
     setSuggesting(true);
     try {
-      const reply = await proposeThemes(ai.provider, written.slice(0, 60));
+      const reply = await proposeThemes(ai.provider, written);
       if (reply.ok) setSuggested(reply.data);
       else onNotice(reply.error.message, "bad");
     } catch {

@@ -2,7 +2,7 @@ export { FeedbackInsightsTool } from "./FeedbackInsightsTool.js";
 export * from "./types.js";
 export { parseCsv, parseCells, toCsv } from "./csv.js";
 export { normalizeTimestamp, minutesOf, responseKey } from "./timestamps.js";
-export { hasContactInfo, hasPersonalInfo, maskContactInfo } from "./privacy.js";
+export { hasContactInfo, hasPersonalInfo, maskContactInfo, maskPersonalInfo } from "./privacy.js";
 export {
   detectSetup,
   detectQuestion,
@@ -25,7 +25,7 @@ export {
   shortLabel,
 } from "./detect.js";
 export { cleanResponses, isBlankAnswer, isNonAnswer, isJunk, bare, FLAGS } from "./clean.js";
-export { analyze, normalizeTagType, quoteMatches } from "./analyze.js";
+export { analyze, normalizeTagType, quoteMatches, themeSample } from "./analyze.js";
 export type { Analysis, RatingSummary, Distribution, TagView, ThemeSummary, Recommendation, Strength, UntaggedAnswer, DropReason } from "./analyze.js";
 export {
   tagAnswers,
@@ -38,8 +38,10 @@ export {
   MAX_ANSWER_LENGTH,
   MAX_THEMES,
   MAX_TOPIC_LENGTH,
+  MAX_TOPICS,
+  MAX_THEME_SAMPLE,
 } from "./tagging.js";
-export type { AnswerToTag, ProposedTag } from "./tagging.js";
+export type { AnswerToTag, ProposedTag, TagReply } from "./tagging.js";
 export {
   tagsFromCsv,
   tagsToCsv,

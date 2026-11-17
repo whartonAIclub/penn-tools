@@ -5,7 +5,8 @@
 
 const EMAIL = /[\w.+-]+@[\w-]+\.[\w.]+/g;
 const HANDLE = /(^|[\s(])@[A-Za-z0-9_.]{2,}/g;
-const PHONE = /\(?\b\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b/g;
+// 215-555-1234, (215) 555 1234, 2155551234, +1 215 555 1234.
+const PHONE = /(?:\+\d{1,3}[-.\s]?)?(?:\(\d{3}\)|\b\d{3})[-.\s]?\d{3}[-.\s]?\d{4}\b/g;
 
 // A word after one of these is often a name.
 const ROLE = /\b(?:professor|prof\.?|dr\.?|mr\.?|ms\.?|mrs\.?|mentor|ta|teammate|partner|coach|instructor|organizer|thanks|thank you|thx|shout ?out to|shout-out to)\s+([A-Za-z][a-z'-]+)/gi;
@@ -26,16 +27,40 @@ export function hasContactInfo(text: string): boolean {
   });
 }
 
-/** True when `text` may name a person or hold contact details. */
-export function hasPersonalInfo(text: string): boolean {
-  if (hasContactInfo(text)) return true;
+/** Where `text` names someone after a role word ("thanks Ananya", "mentor sam was great"): the name's start and end. */
+function namesIn(text: string): { start: number; end: number }[] {
+  const found: { start: number; end: number }[] = [];
   for (const m of text.matchAll(ROLE)) {
     const word = m[1]!;
     if (NOT_NAMES.has(word.toLowerCase())) continue;
-    if (/^[A-Z]/.test(word)) return true;
-    if (AFTER_NAME.test(text.slice(m.index + m[0].length))) return true;
+    const after = m.index + m[0].length;
+    if (!/^[A-Z]/.test(word) && !AFTER_NAME.test(text.slice(after))) continue;
+    // "Jamie Lee": capitalized words right after a capitalized name are the rest of it.
+    const rest = /^[A-Z]/.test(word) ? text.slice(after).match(/^(?:\s+[A-Z][a-z'-]+)+/) : null;
+    found.push({ start: after - word.length, end: after + (rest ? rest[0].length : 0) });
   }
-  return false;
+  return found;
+}
+
+/** True when `text` may name a person or hold contact details. */
+export function hasPersonalInfo(text: string): boolean {
+  return hasContactInfo(text) || namesIn(text).length > 0;
+}
+
+/**
+ * `text` with contact details masked and any name found after a role word
+ * replaced by [name]. A name with no role word before it ("Ananya was great")
+ * is not found, so the page still asks a person to look at what comes back.
+ */
+export function maskPersonalInfo(text: string): string {
+  const masked = maskContactInfo(text);
+  let out = "";
+  let at = 0;
+  for (const { start, end } of namesIn(masked)) {
+    out += `${masked.slice(at, start)}[name]`;
+    at = end;
+  }
+  return out + masked.slice(at);
 }
 
 /** `text` with emails, phone numbers and @handles replaced by [email], [phone] and [handle]. */

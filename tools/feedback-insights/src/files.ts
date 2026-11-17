@@ -19,7 +19,10 @@ export interface Imported<T> {
   notes: string[];
 }
 
-const lowerKeys = (row: Record<string, string>) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), v]));
+/** A cell as it was before toCsv guarded it: "'- slow reviews" → "- slow reviews". */
+export const unguard = (cell: string) => cell.replace(/^'(?=[=+\-@\t\r])/, "");
+
+const lowerKeys = (row: Record<string, string>) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), unguard(v)]));
 
 /** Tags from a "Coded" CSV. `type` may be headed sentiment or type. */
 export function tagsFromCsv(text: string): Imported<Tag> {
@@ -99,6 +102,13 @@ const text = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallbac
 const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 const texts = (v: unknown, fallback: string[]) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : fallback);
 
+/** A saved question's min and max, kept to a scale the page can draw (at most 0-10); otherwise the guess. */
+function scaleOf(q: Record<string, unknown>, g: Question): { min: number; max: number } {
+  const min = Math.round(num(q["min"], g.min));
+  const max = Math.round(num(q["max"], g.max));
+  return min >= 0 && max > min && max <= 10 ? { min, max } : { min: g.min, max: g.max };
+}
+
 /**
  * A workspace from JSON someone exported, or null if it isn't one. Every field
  * is checked and anything missing falls back to what the tool would guess, so
@@ -127,7 +137,7 @@ export function workspaceFromJson(json: string): Workspace | null {
     const q = saved.get(g.column);
     if (!q) return g;
     const kind = QUESTION_KINDS.find((k) => k === q["kind"]) ?? g.kind;
-    return { column: g.column, label: text(q["label"], g.label) || g.label, kind, group: typeof q["group"] === "string" ? q["group"] : g.group, min: num(q["min"], g.min), max: num(q["max"], g.max), options: texts(q["options"], g.options), labels: texts(q["labels"], g.labels) };
+    return { column: g.column, label: text(q["label"], g.label) || g.label, kind, group: typeof q["group"] === "string" ? q["group"] : g.group, ...scaleOf(q, g), options: texts(q["options"], g.options), labels: texts(q["labels"], g.labels) };
   });
   const timestampColumn = typeof s["timestampColumn"] === "string" && columns.includes(s["timestampColumn"]) ? s["timestampColumn"] : guess.timestampColumn;
   const setup: Setup = {

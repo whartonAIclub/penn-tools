@@ -243,7 +243,14 @@ const NOT_A_QUESTION = /^(score|total score|points)$/i;
 
 /** True for a column that identifies the respondent, going by its header. */
 export function isIdentityColumn(column: string): boolean {
-  return IDENTITY.test(column.trim());
+  // "Name (optional)", "What is your name?", "Your email address:" ask the same thing.
+  const header = column
+    .trim()
+    .replace(/\s*\((optional|required)\)\s*$/i, "")
+    .replace(/[?:*.\s]+$/, "")
+    .replace(/^(what is|what's|please (enter|give|share)|enter)\s+/i, "")
+    .replace(/^your\s+(?=(e-?mail|name|full name|first name|last name|phone|penn ?(key|id)|student ?id))/i, "");
+  return IDENTITY.test(header);
 }
 
 /**

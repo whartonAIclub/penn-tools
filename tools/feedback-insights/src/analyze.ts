@@ -433,4 +433,29 @@ export function analyze(ws: Workspace): Analysis {
   };
 }
 
+/**
+ * Written answers for "Suggest themes": from counted responses only, leaving out
+ * non-answers and junk, and taking turns across questions so a long first
+ * question doesn't crowd out the rest.
+ */
+export function themeSample(analysis: Analysis, limit: number): string[] {
+  const byQuestion = new Map<string, string[]>();
+  for (const r of analysis.responses) {
+    if (r.status === "Excluded") continue;
+    for (const c of r.tagColumns) {
+      const text = String(r.values[c] ?? "").trim();
+      if (!text) continue;
+      const list = byQuestion.get(c) ?? [];
+      list.push(text);
+      byQuestion.set(c, list);
+    }
+  }
+  const lists = [...byQuestion.values()];
+  const out: string[] = [];
+  for (let i = 0; out.length < limit && lists.some((l) => i < l.length); i++) {
+    for (const l of lists) if (i < l.length && out.length < limit) out.push(l[i]!);
+  }
+  return out;
+}
+
 export { OTHER_THEME };

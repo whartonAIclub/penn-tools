@@ -4,7 +4,7 @@
 // plain words, so a wrong guess is caught before anyone trusts a chart.
 
 import { useState } from "react";
-import { isBlankAnswer, type QuestionKind, type Workspace } from "@penntools/tool-feedback-insights";
+import { MAX_THEME_SAMPLE, themeSample, type Analysis, type QuestionKind, type Workspace } from "@penntools/tool-feedback-insights";
 import { proposeThemes } from "./actions";
 import { plural, Short, type AIAccess } from "./shared";
 import styles from "./FeedbackInsights.module.css";
@@ -20,6 +20,7 @@ const GROUPS: { kind: QuestionKind; one: string; many: string; means: string }[]
 
 type Props = {
   ws: Workspace;
+  analysis: Analysis;
   removed: string[];
   ai: AIAccess;
   update: (change: (ws: Workspace) => Workspace) => void;
@@ -28,17 +29,13 @@ type Props = {
   onDone: () => void;
 };
 
-export function ReadBack({ ws, removed, ai, update, onNotice, onFix, onDone }: Props) {
+export function ReadBack({ ws, analysis, removed, ai, update, onNotice, onFix, onDone }: Props) {
   const { questions, timestampColumn } = ws.setup;
   const n = ws.table.rows.length;
   const [suggested, setSuggested] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const noRatings = !questions.some((q) => q.kind === "rating");
-  const written = questions
-    .filter((q) => q.kind === "text")
-    .flatMap((q) => ws.table.rows.map((r) => r[q.column] ?? ""))
-    .filter((v) => !isBlankAnswer(v, ws.setup))
-    .map((v) => v.trim());
+  const written = themeSample(analysis, MAX_THEME_SAMPLE);
   const has = (t: string) => ws.setup.themes.some((x) => x.toLowerCase() === t.toLowerCase());
   const add = (themes: string[]) =>
     update((w) => ({ ...w, setup: { ...w.setup, themes: [...w.setup.themes, ...themes.filter((t) => !w.setup.themes.some((x) => x.toLowerCase() === t.toLowerCase()))] } }));
@@ -46,7 +43,7 @@ export function ReadBack({ ws, removed, ai, update, onNotice, onFix, onDone }: P
     if (!ai.provider) return;
     setBusy(true);
     try {
-      const reply = await proposeThemes(ai.provider, written.slice(0, 60));
+      const reply = await proposeThemes(ai.provider, written);
       if (reply.ok) setSuggested(reply.data);
       else onNotice(reply.error.message, "bad");
     } catch {

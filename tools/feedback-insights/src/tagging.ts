@@ -11,7 +11,7 @@ import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
 import { quoteMatches } from "./analyze.js";
 import { OTHER_THEME } from "./detect.js";
-import { hasPersonalInfo, maskContactInfo } from "./privacy.js";
+import { hasPersonalInfo, maskPersonalInfo } from "./privacy.js";
 import { TAG_TYPES } from "./types.js";
 import type { TagType } from "./types.js";
 
@@ -19,12 +19,23 @@ export const MAX_ANSWERS_PER_BATCH = 20;
 export const MAX_ANSWER_LENGTH = 2000;
 export const MAX_THEMES = 30;
 export const MAX_TOPIC_LENGTH = 60;
+/** The longest theme name the server accepts. */
+export const MAX_THEME_LENGTH = 100;
+export const MAX_TOPICS = 200;
+/** How many written answers "Suggest themes" reads. */
+export const MAX_THEME_SAMPLE = 60;
 
 export interface AnswerToTag {
   /** The caller's handle for this answer; echoed on each tag. */
   ref: number;
   question: string;
   text: string;
+}
+
+export interface TagReply {
+  tags: ProposedTag[];
+  /** Refs of answers the AI read and found nothing to tag in. An answer it left out entirely is in neither list, so it can be tried again. */
+  nothingToTag: number[];
 }
 
 export interface ProposedTag {
@@ -69,7 +80,9 @@ export function checkTagRequest(themes: unknown, topics: unknown, answers: unkno
   const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
   if (!isStrings(themes) || themes.filter((t) => t.trim()).length === 0) return "Add at least one theme in Setup first.";
   if (themes.length > MAX_THEMES) return `Keep the theme list to at most ${MAX_THEMES} themes.`;
+  if (themes.some((t) => t.length > MAX_THEME_LENGTH)) return `Keep each theme name under ${MAX_THEME_LENGTH} characters.`;
   if (!isStrings(topics)) return "Topics must be a list of text.";
+  if (topics.length > MAX_TOPICS) return `Send at most ${MAX_TOPICS} existing topics.`;
   if (!Array.isArray(answers) || answers.length === 0) return "There are no answers to tag.";
   if (answers.length > MAX_ANSWERS_PER_BATCH) return `Send at most ${MAX_ANSWERS_PER_BATCH} answers at a time.`;
   for (const a of answers as unknown[]) {
@@ -90,13 +103,13 @@ export async function tagAnswers(
   ai: AI,
   provider: AIProvider,
   input: { themes: string[]; topics: string[]; answers: AnswerToTag[] },
-): Promise<ProposedTag[]> {
+): Promise<TagReply> {
   const themes = [...new Set([...input.themes.map((t) => t.trim()).filter(Boolean), OTHER_THEME])];
   const answers = input.answers.map((a) => ({
     ref: a.ref,
     question: a.question.slice(0, 300),
-    // Contact details never leave for the provider.
-    text: maskContactInfo(a.text.trim()).slice(0, MAX_ANSWER_LENGTH),
+    // Contact details, and names found after a role word, never leave for the provider.
+    text: maskPersonalInfo(a.text.trim()).slice(0, MAX_ANSWER_LENGTH),
   }));
   const { object } = await ai.generateObject({
     provider,
@@ -107,7 +120,7 @@ export async function tagAnswers(
     messages: [
       {
         role: "user",
-        content: JSON.stringify({ themes, existingTopics: input.topics.slice(0, 200), answers }),
+        content: JSON.stringify({ themes, existingTopics: input.topics.filter((t) => t.length <= MAX_THEME_LENGTH).slice(0, MAX_TOPICS), answers }),
       },
     ],
   });
@@ -116,12 +129,14 @@ export async function tagAnswers(
   const themeByLower = new Map(themes.map((t) => [t.toLowerCase(), t]));
   const topicByLower = new Map(input.topics.map((t) => [t.trim().toLowerCase(), t.trim()]));
   const out: ProposedTag[] = [];
+  const nothingToTag = new Set<number>();
   const seen = new Set<string>();
   for (const answer of object.answers) {
     const sent = byRef.get(answer.ref);
     if (!sent) continue; // not an answer we asked about
+    if (answer.tags.length === 0) nothingToTag.add(answer.ref);
     for (const tag of answer.tags.slice(0, 4)) {
-      let text = maskContactInfo(tag.quote.trim());
+      let text = maskPersonalInfo(tag.quote.trim());
       if (!text || !quoteMatches(text, sent.text)) text = sent.text;
       // If the model left a name in, fall back to nothing better: a person reviews flagged tags on the page.
       const theme = themeByLower.get(tag.theme.trim().toLowerCase()) ?? OTHER_THEME;
@@ -134,7 +149,8 @@ export async function tagAnswers(
       out.push({ ref: answer.ref, text, theme, topic, type: tag.type });
     }
   }
-  return out;
+  const tagged = new Set(out.map((t) => t.ref));
+  return { tags: out, nothingToTag: [...nothingToTag].filter((ref) => !tagged.has(ref)) };
 }
 
 /** True when a proposed tag's text may still name someone, so the page can ask a person to look. */
@@ -149,7 +165,7 @@ export type SuggestedThemes = z.infer<typeof SuggestedThemes>;
 
 /** Up to 8 themes that cover a sample of written answers, for surveys with no rating grid to take themes from. */
 export async function suggestThemes(ai: AI, provider: AIProvider, answers: string[]): Promise<string[]> {
-  const sampleAnswers = answers.slice(0, 60).map((a) => maskContactInfo(a.trim()).slice(0, 500));
+  const sampleAnswers = answers.slice(0, MAX_THEME_SAMPLE).map((a) => maskPersonalInfo(a.trim()).slice(0, 500));
   const { object } = await ai.generateObject({
     provider,
     tier: "fast",

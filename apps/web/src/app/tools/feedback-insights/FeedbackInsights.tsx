@@ -111,6 +111,8 @@ function Tool({ signedIn, providers, labels }: Props) {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [unsaved, setUnsaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  // A saved copy chosen while a survey is open, waiting for the user to confirm it replaces that survey.
+  const [replacing, setReplacing] = useState<Workspace | null>(null);
   const [pasting, setPasting] = useState(false);
   const [pasted, setPasted] = useState("");
   const [provider, setProvider] = useState<AIProvider | null>(providers[0] ?? null);
@@ -146,6 +148,8 @@ function Tool({ signedIn, providers, labels }: Props) {
       const loaded = workspaceFromJson(text);
       if (!loaded)
         return setNotice({ tone: "bad", text: "That isn't a workspace saved from this tool. To start from survey responses, choose the .csv file instead." });
+      // A saved copy replaces everything, so ask first when there is work to lose.
+      if (ws) return setReplacing(loaded);
       setWs(loaded);
       setTab("summary");
       return;
@@ -297,8 +301,9 @@ function Tool({ signedIn, providers, labels }: Props) {
           </section>
           <p className={styles.muted}>
             Your file stays in this browser; it isn&apos;t uploaded or stored on PennTools. Columns that identify people, such as names and email addresses, are
-            removed as the file is read. If you choose to sort written answers with AI, those answers are sent to the AI provider with emails, phone numbers and
-            @handles masked.
+            removed as the file is read. If you choose to sort written answers with AI, those answers are sent to the AI provider with emails, phone numbers,
+            @handles and most names masked. The survey stays saved in this browser until you use Start over, even after you sign out, so use Start over on a
+            shared computer.
           </p>
         </div>
       </div>
@@ -356,13 +361,37 @@ function Tool({ signedIn, providers, labels }: Props) {
             Start over removes this survey, its tags and its decisions from this browser. Use Save a copy first if you want them back later.
           </p>
         )}
+        {replacing && (
+          <div className={styles.noticeBad} role="alert">
+            <p>
+              Open “{replacing.name}”? It replaces “{ws.name}” and all its tags and decisions in this browser. Use Save a copy first if you want to keep them.
+            </p>
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.buttonDanger}
+                onClick={() => {
+                  setWs(replacing);
+                  setReplacing(null);
+                  setReadBack(null);
+                  setTab("summary");
+                }}
+              >
+                Replace this survey
+              </button>
+              <button type="button" className={styles.button} onClick={() => setReplacing(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {unsaved && (
           <p className={styles.noticeBad}>
             This survey is too big for the browser to keep, or storage is blocked. Your work will be lost when you close the tab: use Save a copy.
           </p>
         )}
         {noticeLine}
-        {readBack && <ReadBack ws={ws} removed={readBack.removed} ai={ai} update={update} onNotice={(text, tone = "info") => setNotice({ tone, text })} onDone={() => setReadBack(null)} onFix={() => (setReadBack(null), goTo("setup"))} />}
+        {readBack && <ReadBack ws={ws} analysis={analysis} removed={readBack.removed} ai={ai} update={update} onNotice={(text, tone = "info") => setNotice({ tone, text })} onDone={() => setReadBack(null)} onFix={() => (setReadBack(null), goTo("setup"))} />}
 
         {analysis.checks.length > 0 && (
           <ul className={styles.checks} aria-label="Things to check">

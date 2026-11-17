@@ -8,6 +8,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   MAX_ANSWERS_PER_BATCH,
+  MAX_TOPICS,
   needsPrivacyLook,
   nextTagId,
   TAG_TYPES,
@@ -215,16 +216,17 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
         const reply = await tagBatch(
           provider,
           themes,
-          knownTopics,
+          knownTopics.slice(0, MAX_TOPICS),
           batch.map((a, i) => ({ ref: start + i, question: labelOf.get(a.question) ?? a.question, text: a.text })),
         );
         if (!reply.ok) {
           setError(reply.error);
           break;
         }
-        const proposed = reply.data;
-        const tagged = new Set(proposed.map((p) => p.ref));
-        const empty = batch.filter((_, i) => !tagged.has(start + i));
+        const proposed = reply.data.tags;
+        // Only answers the AI said have nothing to tag are set aside; one it left out stays to tag, for the next run.
+        const none = new Set(reply.data.nothingToTag);
+        const empty = batch.filter((_, i) => none.has(start + i));
         knownTopics = [...new Set([...knownTopics, ...proposed.map((p) => p.topic).filter(Boolean)])];
         privacy += proposed.filter(needsPrivacyLook).length;
         added += proposed.length;
@@ -332,8 +334,8 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
               </div>
               <p className={styles.muted}>
                 Sends these answers to {ai.labels[ai.provider]} in about {Math.ceil(untagged.length / MAX_ANSWERS_PER_BATCH)}{" "}
-                {plural(Math.ceil(untagged.length / MAX_ANSWERS_PER_BATCH), "request", "requests")}, using your PennTools AI credit. Emails, phone numbers and
-                @handles are masked first; a name written inside an answer is sent as written. You review every tag afterwards.
+                {plural(Math.ceil(untagged.length / MAX_ANSWERS_PER_BATCH), "request", "requests")}, using your PennTools AI credit. Emails, phone numbers,
+                @handles and names after words like “thanks” or “mentor” are masked first. Other names are sent as written, so you review every tag afterwards.
               </p>
             </>
           )}

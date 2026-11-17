@@ -10,7 +10,7 @@
 
 import { isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
-import { checkTagRequest, suggestThemes, tagAnswers, type AnswerToTag, type ProposedTag } from "@penntools/tool-feedback-insights";
+import { checkTagRequest, suggestThemes, tagAnswers, type AnswerToTag, type TagReply } from "@penntools/tool-feedback-insights";
 import { getAI } from "@/lib/ai";
 
 const TOOL_ID = "feedback-insights";
@@ -43,7 +43,7 @@ export async function tagBatch(
   themes: string[],
   topics: string[],
   answers: AnswerToTag[],
-): Promise<ActionResult<ProposedTag[]>> {
+): Promise<ActionResult<TagReply>> {
   const ai = await getAI(TOOL_ID);
   if (!ai) return signedOut;
   const problem = checkTagRequest(themes, topics, answers);
