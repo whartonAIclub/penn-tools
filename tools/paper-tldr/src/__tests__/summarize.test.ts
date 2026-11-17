@@ -36,6 +36,10 @@ describe("checkPaperText", () => {
   it("accepts a normal paper", () => {
     expect(checkPaperText("word ".repeat(2000))).toBeNull();
   });
+
+  it("accepts a paper over the limit, since summarizePaper trims it", () => {
+    expect(checkPaperText("x".repeat(MAX_PAPER_CHARS * 2))).toBeNull();
+  });
 });
 
 describe("preparePaperText", () => {
@@ -62,5 +66,24 @@ describe("summarizePaper", () => {
     expect(requests[0]!.provider).toBe("openai");
     expect(requests[0]!.schema).toBe(PaperSummary);
     expect(requests[0]!.messages[0]!.content).toContain("The paper text.");
+  });
+
+  it("passes the abort signal through, so leaving the page cancels the call", async () => {
+    const { ai, requests } = fakeAI({});
+    const controller = new AbortController();
+
+    await summarizePaper(ai, "openai", "The paper text.", controller.signal);
+
+    expect(requests[0]!.signal).toBe(controller.signal);
+  });
+
+  it("trims a very long paper and tells the model it was cut", async () => {
+    const { ai, requests } = fakeAI({});
+
+    await summarizePaper(ai, "openai", "x".repeat(MAX_PAPER_CHARS * 2));
+
+    const content = requests[0]!.messages[0]!.content as string;
+    expect(content).toContain("The paper was cut here");
+    expect(content.length).toBeLessThan(MAX_PAPER_CHARS + 500);
   });
 });

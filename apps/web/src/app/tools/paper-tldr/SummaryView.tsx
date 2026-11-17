@@ -5,7 +5,8 @@ import styles from "./SummaryView.module.css";
 
 // The summary laid out like a one-page paper summary: header, claim box, then
 // two columns (context, question and method on the left; results and what
-// we learned on the right), with related work along the bottom.
+// we learned on the right), with related work along the bottom. Lists are
+// keyed by position: the model writes their text and can repeat an item.
 export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
   return (
     <article className={styles.sheet}>
@@ -29,8 +30,8 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
             <p>{s.context}</p>
             {s.keyTerms.length > 0 && (
               <dl className={styles.terms}>
-                {s.keyTerms.map((t) => (
-                  <div key={t.term} className={styles.termRow}>
+                {s.keyTerms.map((t, i) => (
+                  <div key={i} className={styles.termRow}>
                     <dt>{t.term}</dt>
                     <dd>{t.definition}</dd>
                   </div>
@@ -49,8 +50,8 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
           <Section title="Method">
             <p>{s.data}</p>
             <ol className={styles.steps}>
-              {s.methodSteps.map((step) => (
-                <li key={step}>{step}</li>
+              {s.methodSteps.map((step, i) => (
+                <li key={i}>{step}</li>
               ))}
             </ol>
           </Section>
@@ -59,8 +60,8 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
             <Section title="Key equation">
               <p className={styles.equation}>{s.keyEquation.equation}</p>
               <dl className={styles.terms}>
-                {s.keyEquation.symbols.map((sym) => (
-                  <div key={sym.symbol} className={styles.termRow}>
+                {s.keyEquation.symbols.map((sym, i) => (
+                  <div key={i} className={styles.termRow}>
                     <dt className={styles.symbol}>{sym.symbol}</dt>
                     <dd>{sym.meaning}</dd>
                   </div>
@@ -73,8 +74,8 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
         <div className={styles.column}>
           <Section title="Key results">
             <ul className={styles.bullets}>
-              {s.keyResults.map((r) => (
-                <li key={r}>{r}</li>
+              {s.keyResults.map((r, i) => (
+                <li key={i}>{r}</li>
               ))}
             </ul>
             {s.comparison && s.comparison.columns.length > 0 && (
@@ -82,8 +83,8 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      {s.comparison.columns.map((c) => (
-                        <th key={c}>{c}</th>
+                      {s.comparison.columns.map((c, i) => (
+                        <th key={i}>{c}</th>
                       ))}
                     </tr>
                   </thead>
@@ -111,13 +112,13 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
                 <strong>How confident to be:</strong> {s.confidence.verdict}
               </p>
               <ul className={styles.plusMinus}>
-                {s.confidence.strengths.map((x) => (
-                  <li key={x} className={styles.plus}>
+                {s.confidence.strengths.map((x, i) => (
+                  <li key={`plus-${i}`} className={styles.plus}>
                     {x}
                   </li>
                 ))}
-                {s.confidence.limitations.map((x) => (
-                  <li key={x} className={styles.minus}>
+                {s.confidence.limitations.map((x, i) => (
+                  <li key={`minus-${i}`} className={styles.minus}>
                     {x}
                   </li>
                 ))}
@@ -127,8 +128,8 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
 
           <Section title="Open questions (research ideas)">
             <ul className={styles.bullets}>
-              {s.openQuestions.map((q) => (
-                <li key={q}>{q}</li>
+              {s.openQuestions.map((q, i) => (
+                <li key={i}>{q}</li>
               ))}
             </ul>
           </Section>
@@ -139,7 +140,7 @@ export default function SummaryView({ summary: s }: { summary: PaperSummary }) {
         <footer className={styles.footer}>
           <strong className={styles.accent}>Who else works on this:</strong>{" "}
           {s.relatedWork.map((r, i) => (
-            <span key={r.citation}>
+            <span key={i}>
               {i > 0 && " • "}
               <strong>{r.citation}</strong> ({r.note})
             </span>

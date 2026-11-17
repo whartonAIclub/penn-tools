@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { PaperSummary } from "@penntools/tool-paper-tldr";
-import type { SummaryResult } from "./types";
+import type { SimplifyEvent, SummaryResult } from "./types";
 import { extractPdfText } from "./extractText";
 import SummaryView from "./SummaryView";
 import styles from "./PaperTldr.module.css";
@@ -15,20 +15,51 @@ type Status = "idle" | "reading" | "summarizing";
 
 const KEY_ERRORS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
-/** Sends the paper's text to the tool's route (not a server action: those refuse requests over 1 MB). */
-async function simplifyPaper(provider: AIProvider, text: string): Promise<SummaryResult> {
+const SERVER_ERROR: SummaryResult = {
+  ok: false,
+  error: { message: "Something went wrong on our end. Try again in a moment." },
+};
+
+/**
+ * Sends the paper's text to the tool's route (not a server action: those
+ * refuse requests over 1 MB). A bad request gets JSON back; otherwise the
+ * route streams "working" events until the one "result" event.
+ */
+async function simplifyPaper(provider: AIProvider, text: string, signal: AbortSignal): Promise<SummaryResult> {
   const res = await fetch("/tools/paper-tldr/simplify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ provider, text }),
+    signal,
   });
   if (res.status === 401) {
     return { ok: false, error: { message: "Sign in with the button at the top right to simplify a paper." } };
   }
-  try {
-    return (await res.json()) as SummaryResult;
-  } catch {
-    return { ok: false, error: { message: "Something went wrong on our end. Try again in a moment." } };
+  if (!res.headers.get("content-type")?.includes("text/event-stream") || !res.body) {
+    try {
+      return (await res.json()) as SummaryResult;
+    } catch {
+      return SERVER_ERROR;
+    }
+  }
+
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return SERVER_ERROR; // the stream ended without a result
+    buffer += value;
+    let end: number;
+    while ((end = buffer.indexOf("\n\n")) !== -1) {
+      const line = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      if (!line.startsWith("data: ")) continue;
+      const event = JSON.parse(line.slice(6)) as SimplifyEvent;
+      if (event.type === "result") {
+        await reader.cancel();
+        return event.result;
+      }
+    }
   }
 }
 
@@ -45,7 +76,7 @@ const SECTIONS = [
 
 interface Props {
   signedIn: boolean;
-  /** Providers the user has saved a key for. */
+  /** Providers the user can call now: covered by their free AI credit, or by a key saved in Settings. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
 }
@@ -63,9 +94,16 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [summary, setSummary] = useState<PaperSummary | null>(null);
   const [seconds, setSeconds] = useState(0);
+  /** Set when a long paper was cut: pages read out of the total. */
+  const [cut, setCut] = useState<{ read: number; total: number } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const ready = signedIn && provider !== undefined;
   const busy = status !== "idle";
+
+  // Leaving for another page in the app cancels the summary, so it stops
+  // using the user's credit. (Closing the tab cancels it on its own.)
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   // Elapsed time while the summary is being written, so a long wait reads as progress.
   useEffect(() => {
@@ -80,20 +118,24 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
     setError(null);
     setKeyProblem(false);
     setSummary(null);
+    setCut(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       setStatus("reading");
-      let text: string;
+      let paper: Awaited<ReturnType<typeof extractPdfText>>;
       try {
-        text = await extractPdfText(file);
+        paper = await extractPdfText(file);
       } catch (err) {
         console.error("Paper TL;DR: reading the PDF failed", err);
         setError("We couldn't read that PDF. Try again, or try a different file.");
         return;
       }
       setStatus("summarizing");
-      const result = await simplifyPaper(provider, text);
+      const result = await simplifyPaper(provider, paper.text, controller.signal);
       if (result.ok) {
         setSummary(result.summary);
+        if (paper.pagesRead < paper.totalPages) setCut({ read: paper.pagesRead, total: paper.totalPages });
         requestAnimationFrame(() =>
           resultRef.current?.scrollIntoView({
             behavior: "smooth",
@@ -105,10 +147,12 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
         setKeyProblem(KEY_ERRORS.has(result.error.kind ?? ""));
       }
     } catch (err) {
+      if (controller.signal.aborted) return; // the user left the page
       console.error("Paper TL;DR: the summary request failed", err);
       setError("We couldn't reach the server. Check your connection and try again.");
     } finally {
-      setStatus("idle");
+      if (abortRef.current === controller) abortRef.current = null;
+      if (!controller.signal.aborted) setStatus("idle");
     }
   }
 
@@ -134,6 +178,7 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
   function reset() {
     setFile(null);
     setSummary(null);
+    setCut(null);
     setError(null);
     setKeyProblem(false);
   }
@@ -333,6 +378,11 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
                 Simplify another paper
               </button>
             </div>
+            {cut && (
+              <p className={styles.note}>
+                This paper is long, so the summary covers its first {cut.read} of {cut.total} pages.
+              </p>
+            )}
             <SummaryView summary={summary} />
             <p className={styles.footnote}>
               Written by AI from the paper&apos;s text. Check the original

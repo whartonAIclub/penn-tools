@@ -9,14 +9,30 @@
   --radius: 14px;
   --glass: rgba(255, 255, 255, 0.82);
   position: relative;
+  /* Keeps the painting layer's z-index: -1 inside the page, above what's behind it. */
+  isolation: isolate;
   min-height: 100%;
   width: 100%;
   color: var(--ink);
-  /* A light veil over the painting keeps text readable. */
+}
+
+/*
+ * The painting stays still while the page scrolls, on its own layer:
+ * position: fixed on a tool page is relative to the tool's area, so the layer
+ * fills exactly that area, and the browser scrolls the content over it
+ * without repainting (unlike background-attachment: fixed, which iOS ignores).
+ * A light veil over the painting keeps text readable.
+ */
+.page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.6) 55%, rgba(255, 255, 255, 0.8) 100%),
-    url("./water-lilies.webp") center / cover fixed;
+    url("./water-lilies.webp") center / cover no-repeat;
   background-color: #e9e6f2;
+  pointer-events: none;
 }
 
 .inner {

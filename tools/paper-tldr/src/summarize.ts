@@ -2,22 +2,24 @@
 // Paper TL;DR: turn a research paper's text into a short, structured summary.
 //
 // The page extracts the PDF's text in the browser and sends it to the tool's
-// server action, which passes the user's `ai` in here. The reply is typed data
-// (checked against PaperSummary), so the page can lay it out the same way
-// every time.
+// route, POST /tools/paper-tldr/simplify, which passes the user's `ai` in here.
+// It's a route, not a server action, on purpose: Next.js refuses server action
+// requests over 1 MB, and a long paper's text can be bigger. The reply is
+// typed data (checked against PaperSummary), so the page can lay it out the
+// same way every time.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
+import { MIN_PAPER_CHARS, MAX_PAPER_CHARS } from "./limits.js";
 
-/** Text shorter than this is almost certainly a scanned PDF with no text layer. */
-export const MIN_PAPER_CHARS = 1_500;
-/** About 75k tokens: enough for a long paper with its appendix. Longer text is cut. */
-export const MAX_PAPER_CHARS = 300_000;
+export { MIN_PAPER_CHARS, MAX_PAPER_CHARS };
 
 export const PaperSummary = z.object({
   title: z.string(),
-  authors: z.string().describe("Authors with their affiliations in parentheses, e.g. 'Ying Jin (Harvard), Naoki Egami (Columbia)'"),
+  authors: z
+    .string()
+    .describe("Authors, with affiliations in parentheses only where the paper states them, e.g. 'Alex Rivera (Wharton), Sam Lee'"),
   venue: z.string().nullable().describe("Journal or preprint, year and links (code, arXiv) if given; null if unknown"),
   field: z.string().describe("Two or three topic tags joined with ' • ', e.g. 'Statistics • Causal inference'"),
   claim: z.string().describe("The paper's main claim in one or two plain sentences, with its scale (e.g. how many studies)"),
@@ -69,17 +71,26 @@ export function preparePaperText(raw: string): { text: string; truncated: boolea
   return { text: text.slice(0, MAX_PAPER_CHARS), truncated: true };
 }
 
-/** Why `value` can't be summarized, or null if it's fine. Server actions get browser input, so check it. */
+/**
+ * Why `value` can't be summarized, or null if it's fine. The route gets this
+ * from the browser, so check it. Long text isn't an error: summarizePaper
+ * trims it to MAX_PAPER_CHARS (the page already stops reading there).
+ */
 export function checkPaperText(value: unknown): string | null {
   if (typeof value !== "string") return "Upload a PDF first.";
   if (value.trim().length < MIN_PAPER_CHARS) {
     return "We couldn't find enough text in that PDF. It may be a scanned image; try a version with selectable text.";
   }
-  if (value.length > MAX_PAPER_CHARS * 1.1) return "That paper is too long to summarize.";
   return null;
 }
 
-export async function summarizePaper(ai: AI, provider: AIProvider, paperText: string): Promise<PaperSummary> {
+/** `signal` cancels the AI call, e.g. when the user leaves the page, so it stops costing their credit. */
+export async function summarizePaper(
+  ai: AI,
+  provider: AIProvider,
+  paperText: string,
+  signal?: AbortSignal,
+): Promise<PaperSummary> {
   const { text, truncated } = preparePaperText(paperText);
   const note = truncated ? "\n\n[The paper was cut here because it is very long; summarize what is above.]" : "";
   const { object } = await ai.generateObject({
@@ -89,6 +100,7 @@ export async function summarizePaper(ai: AI, provider: AIProvider, paperText: st
     schema: PaperSummary,
     system: SYSTEM,
     messages: [{ role: "user", content: `Summarize this paper.\n\n<paper>\n${text}${note}\n</paper>` }],
+    ...(signal && { signal }),
   });
   return object;
 }

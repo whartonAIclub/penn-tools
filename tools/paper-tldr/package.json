@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./limits": {
+      "types": "./dist/limits.d.ts",
+      "import": "./dist/limits.js"
     }
   },
   "main": "./dist/index.js",
