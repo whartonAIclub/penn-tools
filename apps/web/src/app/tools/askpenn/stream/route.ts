@@ -11,7 +11,6 @@
 // final { type: "done", result }, or { type: "error", error } if it fails.
 
 import type { NextRequest } from "next/server";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.js";
 import { isAIError } from "@penntools/core/ai";
 import type { AIProvider, AIReasoning, AITier } from "@penntools/core/ai";
 import { toolSql } from "@penntools/platform/db";
@@ -25,20 +24,14 @@ import {
 } from "@penntools/tool-askpenn";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
+import { pdfPageCount } from "@/lib/pdf";
 
 /** Why one of the PDFs can't be sent, or null: each must open and have at most MAX_PDF_PAGES pages. */
 async function checkPdfs(attachments: Attachment[]): Promise<string | null> {
   for (const { name, mediaType, data } of attachments) {
     if (mediaType !== "application/pdf") continue;
-    const task = getDocument({ data: new Uint8Array(Buffer.from(data, "base64")), isEvalSupported: false, verbosity: 0 });
-    let pages: number;
-    try {
-      pages = (await task.promise).numPages;
-    } catch {
-      return `${name} couldn't be read as a PDF.`;
-    } finally {
-      await task.destroy();
-    }
+    const pages = await pdfPageCount(data);
+    if (pages === null) return `${name} couldn't be read as a PDF.`;
     if (pages > MAX_PDF_PAGES) return `${name} has ${pages} pages; PDFs can have at most ${MAX_PDF_PAGES}.`;
   }
   return null;

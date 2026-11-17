@@ -4,7 +4,8 @@
 // manifests on the server): a centered column, or the whole page area for a
 // full-width tool. The tool's name and info button are in the site header.
 // It also records a visit (lib/visits.ts) each time a tool is opened, for
-// /admin and /stats; moving between pages within a tool isn't another visit.
+// /admin, /stats and the home page's top tools; moving between pages within a
+// tool isn't another visit.
 
 import { useEffect, useRef } from "react";
 import { useSelectedLayoutSegment } from "next/navigation";

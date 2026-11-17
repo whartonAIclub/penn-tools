@@ -40,13 +40,13 @@ async function loadPdfJs(): Promise<PDFJSLib> {
   lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
   return lib;
 }
-interface PDFJSLib { GlobalWorkerOptions: { workerSrc: string }; getDocument: (s: { data: ArrayBuffer }) => { promise: Promise<PDFDoc> }; }
+interface PDFJSLib { GlobalWorkerOptions: { workerSrc: string }; getDocument: (s: { data: ArrayBuffer; isEvalSupported: false }) => { promise: Promise<PDFDoc> }; }
 interface PDFDoc { numPages: number; getPage: (n: number) => Promise<PDFPage>; }
 interface PDFPage { getTextContent: () => Promise<{ items: Array<{ str?: string }> }>; }
 
 async function extractTextFromPDF(file: File): Promise<string> {
   const lib = await loadPdfJs();
-  const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const pdf = await lib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
   const pages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const content = await (await pdf.getPage(i)).getTextContent();
