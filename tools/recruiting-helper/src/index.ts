@@ -49,6 +49,7 @@ export {
   saveItem,
   removeItem,
   getContact,
+  getItem,
   saveOutreach,
   rescoreItems,
   saveSchools,
@@ -77,4 +78,16 @@ export {
   MAX_RESUME_REQUEST_BYTES,
 } from "./resume.js";
 export type { ResumeFile } from "./resume.js";
+export {
+  askAboutItem,
+  checkQuestion,
+  clearChat,
+  getChat,
+  itemContext,
+  ChatFullError,
+  ItemNotFoundError,
+  MAX_QUESTION_LENGTH,
+  MAX_CHAT_MESSAGES,
+} from "./chat.js";
+export type { ChatMessage } from "./chat.js";
 export { SAMPLE_PROFILE, SAMPLE_POSTING, SAMPLE_LINKEDIN } from "./samples.js";

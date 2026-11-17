@@ -1,13 +1,17 @@
 "use server";
 
-// Recruiting Helper's server actions for the profile, the list and outreach
-// drafts. Scoring and résumés go through score/route.ts and resume/route.ts
-// instead, since their files are over the 1 MB that Next.js allows a server action.
+// Recruiting Helper's server actions for the profile, the list, outreach
+// drafts and follow-up chats. Scoring and résumés go through score/route.ts and
+// resume/route.ts instead, since their files are over the 1 MB that Next.js
+// allows a server action, and chat answers through chat/route.ts, which streams.
 
 import { AI_PROVIDERS, isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
 import { toolSql } from "@penntools/platform/db";
 import {
+  clearChat,
+  getChat,
+  type ChatMessage,
   checkEmail,
   checkSchools,
   saveEmail,
@@ -223,6 +227,25 @@ export async function saveMyOutreach(itemId: string, draft: OutreachDraft): Prom
   if (problem) return { ok: false, message: problem };
   if (!(await saveOutreach(db(), user.id, String(itemId), { subject: draft.subject, body: draft.body }))) {
     return { ok: false, message: "That person isn't on your list anymore." };
+  }
+  return { ok: true };
+}
+
+/** An item's follow-up chat, oldest first. */
+export async function loadMyChat(itemId: string): Promise<ActionResult<ChatMessage[]>> {
+  const user = await getCurrentUser();
+  if (!user) return signedOut;
+  const chat = typeof itemId === "string" ? await getChat(db(), user.id, itemId) : null;
+  if (!chat) return { ok: false, message: "That item isn't on your list anymore." };
+  return { ok: true, data: chat };
+}
+
+/** Deletes an item's follow-up chat. */
+export async function clearMyChat(itemId: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return signedOut;
+  if (typeof itemId !== "string" || !(await clearChat(db(), user.id, itemId))) {
+    return { ok: false, message: "That item isn't on your list anymore." };
   }
   return { ok: true };
 }

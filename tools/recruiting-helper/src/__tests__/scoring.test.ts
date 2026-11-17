@@ -38,6 +38,7 @@ const posting: PostingReview = {
   team: "Google Cloud, Partner Ecosystem",
   teamStated: false,
   searchKeywords: ["Google Cloud partner manager", " ", "Google ISV partnerships"],
+  salary: " $140,000-$175,000 a year ",
 };
 
 const contact: ContactReview = {
@@ -113,9 +114,21 @@ describe("scorePostingReview", () => {
     });
   });
 
-  it("re-scores a posting saved before summaries, marking them unknown", () => {
-    const { summary: _s, team: _t, teamStated: _ts, searchKeywords: _k, ...old } = posting;
-    expect(scorePostingReview(old, companies)).toMatchObject({ summary: null, team: null, teamStated: null, searchKeywords: [] });
+  it("re-scores a posting saved before summaries and pay, marking them unknown", () => {
+    const { summary: _s, team: _t, teamStated: _ts, searchKeywords: _k, salary: _p, ...old } = posting;
+    expect(scorePostingReview(old, companies)).toMatchObject({
+      summary: null,
+      team: null,
+      teamStated: null,
+      searchKeywords: [],
+      salary: null,
+    });
+  });
+
+  it("keeps the pay the posting states, and none when it doesn't", () => {
+    expect(scorePostingReview(posting, companies).salary).toBe("$140,000-$175,000 a year");
+    expect(scorePostingReview({ ...posting, salary: null }, companies).salary).toBeNull();
+    expect(scorePostingReview({ ...posting, salary: " " }, companies).salary).toBeNull();
   });
 });
 

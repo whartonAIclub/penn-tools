@@ -1,0 +1,461 @@
+.page {
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.intro,
+.hint {
+  margin: 6px 0 0;
+  color: var(--section-label);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.link {
+  color: var(--penn-blue);
+  text-decoration: underline;
+  font-size: 0.875rem;
+}
+
+.meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.error {
+  align-self: stretch;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.empty {
+  color: var(--section-label);
+  font-size: 0.9rem;
+}
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+
+.button {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.button:hover:not(:disabled) { background: #163983; }
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.smallButton {
+  padding: 3px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.smallButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.linkButton {
+  padding: 0;
+  background: none;
+  color: var(--section-label);
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+.linkButton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.input,
+.textarea,
+.select {
+  padding: 8px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--nav-hover);
+}
+
+.segment,
+.segmentActive {
+  padding: 6px 16px;
+  border-radius: 8px;
+  background: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.segmentActive {
+  background: var(--bg);
+  color: var(--penn-blue);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tab,
+.tabActive {
+  padding: 5px 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.85rem;
+}
+.tab:hover { background: var(--nav-hover); }
+.tabActive {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue);
+  color: #fff;
+}
+
+/* ── Deal cards ────────────────────────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card,
+.cardExpired,
+.formCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.cardExpired {
+  background: var(--sidebar-bg);
+  opacity: 0.8;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.business {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge,
+.badgeStarter {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--nav-hover);
+  color: var(--section-label);
+  font-size: 0.72rem;
+}
+
+.badgeStarter {
+  background: #fff7e6;
+  color: #92400e;
+}
+
+.badgePenn {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.discount {
+  margin: 0;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+
+.detail {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.codeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.code {
+  padding: 3px 10px;
+  border: 1px dashed var(--penn-blue);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.vote,
+.voteActive,
+.voteActiveBad {
+  padding: 4px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.8rem;
+}
+.vote:hover:not(:disabled) { background: var(--nav-hover); }
+.vote:disabled,
+.voteActive:disabled,
+.voteActiveBad:disabled { opacity: 0.6; cursor: not-allowed; }
+.voteActive {
+  border-color: #15803d;
+  background: #f0fdf4;
+  color: #15803d;
+}
+.voteActiveBad {
+  border-color: #b91c1c;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.groupTitle {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+
+.expiredSection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.expiredSection .list {
+  align-self: stretch;
+}
+
+.loadMore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ── Add a deal ────────────────────────────────────────────────────────────── */
+
+.formCard {
+  gap: 12px;
+  background: var(--sidebar-bg);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.formRow {
+  display: flex;
+  gap: 12px;
+}
+
+.field {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+
+.formRow .field {
+  align-self: auto;
+}
+
+.fieldset {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Radio buttons styled as pills; the input stays for keyboards and screen readers. */
+.chip,
+.chipActive {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.chip input,
+.chipActive input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.chip:focus-within,
+.chipActive:focus-within {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 2px;
+}
+.chipActive {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue);
+  color: #fff;
+}
+
+.amount {
+  max-width: 120px;
+}
+
+.more {
+  align-self: stretch;
+}
+.more summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+.more[open] summary {
+  margin-bottom: 10px;
+}
+
+.aiBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dce3ff;
+  border-radius: 8px;
+  background: #f5f7ff;
+}

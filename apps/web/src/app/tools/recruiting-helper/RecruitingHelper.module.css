@@ -145,10 +145,9 @@
   50% { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0.2); }
 }
 
-/* The status line goes under the box, so the box keeps its shape. */
+/* The status line goes under the box, outside its wrapper, so the button stays on the box. */
 .micStatus {
-  order: 1;
-  margin-top: 6px;
+  margin-top: 2px;
   font-size: 0.8rem;
   font-weight: 400;
   color: var(--section-label);
@@ -255,6 +254,12 @@
   font: inherit;
   color: var(--text);
   background: var(--bg);
+}
+
+.listControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .toggle {
@@ -435,6 +440,62 @@
 .outreach .input,
 .outreach .textarea { align-self: stretch; }
 .outreachTitle { font-size: 0.875rem; }
+
+/* ── Follow-up chat ─────────────────────────────────────────────────────────── */
+
+.chat {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.chatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chatMessages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chatQuestion,
+.chatAnswer {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chatQuestion {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--penn-blue);
+  color: #fff;
+}
+.chatAnswer {
+  align-self: flex-start;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+/* The box and Ask button side by side, with voice typing's status line under the box only. */
+.chatForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: end;
+}
+.chatForm .textareaWrap { grid-area: 1 / 1; }
+.chatForm .micStatus { grid-area: 2 / 1; }
+.chatForm > .button { grid-area: 1 / 2; }
 
 .contactFields {
   display: grid;

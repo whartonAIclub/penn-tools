@@ -1,6 +1,7 @@
-// Records visits to tools for the admin page (POST /api/visits): opening a
-// registered tool (components/layout/ToolsShell.tsx), and clicking a community
-// tool's link in the site sidebar or on the dashboard.
+// Records visits to tools for /admin, /stats and the home page's top tools
+// (POST /api/visits): opening a registered tool
+// (components/layout/ToolsShell.tsx), and clicking a community tool's link in
+// the site sidebar or on the dashboard.
 
 import type { MouseEvent } from "react";
 

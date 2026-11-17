@@ -64,6 +64,12 @@ const TOOLS = [
   { name: "careercanvas", dir: "tools/career-canvas", connectionLimit: 30 },
   { name: "askpenn", dir: "tools/askpenn", connectionLimit: 30 },
   { name: "recruitinghelper", dir: "tools/recruiting-helper", connectionLimit: 30 },
+  { name: "accountingpractice", dir: "tools/accounting-practice", connectionLimit: 30 },
+  { name: "keepintouch", dir: "tools/keepintouch", connectionLimit: 30 },
+  { name: "wembasync", dir: "tools/wemba-sync", connectionLimit: 30 },
+  { name: "industryconnector", dir: "tools/industry-connector", connectionLimit: 30 },
+  { name: "passiton", dir: "tools/pass-it-on", connectionLimit: 30 },
+  { name: "studentdiscountmaximizer", dir: "tools/student-discount-maximizer", connectionLimit: 30 },
 ];
 
 // Tools that have been removed (see "Removing a tool" in the README), as

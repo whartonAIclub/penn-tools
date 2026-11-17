@@ -77,6 +77,28 @@ test("flags each kind of violation on its own line", () => {
   assert.ok(!output.includes("bad.ts:15 "), "the word admins in text must not be flagged");
 });
 
+test("flags PDFs opened without isEvalSupported: false, and pdfjs's legacy build", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/pdf.ts": [
+      `const pdfjs = await import("pdfjs-dist");`,
+      `const a = await pdfjs.getDocument({ data, isEvalSupported: false }).promise;`,
+      `const b = await pdfjs.getDocument({\n  data: new Uint8Array(buf),\n  isEvalSupported: false,\n}).promise;`,
+      `const c = await pdfjs.getDocument({ data }).promise;`,
+      `const d = await pdfjs.getDocument(url).promise;`,
+      `const e = await pdfjs.getDocument({ data: f(x), isEvalSupported: true }).promise;`,
+      `interface Lib { getDocument: (s: { data: ArrayBuffer }) => unknown }`,
+      `const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.js");`,
+    ].join("\n"),
+  });
+  assert.equal(code, 1);
+  for (const expected of ["pdf.ts:7  unsafe PDF", "pdf.ts:8  unsafe PDF", "pdf.ts:9  unsafe PDF", "pdf.ts:11  pdfjs legacy build"]) {
+    assert.ok(output.includes(expected), `missing "${expected}" in:\n${output}`);
+  }
+  for (const line of [1, 2, 3, 10]) {
+    assert.ok(!output.includes(`pdf.ts:${line} `), `line ${line} must not be flagged:\n${output}`);
+  }
+});
+
 test("doesn't stretch one import match across several import statements", () => {
   // Regression: a lazy match used to run from the first import to the platform one.
   const { code, output } = check({

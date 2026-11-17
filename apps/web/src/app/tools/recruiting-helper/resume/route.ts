@@ -10,7 +10,6 @@
 // Responds { ok: true, text } or { ok: false, error: { kind?, message } }.
 
 import type { NextRequest } from "next/server";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.js";
 import { AI_PROVIDERS, isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
 import {
@@ -21,19 +20,8 @@ import {
 } from "@penntools/tool-recruiting-helper";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
+import { pdfPageCount } from "@/lib/pdf";
 import { fail, readJsonBody } from "../readBody";
-
-/** The PDF's page count, or null if it doesn't open (as AskPenn's stream route checks PDFs). */
-async function pdfPages(data: string): Promise<number | null> {
-  const task = getDocument({ data: new Uint8Array(Buffer.from(data, "base64")), isEvalSupported: false, verbosity: 0 });
-  try {
-    return (await task.promise).numPages;
-  } catch {
-    return null;
-  } finally {
-    await task.destroy();
-  }
-}
 
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
@@ -47,7 +35,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const file = { name: body["name"] as string, data: body["data"] as string };
 
   try {
-    const pages = await pdfPages(file.data);
+    const pages = await pdfPageCount(file.data);
     if (pages === null) return fail(`${file.name} couldn't be opened as a PDF.`, 400);
     if (pages > MAX_RESUME_PAGES) {
       return fail(`${file.name} has ${pages} pages. Upload a résumé of at most ${MAX_RESUME_PAGES} pages.`, 400);
