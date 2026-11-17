@@ -11,7 +11,6 @@
 // { error: { kind?, message } }: kind is the AIError kind when the AI API failed.
 
 import type { NextRequest } from "next/server";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.js";
 import { isAIError } from "@penntools/core/ai";
 import {
   MAX_PDF_PAGES,
@@ -24,6 +23,7 @@ import {
 } from "@penntools/tool-chatprep";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
+import { pdfPageCount } from "@/lib/pdf";
 
 function error(message: string, status: number, kind?: string): Response {
   return Response.json({ error: { ...(kind && { kind }), message } }, { status });
@@ -33,15 +33,8 @@ function error(message: string, status: number, kind?: string): Response {
 async function checkPdfs(files: UploadedFile[]): Promise<string | null> {
   for (const { name, mediaType, data } of files) {
     if (mediaType !== "application/pdf") continue;
-    const task = getDocument({ data: new Uint8Array(Buffer.from(data, "base64")), isEvalSupported: false, verbosity: 0 });
-    let pages: number;
-    try {
-      pages = (await task.promise).numPages;
-    } catch {
-      return `${name} couldn't be read as a PDF.`;
-    } finally {
-      await task.destroy();
-    }
+    const pages = await pdfPageCount(data);
+    if (pages === null) return `${name} couldn't be read as a PDF.`;
     if (pages > MAX_PDF_PAGES) return `${name} has ${pages} pages; PDFs can have at most ${MAX_PDF_PAGES}.`;
   }
   return null;

@@ -11,6 +11,7 @@ import { Lato, Newsreader } from "next/font/google";
 import type { AIProvider } from "@penntools/core/ai";
 import type { Brief, FileLimits, UploadedFile } from "@penntools/tool-chatprep";
 import { ACCEPT, readFile, uniqueName } from "./readFile";
+import { loadProfile, saveProfile as storeProfile } from "./savedProfile";
 import styles from "./ChatPrep.module.css";
 
 // A serif for headlines and the brief's text, and Lato for labels, the form
@@ -41,9 +42,6 @@ type Status =
 
 const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
-// The profile is saved only in this browser, so it's there for the next chat.
-const PROFILE_KEY = "chatprep:profile";
-
 interface Limits {
   resume: number;
   targetRoles: number;
@@ -60,6 +58,7 @@ export function ChatPrep({
   tips,
   limits,
   fileLimits,
+  userId,
 }: {
   /** Providers the user has saved keys for; never empty. */
   providers: AIProvider[];
@@ -68,6 +67,8 @@ export function ChatPrep({
   tips: string[];
   limits: Limits;
   fileLimits: FileLimits;
+  /** The signed-in user, whose saved profile this page reads and writes. */
+  userId: string;
 }) {
   const [provider, setProvider] = useState(providers[0]!);
   const [resume, setResume] = useState("");
@@ -90,30 +91,26 @@ export function ChatPrep({
     if (status.state === "done") briefRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [status]);
 
-  // Read the saved profile after the first render, since the server has no localStorage.
+  // Read this user's saved profile after the first render, since the server has no localStorage.
   useEffect(() => {
+    let storage: Storage;
     try {
-      const saved = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null") as Record<string, unknown> | null;
-      if (typeof saved?.resume === "string") setResume(saved.resume);
-      if (typeof saved?.targetRoles === "string") setTargetRoles(saved.targetRoles);
-      if (typeof saved?.weighing === "string") setWeighing(saved.weighing);
-      const file = saved?.resumeFile as UploadedFile | null | undefined;
-      if (file && typeof file.name === "string" && typeof file.mediaType === "string" && typeof file.data === "string") setResumeFile(file);
+      storage = localStorage;
     } catch {
-      // A corrupt or blocked entry just means starting with a blank profile.
+      return; // Blocked storage just means starting with a blank profile.
     }
-  }, []);
+    const saved = loadProfile(storage, userId);
+    if (saved.resume !== undefined) setResume(saved.resume);
+    if (saved.targetRoles !== undefined) setTargetRoles(saved.targetRoles);
+    if (saved.weighing !== undefined) setWeighing(saved.weighing);
+    if (saved.resumeFile) setResumeFile(saved.resumeFile);
+  }, [userId]);
 
   function saveProfile() {
     try {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify({ resume, targetRoles, weighing, resumeFile }));
+      storeProfile(localStorage, userId, { resume, targetRoles, weighing, resumeFile });
     } catch {
-      // Storage can be full or blocked (a large resume file may not fit); the brief still works without saving.
-      try {
-        localStorage.setItem(PROFILE_KEY, JSON.stringify({ resume, targetRoles, weighing }));
-      } catch {
-        // nothing more to do
-      }
+      // Storage is blocked; the brief still works without saving.
     }
   }
 

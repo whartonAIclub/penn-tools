@@ -31,8 +31,12 @@ export default async function ChatprepPage() {
   const providers = await (await getAI("chatprep"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="ChatPrep" />;
 
+  // Keyed by the user, so signing in as someone else starts a fresh page
+  // rather than keeping the last user's resume on screen.
   return (
     <ChatPrep
+      key={user.id}
+      userId={user.id}
       providers={providers}
       labels={PROVIDER_LABELS}
       closingLine={CLOSING_LINE}
