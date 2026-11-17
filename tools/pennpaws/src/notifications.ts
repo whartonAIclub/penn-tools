@@ -26,6 +26,7 @@ const STEP_RULES: [RegExp, NotificationStep][] = [
   [/ arrived and is with /, "visit"],
   [/ You can pay for it now\./, "pay"],
   [/ paid \$[\d.]+ for the visit /, "visit"],
+  [/ confirmed getting \$[\d.]+ for the visit /, "visit"],
   [/ marked looking after .+ as done\. .*Leave a rating\./, "rate"],
 ];
 

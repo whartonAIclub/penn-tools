@@ -29,7 +29,8 @@ import {
   withdrawOffer,
   type Person,
 } from "../requests.js";
-import { afterMatchStamp, checkIn, checkOut, getAfterMatch, markVisitPaid } from "../visits.js";
+import { afterMatchStamp, checkIn, checkOut, confirmReceived, getAfterMatch, markVisitPaid } from "../visits.js";
+import { listMyRequests, stillToDo } from "../requests.js";
 
 const envFile = fileURLToPath(new URL("../../../../apps/web/.env.local", import.meta.url));
 if (!process.env["DATABASE_URL"] && existsSync(envFile)) process.loadEnvFile(envFile);
@@ -212,6 +213,43 @@ describe.skipIf(!databaseUrl)("review fixes (Postgres)", () => {
     // With the pet removed, the request falls back to the photo it was posted with.
     await removePet(sql, owner.id, petId);
     expect(await requestPhoto(sql, owner.id, id)).toBe(PHOTO);
+  });
+
+  it("counts a booking paid only once every finished visit is, and lets the sitter confirm each payment", async () => {
+    const id = await book(amy);
+    for (let i = 0; i < 2; i++) {
+      await checkIn(sql, amy.id, id, { photo: PHOTO, note: null });
+      await checkOut(sql, amy.id, id, { photo: null, note: null });
+    }
+    const [newest, older] = (await getAfterMatch(sql, owner.id, id))!.visits;
+    await markVisitPaid(sql, owner.id, id, older!.id, { amount: 15, method: "venmo" });
+
+    await sql`UPDATE requests SET starts_on = CURRENT_DATE WHERE id = ${id}`;
+    await completeBooking(sql, owner.id, id);
+    let card = (await listMyRequests(sql, owner.id)).find((r) => r.id === id)!;
+    expect(card).toMatchObject({ paid: false, unpaidVisits: 1 });
+    expect(stillToDo(card)[0]).toBe("Pay for the last visit");
+
+    await markVisitPaid(sql, owner.id, id, newest!.id, { amount: 15, method: "venmo" });
+    card = (await listMyRequests(sql, owner.id)).find((r) => r.id === id)!;
+    expect(card).toMatchObject({ paid: true, unpaidVisits: 0 });
+
+    // Only the sitter confirms, once, and the owner hears about it.
+    await expect(confirmReceived(sql, owner.id, id, newest!.id)).rejects.toThrow("isn't yours");
+    await confirmReceived(sql, amy.id, id, newest!.id);
+    await expect(confirmReceived(sql, amy.id, id, newest!.id)).rejects.toThrow("already confirmed");
+    const shown = (await getAfterMatch(sql, owner.id, id))!.visits.find((v) => v.id === newest!.id);
+    expect(shown?.paid?.receivedAt).not.toBeNull();
+    const [latest] = await listNotifications(sql, owner.id);
+    expect(latest).toMatchObject({ message: "Amy confirmed getting $15 for the visit with Bunny.", step: "visit" });
+  });
+
+  it("won't let the sitter confirm a visit that isn't paid", async () => {
+    const id = await book(amy);
+    await checkIn(sql, amy.id, id, { photo: PHOTO, note: null });
+    await checkOut(sql, amy.id, id, { photo: null, note: null });
+    const [visit] = (await getAfterMatch(sql, amy.id, id))!.visits;
+    await expect(confirmReceived(sql, amy.id, id, visit!.id)).rejects.toThrow("isn't marked paid");
   });
 
   it("won't mark a booking done before the care starts", async () => {

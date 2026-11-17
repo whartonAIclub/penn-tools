@@ -29,4 +29,10 @@ describe("when a booking is finished", () => {
     expect(stillToDo(card("completed", false, true))).toEqual(["Waiting for your sitter to record the payment"]);
     expect(stillToDo(card("completed", true, true))).toEqual([]);
   });
+
+  it("asks the owner to pay for finished visits they haven't paid", () => {
+    expect(stillToDo({ ...card("completed", false, true), unpaidVisits: 1 })).toEqual(["Pay for the last visit"]);
+    expect(stillToDo({ ...card("completed", false, false), unpaidVisits: 3 })).toEqual(["Pay for 3 visits", "Rate your sitter"]);
+    expect(isFinished({ ...card("completed", false, true), unpaidVisits: 1 })).toBe(false);
+  });
 });

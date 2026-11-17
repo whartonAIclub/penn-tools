@@ -38,8 +38,14 @@ export interface RequestCard {
    */
   payExact: boolean;
   createdAt: string;
-  /** Whether the sitter recorded being paid. The owner sees that it happened, never what the sitter earns. */
+  /**
+   * Whether the booking is paid: a payment is on record and, when the owner
+   * pays visit by visit, every finished visit is paid. The owner sees that it
+   * happened, never what the sitter earns.
+   */
   paid: boolean;
+  /** Finished visits of the current sitter that the owner hasn't paid yet. */
+  unpaidVisits: number;
   /** Whether the owner has rated this booking. */
   rated: boolean;
 }
@@ -49,16 +55,18 @@ export interface RequestCard {
  * list when it's done with (R46). A booking that is marked done but unpaid or
  * unrated stays in My requests, so it can't quietly disappear.
  */
-export function stillToDo(card: Pick<RequestCard, "status" | "paid" | "rated">): string[] {
+export function stillToDo(card: Pick<RequestCard, "status" | "paid" | "rated"> & { unpaidVisits?: number }): string[] {
   if (card.status !== "completed") return [];
   const left: string[] = [];
-  if (!card.paid) left.push("Waiting for your sitter to record the payment");
+  const unpaid = card.unpaidVisits ?? 0;
+  if (unpaid > 0) left.push(unpaid === 1 ? "Pay for the last visit" : `Pay for ${unpaid} visits`);
+  else if (!card.paid) left.push("Waiting for your sitter to record the payment");
   if (!card.rated) left.push("Rate your sitter");
   return left;
 }
 
 /** A booking the owner is finished with: done, paid and rated. */
-export function isFinished(card: Pick<RequestCard, "status" | "paid" | "rated">): boolean {
+export function isFinished(card: Pick<RequestCard, "status" | "paid" | "rated"> & { unpaidVisits?: number }): boolean {
   return card.status === "completed" && stillToDo(card).length === 0;
 }
 
@@ -173,8 +181,18 @@ interface RequestRow {
   completed_at: Date | null;
   offer_count: string;
   paid: boolean;
+  unpaid_visits: number;
   rated: boolean;
   picked: boolean;
+}
+
+/** Request `r`'s finished visits, by the sitter it's booked with now, that aren't paid. */
+function unpaidVisits(sql: Sql) {
+  return sql`(
+    SELECT COUNT(*)::int FROM visits v
+    JOIN offers o ON o.request_id = v.request_id AND o.sitter_id = v.sitter_id AND o.status = 'accepted'
+    WHERE v.request_id = r.id AND v.left_at IS NOT NULL AND v.paid_at IS NULL
+  )`;
 }
 
 function selectRequests(sql: Sql, viewerId: string) {
@@ -187,7 +205,8 @@ function selectRequests(sql: Sql, viewerId: string) {
            r.care_type, r.must_haves, r.sitter_gender, r.languages, r.original_text, r.original_language, r.pet_ids,
            (SELECT COUNT(*) FROM offers o WHERE o.request_id = r.id AND o.status = 'pending') AS offer_count,
            -- For R46: a booking is finished only once it is done, paid and rated.
-           EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id) AS paid,
+           EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id) AND ${unpaidVisits(sql)} = 0 AS paid,
+           ${unpaidVisits(sql)} AS unpaid_visits,
            EXISTS (SELECT 1 FROM reviews v WHERE v.request_id = r.id) AS rated,
            -- Whether the viewer is the sitter this owner picked, which is what
            -- lets them read the exact pay instead of the band (toCard).
@@ -280,6 +299,7 @@ function toCard(row: RequestRow, viewerId: string): RequestCard {
     offerCount: Number(row.offer_count),
     payExact,
     paid: row.paid,
+    unpaidVisits: row.unpaid_visits,
     rated: row.rated,
     createdAt: row.created_at.toISOString(),
   };

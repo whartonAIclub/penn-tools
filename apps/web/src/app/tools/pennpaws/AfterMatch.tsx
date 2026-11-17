@@ -18,7 +18,7 @@ import {
 } from "@penntools/tool-pennpaws";
 import { shrinkPhoto } from "./MyPets";
 import styles from "./PennPaws.module.css";
-import { arrive, leave, loadAfterMatch, payVisit, saveGuide, saveHandles } from "./visitActions";
+import { arrive, gotPaid, leave, loadAfterMatch, payVisit, saveGuide, saveHandles } from "./visitActions";
 
 type Result = { ok: true; data: unknown } | { ok: false; error: string };
 
@@ -237,7 +237,14 @@ function VisitsCard({ view, busy, act, requestId }: { view: AfterMatchView; busy
       ) : (
         <ol className={styles.visitList}>
           {view.visits.map((v) => (
-            <VisitItem key={v.id} visit={v} view={view} busy={busy} onPay={(p) => act(() => payVisit(requestId, v.id, p))} />
+            <VisitItem
+              key={v.id}
+              visit={v}
+              view={view}
+              busy={busy}
+              onPay={(p) => act(() => payVisit(requestId, v.id, p))}
+              onGotIt={() => act(() => gotPaid(requestId, v.id))}
+            />
           ))}
         </ol>
       )}
@@ -314,7 +321,19 @@ function CheckInBox({
   );
 }
 
-function VisitItem({ visit, view, busy, onPay }: { visit: Visit; view: AfterMatchView; busy: boolean; onPay: (p: { amount: number; method: VisitPayMethod }) => Promise<boolean> }) {
+function VisitItem({
+  visit,
+  view,
+  busy,
+  onPay,
+  onGotIt,
+}: {
+  visit: Visit;
+  view: AfterMatchView;
+  busy: boolean;
+  onPay: (p: { amount: number; method: VisitPayMethod }) => Promise<boolean>;
+  onGotIt: () => Promise<boolean>;
+}) {
   const sitterName = view.role === "owner" ? view.otherFirstName : "You";
   return (
     <li className={styles.visit}>
@@ -341,9 +360,20 @@ function VisitItem({ visit, view, busy, onPay }: { visit: Visit; view: AfterMatc
           )}
           {visit.leftNote && <p className={styles.visitNote}>“{visit.leftNote}”</p>}
           {visit.paid ? (
-            <span className={styles.pillGood}>
-              Paid {money(visit.paid.amount)} by {labelOf(VISIT_PAY_METHODS, visit.paid.method)}
-            </span>
+            <div className={styles.paidRow}>
+              <span className={styles.pillGood}>
+                Paid {money(visit.paid.amount)} by {labelOf(VISIT_PAY_METHODS, visit.paid.method)}
+              </span>
+              {visit.paid.receivedAt ? (
+                <span className={styles.hint}>{view.role === "owner" ? `${view.otherFirstName} confirmed getting it` : "You confirmed getting it"}</span>
+              ) : view.role === "sitter" ? (
+                <button type="button" className={styles.secondary} disabled={busy} onClick={() => void onGotIt()}>
+                  Got it
+                </button>
+              ) : (
+                <span className={styles.hint}>Waiting for {view.otherFirstName} to confirm it arrived</span>
+              )}
+            </div>
           ) : view.role === "owner" ? (
             <PayBox view={view} busy={busy} onPay={onPay} />
           ) : (

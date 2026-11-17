@@ -1375,3 +1375,6 @@
   100% { box-shadow: 0 0 0 4px rgba(232, 182, 74, 0); }
 }
 @media (prefers-reduced-motion: reduce) { .focusFlash { animation: none; box-shadow: 0 0 0 3px rgba(232, 182, 74, 0.75); } }
+
+/* A paid visit: the amount, then whether the sitter confirmed it arrived. */
+.paidRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

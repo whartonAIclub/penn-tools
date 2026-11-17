@@ -306,5 +306,6 @@ CREATE INDEX IF NOT EXISTS visits_request_idx ON visits (request_id, arrived_at 
 -- One visit open at a time per booking.
 -- One open visit per sitter on a booking. Keyed by sitter too, so a sitter who
 -- backed out can never block the next one (an earlier index was per request).
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ;  -- the sitter confirmed getting the money
 DROP INDEX IF EXISTS visits_one_open_idx;
 CREATE UNIQUE INDEX IF NOT EXISTS visits_one_open_sitter_idx ON visits (request_id, sitter_id) WHERE left_at IS NULL;

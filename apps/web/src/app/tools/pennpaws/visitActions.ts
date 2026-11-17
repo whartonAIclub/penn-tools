@@ -15,6 +15,7 @@ import {
   checkIn,
   checkOut,
   checkPayHandles,
+  confirmReceived,
   checkVisitPayment,
   getAfterMatch,
   markVisitPaid,
@@ -108,6 +109,13 @@ export async function payVisit(requestId: string, visitId: string, input: unknow
   const checked = checkVisitPayment(input);
   if (!checked.ok) return { ok: false, error: checked.error };
   return run(() => markVisitPaid(db(), user.id, String(requestId), String(visitId), checked.value).then(() => null));
+}
+
+/** The sitter confirms the owner's payment for a visit arrived. */
+export async function gotPaid(requestId: string, visitId: string): Promise<Result> {
+  const user = await getCurrentUser();
+  if (!user) return signedOut;
+  return run(() => confirmReceived(db(), user.id, String(requestId), String(visitId)).then(() => null));
 }
 
 /** Test menu: the fake sitter on each booked request checks in, or finishes the visit. Local test user only. */

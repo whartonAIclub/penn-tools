@@ -41,6 +41,7 @@ const card = (id: string, status: RequestCard["status"]): RequestCard => ({
   // These are the sitter's own jobs, so they're past the band and on the rate.
   payExact: true,
   paid: false,
+  unpaidVisits: 0,
   rated: false,
   createdAt: "2026-11-01T00:00:00.000Z",
 });

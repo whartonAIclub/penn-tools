@@ -16,6 +16,7 @@ describe("stepOf", () => {
     ["Maya arrived and is with Bunny. See the photo.", "visit"],
     ["Maya finished the visit with Bunny. You can pay for it now.", "pay"],
     ["Lu paid $15 for the visit with Bunny.", "visit"],
+    ["Maya confirmed getting $15 for the visit with Bunny.", "visit"],
     ["Maya marked looking after Bunny as done. How did it go? Leave a rating.", "rate"],
     ["Lu marked the booking for Bunny as done. Thanks for looking after Bunny.", "request"],
     ["Bunny found a sitter. Thanks for offering.", "request"],

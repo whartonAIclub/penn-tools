@@ -141,7 +141,8 @@ export interface Visit {
   leftAt: string | null;
   leftPhoto: string | null;
   leftNote: string | null;
-  paid: { amount: number; method: VisitPayMethod; at: string } | null;
+  /** What the owner says they paid, and when the sitter confirmed getting it (null until they do). */
+  paid: { amount: number; method: VisitPayMethod; at: string; receivedAt: string | null } | null;
 }
 
 /** Everything after matching, as the viewer may see it. */
@@ -194,6 +195,7 @@ interface VisitRow {
   amount: string | null;
   paid_method: VisitPayMethod | null;
   paid_at: Date | null;
+  received_at: Date | null;
 }
 
 const toVisit = (v: VisitRow): Visit => ({
@@ -204,7 +206,10 @@ const toVisit = (v: VisitRow): Visit => ({
   leftAt: v.left_at?.toISOString() ?? null,
   leftPhoto: v.left_photo,
   leftNote: v.left_note,
-  paid: v.amount && v.paid_method && v.paid_at ? { amount: Number(v.amount), method: v.paid_method, at: v.paid_at.toISOString() } : null,
+  paid:
+    v.amount && v.paid_method && v.paid_at
+      ? { amount: Number(v.amount), method: v.paid_method, at: v.paid_at.toISOString(), receivedAt: v.received_at?.toISOString() ?? null }
+      : null,
 });
 
 export async function getAfterMatch(sql: Sql, viewerId: string, requestId: string): Promise<AfterMatchView | null> {
@@ -220,7 +225,7 @@ export async function getAfterMatch(sql: Sql, viewerId: string, requestId: strin
   const showHandles = p.role === "sitter" || booked;
   // Only the current sitter's visits: someone picked before them who backed out isn't part of this booking.
   const visits = await sql<VisitRow[]>`
-    SELECT id, arrived_at, arrived_photo, arrived_note, left_at, left_photo, left_note, amount, paid_method, paid_at
+    SELECT id, arrived_at, arrived_photo, arrived_note, left_at, left_photo, left_note, amount, paid_method, paid_at, received_at
     FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id} ORDER BY arrived_at DESC
   `;
   return {
@@ -247,7 +252,7 @@ export async function afterMatchStamp(sql: Sql, viewerId: string, requestId: str
   const [s] = await sql<{ stamp: string }[]>`
     SELECT concat_ws('|',
       ${p.status}::text, ${p.sitter_id}::text,
-      (SELECT concat_ws(',', COUNT(*), MAX(arrived_at), MAX(left_at), MAX(paid_at)) FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id}),
+      (SELECT concat_ws(',', COUNT(*), MAX(arrived_at), MAX(left_at), MAX(paid_at), MAX(received_at)) FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id}),
       (SELECT updated_at::text FROM entry_guides WHERE request_id = ${requestId}),
       (SELECT updated_at::text FROM pay_handles WHERE user_id = ${p.sitter_id})
     ) AS stamp
@@ -357,6 +362,30 @@ export async function markVisitPaid(
   });
   const dollars = payment.amount.toFixed(2).replace(/\.00$/, "");
   await notify(sql, p.sitter_id, `${firstWord(p.owner_name)} paid $${dollars} for the visit with ${p.pet_name}.`, requestId, channels);
+}
+
+/**
+ * The sitter confirms the owner's payment for a visit arrived, so "I paid"
+ * isn't only the owner's word. Tells the owner.
+ */
+export async function confirmReceived(
+  sql: Sql,
+  sitterId: string,
+  requestId: string,
+  visitId: string,
+  channels: readonly NotificationChannel[] = [],
+): Promise<void> {
+  if (!UUID_RE.test(visitId)) throw new PennPawsError("That visit doesn't exist.");
+  const p = await party(sql, sitterId, requestId);
+  if (!p || p.role !== "sitter") throw new PennPawsError("That booking isn't yours.");
+  const [row] = await sql<{ amount: string }[]>`
+    UPDATE visits SET received_at = NOW()
+    WHERE id = ${visitId} AND request_id = ${requestId} AND sitter_id = ${sitterId} AND paid_at IS NOT NULL AND received_at IS NULL
+    RETURNING amount
+  `;
+  if (!row) throw new PennPawsError("This visit isn't marked paid yet, or you already confirmed it.");
+  const dollars = Number(row.amount).toFixed(2).replace(/\.00$/, "");
+  await notify(sql, p.owner_id, `${firstWord(p.sitter_name)} confirmed getting $${dollars} for the visit with ${p.pet_name}.`, requestId, channels);
 }
 
 // ── Test menu ────────────────────────────────────────────────────────────────
