@@ -116,7 +116,13 @@ export function Summary({ ws, analysis, goTo }: TabProps & { goTo: GoTo }) {
                       <div>
                         <dt>Main problem</dt>
                         <dd>
-                          {r.problem} <span className={styles.mentions}>said {r.problemMentions}×</span>
+                          {r.problemMentions > 0 ? (
+                            <>
+                              {r.problem} <span className={styles.mentions}>said {r.problemMentions}×</span>
+                            </>
+                          ) : (
+                            <span className={styles.mentions}>{r.problem}</span>
+                          )}
                           <span className={styles.quote}>“{r.quote}”</span>
                         </dd>
                       </div>

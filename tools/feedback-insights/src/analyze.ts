@@ -61,11 +61,11 @@ export interface ThemeSummary {
 export interface Recommendation {
   rank: number;
   theme: string;
-  /** The most mentioned pain point in the theme. */
+  /** The most mentioned pain point in the theme, or a note when people only made suggestions (problemMentions 0). */
   problem: string;
   problemMentions: number;
   quote: string;
-  /** How many different people raised a pain point in the theme. */
+  /** How many different people raised a pain point in the theme (or made a suggestion, when nobody named a problem). */
   people: number;
   /** The theme's rating out of 5, or null when no rating has its name. */
   rating: number | null;
@@ -224,6 +224,9 @@ function summarizeDistributions(counted: CleanResponse[], questions: Question[])
   return out;
 }
 
+/** The problem shown for a theme where people only made suggestions. */
+const NO_PROBLEM = "Only suggestions, no problem described";
+
 function mostCommon(tags: TagView[]): [string, number] {
   const counts = new Map<string, number>();
   for (const t of tags) counts.set(t.topic || NO_TOPIC, (counts.get(t.topic || NO_TOPIC) ?? 0) + 1);
@@ -233,16 +236,22 @@ function mostCommon(tags: TagView[]): [string, number] {
 function recommend(comments: TagView[], ratings: RatingSummary[], setup: Setup): Recommendation[] {
   const rated = new Map(ratings.map((r) => [r.label.toLowerCase(), r.outOfFive]));
   const pains = comments.filter((c) => c.type === "Pain point");
-  const rows = [...new Set(pains.map((c) => c.theme))].map((theme) => {
-    const inTheme = pains.filter((c) => c.theme === theme);
-    const ideas = comments.filter((c) => c.theme === theme && c.type === "Idea");
-    const [problem, problemMentions] = mostCommon(inTheme);
+  const allIdeas = comments.filter((c) => c.type === "Idea");
+  // A theme people only asked for things in ("post recordings") still needs a change, so it is ranked too.
+  const rows = [...new Set([...pains, ...allIdeas].map((c) => c.theme))].map((theme) => {
+    const ideas = allIdeas.filter((c) => c.theme === theme);
+    const painsInTheme = pains.filter((c) => c.theme === theme);
+    const inTheme = painsInTheme.length ? painsInTheme : ideas;
+    const [problem, problemMentions] = painsInTheme.length ? mostCommon(painsInTheme) : [NO_PROBLEM, 0];
     const [fix, fixMentions] = ideas.length ? mostCommon(ideas) : [null, 0];
     const people = new Set(inTheme.map((c) => c.person)).size;
     const rating = rated.get(theme.toLowerCase()) ?? null;
     const gap = rating == null ? setup.noRatingGap : Math.max(0, 5 - rating);
-    const quote = (inTheme.find((c) => (c.topic || NO_TOPIC) === problem) ?? inTheme[0]!).text;
-    return { theme, problem, problemMentions, quote, people, rating, fix, fixMentions, score: round(people * gap, 1) };
+    const quoteTopic = painsInTheme.length ? problem : fix;
+    const quote = (inTheme.find((c) => (c.topic || NO_TOPIC) === quoteTopic) ?? inTheme[0]!).text;
+    // Suggestions alone count half: a described problem is stronger evidence than a request.
+    const weight = painsInTheme.length ? 1 : 0.5;
+    return { theme, problem, problemMentions, quote, people, rating, fix, fixMentions, score: round(people * gap * weight, 1) };
   });
   rows.sort((a, b) => b.score - a.score || b.people - a.people || a.theme.localeCompare(b.theme));
   const top = rows[0]?.score ?? 0;

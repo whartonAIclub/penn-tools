@@ -18,6 +18,8 @@ export const DEFAULT_NON_ANSWERS = [
   "same as above",
   "same as before",
   "same",
+  "thanks",
+  "thank you",
 ];
 export const SURVEY_SOURCE = "Survey";
 /** The theme for tags that fit no other; always available. */
@@ -51,6 +53,13 @@ const LADDERS: string[][] = [
   ["Very dissatisfied", "Dissatisfied", "Satisfied", "Very satisfied"],
   ["Not at all useful", "Slightly useful", "Somewhat useful", "Very useful", "Extremely useful"],
   ["Not at all helpful", "Slightly helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"],
+  // Three-point scales come before four-point ones, so a 3-option question isn't stretched onto 4 points.
+  ["Not very useful", "Somewhat useful", "Very useful"],
+  ["Not useful", "Somewhat useful", "Very useful"],
+  ["Not very helpful", "Somewhat helpful", "Very helpful"],
+  ["Not helpful", "Somewhat helpful", "Very helpful"],
+  ["Not at all useful", "Not very useful", "Somewhat useful", "Very useful"],
+  ["Not at all helpful", "Not very helpful", "Somewhat helpful", "Very helpful"],
   ["Very unlikely", "Unlikely", "Neutral", "Likely", "Very likely"],
   ["Very poor", "Poor", "Average", "Good", "Excellent"],
   ["Poor", "Fair", "Good", "Very good", "Excellent"],
@@ -150,6 +159,8 @@ export function detectQuestion(column: string, rows: Row[], context: string[] = 
   const listLike = values.some((v) => commaJoined(v).includes(", ")) && piecesLookShort && distinct.length > 1;
   if (OPEN_QUESTION.test(column.trim()) && words >= 3.2 && !listLike) return { ...base, kind: "text" };
   if (WRITTEN_ABOUT.test(column) && words >= 1.8 && !listLike) return { ...base, kind: "text" };
+  // "Anything else?" that only a couple of people answered, each differently, is still a written question.
+  if (OPEN_QUESTION.test(column.trim()) && !listLike && distinct.length === values.length) return { ...base, kind: "text" };
   // Checkboxes: several answers are lists whose pieces also appear on their own or in other lists.
   // Microsoft Forms joins them with ";" instead of ", ".
   const joined = values.map(commaJoined);

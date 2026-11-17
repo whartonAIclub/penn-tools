@@ -223,8 +223,10 @@ describe("the numbers", () => {
     expect(a.ratings.filter((r) => r.low).map((r) => r.label)).toEqual(["The PennTools platform", "Setup and onboarding", "Testing and prioritization"]);
     expect(a.recommendations[0]).toMatchObject({ theme: "Setup and onboarding", problem: "Install and Git setup", people: 8, fix: "Pre-work setup checklist", score: 16.3 });
     expect(a.recommendations[2]).toMatchObject({ theme: "Pace and workload", rating: null, score: 7.5 });
-    // Priority is the score on a 1-5 scale against the top one: 16.3, 14.8, 7.5, 5.3, 4.4, 2.4, 1.5, 1, 0.9.
-    expect(a.recommendations.map((r) => r.priority)).toEqual([5, 5, 3, 2, 2, 2, 1, 1, 1]);
+    // "PM topics to add" holds only suggestions, so it ranks at half weight with no problem named.
+    expect(a.recommendations[3]).toMatchObject({ theme: "PM topics to add", problemMentions: 0, score: 6 });
+    // Priority is the score on a 1-5 scale against the top one: 16.3, 14.8, 7.5, 6, 5.3, 4.4, 2.4, 1.5, 1, 0.9.
+    expect(a.recommendations.map((r) => r.priority)).toEqual([5, 5, 3, 2, 2, 2, 2, 1, 1, 1]);
     expect(a.checks.map((c) => [c.id, c.count])).toEqual([["untagged", 12], ["needs_review", 3], ["excluded", 1]]);
     expect(new Set(a.untagged.map((u) => u.responseNumber))).toEqual(new Set([24, 25]));
   });
