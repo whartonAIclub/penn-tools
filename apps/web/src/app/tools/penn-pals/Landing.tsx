@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   chatsWith,
+  chatToEdit,
   countByKind,
   daysFrom,
   followUpEventFor,
@@ -20,10 +21,11 @@ import {
   relationshipLabel,
   reopenStep,
   describeRecurrence,
+  editPastChat,
   rescheduleStep,
   SENIORITY_LABELS,
 } from "@penntools/tool-penn-pals";
-import type { Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
+import type { ChatEdit, Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
 import { recordFollowUp } from "./metricsActions";
 import { HowItWorks } from "./HowItWorks";
 import { StorageNote } from "./StorageNote";
@@ -161,6 +163,82 @@ function FollowUpRow({
   );
 }
 
+const VIBE_ORDER: Contact["vibe"][] = ["great", "good", "neutral", "lukewarm"];
+
+/** The edit form for one earlier chat, shown in place of its summary. */
+function ChatEditForm({
+  chat,
+  label,
+  onSave,
+  onDone,
+}: {
+  chat: ChatEdit;
+  label: string;
+  onSave: (edit: ChatEdit) => string[];
+  onDone: () => void;
+}) {
+  const [draft, setDraft] = useState<ChatEdit>(chat);
+  const [errors, setErrors] = useState<string[]>([]);
+  const set = <K extends keyof ChatEdit>(key: K, value: ChatEdit[K]) => setDraft((d) => ({ ...d, [key]: value }));
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const problems = onSave(draft);
+    if (problems.length > 0) return setErrors(problems);
+    onDone();
+  }
+
+  return (
+    <form className={styles.chatEdit} onSubmit={submit} aria-label={`Edit ${label}`}>
+      <label className={styles.chatEditField}>
+        Date of chat *
+        <input type="date" value={draft.meetingDate} onChange={(e) => set("meetingDate", e.target.value)} required />
+      </label>
+      <label className={styles.chatEditField}>
+        How it went
+        <select value={draft.vibe} onChange={(e) => set("vibe", e.target.value as Contact["vibe"])}>
+          {VIBE_ORDER.map((vibe) => (
+            <option key={vibe} value={vibe}>
+              {VIBE_WORDS[vibe]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.chatEditField}>
+        Key takeaways (one per line)
+        <textarea rows={3} value={draft.takeaways} onChange={(e) => set("takeaways", e.target.value)} />
+      </label>
+      <label className={styles.chatEditField}>
+        Notes
+        <textarea rows={3} value={draft.notes} onChange={(e) => set("notes", e.target.value)} />
+      </label>
+      <label className={styles.chatEditCheck}>
+        <input type="checkbox" checked={draft.offeredReferral} onChange={(e) => set("offeredReferral", e.target.checked)} />
+        Offered a referral
+      </label>
+      <label className={styles.chatEditCheck}>
+        <input type="checkbox" checked={draft.offeredIntro} onChange={(e) => set("offeredIntro", e.target.checked)} />
+        Offered an introduction
+      </label>
+      {errors.length > 0 && (
+        <ul className={styles.chatEditErrors} role="alert">
+          {errors.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      )}
+      <div className={styles.chatEditActions}>
+        <button type="submit" className={styles.chatEditSave}>
+          Save changes
+        </button>
+        <button type="button" className={styles.chatEditButton} onClick={onDone}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function PersonCard({
   contact,
   followUps,
@@ -168,6 +246,7 @@ function PersonCard({
   onDone,
   onReschedule,
   onReopen,
+  onEditChat,
   onDelete,
   onClose,
 }: {
@@ -178,6 +257,8 @@ function PersonCard({
   onReschedule: (f: FollowUp, date: string) => void;
   /** Puts the finished step at this index back on the to-do list. */
   onReopen: (stepIndex: number) => void;
+  /** Saves changes to an earlier chat (0 is the most recent of the earlier ones); returns what's wrong, or nothing when saved. */
+  onEditChat: (pastIndex: number, edit: ChatEdit) => string[];
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -197,6 +278,8 @@ function PersonCard({
   ].filter((link): link is { label: string; href: string } => Boolean(link));
 
   const chats = chatsWith(contact);
+  // Which earlier chat is being edited (its place in `chats`), if any.
+  const [editingChat, setEditingChat] = useState<number | null>(null);
 
   // Finished steps stay on the person: most recent first, those without a recorded date last.
   const completed = contact.nextSteps
@@ -303,15 +386,46 @@ function PersonCard({
               {chats.map((chat, i) => (
                 <li key={`${chat.meetingDate}-${i}`} className={styles.chat}>
                   <p className={styles.chatDate}>
-                    Chat #{chats.length - i} · {chat.meetingDate}
+                    {i === 0 ? (
+                      // The latest chat is edited with the person's details, on the form.
+                      <Link
+                        href={`/tools/penn-pals/tracker?edit=${encodeURIComponent(contact.id)}`}
+                        className={styles.chatLink}
+                        aria-label={`Edit chat #${chats.length - i}`}
+                      >
+                        Chat #{chats.length - i}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.chatLink}
+                        aria-label={`Edit chat #${chats.length - i}`}
+                        aria-expanded={editingChat === i}
+                        onClick={() => setEditingChat(editingChat === i ? null : i)}
+                      >
+                        Chat #{chats.length - i}
+                      </button>
+                    )}{" "}
+                    · {chat.meetingDate}
                     {i === 0 && <span className={styles.chatLatest}> · latest</span>} · {VIBE_WORDS[chat.vibe]}
                   </p>
-                  {i > 0 && chat.takeaways.length > 0 && ( // the latest chat's are under Key takeaways
-                    <ul className={styles.takeaways}>
-                      {chat.takeaways.map((t) => (
-                        <li key={t}>{t}</li>
-                      ))}
-                    </ul>
+                  {i > 0 && editingChat === i ? (
+                    <ChatEditForm
+                      chat={chatToEdit(chat)}
+                      label={`Chat #${chats.length - i}`}
+                      onSave={(edit) => onEditChat(i - 1, edit)}
+                      onDone={() => setEditingChat(null)}
+                    />
+                  ) : (
+                    <>
+                      {i > 0 && chat.takeaways.length > 0 && ( // the latest chat's are under Key takeaways
+                        <ul className={styles.takeaways}>
+                          {chat.takeaways.map((t) => (
+                            <li key={t}>{t}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
                   )}
                 </li>
               ))}
@@ -398,6 +512,15 @@ export function Landing({ today: todayIso, signedIn }: { today: string; signedIn
 
   const reopen = (contactId: string, stepIndex: number) =>
     save(allContacts.map((c) => (c.id === contactId ? reopenStep(c, stepIndex) : c)));
+
+  const editChat = (contactId: string, pastIndex: number, edit: ChatEdit): string[] => {
+    const contact = allContacts.find((c) => c.id === contactId);
+    if (!contact) return ["That contact could not be found."];
+    const result = editPastChat(contact, pastIndex, edit, todayIso);
+    if (!result.ok) return result.errors;
+    save(allContacts.map((c) => (c.id === contactId ? result.contact : c)));
+    return [];
+  };
 
   const remove = (contactId: string) => {
     setOpened(null);
@@ -522,6 +645,7 @@ export function Landing({ today: todayIso, signedIn }: { today: string; signedIn
           onDone={markDone}
           onReschedule={reschedule}
           onReopen={(stepIndex) => reopen(openedContact.id, stepIndex)}
+          onEditChat={(pastIndex, edit) => editChat(openedContact.id, pastIndex, edit)}
           onDelete={() => remove(openedContact.id)}
           onClose={() => setOpened(null)}
         />

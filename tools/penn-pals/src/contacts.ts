@@ -450,6 +450,59 @@ export function logAnotherChat(contact: Contact, draft: ContactDraft, today: str
   };
 }
 
+/** What can be changed on an earlier chat: its own fields, as the form has them (takeaways one per line). */
+export interface ChatEdit {
+  meetingDate: string;
+  vibe: Vibe;
+  takeaways: string;
+  notes: string;
+  offeredReferral: boolean;
+  offeredIntro: boolean;
+}
+
+export type EditChatResult = { ok: true; contact: Contact } | { ok: false; errors: string[] };
+
+/** The editable fields of an earlier chat, as the edit form shows them. */
+export function chatToEdit(chat: PastChat): ChatEdit {
+  return {
+    meetingDate: chat.meetingDate,
+    vibe: chat.vibe,
+    takeaways: chat.takeaways.join("\n"),
+    notes: chat.notes,
+    offeredReferral: chat.offeredReferral,
+    offeredIntro: chat.offeredIntro,
+  };
+}
+
+/**
+ * `contact` with its earlier chat at `pastIndex` (0 is the most recent of the
+ * earlier ones, as in `contact.pastChats`) changed. Only that chat changes: the
+ * latest chat, the person's details and the follow-ups stay as they are (the
+ * latest chat is edited with "Edit details"). The date is checked like a new
+ * chat's, and must keep the chats in order: not after the next chat, not
+ * before the one before it.
+ */
+export function editPastChat(contact: Contact, pastIndex: number, edit: ChatEdit, today: string): EditChatResult {
+  const past = contact.pastChats ?? [];
+  if (!Number.isInteger(pastIndex) || pastIndex < 0 || pastIndex >= past.length) {
+    return { ok: false, errors: ["That chat could not be found."] };
+  }
+  // The same checks as a new chat's (date, notes length), with nothing else in the way.
+  const checked = buildContact({ ...contactToDraft(contact), ...edit, nextSteps: [] }, today, contact.id);
+  if (!checked.ok) return checked;
+  const newer = pastIndex === 0 ? contact.meetingDate : past[pastIndex - 1]!.meetingDate;
+  const older = past[pastIndex + 1]?.meetingDate;
+  if (checked.contact.meetingDate > newer) {
+    return { ok: false, errors: [`This chat can't be after the next one with ${contact.name} (${newer}).`] };
+  }
+  if (older && checked.contact.meetingDate < older) {
+    return { ok: false, errors: [`This chat can't be before the one before it (${older}).`] };
+  }
+  const { meetingDate, vibe, takeaways, notes, offeredReferral, offeredIntro } = checked.contact;
+  const pastChats = past.map((chat, i) => (i === pastIndex ? { meetingDate, vibe, takeaways, notes, offeredReferral, offeredIntro } : chat));
+  return { ok: true, contact: { ...contact, pastChats } };
+}
+
 // ── Duplicates ────────────────────────────────────────────────────────────────
 // Logging a chat with someone already saved should add a chat to them, not a
 // second contact. The form warns when a new chat looks like a saved person and
@@ -467,15 +520,22 @@ export function linkedinKey(url: string): string {
 }
 
 /**
- * A saved contact that looks like the same person as the form: the same
- * LinkedIn profile, else the same name. Null when there's none.
+ * The saved contacts that could be the person in the form, best match first:
+ * those with the same LinkedIn profile, else those with the same name, else
+ * (when only a first name was given, as in "talked to Meghan again") every
+ * saved contact with that first name. Empty when there are none. More than one
+ * means the user has to say which, so a chat is never added to the wrong person.
  */
-export function findSameContact(contacts: Contact[], draft: Pick<ContactDraft, "name" | "linkedin">): Contact | null {
+export function findSameContacts(contacts: Contact[], draft: Pick<ContactDraft, "name" | "linkedin">): Contact[] {
   const link = linkedinKey(draft.linkedin);
-  const byLink = link ? contacts.find((c) => linkedinKey(c.linkedin ?? "") === link) : undefined;
-  if (byLink) return byLink;
+  const byLink = link ? contacts.filter((c) => linkedinKey(c.linkedin ?? "") === link) : [];
+  if (byLink.length > 0) return byLink;
   const name = nameKey(draft.name);
-  return (name && contacts.find((c) => nameKey(c.name) === name)) || null;
+  if (!name) return [];
+  const byName = contacts.filter((c) => nameKey(c.name) === name);
+  if (byName.length > 0) return byName;
+  if (name.includes(" ")) return []; // a full name that matches nobody is someone new
+  return contacts.filter((c) => nameKey(c.name).split(" ")[0] === name);
 }
 
 /**

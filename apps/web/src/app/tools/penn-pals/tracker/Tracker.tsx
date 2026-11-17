@@ -13,7 +13,7 @@ import {
   anotherChatDraft,
   asAnotherChat,
   chatsWith,
-  findSameContact,
+  findSameContacts,
   contactToDraft,
   logAnotherChat,
   customRelationships,
@@ -277,10 +277,12 @@ function Form({
 
   // A new contact that looks like someone saved: warned under the name, and
   // asked about on save (merge as another chat, or keep both).
-  // "It's a different person" hides the warning for that saved contact.
-  const [notSameId, setNotSameId] = useState<string | null>(null);
-  const match = !original && !again ? findSameContact(savedContacts, draft) : null;
-  const same = match && match.id !== notSameId ? match : null;
+  // With several candidates (two saved Meghans), the user picks which one.
+  // "It's a different person" hides the warning for these candidates.
+  const [notSameKey, setNotSameKey] = useState<string | null>(null);
+  const candidates = !original && !again ? findSameContacts(savedContacts, draft) : [];
+  const candidatesKey = candidates.map((c) => c.id).join(",");
+  const same = candidates.length > 0 && candidatesKey !== notSameKey ? candidates : null;
   const [askingSame, setAskingSame] = useState(false);
 
   function submit(e: React.FormEvent) {
@@ -391,17 +393,25 @@ function Form({
         {same && !askingSame && (
           // Outside the label, so its buttons don't focus the name box. Spans the grid's width.
           <div className={styles.sameWarn} role="status">
-            <p className={styles.sameWarnText}>
-              Looks like you&apos;ve met <strong>{same.name}</strong> before
-              {describeWork(same)} ({chatsWith(same).length} {chatsWith(same).length === 1 ? "chat" : "chats"}, last{" "}
-              {friendlyDate(same.meetingDate)}).
-            </p>
+            {same.length === 1 ? (
+              <p className={styles.sameWarnText}>
+                Looks like you&apos;ve met <strong>{same[0]!.name}</strong> before
+                {describeWork(same[0]!)} ({chatsWith(same[0]!).length} {chatsWith(same[0]!).length === 1 ? "chat" : "chats"}, last{" "}
+                {friendlyDate(same[0]!.meetingDate)}).
+              </p>
+            ) : (
+              <p className={styles.sameWarnText}>You&apos;ve met {same.length} people who could be this one. Which one?</p>
+            )}
             <div className={styles.actions}>
-              <button type="button" className={styles.buttonSecondary} onClick={() => void mergeInto(same)}>
-                Add as chat #{chatsWith(same).length + 1} with {same.name.split(" ")[0]}
-              </button>
-              <button type="button" className={styles.link} onClick={() => setNotSameId(same.id)}>
-                It&apos;s a different person
+              {same.map((person) => (
+                <button key={person.id} type="button" className={styles.buttonSecondary} onClick={() => void mergeInto(person)}>
+                  {same.length === 1
+                    ? `Add as chat #${chatsWith(person).length + 1} with ${person.name.split(" ")[0]}`
+                    : `${person.name}${describeWork(person)} · chat #${chatsWith(person).length + 1}`}
+                </button>
+              ))}
+              <button type="button" className={styles.link} onClick={() => setNotSameKey(candidatesKey)}>
+                {same.length === 1 ? "It's a different person" : "None of them: a different person"}
               </button>
             </div>
           </div>
@@ -621,17 +631,23 @@ function Form({
       {same && askingSame ? (
         <div className={styles.sameAsk} role="group" aria-labelledby="same-ask-title">
           <p id="same-ask-title" className={styles.sameAskTitle}>
-            Is this the {same.name} you already saved?
+            {same.length === 1 ? `Is this the ${same[0]!.name} you already saved?` : "Is this one of the people you already saved?"}
           </p>
-          <p className={styles.sameAskDetail}>
-            {same.name}
-            {describeWork(same)} · last chat {friendlyDate(same.meetingDate)} · {chatsWith(same).length}{" "}
-            {chatsWith(same).length === 1 ? "chat" : "chats"} so far
-          </p>
+          {same.map((person) => (
+            <p key={person.id} className={styles.sameAskDetail}>
+              {person.name}
+              {describeWork(person)} · last chat {friendlyDate(person.meetingDate)} · {chatsWith(person).length}{" "}
+              {chatsWith(person).length === 1 ? "chat" : "chats"} so far
+            </p>
+          ))}
           <div className={styles.actions}>
-            <button type="button" className={styles.button} onClick={() => void mergeInto(same)} autoFocus>
-              Yes, add as chat #{chatsWith(same).length + 1}
-            </button>
+            {same.map((person, i) => (
+              <button key={person.id} type="button" className={styles.button} onClick={() => void mergeInto(person)} autoFocus={i === 0}>
+                {same.length === 1
+                  ? `Yes, add as chat #${chatsWith(person).length + 1}`
+                  : `Yes, ${person.name}: add as chat #${chatsWith(person).length + 1}`}
+              </button>
+            ))}
             <button type="button" className={styles.buttonSecondary} onClick={() => void saveAsIs()}>
               No, save as a new person
             </button>
