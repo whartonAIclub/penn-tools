@@ -19,6 +19,7 @@ import {
   customRelationships,
   emptyDraft,
   FORM_RELATIONSHIPS,
+  localToday,
   MAX_RECURRENCE,
   MAX_YEARS_AHEAD,
   MAX_YEARS_BACK,
@@ -46,11 +47,6 @@ import styles from "./Tracker.module.css";
 
 const LANDING = "/tools/penn-pals";
 
-/** Today in the browser's time zone as YYYY-MM-DD. */
-function todayLocal(): string {
-  return new Date().toLocaleDateString("en-CA");
-}
-
 const VIBE_LABELS: Record<ContactDraft["vibe"], string> = {
   great: "Excellent",
   good: "Good",
@@ -73,7 +69,7 @@ export function Tracker({ ai }: { ai: AiAccess }) {
   const [anotherId, setAnotherId] = useState<string | null>(null);
 
   useEffect(() => {
-    setToday(todayLocal());
+    setToday(localToday());
     const params = new URLSearchParams(window.location.search);
     setEditId(params.get("edit"));
     setAnotherId(params.get("another"));

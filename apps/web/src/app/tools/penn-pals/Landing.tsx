@@ -18,6 +18,7 @@ import {
   followUpStatus,
   followUpsFor,
   linkedinHref,
+  localToday,
   markFollowUpDone,
   relationshipLabel,
   reopenStep,
@@ -470,9 +471,10 @@ function PersonCard({
   );
 }
 
-export function Landing({ today: todayIso, signedIn }: { today: string; signedIn: boolean }) {
-  const [y, m, d] = todayIso.split("-").map(Number);
-  const today = new Date(y!, m! - 1, d!);
+export function Landing({ signedIn }: { signedIn: boolean }) {
+  // Today is the user's own date, worked out in the browser (the server runs in UTC, so its date can be a day off in the evening).
+  const [todayIso, setTodayIso] = useState<string | null>(null);
+  useEffect(() => setTodayIso(localToday()), []);
 
   // null until the contacts are loaded, so the page doesn't flash empty.
   const store = useContacts(signedIn);
@@ -488,10 +490,12 @@ export function Landing({ today: todayIso, signedIn }: { today: string; signedIn
     [allContacts],
   );
 
-  if (!saved) {
+  if (!saved || !todayIso) {
     return store.error ? <StorageNote store={store} /> : <p className={styles.empty}>Loading…</p>;
   }
 
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const today = new Date(y!, m! - 1, d!);
   const totals = countByKind(followUps);
 
   const openCount = (contactId: string) =>

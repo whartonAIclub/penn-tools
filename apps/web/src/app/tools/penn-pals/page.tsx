@@ -11,17 +11,15 @@ export const metadata: Metadata = {
   title: "Penn Pals: Network Tracker",
 };
 
-// Read per request: the admin link depends on who is signed in, and "today" must be today.
+// Read per request: the admin link depends on who is signed in. ("Today" is
+// worked out in the browser, in the user's own time zone, not here.)
 export const dynamic = "force-dynamic";
 
 export default async function PennPalsPage() {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const signedIn = Boolean(await getCurrentUser());
   return (
     <>
-      <Landing today={today} signedIn={signedIn} />
+      <Landing signedIn={signedIn} />
       <AdminAccessLink />
     </>
   );

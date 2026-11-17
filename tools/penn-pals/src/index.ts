@@ -58,6 +58,7 @@ export {
   type Vibe,
 } from "./contacts.js";
 export { addDays, DEFAULT_FOLLOW_UP_DAYS, MAX_NOTES_LENGTH } from "./debrief.js";
+export { localToday, resolveToday } from "./dates.js";
 export {
   addRecurrence,
   bestAdvice,

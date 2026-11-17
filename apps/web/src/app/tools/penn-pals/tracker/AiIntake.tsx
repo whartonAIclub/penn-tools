@@ -9,6 +9,7 @@
 import { useRef, useState } from "react";
 import type { AIProvider } from "@penntools/core/ai";
 import {
+  localToday,
   MAX_SCREENSHOTS,
   MAX_STORY_LENGTH,
   type ContactDraft,
@@ -141,7 +142,7 @@ export function AiIntake({
       const response = await fetch("/tools/penn-pals/tracker/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, story, screenshots: shots, base }),
+        body: JSON.stringify({ provider, story, screenshots: shots, base, today: localToday() }),
       });
       if (response.status === 401) {
         return setStatus({ state: "error", message: "Sign in with the button at the top right to use the AI.", keyProblem: false });

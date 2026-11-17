@@ -12,6 +12,7 @@ import {
   intakeToDraft,
   parseDraftBase,
   readIntake,
+  resolveToday,
   type ContactDraft,
   type IntakeScreenshot,
   type ReviewField,
@@ -21,11 +22,6 @@ import { getAI } from "@/lib/ai";
 export type IntakeResult =
   | { ok: true; draft: ContactDraft; missing: ReviewField[]; toCheck: ReviewField[]; tokens: number }
   | { ok: false; error: { kind?: string; message: string } };
-
-/** Today in Philadelphia as YYYY-MM-DD, so a late-evening chat isn't dated tomorrow. */
-function todayInPhilly(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-}
 
 /**
  * Reads the notes and screenshots into the form's fields in one AI call. For
@@ -37,6 +33,7 @@ export async function readChat(body: {
   story?: unknown;
   screenshots?: unknown;
   base?: unknown;
+  today?: unknown;
 }): Promise<IntakeResult> {
   const ai = await getAI("penn-pals");
   if (!ai) return { ok: false, error: { message: "Sign in with the button at the top right to use the AI." } };
@@ -51,7 +48,8 @@ export async function readChat(body: {
   const base = body.base === undefined || body.base === null ? undefined : parseDraftBase(body.base);
   if (base === null) return { ok: false, error: { message: "Something went wrong reading the form. Reload the page and try again." } };
 
-  const today = todayInPhilly();
+  // The user's own date, as their browser sent it (checked: within a day of UTC, else the server's).
+  const today = resolveToday(body.today);
   try {
     const { reply, missing, toCheck, tokens } = await readIntake(ai, provider, { story, screenshots }, today, base);
     return { ok: true, draft: intakeToDraft(reply, today, base, story), missing, toCheck, tokens };
