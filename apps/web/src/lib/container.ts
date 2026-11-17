@@ -64,6 +64,8 @@ import { KeepintouchTool } from "@penntools/tool-keepintouch";
 toolRegistry.register(new KeepintouchTool());
 import { DeadlineCalendarTool } from "@penntools/tool-deadline-calendar";
 toolRegistry.register(new DeadlineCalendarTool());
+import { WembaSyncTool } from "@penntools/tool-wemba-sync";
+toolRegistry.register(new WembaSyncTool());
 import { PennpawsTool } from "@penntools/tool-pennpaws";
 toolRegistry.register(new PennpawsTool());
 // ── Repositories ──────────────────────────────────────────────────────────────

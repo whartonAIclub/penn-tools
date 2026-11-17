@@ -66,6 +66,7 @@ const TOOLS = [
   { name: "recruitinghelper", dir: "tools/recruiting-helper", connectionLimit: 30 },
   { name: "accountingpractice", dir: "tools/accounting-practice", connectionLimit: 30 },
   { name: "keepintouch", dir: "tools/keepintouch", connectionLimit: 30 },
+  { name: "wembasync", dir: "tools/wemba-sync", connectionLimit: 30 },
   { name: "pennpaws", dir: "tools/pennpaws", connectionLimit: 30 },
 ];
 

@@ -221,8 +221,10 @@ section 4; this section covers the design.
   toward the user's free credit but aren't reserved or refused, since they
   cost so little (text-embedding-3-small is $0.02 per million tokens).
 - **Enforcement.** `pnpm check:tools` (`scripts/check-tool-imports.mjs`) fails
-  if tool code imports a vendor SDK, calls a provider API, or touches users'
-  keys or platform internals.
+  if tool code imports a vendor SDK, calls a provider API, touches users'
+  keys or platform internals, or opens a PDF with pdfjs's code execution on
+  (`getDocument` without `isEvalSupported: false`, or pdfjs's legacy build
+  instead of `withPdf` / `pdfPageCount` from `@/lib/pdf`).
 
 ---
 
@@ -278,8 +280,9 @@ need a user for everything use the standard screens: `SignInPrompt` with just
 their title ("Sign in to use AskPenn."), and, if they run on the AI API,
 `ApiKeyPrompt` when the user has used their free AI credit and hasn't saved a
 key (`ai.providers()` is empty), pointing to Settings. Because
-`getCurrentUser()` reads the request's cookies, every page renders per request
-rather than being prerendered; it is cached per request, so the header and the
+`getCurrentUser()` calls `connection()`, and the root layout reads the
+sidebar's cookies, every page renders per request rather than being
+prerendered; it is cached per request, so the header and the
 page share one user lookup.
 
 ### Tool catalog
