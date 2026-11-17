@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   anotherChatDraft,
   asAnotherChat,
-  findSameContact,
+  chatToEdit,
+  editPastChat,
+  findSameContacts,
   linkedinKey,
   nameKey,
   buildContact,
@@ -592,19 +594,48 @@ describe("duplicates", () => {
 
   it("finds a saved contact by name, ignoring case and accents", () => {
     const draft = { ...emptyDraft(TODAY), name: " zach  garman" };
-    expect(findSameContact([other, zach], draft)?.id).toBe("zach");
-    expect(findSameContact([other, zach], { ...draft, name: "ana sofia perez" })?.id).toBe("ana");
+    expect(findSameContacts([other, zach], draft).map((c) => c.id)).toEqual(["zach"]);
+    expect(findSameContacts([other, zach], { ...draft, name: "ana sofia perez" }).map((c) => c.id)).toEqual(["ana"]);
   });
 
   it("finds a saved contact by LinkedIn link even under another name", () => {
     const draft = { ...emptyDraft(TODAY), name: "Zachary G.", linkedin: "linkedin.com/in/ZACHGARMAN" };
-    expect(findSameContact([other, zach], draft)?.id).toBe("zach");
+    expect(findSameContacts([other, zach], draft).map((c) => c.id)).toEqual(["zach"]);
   });
 
-  it("finds nothing for a new person, a blank name, or only a first name match", () => {
-    expect(findSameContact([zach], { ...emptyDraft(TODAY), name: "Maria Chen" })).toBeNull();
-    expect(findSameContact([zach], { ...emptyDraft(TODAY), name: "  " })).toBeNull();
-    expect(findSameContact([zach], { ...emptyDraft(TODAY), name: "Zach" })).toBeNull();
+  it("finds nothing for a new person or a blank name", () => {
+    expect(findSameContacts([zach], { ...emptyDraft(TODAY), name: "Maria Chen" })).toEqual([]);
+    expect(findSameContacts([zach], { ...emptyDraft(TODAY), name: "  " })).toEqual([]);
+  });
+
+  it("finds the one saved contact with a first name given on its own", () => {
+    expect(findSameContacts([other, zach], { ...emptyDraft(TODAY), name: "Zach" }).map((c) => c.id)).toEqual(["zach"]);
+    expect(findSameContacts([other, zach], { ...emptyDraft(TODAY), name: " ZACH " }).map((c) => c.id)).toEqual(["zach"]);
+    expect(findSameContacts([other, zach], { ...emptyDraft(TODAY), name: "ana" }).map((c) => c.id)).toEqual(["ana"]); // other's first name is "Ana", with a double surname
+  });
+
+  it("returns every saved contact with that first name, so the user can choose", () => {
+    const zachTwo = contact({ id: "zach2", name: "Zach Lee" });
+    expect(findSameContacts([zach, zachTwo, other], { ...emptyDraft(TODAY), name: "zach" }).map((c) => c.id)).toEqual(["zach", "zach2"]);
+  });
+
+  it("a full name still picks out the right one of two with the same first name", () => {
+    const zachTwo = contact({ id: "zach2", name: "Zach Lee" });
+    expect(findSameContacts([zach, zachTwo], { ...emptyDraft(TODAY), name: "Zach Lee" }).map((c) => c.id)).toEqual(["zach2"]);
+  });
+
+  it("returns both when two saved contacts have exactly the same name", () => {
+    const twin = contact({ id: "zach-twin", name: "Zach Garman" });
+    expect(findSameContacts([zach, twin], { ...emptyDraft(TODAY), name: "Zach Garman" }).map((c) => c.id)).toEqual(["zach", "zach-twin"]);
+  });
+
+  it("doesn't match a first name with a different surname: that's someone new", () => {
+    expect(findSameContacts([zach], { ...emptyDraft(TODAY), name: "Zach Smith" })).toEqual([]);
+  });
+
+  it("matches an accented first name without the accent", () => {
+    const maria = contact({ id: "maria", name: "María García" });
+    expect(findSameContacts([maria], { ...emptyDraft(TODAY), name: "maria" }).map((c) => c.id)).toEqual(["maria"]);
   });
 
   it("merges a new chat into the saved contact, as chat #2", () => {
@@ -639,5 +670,89 @@ describe("duplicates", () => {
   it("refuses to merge a chat dated before the saved one", () => {
     const draft = { ...emptyDraft(TODAY), name: "Zach Garman", meetingDate: "2026-10-01" };
     expect(logAnotherChat(zach, asAnotherChat(zach, draft, TODAY), TODAY)).toMatchObject({ ok: false });
+  });
+});
+
+
+describe("editing an earlier chat", () => {
+  // Three chats: the latest 2026-11-01, then 2026-10-15 (past 0), then 2026-10-01 (past 1).
+  const base = contact({ id: "p", name: "Pat Lee", meetingDate: "2026-11-01", takeaways: ["latest takeaway"], notes: "latest notes" });
+  const three: Contact = {
+    ...base,
+    pastChats: [
+      { meetingDate: "2026-10-15", vibe: "good", takeaways: ["mid"], notes: "mid notes", offeredReferral: false, offeredIntro: false },
+      { meetingDate: "2026-10-01", vibe: "great", takeaways: ["first"], notes: "", offeredReferral: true, offeredIntro: false },
+    ],
+  };
+  const edit = (patch: Partial<ReturnType<typeof chatToEdit>> = {}, index = 0, from: Contact = three) =>
+    editPastChat(from, index, { ...chatToEdit(from.pastChats![index]!), ...patch }, TODAY);
+
+  it("shows an earlier chat's fields as the form has them", () => {
+    expect(chatToEdit(three.pastChats![0]!)).toEqual({
+      meetingDate: "2026-10-15",
+      vibe: "good",
+      takeaways: "mid",
+      notes: "mid notes",
+      offeredReferral: false,
+      offeredIntro: false,
+    });
+  });
+
+  it("changes only the chosen chat", () => {
+    const result = edit({ takeaways: ["one", "  two  ", "", ""].join("\n"), notes: "new notes", vibe: "lukewarm", offeredIntro: true, meetingDate: "2026-10-10" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.contact.pastChats![0]).toEqual({
+      meetingDate: "2026-10-10",
+      vibe: "lukewarm",
+      takeaways: ["one", "two"],
+      notes: "new notes",
+      offeredReferral: false,
+      offeredIntro: true,
+    });
+    expect(result.contact.pastChats![1]).toEqual(three.pastChats![1]);
+    expect(result.contact).toMatchObject({ meetingDate: "2026-11-01", takeaways: ["latest takeaway"], notes: "latest notes", name: "Pat Lee" });
+    expect(result.contact.nextSteps).toEqual(three.nextSteps);
+  });
+
+  it("can edit the oldest chat too", () => {
+    const result = edit({ notes: "added later" }, 1);
+    expect(result.ok && result.contact.pastChats![1]!.notes).toBe("added later");
+  });
+
+  it("allows the same date as a neighbouring chat", () => {
+    expect(edit({ meetingDate: "2026-11-01" }).ok).toBe(true);
+    expect(edit({ meetingDate: "2026-10-01" }).ok).toBe(true);
+  });
+
+  it("refuses a date after the next chat or before the one before it", () => {
+    const after = edit({ meetingDate: "2026-11-02" });
+    expect(after.ok).toBe(false);
+    if (!after.ok) expect(after.errors[0]).toMatch(/after the next one/);
+    const before = edit({ meetingDate: "2026-09-30" });
+    expect(before.ok).toBe(false);
+    if (!before.ok) expect(before.errors[0]).toMatch(/before the one before it/);
+  });
+
+  it("refuses a future or invalid date and a blank date, like a new chat", () => {
+    expect(edit({ meetingDate: "2026-12-31" }).ok).toBe(false);
+    expect(edit({ meetingDate: "nope" }).ok).toBe(false);
+    expect(edit({ meetingDate: "" }).ok).toBe(false);
+  });
+
+  it("refuses notes that are too long", () => {
+    expect(edit({ notes: "x".repeat(60000) }).ok).toBe(false);
+  });
+
+  it("refuses a chat that isn't there", () => {
+    expect(editPastChat(three, 2, chatToEdit(three.pastChats![0]!), TODAY).ok).toBe(false);
+    expect(editPastChat(three, -1, chatToEdit(three.pastChats![0]!), TODAY).ok).toBe(false);
+    expect(editPastChat(base, 0, chatToEdit(three.pastChats![0]!), TODAY).ok).toBe(false);
+  });
+
+  it("doesn't change the original contact", () => {
+    const before = JSON.stringify(three);
+    edit({ notes: "changed" });
+    expect(JSON.stringify(three)).toBe(before);
   });
 });

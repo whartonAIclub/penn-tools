@@ -608,3 +608,93 @@
 .chatLatest {
   color: var(--penn-blue);
 }
+
+/* Editing an earlier chat in place, on the person's card */
+.chatEditButton {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-top: 4px;
+  color: var(--penn-blue);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chatEditButton:hover { text-decoration: underline; }
+.chatEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--penn-blue-bg);
+}
+.chatEditField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.chatEditField input,
+.chatEditField select,
+.chatEditField textarea {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.chatEditCheck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.chatEditErrors {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: #b42318;
+}
+.chatEditActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.chatEditSave {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: var(--penn-blue);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* "Chat #N" in the list: click it to edit that chat */
+.chatLink {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--penn-blue);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.chatLink:hover {
+  text-decoration-style: solid;
+}
