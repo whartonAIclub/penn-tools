@@ -51,7 +51,9 @@ CREATE INDEX IF NOT EXISTS follow_up_events_user_idx ON follow_up_events (user_i
 -- src/storage.ts). Signed-out users' contacts stay in their browser.
 --
 --   id          the contact's id, made by the browser; unique per user
---   updated_at  when this device last saved it; the latest save wins
+--   updated_at  when it was last saved
+--   version     counts saves of this contact; a save names the version it was
+--               based on and is refused if another device has saved since
 CREATE TABLE IF NOT EXISTS contacts (
   user_id    TEXT        NOT NULL,
   id         TEXT        NOT NULL,
@@ -60,3 +62,4 @@ CREATE TABLE IF NOT EXISTS contacts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;

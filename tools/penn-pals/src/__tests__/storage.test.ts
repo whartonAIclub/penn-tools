@@ -12,6 +12,7 @@ import {
   batchContacts,
   checkContacts,
   checkIds,
+  checkSaveItems,
   ContactLimitError,
   contactChanges,
   deleteContacts,
@@ -19,7 +20,10 @@ import {
   listContacts,
   MAX_CONTACT_BYTES,
   MAX_CONTACTS,
+  MAX_USER_BYTES,
   saveContacts,
+  sortContacts,
+  type ContactToSave,
 } from "../storage.js";
 
 const TODAY = "2026-11-16";
@@ -49,6 +53,55 @@ describe("checkContacts", () => {
   it("refuses a contact over the size limit, naming them", () => {
     const huge = { ...maria, notes: "x".repeat(MAX_CONTACT_BYTES) };
     expect(checkContacts([huge])).toMatchObject({ ok: false, error: expect.stringMatching(/Maria Chen/) });
+  });
+});
+
+describe("size limits (the form's, on the server too)", () => {
+  it("refuses contacts with over-long details, notes, steps, chats or takeaways", () => {
+    const bad = [
+      { ...maria, company: "x".repeat(301) },
+      { ...maria, notes: "x".repeat(30_001) },
+      { ...maria, takeaways: Array.from({ length: 101 }, () => "t") },
+      { ...maria, nextSteps: Array.from({ length: 201 }, () => ({ action: "Follow up", owner: "me" as const, dueDate: null, done: true })) },
+      { ...maria, pastChats: Array.from({ length: 201 }, () => ({ meetingDate: "2026-01-01", vibe: "good" as const, takeaways: [], notes: "", offeredReferral: false, offeredIntro: false })) },
+      { ...maria, pastChats: [{ meetingDate: "2026-01-01", vibe: "good" as const, takeaways: [], notes: "x".repeat(30_001), offeredReferral: false, offeredIntro: false }] },
+    ];
+    for (const contact of bad) expect(checkContacts([contact])).toMatchObject({ ok: false });
+  });
+
+  it("still accepts a contact that has built up over time", () => {
+    const steps = Array.from({ length: 60 }, () => ({ action: "Follow up", owner: "me" as const, dueDate: null, done: true }));
+    expect(checkContacts([{ ...maria, nextSteps: steps }])).toMatchObject({ ok: true });
+  });
+});
+
+describe("sortContacts", () => {
+  it("keeps the good contacts and lists the bad ones, instead of refusing everything", () => {
+    const huge = { ...zach, notes: "x".repeat(MAX_CONTACT_BYTES) };
+    const result = sortContacts([maria, huge, { name: "no id" }, { ...maria }]);
+    expect(result?.contacts.map((c) => c.id)).toEqual(["c-maria"]);
+    expect(result?.skipped.map((s) => s.name)).toEqual(["Zach Garman", "A contact", "Maria Chen"]);
+    expect(result?.skipped[0]).toMatchObject({ id: "c-zach" });
+  });
+
+  it("is null when it isn't a list", () => {
+    expect(sortContacts("nope")).toBeNull();
+  });
+});
+
+describe("checkSaveItems", () => {
+  it("accepts contacts with a null or whole-number version", () => {
+    expect(checkSaveItems([{ contact: maria, version: null }, { contact: zach, version: 3 }])).toMatchObject({
+      ok: true,
+      items: [{ contact: maria, version: null }, { contact: zach, version: 3 }],
+    });
+  });
+
+  it("refuses a missing, fractional or zero version", () => {
+    expect(checkSaveItems([{ contact: maria }])).toMatchObject({ ok: false });
+    expect(checkSaveItems([{ contact: maria, version: 1.5 }])).toMatchObject({ ok: false });
+    expect(checkSaveItems([{ contact: maria, version: 0 }])).toMatchObject({ ok: false });
+    expect(checkSaveItems([maria])).toMatchObject({ ok: false });
   });
 });
 
@@ -111,61 +164,132 @@ describe.skipIf(!databaseUrl)("Penn Pals contact storage (Postgres)", () => {
     await expect(sql.unsafe(schemaSql)).resolves.toBeDefined();
   });
 
+  const fresh = (...contacts: Contact[]): ContactToSave[] => contacts.map((c) => ({ contact: c, version: null }));
+  const ids = async (user: string) => (await listContacts(sql, user)).map((s) => s.contact.id);
+  const versionOf = async (user: string, id: string) => (await listContacts(sql, user)).find((s) => s.contact.id === id)?.version;
+
   it("saves and lists a user's contacts, as they were", async () => {
-    await saveContacts(sql, "u1", [maria, zach]);
-    const listed = await listContacts(sql, "u1");
+    await saveContacts(sql, "u1", fresh(maria, zach));
+    const listed = (await listContacts(sql, "u1")).map((s) => s.contact);
     expect(listed).toHaveLength(2);
     expect(listed).toEqual(expect.arrayContaining([maria, zach]));
   });
 
   it("keeps each user's contacts apart", async () => {
-    await saveContacts(sql, "u1", [maria]);
-    await saveContacts(sql, "u2", [zach]);
-    expect((await listContacts(sql, "u1")).map((c) => c.id)).toEqual(["c-maria"]);
-    expect((await listContacts(sql, "u2")).map((c) => c.id)).toEqual(["c-zach"]);
+    await saveContacts(sql, "u1", fresh(maria));
+    await saveContacts(sql, "u2", fresh(zach));
+    expect(await ids("u1")).toEqual(["c-maria"]);
+    expect(await ids("u2")).toEqual(["c-zach"]);
     await deleteContacts(sql, "u2", ["c-maria"]); // not theirs: nothing happens
     expect(await listContacts(sql, "u1")).toHaveLength(1);
   });
 
-  it("replaces a saved contact with the latest save", async () => {
-    await saveContacts(sql, "u1", [maria]);
-    await saveContacts(sql, "u1", [{ ...maria, role: "Senior PM" }]);
-    expect(await listContacts(sql, "u1")).toEqual([{ ...maria, role: "Senior PM" }]);
+  it("replaces a saved contact, and counts the saves as versions", async () => {
+    const first = await saveContacts(sql, "u1", fresh(maria));
+    expect(first.versions).toEqual({ "c-maria": 1 });
+    const second = await saveContacts(sql, "u1", [{ contact: { ...maria, role: "Senior PM" }, version: 1 }]);
+    expect(second).toMatchObject({ versions: { "c-maria": 2 }, conflicts: [] });
+    expect((await listContacts(sql, "u1")).map((s) => s.contact)).toEqual([{ ...maria, role: "Senior PM" }]);
+  });
+
+  it("refuses a save based on an old version, and keeps the newer one (two devices)", async () => {
+    await saveContacts(sql, "u1", fresh(maria));
+    await saveContacts(sql, "u1", [{ contact: { ...maria, role: "From device B" }, version: 1 }]);
+    const stale = await saveContacts(sql, "u1", [{ contact: { ...maria, role: "From device A" }, version: 1 }]);
+    expect(stale.conflicts).toEqual(["c-maria"]);
+    expect(stale.versions).toEqual({});
+    expect((await listContacts(sql, "u1"))[0]?.contact.role).toBe("From device B");
+  });
+
+  it("saves the other contacts in a batch when one conflicts", async () => {
+    await saveContacts(sql, "u1", fresh(maria, zach));
+    await saveContacts(sql, "u1", [{ contact: { ...maria, role: "B" }, version: 1 }]);
+    const result = await saveContacts(sql, "u1", [
+      { contact: { ...maria, role: "A" }, version: 1 },
+      { contact: { ...zach, role: "Zach, edited" }, version: 1 },
+    ]);
+    expect(result.conflicts).toEqual(["c-maria"]);
+    expect(await versionOf("u1", "c-zach")).toBe(2);
+  });
+
+  it("treats a repeat of a save that already went through as done, not a conflict", async () => {
+    await saveContacts(sql, "u1", fresh(maria));
+    const again = await saveContacts(sql, "u1", fresh(maria)); // the reply was lost, so the page sends it again
+    expect(again).toMatchObject({ conflicts: [], versions: { "c-maria": 1 } });
+    const edit = [{ contact: { ...maria, role: "PM" }, version: 1 }];
+    await saveContacts(sql, "u1", edit);
+    expect(await saveContacts(sql, "u1", edit)).toMatchObject({ conflicts: [], versions: { "c-maria": 2 } });
+  });
+
+  it("reports a contact deleted on another device as a conflict, and a new one with an existing id too", async () => {
+    await saveContacts(sql, "u1", fresh(maria));
+    await deleteContacts(sql, "u1", ["c-maria"]);
+    expect((await saveContacts(sql, "u1", [{ contact: maria, version: 1 }])).conflicts).toEqual(["c-maria"]);
+    await saveContacts(sql, "u1", fresh(maria));
+    expect((await saveContacts(sql, "u1", fresh({ ...maria, role: "Other" }))).conflicts).toEqual(["c-maria"]);
+  });
+
+  it("returns what changed, before and after, for the caller's records", async () => {
+    const created = await saveContacts(sql, "u1", fresh(maria));
+    expect(created.changes).toEqual([{ before: null, after: maria }]);
+    const edited = { ...maria, role: "PM" };
+    const updated = await saveContacts(sql, "u1", [{ contact: edited, version: 1 }]);
+    expect(updated.changes).toEqual([{ before: maria, after: edited }]);
   });
 
   it("saving some contacts never removes others (another device's)", async () => {
-    await saveContacts(sql, "u1", [maria, zach]);
-    await saveContacts(sql, "u1", [{ ...maria, role: "PM" }]);
+    await saveContacts(sql, "u1", fresh(maria, zach));
+    await saveContacts(sql, "u1", [{ contact: { ...maria, role: "PM" }, version: 1 }]);
     expect(await listContacts(sql, "u1")).toHaveLength(2);
   });
 
   it("deletes only the contacts named", async () => {
-    await saveContacts(sql, "u1", [maria, zach]);
+    await saveContacts(sql, "u1", fresh(maria, zach));
     await deleteContacts(sql, "u1", ["c-zach"]);
-    expect((await listContacts(sql, "u1")).map((c) => c.id)).toEqual(["c-maria"]);
+    expect(await ids("u1")).toEqual(["c-maria"]);
   });
 
   it("imports browser contacts without overwriting the account's copy", async () => {
-    await saveContacts(sql, "u1", [{ ...maria, role: "Newer, from the phone" }]);
+    await saveContacts(sql, "u1", fresh({ ...maria, role: "Newer, from the phone" }));
     const added = await importContacts(sql, "u1", [maria, zach]);
-    expect(added).toBe(1);
-    const listed = await listContacts(sql, "u1");
+    expect(added).toEqual(["c-zach"]);
+    const listed = (await listContacts(sql, "u1")).map((s) => s.contact);
     expect(listed.find((c) => c.id === "c-maria")?.role).toBe("Newer, from the phone");
     expect(listed.map((c) => c.id)).toContain("c-zach");
-    expect(await importContacts(sql, "u1", [maria, zach])).toBe(0); // running it again adds nothing
+    expect(await importContacts(sql, "u1", [maria, zach])).toEqual([]); // running it again adds nothing
+  });
+
+  it("saves many contacts in one go, as one batch", async () => {
+    const many = Array.from({ length: 300 }, (_, i) => contact(`c-${i}`, `Person ${i}`));
+    const result = await saveContacts(sql, "u1", fresh(...many));
+    expect(Object.keys(result.versions)).toHaveLength(300);
+    expect(await importContacts(sql, "u2", many)).toHaveLength(300);
   });
 
   it("stops at the contact limit, counting only new contacts", async () => {
     const many = Array.from({ length: MAX_CONTACTS }, (_, i) => contact(`c-${i}`, `Person ${i}`));
-    await saveContacts(sql, "u1", many);
-    await expect(saveContacts(sql, "u1", [maria])).rejects.toBeInstanceOf(ContactLimitError);
+    await saveContacts(sql, "u1", fresh(...many));
+    await expect(saveContacts(sql, "u1", fresh(maria))).rejects.toBeInstanceOf(ContactLimitError);
     await expect(importContacts(sql, "u1", [maria])).rejects.toBeInstanceOf(ContactLimitError);
-    await expect(saveContacts(sql, "u1", [{ ...many[0]!, role: "Edited" }])).resolves.toBeUndefined(); // an edit isn't new
+    const edit = [{ contact: { ...many[0]!, role: "Edited" }, version: 1 }];
+    await expect(saveContacts(sql, "u1", edit)).resolves.toMatchObject({ conflicts: [] }); // an edit isn't new
+    expect(await ids("u1")).toHaveLength(MAX_CONTACTS); // the refused save rolled back
   }, 30_000);
 
+  it("stops at the storage limit per user, and rolls the save back", async () => {
+    const big = (i: number) => contact(`b-${i}`, `Big ${i}`, { notes: "x".repeat(29_000) });
+    const room = Math.floor(MAX_USER_BYTES / 29_000);
+    const fill = Array.from({ length: room - 5 }, (_, i) => big(i));
+    for (let at = 0; at < fill.length; at += 20) await saveContacts(sql, "u1", fresh(...fill.slice(at, at + 20)));
+    const more = Array.from({ length: 30 }, (_, i) => big(1000 + i));
+    await expect(saveContacts(sql, "u1", fresh(...more))).rejects.toBeInstanceOf(ContactLimitError);
+    await expect(importContacts(sql, "u1", more)).rejects.toBeInstanceOf(ContactLimitError);
+    expect(await ids("u1")).toHaveLength(fill.length);
+  }, 60_000);
+
   it("skips a stored row that no longer fits the contact shape", async () => {
-    await saveContacts(sql, "u1", [maria]);
+    await saveContacts(sql, "u1", fresh(maria));
     await sql`INSERT INTO contacts (user_id, id, data) VALUES ('u1', 'broken', '{"name": 42}'::jsonb)`;
-    expect((await listContacts(sql, "u1")).map((c) => c.id)).toEqual(["c-maria"]);
+    expect(await ids("u1")).toEqual(["c-maria"]);
   });
 });

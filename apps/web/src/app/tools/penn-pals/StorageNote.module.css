@@ -20,3 +20,32 @@
   color: #067647;
   font-weight: 600;
 }
+.ask {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--penn-blue-bg);
+  color: var(--text);
+}
+.askText {
+  margin: 0 0 8px;
+}
+.askActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.askButton {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  background: var(--penn-blue);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.askButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

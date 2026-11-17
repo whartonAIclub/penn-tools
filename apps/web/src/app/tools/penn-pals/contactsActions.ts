@@ -9,14 +9,16 @@
 
 import { toolSql } from "@penntools/platform/db";
 import {
-  checkContacts,
   checkIds,
+  checkSaveItems,
   ContactLimitError,
   deleteContacts,
   importContacts,
   listContacts,
   saveContacts,
-  type Contact,
+  sortContacts,
+  type SavedContact,
+  type SkippedContact,
 } from "@penntools/tool-penn-pals";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -43,8 +45,8 @@ function failure(action: string, error: unknown): { ok: false; error: string } {
   return { ok: false, error: UNAVAILABLE };
 }
 
-/** The signed-in user's contacts. */
-export async function loadMyContacts(): Promise<ContactsResult<{ contacts: Contact[] }>> {
+/** The signed-in user's contacts, each with the version a later save must name. */
+export async function loadMyContacts(): Promise<ContactsResult<{ contacts: SavedContact[] }>> {
   const db = await access();
   if (!db.ok) return db;
   try {
@@ -54,15 +56,19 @@ export async function loadMyContacts(): Promise<ContactsResult<{ contacts: Conta
   }
 }
 
-/** Saves new and changed contacts (one batch). */
-export async function saveMyContacts(contacts: unknown): Promise<ContactsResult<object>> {
+/**
+ * Saves new and changed contacts (one batch), each with the version it was
+ * loaded at (null if new). Contacts another device saved since come back in
+ * `conflicts`, unsaved.
+ */
+export async function saveMyContacts(items: unknown): Promise<ContactsResult<{ versions: Record<string, number>; conflicts: string[] }>> {
   const db = await access();
   if (!db.ok) return db;
-  const checked = checkContacts(contacts);
+  const checked = checkSaveItems(items);
   if (!checked.ok) return checked;
   try {
-    await saveContacts(db.sql, db.userId, checked.contacts);
-    return { ok: true };
+    const { versions, conflicts } = await saveContacts(db.sql, db.userId, checked.items);
+    return { ok: true, versions, conflicts };
   } catch (error) {
     return failure("save contacts", error);
   }
@@ -82,14 +88,20 @@ export async function deleteMyContacts(ids: unknown): Promise<ContactsResult<obj
   }
 }
 
-/** Moves contacts kept in the browser into the account (one batch), never overwriting the account's. */
-export async function importMyContacts(contacts: unknown): Promise<ContactsResult<{ added: number }>> {
+/**
+ * Moves contacts kept in the browser into the account (one batch), never
+ * overwriting the account's. A contact that can't be accepted is skipped and
+ * listed, so one bad contact doesn't block the rest.
+ */
+export async function importMyContacts(
+  contacts: unknown,
+): Promise<ContactsResult<{ addedIds: string[]; skipped: SkippedContact[] }>> {
   const db = await access();
   if (!db.ok) return db;
-  const checked = checkContacts(contacts);
-  if (!checked.ok) return checked;
+  const sorted = sortContacts(contacts);
+  if (!sorted) return { ok: false, error: "Those contacts couldn't be read. Reload the page and try again." };
   try {
-    return { ok: true, added: await importContacts(db.sql, db.userId, checked.contacts) };
+    return { ok: true, addedIds: await importContacts(db.sql, db.userId, sorted.contacts), skipped: sorted.skipped };
   } catch (error) {
     return failure("import contacts", error);
   }

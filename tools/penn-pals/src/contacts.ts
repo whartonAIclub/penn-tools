@@ -650,6 +650,52 @@ export function parseStoredContacts(raw: string | null): Contact[] {
   });
 }
 
+/**
+ * The most steps and earlier chats a stored contact can hold. Higher than the
+ * form's MAX_STEPS because finished steps stay in the contact and repeating
+ * check-ins add one each time; this only stops runaway writes.
+ */
+const MAX_STORED_STEPS = 200;
+const MAX_STORED_CHATS = 200;
+const MAX_TAKEAWAYS = 100;
+const MAX_TAKEAWAY_LENGTH = 2000;
+
+/**
+ * A problem with a contact's size, or null when it's within the limits the form
+ * enforces (field lengths, notes) and the generous ones for what builds up over
+ * time (steps, chats, takeaways). The server runs this on everything it stores,
+ * since the form's checks only run in the browser.
+ */
+export function checkContactLimits(contact: Contact): string | null {
+  const shortFields = [
+    contact.name,
+    contact.relationshipOther,
+    contact.classYear,
+    contact.company,
+    contact.role,
+    contact.area,
+    contact.location,
+    contact.email,
+    contact.phone,
+    contact.linkedin,
+  ];
+  if (shortFields.some((value) => (value?.length ?? 0) > MAX_FIELD_LENGTH)) {
+    return `${contact.name}: a detail is longer than ${MAX_FIELD_LENGTH} characters.`;
+  }
+  if (contact.notes.length > MAX_NOTES_LENGTH) return `${contact.name}'s notes are too long.`;
+  if (contact.takeaways.length > MAX_TAKEAWAYS || contact.takeaways.some((t) => t.length > MAX_TAKEAWAY_LENGTH)) {
+    return `${contact.name} has too many or too long takeaways.`;
+  }
+  if (contact.nextSteps.length > MAX_STORED_STEPS) return `${contact.name} has too many next steps.`;
+  if (contact.nextSteps.some((s) => s.action.length > MAX_FIELD_LENGTH)) return `${contact.name} has a next step that is too long.`;
+  const past = contact.pastChats ?? [];
+  if (past.length > MAX_STORED_CHATS) return `${contact.name} has too many chats.`;
+  if (past.some((p) => p.notes.length > MAX_NOTES_LENGTH || p.takeaways.length > MAX_TAKEAWAYS || p.takeaways.some((t) => t.length > MAX_TAKEAWAY_LENGTH))) {
+    return `${contact.name} has an earlier chat with notes or takeaways that are too long.`;
+  }
+  return null;
+}
+
 /** One stored contact, brought up to the current shape and checked; null if it doesn't fit. */
 export function parseContact(item: unknown): Contact | null {
   const parsed = Contact.safeParse(migrateStored(item));
