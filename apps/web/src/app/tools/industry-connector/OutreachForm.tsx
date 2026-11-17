@@ -17,7 +17,7 @@ interface Option {
 
 /** Everything the form needs from the server, passed down from page.tsx. */
 export interface OutreachOptions {
-  /** Providers the user has saved keys for; empty when they have none. */
+  /** Providers the user can draft with; empty once their free credit is used and they've saved no key. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   /** The signed-in user's name, to start the "Your name" answer. */
@@ -30,7 +30,7 @@ export interface OutreachOptions {
   afterConversation: string[];
 }
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
+const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 export function OutreachForm({
   person,
@@ -66,26 +66,13 @@ export function OutreachForm({
   const set = (field: keyof typeof answers) => (e: { target: { value: string } }) =>
     setAnswers((a) => ({ ...a, [field]: e.target.value }));
 
-  if (!provider) {
-    return (
-      <div className={styles.outreach}>
-        <p className={styles.muted}>
-          Drafting notes uses your own AI API key.{" "}
-          <Link href="/settings" className={styles.link}>
-            Add one in Settings
-          </Link>
-          , then come back.
-        </p>
-      </div>
-    );
-  }
-
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!provider) return;
     setCopied(false);
     startTransition(async () => {
       try {
-        const res = await draftNote({ personId: person.id, industry, provider: provider!, answers });
+        const res = await draftNote({ personId: person.id, industry, provider, answers });
         if (res.ok) {
           setError(null);
           setDraft(res.data);
@@ -232,11 +219,22 @@ export function OutreachForm({
           <textarea value={answers.extraNotes} onChange={set("extraNotes")} maxLength={400} rows={2} />
         </label>
 
-        <div>
-          <button type="submit" className={styles.button} disabled={pending}>
-            {pending ? "Drafting…" : draft ? "Draft again" : "Draft note"}
-          </button>
-        </div>
+        {provider ? (
+          <div>
+            <button type="submit" className={styles.button} disabled={pending}>
+              {pending ? "Drafting…" : draft ? "Draft again" : "Draft note"}
+            </button>
+          </div>
+        ) : (
+          // The questions still show, so students can see what the draft uses.
+          <p className={styles.muted}>
+            Drafting needs AI access: you&apos;ve used your free AI credit.{" "}
+            <Link href="/settings" className={styles.link}>
+              Add your own API key in Settings
+            </Link>{" "}
+            to draft this note.
+          </p>
+        )}
       </form>
 
       {error && (

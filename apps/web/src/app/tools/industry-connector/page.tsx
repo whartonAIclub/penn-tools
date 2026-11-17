@@ -1,7 +1,7 @@
 // Industry Connections Tool: choose an industry, see Wharton students and
 // alumni who have worked in it, and draft an outreach note to one of them.
-// Signed-out visitors are asked to sign in. Search works without an API key;
-// drafting notes uses the user's own key from Settings.
+// Signed-out visitors are asked to sign in. Drafting notes runs on the user's
+// free AI credit, then on their own key from Settings; search needs neither.
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
@@ -28,7 +28,8 @@ export default async function IndustryConnectorPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Industry Connections Tool" />;
 
-  const providers = await (await getAI())!.providers();
+  // Empty once the user has used their free AI credit and saved no key; search still works then.
+  const providers = await (await getAI("industry-connector"))!.providers();
 
   return (
     <IndustryConnector
