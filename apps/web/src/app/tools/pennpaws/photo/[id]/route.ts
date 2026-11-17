@@ -10,11 +10,13 @@ import { ALLOW_LOCAL_TEST_ACCOUNT } from "../../school";
 
 const DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/;
 
-export async function GET(_req: Request, { params }: { params: { id: string } }): Promise<Response> {
+// Next 16 hands route params over as a promise.
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
+  const { id } = await params;
   const user = await getCurrentUser();
   const sql = toolSql("pennpaws");
   if (!user || !sql) return new Response(null, { status: 404 });
-  const photo = await requestPhoto(sql, user.id, String(params.id), isTeamEmail(user.email, ALLOW_LOCAL_TEST_ACCOUNT));
+  const photo = await requestPhoto(sql, user.id, String(id), isTeamEmail(user.email, ALLOW_LOCAL_TEST_ACCOUNT));
   const parts = photo ? DATA_URL.exec(photo) : null;
   if (!parts) return new Response(null, { status: 404 });
   return new Response(Buffer.from(parts[2]!, "base64"), {
