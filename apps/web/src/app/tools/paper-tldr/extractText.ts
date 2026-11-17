@@ -3,10 +3,11 @@
 
 export async function extractPdfText(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  // The worker is bundled with the app, as AskPenn does, rather than loaded from a CDN.
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.js", import.meta.url).toString();
 
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false })
+    .promise;
   const pages: string[] = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {

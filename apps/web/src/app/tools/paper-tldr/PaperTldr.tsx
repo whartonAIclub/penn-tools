@@ -82,7 +82,14 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
     setSummary(null);
     try {
       setStatus("reading");
-      const text = await extractPdfText(file);
+      let text: string;
+      try {
+        text = await extractPdfText(file);
+      } catch (err) {
+        console.error("Paper TL;DR: reading the PDF failed", err);
+        setError("We couldn't read that PDF. Try again, or try a different file.");
+        return;
+      }
       setStatus("summarizing");
       const result = await simplifyPaper(provider, text);
       if (result.ok) {
@@ -98,10 +105,8 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
         setKeyProblem(KEY_ERRORS.has(result.error.kind ?? ""));
       }
     } catch (err) {
-      console.error(err);
-      setError(
-        "We couldn't read that PDF. Try again, or try a different file.",
-      );
+      console.error("Paper TL;DR: the summary request failed", err);
+      setError("We couldn't reach the server. Check your connection and try again.");
     } finally {
       setStatus("idle");
     }
