@@ -105,7 +105,7 @@ function PdfCanvasViewer({ fileUrl }: { fileUrl: string }) {
     (async () => {
       const pdfjsLib = await import("pdfjs-dist");
       pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-      const pdf = await pdfjsLib.getDocument(fileUrl).promise;
+      const pdf = await pdfjsLib.getDocument({ url: fileUrl, isEvalSupported: false }).promise;
       const dpr = window.devicePixelRatio || 1;
       const result: PageData[] = [];
       for (let i = 1; i <= pdf.numPages; i++) {

@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -29,19 +29,20 @@
     "@penntools/tool-recruiting-helper": "workspace:*",
     "@penntools/tool-resume-customizer": "workspace:*",
     "@penntools/tool-student-discount-maximizer": "workspace:*",
+    "@penntools/tool-wemba-sync": "workspace:*",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
-    "jszip": "^3.10.1",
-    "mammoth": "^1.12.0",
-    "next": "^14.2.0",
+    "jspdf": "^4.2.1",
+    "jszip": "^3.10.2",
+    "mammoth": "^1.13.0",
+    "next": "^16.4.6",
     "next-auth": "^4.24.15",
     "pdfjs-dist": "3",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.1"
   }

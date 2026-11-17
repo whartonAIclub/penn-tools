@@ -14,8 +14,6 @@ export class NonWhartonCourseManagerTool extends Tool {
     // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
     // in @penntools/core/tools. To add a category, ask the Platform team.
     category: "Academics",
-    // Shown as BETA until the tool is ready; delete this line then.
-    beta: true,
     // The page uses the whole page area (stepper beside the steps), not the 720px column.
     fullWidth: true,
   };

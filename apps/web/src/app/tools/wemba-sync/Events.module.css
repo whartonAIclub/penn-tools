@@ -1,0 +1,255 @@
+.events {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 240px;
+}
+
+/* Shown while a file is dragged over the tab. */
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--penn-blue);
+  border-radius: 12px;
+  background: rgba(245, 247, 255, 0.92);
+  color: var(--penn-blue);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.addBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Adding ────────────────────────────────────────────────────────────────── */
+
+.addPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fieldLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+
+.paste,
+.fields input,
+.fields textarea {
+  width: 100%;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+.paste { resize: vertical; }
+.paste:focus,
+.fields input:focus,
+.fields textarea:focus { outline: 2px solid var(--penn-blue); outline-offset: -1px; }
+
+.attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.attached {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 6px 4px 12px;
+  border-radius: 999px;
+  background: var(--nav-active);
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.unattach {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--section-label);
+}
+.unattach:hover { background: var(--bg); color: var(--text); }
+
+.addOptions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.secondary {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 999px;
+  color: var(--penn-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.secondary:hover { background: color-mix(in srgb, var(--penn-blue) 8%, var(--bg)); }
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin: 0;
+  padding: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.wide { grid-column: 1 / -1; }
+
+.discard {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ── The list ──────────────────────────────────────────────────────────────── */
+
+.listTitle {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.past { margin-top: 10px; opacity: 0.6; }
+
+.pastToggle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--penn-blue);
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--event);
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.dateBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--event) 12%, var(--bg));
+  color: var(--event);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+.dateBadge strong { font-size: 1.25rem; line-height: 1.1; }
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cardTitle { font-size: 0.95rem; }
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 6px;
+}
+
+.rsvp {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.rsvp button {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.rsvp button:hover { color: var(--text); }
+.rsvp button[aria-pressed="true"] { background: var(--event); color: #fff; }
+
+@media (max-width: 520px) {
+  .fields { grid-template-columns: 1fr; }
+}
+
+/* ── Theme: building bricks (see WembaSync.module.css) ───────────────────────
+   Event cards are white tiles with a navy edge and a green brick for a date. */
+.bricks .card {
+  border: 2.5px solid var(--ink, #1b2a3a);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 0 var(--ink, #1b2a3a);
+}
+.bricks .dateBadge {
+  border: 2px solid var(--ink, #1b2a3a);
+  border-radius: 4px;
+  background: #e5eee4;
+  color: var(--event-text, #046a4c);
+  box-shadow: inset 0 -4px 0 rgba(95, 140, 99, 0.35);
+}
+.bricks .dateBadge strong { font-family: var(--font-brick), sans-serif; font-weight: 400; font-size: 1.4rem; }
+.bricks .secondary {
+  border: 2.5px solid var(--ink, #1b2a3a);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--ink, #1b2a3a);
+  box-shadow: inset 0 -4px 0 var(--border);
+}
+.bricks .secondary:hover { background: var(--paper, #f7f2e4); }
+.bricks .rsvp { border: 2px solid var(--ink, #1b2a3a); border-radius: 5px; background: #ffffff; }
+.bricks .rsvp button { border-radius: 3px; }
+.bricks .dropOverlay { border: 3px dashed var(--ink, #1b2a3a); border-radius: 8px; background: rgba(247, 242, 228, 0.94); color: var(--ink, #1b2a3a); }
+.bricks .pastToggle { color: var(--brick-blue, #33618c); }

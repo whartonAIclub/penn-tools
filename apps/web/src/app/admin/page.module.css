@@ -1,4 +1,4 @@
-/* The admin page: AI usage (summary figures, then wide tables that scroll sideways on narrow screens) and the admins. */
+/* The admin page: AI usage (summary figures, then tables in components/layout/DataTable.module.css) and the admins. */
 
 .page {
   max-width: 1040px;
@@ -33,35 +33,6 @@
 .statValue {
   font-size: 1.5rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.tableWrap {
-  overflow-x: auto;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.table th,
-.table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-  white-space: nowrap;
-}
-
-.table th {
-  font-weight: 600;
-  color: var(--section-label);
-}
-
-.num {
-  text-align: right !important;
   font-variant-numeric: tabular-nums;
 }
 
