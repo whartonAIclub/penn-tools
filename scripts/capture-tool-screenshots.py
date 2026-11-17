@@ -72,7 +72,6 @@ TARGETS = {
     "resume-customizer": local("/tools/resume-customizer"),
     "career-canvas": local("/tools/career-canvas"),
     "coursematch-assist": local("/tools/coursematch-assist"),
-    "penn-planner": local("/tools/penn-planner"),
     "pitch-coach": local("/tools/pitch-coach"),
     "platform-playground": local("/tools/platform-playground"),
     "askpenn": local("/tools/askpenn"),

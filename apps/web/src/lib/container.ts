@@ -36,18 +36,12 @@ import type { UserId } from "@penntools/core/types";
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
 import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
-// import { Tool3 } from "@penntools/tool-3";
-// toolRegistry.register(new Tool3());
 import { ResumeCustomizerTool } from "@penntools/tool-resume-customizer";
 toolRegistry.register(new ResumeCustomizerTool());
 import { CareerCanvasTool } from "@penntools/tool-career-canvas";
 toolRegistry.register(new CareerCanvasTool());
-import { PennPlannerTool } from "@penntools/tool-penn-planner";
-toolRegistry.register(new PennPlannerTool());
 import { CourseMatchAssistTool } from "@penntools/tool-coursematch-assist";
 toolRegistry.register(new CourseMatchAssistTool());
-// import { Tool18 } from "@penntools/tool-18";
-// toolRegistry.register(new Tool18());
 import { PitchCoachTool } from "@penntools/tool-pitch-coach";
 toolRegistry.register(new PitchCoachTool());
 import { AskPennTool } from "@penntools/tool-askpenn";

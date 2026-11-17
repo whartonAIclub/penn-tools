@@ -438,10 +438,9 @@ Key design choices:
 
 The platform's env var reads happen in `packages/platform`,
 `apps/web/src/lib/container.ts` and `apps/web/src/lib/auth.ts`; `core` and tool
-packages (`tools/*`) never access `process.env`. Two older tools read their own
-variables in their pages and routes: Compass (`COMPASS_ICS_FEED_URL`,
-`TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`) and Penn Planner
-(`NEXT_PUBLIC_GCAL_CLIENT_ID`).
+packages (`tools/*`) never access `process.env`. One older tool reads its own
+variables in its pages and routes: Compass (`COMPASS_ICS_FEED_URL`,
+`TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`).
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
