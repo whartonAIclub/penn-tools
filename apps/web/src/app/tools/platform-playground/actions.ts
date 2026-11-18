@@ -52,7 +52,7 @@ async function run<T>(fn: () => Promise<T>): Promise<DemoResult<T>> {
 }
 
 export async function generate(provider: AIProvider, prompt: string): Promise<DemoResult<GenerateResult>> {
-  const ai = await getAI();
+  const ai = await getAI(TOOL_ID);
   if (!ai) return signedOut;
   const problem = checkText(prompt, "a prompt", MAX_PROMPT_LENGTH);
   if (problem) return invalid(problem);
@@ -61,7 +61,7 @@ export async function generate(provider: AIProvider, prompt: string): Promise<De
 }
 
 export async function extract(provider: AIProvider, syllabus: string): Promise<DemoResult<SyllabusTasks>> {
-  const ai = await getAI();
+  const ai = await getAI(TOOL_ID);
   if (!ai) return signedOut;
   const problem = checkText(syllabus, "a syllabus excerpt", MAX_SYLLABUS_LENGTH);
   if (problem) return invalid(problem);

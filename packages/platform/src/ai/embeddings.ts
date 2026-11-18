@@ -2,29 +2,31 @@
 // Query embeddings for a user
 //
 // Embeds with the user's OpenAI key when they've saved one, otherwise with the
-// platform's. Each call on the platform's key writes one log line
-// ("embeddings.platform_key") so it's visible how often, and for whom, the
-// platform pays; the cost itself shows on that key in OpenAI's usage dashboard.
-// Seeds use OpenAIEmbeddingAdapter with the platform's key directly.
+// platform's. Every call is reported to `recordUsage` with whose key paid, so
+// the platform's spend shows against the user and tool like the AI API's.
+// Embeddings cost little next to generation, so they aren't stopped when the
+// free credit is used up. Seeds use OpenAIEmbeddingAdapter with the platform's
+// key directly, and aren't recorded.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import OpenAI from "openai";
 import type { EmbeddingProvider } from "@penntools/core/embeddings";
 import type { Logger } from "@penntools/core/tools";
 import { toAIError } from "./errors.js";
+import { callCost, recordSafely } from "./usage.js";
+import type { RecordUsage } from "./usage.js";
 
 export interface CreateUserEmbeddingsOptions {
   userKey: string | null;
   platformKey: string | null;
   model: string;
+  recordUsage: RecordUsage;
   logger: Logger;
-  /** Added to the log line written when the platform's key is used, e.g. { userId, toolId }. */
-  logFields: Record<string, unknown>;
 }
 
 /** Null when there is neither a user key nor a platform key. */
 export function createUserEmbeddings(options: CreateUserEmbeddingsOptions): EmbeddingProvider | null {
-  const { userKey, platformKey, model, logger, logFields } = options;
+  const { userKey, platformKey, model, recordUsage, logger } = options;
   const apiKey = userKey ?? platformKey;
   if (!apiKey) return null;
   const client = new OpenAI({ apiKey, timeout: 15_000 });
@@ -32,14 +34,20 @@ export function createUserEmbeddings(options: CreateUserEmbeddingsOptions): Embe
   async function embedMany(texts: string[]): Promise<number[][]> {
     try {
       const response = await client.embeddings.create({ model, input: texts });
-      if (!userKey) {
-        logger.info("embeddings.platform_key", {
-          ...logFields,
+      const inputTokens = response.usage.prompt_tokens;
+      await recordSafely(
+        recordUsage,
+        {
+          provider: "openai",
           model,
-          inputs: texts.length,
-          tokens: response.usage.prompt_tokens,
-        });
-      }
+          keySource: userKey ? "user" : "platform",
+          inputTokens,
+          outputTokens: 0,
+          costUsd: callCost(model, inputTokens, 0, logger),
+          estimated: false,
+        },
+        logger,
+      );
       return response.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
     } catch (error) {
       throw toAIError("openai", error, logger);

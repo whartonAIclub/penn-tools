@@ -5,11 +5,22 @@
 // Scans every tool's code (tools/*, apps/web/src/app/tools/*) and fails if it:
 //   - imports an AI vendor SDK (openai, @anthropic-ai/sdk) or calls their APIs
 //     directly: tools use the AI API (@penntools/core/ai) instead
-//   - touches users' saved API keys (userApiKeys) or builds an AI object for an
-//     arbitrary user (createUserAI, createUserEmbeddingProvider): tools use
+//   - touches users' saved API keys (userApiKeys) or AI usage (aiUsage,
+//     freeCreditLeft), or builds an AI object for an arbitrary user
+//     (createUserAI, createUserEmbeddingProvider): tools use
 //     getAI / getEmbeddings, which are bound to the signed-in user
+//   - imports the platform's admins or tool visits (admins, toolVisits)
 //   - imports Prisma or platform internals; the one platform import allowed is
 //     toolSql from @penntools/platform/db
+//   - opens a PDF with pdfjs's getDocument without isEvalSupported: false
+//     (a malicious PDF could run code, CVE-2024-4367), or imports pdfjs's
+//     legacy build, which only the server uses: server code opens PDFs with
+//     withPdf / pdfPageCount from @/lib/pdf. These checks read the source
+//     text, so they catch mistakes, not deliberate workarounds (a renamed
+//     getDocument, or options built in another variable)
+//   - lists the AI error kinds the user fixes in Settings itself (a list naming
+//     both "missing_key" and "invalid_key"): tools call isSettingsError from
+//     @penntools/core/ai/errors, so the list is kept in one place
 //
 // It also checks that each tool's manifest says whether it's still on the
 // legacy LLM API (POST /api/llm/complete): notYetMigrated: true when the tool's
@@ -47,8 +58,14 @@ const RULES = [
   },
   {
     name: "users' API keys",
-    test: (src) => matches(src, /\b(?:userApiKeys|createUserAI|createUserEmbeddingProvider)\b/g),
+    test: (src) => matches(src, /\b(?:userApiKeys|aiUsage|freeCreditLeft|createUserAI|createUserEmbeddingProvider)\b/g),
     fix: "use getAI / getEmbeddings from @/lib/ai, which read keys for the signed-in user",
+  },
+  {
+    name: "platform data",
+    test: (src) =>
+      matches(src, /import\s+(?:type\s+)?\{[^}]*\b(?:admins|toolVisits)\b[^}]*\}\s*from\s*["']@\/lib\/container["']/g),
+    fix: "admins and tool visits are the platform's; tools don't read or change them",
   },
   {
     name: "Prisma",
@@ -60,10 +77,54 @@ const RULES = [
     test: platformImports,
     fix: "the only platform import tools may use is toolSql from @penntools/platform/db",
   },
+  {
+    name: "unsafe PDF",
+    test: unsafeGetDocument,
+    fix: "pass isEvalSupported: false to getDocument, or on the server use withPdf / pdfPageCount from @/lib/pdf",
+  },
+  {
+    name: "pdfjs legacy build",
+    test: (src) => matches(src, /["']pdfjs-dist\/legacy\//g),
+    fix: "open PDFs on the server with withPdf / pdfPageCount from @/lib/pdf",
+  },
+  {
+    name: "Settings error list",
+    test: settingsErrorLists,
+    fix: "call isSettingsError(kind) from @penntools/core/ai/errors instead of listing the error kinds",
+  },
 ];
 
 function matches(src, regex) {
   return [...src.matchAll(regex)].map((m) => m.index);
+}
+
+/** getDocument(...) calls whose arguments don't include isEvalSupported: false. */
+function unsafeGetDocument(src) {
+  const found = [];
+  for (const m of src.matchAll(/\bgetDocument\s*\(/g)) {
+    // The arguments run to the parenthesis that closes the call.
+    let depth = 1;
+    let end = m.index + m[0].length;
+    while (end < src.length && depth > 0) {
+      if (src[end] === "(") depth++;
+      else if (src[end] === ")") depth--;
+      end++;
+    }
+    const args = src.slice(m.index + m[0].length, end - 1);
+    if (!/\bisEvalSupported\s*:\s*false\b/.test(args)) found.push(m.index);
+  }
+  return found;
+}
+
+/**
+ * Hand-written lists of the AI error kinds Settings fixes: array literals
+ * (including a Set's) naming both "missing_key" and "invalid_key". One kind on
+ * its own, such as a route's own { kind: "missing_key" }, is fine.
+ */
+function settingsErrorLists(src) {
+  return [...src.matchAll(/\[[^[\]]*\]/g)]
+    .filter((m) => /["'`]missing_key["'`]/.test(m[0]) && /["'`]invalid_key["'`]/.test(m[0]))
+    .map((m) => m.index);
 }
 
 /** Imports from @penntools/platform other than `{ toolSql }` from @penntools/platform/db. */

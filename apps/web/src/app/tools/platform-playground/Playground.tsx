@@ -7,6 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { AIProvider, GenerateResult } from "@penntools/core/ai";
 import type { ScoredResource, SyllabusTasks } from "@penntools/tool-platform-playground";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { extract, generate, search, type DemoError, type DemoResult } from "./actions";
 import styles from "./Playground.module.css";
 
@@ -15,8 +16,6 @@ type Status<T> =
   | { state: "loading" }
   | { state: "done"; data: T }
   | { state: "error"; error: DemoError };
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 
 /** Runs a server action and tracks its status. If the call itself fails (e.g. offline), that's an error too. */
 function useDemo<T>() {
@@ -39,7 +38,7 @@ export function Playground({
   sampleSyllabus,
   limits,
 }: {
-  /** Providers the user has saved keys for; never empty. */
+  /** Providers the user can call (ai.providers()); never empty. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
   sampleSyllabus: string;
@@ -51,7 +50,8 @@ export function Playground({
     <div className={styles.page}>
       <h1 className={styles.title}>Platform Playground</h1>
       <p className={styles.intro}>
-        Working examples of the platform APIs, running with your own API keys. Each card&apos;s logic is in{" "}
+        Working examples of the platform APIs, running on your free AI credit and then your own API keys. Each
+        card&apos;s logic is in{" "}
         <code>tools/platform-playground/src/demos.ts</code> and its server action in <code>actions.ts</code>. For
         streaming, chat history and a tool&apos;s own database, see{" "}
         <Link href="/tools/askpenn" className={styles.link}>
@@ -323,7 +323,7 @@ function Outcome<T>({ status, children }: { status: Status<T>; children: (data: 
   return (
     <p className={styles.error}>
       {status.error.message}
-      {status.error.kind && KEY_PROBLEMS.has(status.error.kind) && (
+      {isSettingsError(status.error.kind) && (
         <>
           {" "}
           <Link href="/settings" className={styles.link}>

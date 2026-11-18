@@ -17,8 +17,7 @@
 
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, connection } from "next/server";
 import { getServerSession, type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -124,9 +123,9 @@ export const authOptions: NextAuthOptions = {
  * header and the page share one lookup.
  */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
-  // Read the request's cookies even when sign-in is unavailable, so Next.js
-  // always renders callers per request instead of prerendering them signed out.
-  cookies();
+  // Call connection() even when sign-in is unavailable, so Next.js always
+  // renders callers per request instead of prerendering them signed out.
+  await connection();
   if (!signInProvider) return null;
 
   const session = await getServerSession(authOptions);

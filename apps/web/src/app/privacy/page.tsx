@@ -4,6 +4,7 @@
 // date, before a tool starts handling new data or requests a new scope.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import cardPage from "@/components/layout/CardPage.module.css";
 import styles from "./page.module.css";
 
@@ -18,7 +19,7 @@ export default function PrivacyPage() {
     <div className={cardPage.page}>
       <div>
         <h1 className={cardPage.title}>Privacy policy</h1>
-        <p className={cardPage.muted}>Last updated: October 29, 2026</p>
+        <p className={cardPage.muted}>Last updated: November 17, 2026</p>
       </div>
 
       <p>
@@ -39,6 +40,18 @@ export default function PrivacyPage() {
             tools can make AI requests for you. Your key is used only for your own requests.
           </li>
           <li>
+            <strong>How much you use AI features.</strong> For each AI request we record which tool made it, the
+            model, how many tokens it used, what it cost and whose key paid, so we can give everyone free AI credit
+            and see what our tools cost to run. We don&apos;t store the request itself here.
+          </li>
+          <li>
+            <strong>Which tools you open.</strong> Each time a tool is opened, or a link to a community tool on
+            another site is clicked, we record which tool and when, and who it was if they&apos;re signed in, so we can
+            see how much each tool is used. We publish each tool&apos;s totals on our{" "}
+            <Link href="/stats" className={cardPage.link}>stats page</Link>, and the most-visited tools on the home
+            page, never who visited.
+          </li>
+          <li>
             <strong>What you enter into tools.</strong> Some tools save what you enter so you can come back to it,
             such as chat history.
           </li>
@@ -46,18 +59,7 @@ export default function PrivacyPage() {
       </section>
 
       <section className={cardPage.card}>
-        <h2 className={styles.heading}>Google Calendar (Penn Planner)</h2>
-        <p>
-          If you connect Google Calendar, Penn Planner reads your calendar events to find when you&apos;re busy, so
-          it doesn&apos;t suggest study blocks at those times, and adds the study blocks you choose to your
-          calendar. This happens entirely in your browser: your calendar data is not sent to or stored on
-          PennTools&apos; servers, is not sent to AI providers, and Penn Planner&apos;s access expires after one
-          hour. You can remove its access at any time at{" "}
-          <a className={cardPage.link} href="https://myaccount.google.com/permissions">
-            myaccount.google.com/permissions
-          </a>
-          .
-        </p>
+        <h2 className={styles.heading}>Google user data</h2>
         <p>
           PennTools&apos; use and transfer of information received from Google APIs will adhere to the{" "}
           <a className={cardPage.link} href="https://developers.google.com/terms/api-services-user-data-policy">
@@ -75,8 +77,9 @@ export default function PrivacyPage() {
             <strong>Railway</strong>, which hosts the site and its database.
           </li>
           <li>
-            <strong>OpenAI and Anthropic</strong>, which receive what you send to AI features. Requests use your
-            own API key where you&apos;ve saved one; some older features use PennTools&apos; key instead.
+            <strong>OpenAI and Anthropic</strong>, which receive what you send to AI features. Requests use
+            PennTools&apos; key until you&apos;ve used your free AI credit, then your own key where you&apos;ve saved
+            one.
           </li>
         </ul>
       </section>

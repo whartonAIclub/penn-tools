@@ -4,8 +4,9 @@
 // browser, so each one checks them before use. Keys are never logged or
 // returned; only SavedApiKey (the last four characters) goes back.
 //
-// Each action revalidates /settings: Next keeps visited pages in the browser's
-// router cache, which would otherwise show the key status from before the change.
+// Each action revalidates /settings: Next reuses a visited page when the user
+// goes back or forward, which would otherwise show the key status from before
+// the change.
 
 import { revalidatePath } from "next/cache";
 import type { ApiKeyProvider, SavedApiKey } from "@penntools/core/types";
