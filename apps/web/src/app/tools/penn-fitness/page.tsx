@@ -1,12 +1,41 @@
-// A placeholder page. To build the tool, see section 4 of CLAUDE.md: AskPenn
-// (tools/askpenn) and the Platform Playground (tools/platform-playground) are
-// the reference tools.
+// Penn Fitness: an AI health companion for Penn students. Each area has its
+// own folder beside this page (nutrition/ so far), with its logic in
+// tools/penn-fitness/src/. Signed-out visitors are asked to sign in; users
+// without a saved key see the page in preview mode.
 
-export default function PennFitnessPage() {
+import type { Metadata } from "next";
+import { PROVIDER_LABELS } from "@penntools/core/ai";
+import { MAX_MEAL_TEXT_LENGTH, SAMPLE_MEAL_LOG, SAMPLE_MEAL_TEXT } from "@penntools/tool-penn-fitness";
+import { getAI } from "@/lib/ai";
+import { getCurrentUser } from "@/lib/auth";
+import { SignInPrompt } from "@/components/layout/SignInPrompt";
+import { Nutrition } from "./nutrition/Nutrition";
+import styles from "./page.module.css";
+
+export const metadata: Metadata = {
+  title: "Penn Fitness",
+};
+
+export default async function PennFitnessPage() {
+  const user = await getCurrentUser();
+  if (!user) return <SignInPrompt title="Penn Fitness" />;
+
+  const providers = await (await getAI())!.providers();
+
   return (
-    <div>
-      <h1>{"Penn Fitness"}</h1>
-      <p>{"An AI health companion for Penn students that brings nutrition, fitness, mental wellbeing, and access to care into one personalized platform."}</p>
+    <div className={styles.page}>
+      <h1 className={styles.title}>
+        Penn Fitness <span className={styles.section}>· Nutrition</span>
+      </h1>
+      <Nutrition
+        userId={user.id}
+        userName={user.name ?? null}
+        providers={providers}
+        labels={PROVIDER_LABELS}
+        sampleText={SAMPLE_MEAL_TEXT}
+        sampleLog={SAMPLE_MEAL_LOG}
+        maxLength={MAX_MEAL_TEXT_LENGTH}
+      />
     </div>
   );
 }

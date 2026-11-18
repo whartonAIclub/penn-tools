@@ -239,6 +239,9 @@ importers:
       '@penntools/core':
         specifier: workspace:*
         version: link:../../packages/core
+      ical.js:
+        specifier: ^2
+        version: 2.2.1
     devDependencies:
       typescript:
         specifier: ^5.4.0
@@ -1059,6 +1062,9 @@ packages:
   human-signals@5.0.0:
     resolution: {integrity: sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==}
     engines: {node: '>=16.17.0'}
+
+  ical.js@2.2.1:
+    resolution: {integrity: sha512-yK/UlPbEs316igb/tjRgbFA8ZV75rCsBJp/hWOatpyaPNlgw0dGDmU+FoicOcwX4xXkeXOkYiOmCqNPFpNPkQg==}
 
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
@@ -2421,6 +2427,8 @@ snapshots:
     optional: true
 
   human-signals@5.0.0: {}
+
+  ical.js@2.2.1: {}
 
   immediate@3.0.6: {}
 

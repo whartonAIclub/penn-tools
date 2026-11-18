@@ -1,0 +1,27 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.section {
+  margin: 0;
+  display: inline;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--section-label);
+}
