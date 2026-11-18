@@ -637,7 +637,7 @@ function FillWithAI({
     return (
       <p className={styles.hint}>
         You&apos;ve used your free AI credit. Add an OpenAI or Anthropic key in{" "}
-        <Link href="/settings" className={styles.link}>
+        <Link href="/settings" className={styles.link} target="_blank" rel="noopener noreferrer">
           Settings
         </Link>{" "}
         to fill this form in from a screenshot, a photo of a sign or a deal&apos;s text.
@@ -765,7 +765,7 @@ function FillWithAI({
             <>
               {" "}
               Check your key in{" "}
-              <Link href="/settings" className={styles.link}>
+              <Link href="/settings" className={styles.link} target="_blank" rel="noopener noreferrer">
                 Settings
               </Link>
               .
