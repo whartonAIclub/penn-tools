@@ -27,7 +27,7 @@ export default async function HandoffPage() {
 
   try {
     // The world is "live", except in development, where a check's handoff-world cookie can name its own test world.
-    const worldId = resolveWorldId(cookies().get(WORLD_COOKIE)?.value, process.env.NODE_ENV);
+    const worldId = resolveWorldId((await cookies()).get(WORLD_COOKIE)?.value, process.env.NODE_ENV);
     if (!user) {
       // Signed out (or a server with no sign-in): published facts only, built with no viewer and writing nothing (C-CONTRACT §7).
       // A guest signs in with the platform's own provider at an action; null means this server has none yet, and browsing still works.

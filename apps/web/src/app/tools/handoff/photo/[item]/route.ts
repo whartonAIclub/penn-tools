@@ -20,13 +20,15 @@ export const dynamic = "force-dynamic";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-export async function GET(req: Request, { params }: { params: { item: string } }): Promise<Response> {
+export async function GET(req: Request, { params }: { params: Promise<{ item: string }> }): Promise<Response> {
+  // Next.js 15 and later hand a route its params, and the request's cookies, asynchronously.
+  const [{ item }, jar] = await Promise.all([params, cookies()]);
   const ctx: ActionContext = {
     user: () => getCurrentUser(),
     sql: () => toolSql("handoff"),
-    worldId: () => resolveWorldId(cookies().get(WORLD_COOKIE)?.value, process.env.NODE_ENV),
+    worldId: () => resolveWorldId(jar.get(WORLD_COOKIE)?.value, process.env.NODE_ENV),
   };
-  const answer = await handleGetPhoto(ctx, { itemId: params.item, version: new URL(req.url).searchParams.get("v") ?? undefined });
+  const answer = await handleGetPhoto(ctx, { itemId: item, version: new URL(req.url).searchParams.get("v") ?? undefined });
   if (!answer.ok) return new Response(null, { status: answer.status, headers: NO_STORE });
   const { photo } = answer;
   const headers = {

@@ -36,11 +36,12 @@ import {
 import { getCurrentUser, signInProvider } from "@/lib/auth";
 import { WORLD_COOKIE, resolveWorldId } from "./world";
 
-function context(): ActionContext {
+async function context(): Promise<ActionContext> {
+  const jar = await cookies(); // Next.js 15 and later read the request's cookies asynchronously
   return {
     user: () => getCurrentUser(),
     sql: () => toolSql("handoff"),
-    worldId: () => resolveWorldId(cookies().get(WORLD_COOKIE)?.value, process.env.NODE_ENV),
+    worldId: () => resolveWorldId(jar.get(WORLD_COOKIE)?.value, process.env.NODE_ENV),
     // Anything but Google is the local development sign-in, which a real email provider never sends to (email/gates.ts).
     signIn: () => (signInProvider === "google" ? "google" : "dev"),
   };
@@ -48,7 +49,7 @@ function context(): ActionContext {
 
 /** One action, as the session's user: `requestId` is one UUID per intent, reused when retrying it. */
 export async function act(input: ActInput): Promise<ActAnswer> {
-  return handleAct(context(), input);
+  return handleAct(await context(), input);
 }
 
 /**
@@ -57,17 +58,17 @@ export async function act(input: ActInput): Promise<ActAnswer> {
  * answers about the guest view (C-CONTRACT §7).
  */
 export async function refresh(input: RefreshInput): Promise<RefreshAnswer> {
-  return handleRefresh(context(), input);
+  return handleRefresh(await context(), input);
 }
 
 /** Marks the viewer's own notifications read: some by id, or "all". */
 export async function markRead(input: MarkReadInput): Promise<MarkReadAnswer> {
-  return handleMarkRead(context(), input);
+  return handleMarkRead(await context(), input);
 }
 
 /** Saves the viewer's payment methods (0 to 2, the first preferred; none removes them) and answers with the fresh view. */
 export async function saveMyProfile(input: SaveProfileInput): Promise<ActAnswer> {
-  return handleSaveMyProfile(context(), input);
+  return handleSaveMyProfile(await context(), input);
 }
 
 /**
@@ -76,5 +77,5 @@ export async function saveMyProfile(input: SaveProfileInput): Promise<ActAnswer>
  * `email` shows the result.
  */
 export async function saveEmailPrefs(input: SaveEmailPrefsInput): Promise<ActAnswer> {
-  return handleSaveEmailPrefs(context(), input);
+  return handleSaveEmailPrefs(await context(), input);
 }

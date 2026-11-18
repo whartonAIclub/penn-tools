@@ -12,8 +12,8 @@ export class HandoffTool extends Tool {
     description: "A peer-to-peer marketplace for Wharton students to list and find eligible event tickets, post ISO requests, and connect for permitted transfers.",
     contributors: ["Langston Chen"],
     // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
-    // in @penntools/core/tools. "LLM Tools" is the catch-all.
-    category: "LLM Tools",
+    // in @penntools/core/tools: campus life, events and clubs.
+    category: "Lifestyle",
     // Shown as BETA until the tool is ready; delete this line then.
     beta: true,
     fullWidth: true,
