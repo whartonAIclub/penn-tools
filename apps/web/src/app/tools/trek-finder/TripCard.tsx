@@ -13,6 +13,14 @@ import styles from "./TripCatalog.module.css";
 
 const NOTES = { started: "Trip has started", delisted: "No longer listed" } as const;
 
+/**
+ * The period label without a year at the end ("Winter Break 2026–27" becomes
+ * "Winter Break"), since the dates above it already show the year.
+ */
+export function shortPeriod(label: string): string {
+  return label.replace(/\s+\d{4}(\s*[–-]\s*\d{2,4})?$/, "").trim() || label;
+}
+
 export function TripCard({
   trip,
   today,
@@ -44,7 +52,7 @@ export function TripCard({
         <p className={styles.dates}>
           {formatDateRange(trip.startDate, trip.endDate)} ({days} {days === 1 ? "day" : "days"})
         </p>
-        {trip.periodLabel && <p className={styles.period}>{trip.periodLabel}</p>}
+        {trip.periodLabel && <p className={styles.period}>{shortPeriod(trip.periodLabel)}</p>}
         <PriceLine trip={trip} today={today} />
         {upcoming && !note && (
           <p className={styles.deadline}>
