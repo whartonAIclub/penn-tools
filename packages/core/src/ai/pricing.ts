@@ -3,9 +3,8 @@
 //
 // What each model costs, so the platform can record the cost of every AI call
 // and stop paying for a user once they've used their free credit. Owned by the
-// Platform team: when a provider changes its prices, or MODELS or the legacy
-// LLM API's defaults change, update MODEL_PRICES (a test checks that every
-// catalog model has a price).
+// Platform team: when a provider changes its prices or MODELS changes, update
+// MODEL_PRICES (a test checks that every catalog model has a price).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { MODELS } from "./models.js";
@@ -51,9 +50,6 @@ export const MODEL_PRICES: Readonly<Record<string, ModelPrice>> = {
   "gpt-6-luna": { input: 0.1, output: 0.5, longContext: { above: 272_000, input: 0.2, output: 0.75 } },
   "gpt-6.1-sol": { input: 2, output: 10, longContext: { above: 272_000, input: 4, output: 15 } },
   "gpt-6-astra": { input: 10, output: 50, longContext: { above: 272_000, input: 20, output: 75 } },
-  // The legacy LLM API's defaults
-  "claude-sonnet-4-6": { input: 3, output: 15 },
-  "gpt-4o": { input: 2.5, output: 10 },
   // Embeddings (EMBEDDING_MODEL), which have no output
   "text-embedding-3-small": { input: 0.02, output: 0 },
 };
@@ -69,7 +65,7 @@ export const UNKNOWN_MODEL_PRICE: ModelPrice = {
 
 /**
  * The price of `model`, or null if it has none. Providers may answer with a
- * dated snapshot of the model asked for (e.g. "gpt-4o-2024-08-06"), which takes
+ * dated snapshot of the model asked for (e.g. "gpt-6-luna-2026-09-01"), which takes
  * that model's price.
  */
 export function priceOf(model: string): ModelPrice | null {

@@ -95,9 +95,6 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 
 > **Usage:** Ask your coding agent: `Implement Database API and refer to the AskPenn (tools/askpenn) implementation for guidance.` The tool team writes `tools/{id}/schema.sql` (and, for reference data, `tools/{id}/seed.mjs`, as Student Discount Central does), and its routes or server actions pass `toolSql("<name>")` into the tool's functions. Registering the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs` is outside a tool team's scope, so ask the Platform team to add that one line.
 
-#### LLM API (legacy)
-`POST /api/llm/complete`, which uses a key the browser sends in `X-Api-Key`, or else the platform's while the user has free AI credit (the same credit as the AI API; once it's used, it answers `402`). Existing tools keep using it until they migrate; new tools use the AI API instead. A tool still on it sets `notYetMigrated: true` in its manifest, which shows it as BETA; `pnpm check:tools` fails if a tool calls the legacy API without it, or keeps it after migrating, so remove it when the tool moves to the AI API.
-
 ### How to add an API integration
 
 1. **Read the reference first.** Before writing any code, read the corresponding usage in one of the two reference tools.
@@ -141,7 +138,7 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 - **All changes must stay within the tool's two directories.** Only the APIs listed above are available. If a team needs something beyond these, explain that they should request it from the Platform team — do not add it yourself.
 - **Do not create routes under `apps/web/src/app/api/`.** Those are platform routes; only the Platform team creates them. A tool may add its own routes or server actions inside its landing page folder (`apps/web/src/app/tools/{id}/`), as AskPenn and the Platform Playground do.
 - **Do not duplicate platform logic.** If the Platform Playground or AskPenn already demonstrates the pattern, adapt it — don't reinvent it.
-- **New tools use the AI API, not the legacy LLM API.**
+- **Generate text through the AI API.** The legacy LLM API (`POST /api/llm/complete`) has been removed; `pnpm check:tools` fails a tool that still calls it.
 - **Never read users' saved API keys, or use them for anyone but the signed-in user.** Keys are stored in plain text. Tool code must not import `userApiKeys`, `aiUsage`, `freeCreditLeft`, `createUserAI` or `createUserEmbeddingProvider` from `@/lib/container`, or query the `user_api_keys` or `ai_usage` tables; use `getAI` and `getEmbeddings`. `pnpm check:tools` enforces this, along with no vendor SDKs, no direct provider API calls, no importing the platform's `admins` or `toolVisits`, and no platform imports besides `toolSql`.
 
 ---

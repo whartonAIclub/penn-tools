@@ -55,13 +55,6 @@ export interface ToolManifest {
   beta?: boolean;
   /** The tool's pages fill the whole page area instead of the centered 720px column. */
   fullWidth?: boolean;
-  /**
-   * Still on the legacy LLM API (POST /api/llm/complete) rather than the AI API.
-   * Not shown to users, except that the tool is shown as BETA until it migrates.
-   * `pnpm check:tools` keeps it accurate: it fails if a tool calls the legacy API
-   * without this, or has this and doesn't.
-   */
-  notYetMigrated?: boolean;
 }
 
 // ── Base class ────────────────────────────────────────────────────────────────

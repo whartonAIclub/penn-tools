@@ -37,27 +37,22 @@ describe("toolCatalog", () => {
     expect(outline(sections)).toEqual([["Recruiting", ["q", "b", "a"]]]);
   });
 
-  it("shows a tool as beta when its manifest says so or it hasn't migrated, and never a community tool", () => {
+  it("shows a tool as beta when its manifest says so, and never a community tool", () => {
     const tools = toolCatalog(
-      [
-        manifest("done", "Other"),
-        manifest("trying", "Other", { beta: true }),
-        manifest("legacy", "Other", { notYetMigrated: true }),
-      ],
+      [manifest("done", "Other"), manifest("trying", "Other", { beta: true })],
       [community("q", "Other")],
     ).flatMap((s) => s.tools);
     expect(Object.fromEntries(tools.map((t) => [t.visitId, t.beta]))).toEqual({
       "community-q": false,
       done: false,
       trying: true,
-      legacy: true,
     });
   });
 
   it("marks a section beta only when every tool in it is", () => {
     const sections = toolCatalog(
       [
-        manifest("a", "Other", { notYetMigrated: true }),
+        manifest("a", "Other", { beta: true }),
         manifest("b", "Other", { beta: true }),
         manifest("c", "Platform", { beta: true }),
         manifest("d", "Platform"),
@@ -88,9 +83,9 @@ describe("toolCatalog", () => {
 });
 
 describe("toolInfo", () => {
-  it("passes the header's details, and nothing private like notYetMigrated", () => {
+  it("passes the header's details, and nothing else from the manifest", () => {
     const info = toolInfo([
-      manifest("a", "Other", { title: "A", description: "Does A.", contributors: ["Ada"], mentor: "Grace", notYetMigrated: true }),
+      manifest("a", "Other", { title: "A", description: "Does A.", contributors: ["Ada"], mentor: "Grace", beta: true, fullWidth: true }),
       manifest("b", "Other", { mentor: "" }),
     ]);
     expect(info["a"]).toEqual({ title: "A", description: "Does A.", contributors: ["Ada"], mentor: "Grace" });

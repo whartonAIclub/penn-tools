@@ -108,8 +108,7 @@ On the app service (not the database), add:
 Optional:
 
 - `ANTHROPIC_API_KEY`: pays for Anthropic calls within each user's free AI
-  credit, and for older tools still on the legacy LLM API (it's preferred over
-  OpenAI there when set).
+  credit.
 
 ## 6. Get Google sign-in added for your instance
 

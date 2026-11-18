@@ -26,10 +26,8 @@ import type {
 import { createAI, createUserEmbeddings } from "@penntools/platform/ai";
 import { EMBEDDING_MODEL, FREE_CREDIT_USD, MIN_CALL_USD } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
-import { OpenAIAdapter, AnthropicAdapter } from "@penntools/platform/llm";
 import type { EmbeddingProvider } from "@penntools/core/embeddings";
 import { toolRegistry } from "@penntools/core/tools";
-import type { LLMProvider } from "@penntools/core/llm";
 import type { UserId } from "@penntools/core/types";
 
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
@@ -152,38 +150,6 @@ export async function createUserEmbeddingProvider(
     recordUsage: (usage) => aiUsage.record({ ...usage, userId, toolId, api: "embeddings" }),
     logger,
   });
-}
-
-// ── LLM provider (legacy) ─────────────────────────────────────────────────────
-// For existing tools only (/api/llm/complete); new tools use the AI API above.
-// Uses ANTHROPIC_API_KEY if set, else OPENAI_API_KEY.
-
-function createLLMProvider(): LLMProvider {
-  if (process.env["ANTHROPIC_API_KEY"]) {
-    return new AnthropicAdapter(process.env["ANTHROPIC_API_KEY"]);
-  }
-  if (process.env["OPENAI_API_KEY"]) {
-    return new OpenAIAdapter(process.env["OPENAI_API_KEY"]);
-  }
-  // No platform key: legacy requests fail with an authentication error, unless
-  // the browser sends its own key (X-Api-Key, see createLLMFromKey).
-  console.warn(
-    "[PennTools] Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is set — the legacy LLM API (/api/llm/complete) will fail without a browser-sent key."
-  );
-  return new OpenAIAdapter("missing-key");
-}
-
-export const llm: LLMProvider = createLLMProvider();
-
-/**
- * Create a per-request LLM provider from a user-supplied API key.
- * Detects provider by key prefix: "sk-ant-" → Anthropic, otherwise → OpenAI.
- */
-export function createLLMFromKey(apiKey: string): LLMProvider {
-  if (apiKey.startsWith("sk-ant-")) {
-    return new AnthropicAdapter(apiKey);
-  }
-  return new OpenAIAdapter(apiKey);
 }
 
 // ── Logger ────────────────────────────────────────────────────────────────────

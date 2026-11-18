@@ -12,14 +12,13 @@
 │  packages/platform  (reads env vars, constructs clients) │
 │   ├─ Prisma repositories                                 │
 │   ├─ AI adapters (OpenAI Responses, Anthropic Messages)  │
-│   ├─ Legacy LLM adapters (OpenAI, Anthropic)             │
 │   ├─ Embedding adapters (OpenAI)                         │
 │   └─ Tool databases (toolSql; setup-tools for db:deploy) │
 ├──────────────────────────────────────────────────────────┤
 │  packages/core  (pure interfaces, no env, no vendor SDK) │
 │   ├─ Tool (manifest), ToolRegistry, Logger               │
 │   ├─ AI API types, model catalog, AIError, z (Zod)       │
-│   ├─ EmbeddingProvider, legacy LLMProvider interfaces    │
+│   ├─ EmbeddingProvider interface                         │
 │   └─ Repository interfaces (User, UserApiKey)            │
 ├──────────────────────────────────────────────────────────┤
 │  tools/<tool_id>  (one folder per tool)                  │
@@ -79,7 +78,7 @@ export class AskPennTool extends Tool {
     category: "Platform", // one of TOOL_CATEGORIES in @penntools/core/tools
     beta: true,           // shown as BETA
     fullWidth: true,      // fill the page area, not the 720px column (see Page layout)
-    // and optionally a mentor, and notYetMigrated (below)
+    // and optionally a mentor
   };
 }
 ```
@@ -143,10 +142,10 @@ pages, routes and server actions.
 
 ## AI API
 
-New tools generate text and structured data through `@penntools/core/ai`;
-existing tools keep the legacy LLM API (`/api/llm/complete`)
-until they migrate, after which it is deleted. How to call it is in CLAUDE.md
-section 4; this section covers the design.
+Tools generate text and structured data through `@penntools/core/ai`. (The
+legacy LLM API, `/api/llm/complete`, was removed once every tool had moved off
+it; `pnpm check:tools` fails a tool that still calls it.) How to call the AI
+API is in CLAUDE.md section 4; this section covers the design.
 
 - **Keys stay server-side.** `createUserAI(userId, toolId)` in `container.ts`
   builds an `AI` bound to one user and tool. Tools get it from
@@ -183,13 +182,11 @@ section 4; this section covers the design.
   Since calls stop a little short of the credit, less left than the cheapest
   call reserves (`MIN_CALL_USD`, $0.002) counts as used: `providers()` drops
   the platform's providers and Settings shows none left.
-  The legacy LLM API reserves the same way, from a local estimate.
 - **Every call is recorded.** `createAI` reports each billed call's tokens,
   cost (from `MODEL_PRICES` in `pricing.ts`) and whose key paid; `container.ts`
   saves it in `ai_usage` with the user and tool. A stream cut short after the
   provider started answering is recorded with estimated tokens. Search-query
-  embeddings and the legacy LLM API are recorded the same way, and the legacy
-  API spends the same free credit. `/admin`, for admins only, shows spend by
+  embeddings are recorded the same way. `/admin`, for admins only, shows spend by
   tool and by user.
 - **One model catalog.** The tool picks the provider; models and their default
   reasoning come from `packages/core/src/ai/models.ts`, so changing a model is
@@ -307,11 +304,8 @@ Platform team adds categories. Each holds:
 - **Registered tools** whose manifest names that category, in the order
   `container.ts` registers them, so a tool appears as soon as it's registered.
 
-A registered tool is shown as **BETA** when its manifest sets `beta: true` or
-`notYetMigrated: true`. `notYetMigrated` marks a tool still on the legacy LLM
-API; it isn't shown to users except as BETA, and `pnpm check:tools` keeps it
-accurate (it fails if a tool calls `/api/llm/complete` without it, or has it and
-doesn't). A section whose tools are all in beta is marked BETA itself.
+A registered tool is shown as **BETA** when its manifest sets `beta: true`. A
+section whose tools are all in beta is marked BETA itself.
 
 ### Site sidebar
 
@@ -376,8 +370,9 @@ Key design choices:
   four characters. The repository is `userApiKeys` in `container.ts`; tool code
   must not import it (enforced by `pnpm check:tools`). The AI API reads keys on
   the tool's behalf.
-- `ai_usage` has one row per AI call: user, tool, API (AI, embeddings or
-  legacy), model, tokens, cost in USD, and whose key paid. A user's free credit
+- `ai_usage` has one row per AI call: user, tool, API (AI, embeddings, or
+  legacy for past calls of the removed legacy LLM API), model, tokens, cost in
+  USD, and whose key paid. A user's free credit
   is the sum of their `PLATFORM` rows, so costs are stored at the price when
   the call was made and a later price change doesn't rewrite them. A
   `pending` row is a reservation for a call in progress (its cost is the
@@ -450,8 +445,8 @@ packages (`tools/*`) never access `process.env`.
 | Variable | Used by | Purpose |
 |----------|---------|---------|
 | `DATABASE_URL` | platform/prisma, `db:deploy` | Postgres admin connection; tool role passwords are derived from it |
-| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy`, platform/llm | The AI API's OpenAI calls while a user has free credit; embeddings: tool seeds (skipped when unset) and search queries from users without their own OpenAI key. Also the legacy LLM API |
-| `ANTHROPIC_API_KEY` | web/lib/container, platform/llm | The AI API's Anthropic calls while a user has free credit, and the legacy LLM API |
+| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy` | The AI API's OpenAI calls while a user has free credit; embeddings: tool seeds (skipped when unset) and search queries from users without their own OpenAI key |
+| `ANTHROPIC_API_KEY` | web/lib/container | The AI API's Anthropic calls while a user has free credit |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | web/lib/auth | Google sign-in (OAuth client); without them, development signs in as a local user and production disables sign-in |
 | `NEXTAUTH_SECRET` | web/lib/auth | Signs session cookies; required with the Google credentials |
 | `NEXTAUTH_URL` | web/lib/auth | The site's public URL; required in production |

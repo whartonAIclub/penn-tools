@@ -34,7 +34,7 @@ describe("MIN_CALL_USD", () => {
 
 describe("priceOf", () => {
   it("gives a dated snapshot its model's price", () => {
-    expect(priceOf("gpt-4o-2024-08-06")).toBe(MODEL_PRICES["gpt-4o"]);
+    expect(priceOf("gpt-6-luna-2026-09-01")).toBe(MODEL_PRICES["gpt-6-luna"]);
   });
 
   it("is null for a model it doesn't know", () => {
