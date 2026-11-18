@@ -318,6 +318,13 @@ AnalyticsEvent
   user_id, name, payload (json), created_at
 ```
 
+**As built (step 2).** Where the code differs from the sketch above:
+- `UserPrefs` is split in two. A shared **profile** (`src/profile.ts`, table `profiles`) holds what the intake half needs too: home base, waking hours, semester dates. Exercise-only **preferences** (`src/outtake/prefs.ts`, table `outtake_prefs`) hold the weekly target, session length and preferred times.
+- `home_base` is `CAMPUS | CENTER_CITY`, plus a separate `has_building_gym` flag, instead of a third `BUILDING_GYM` value: a building gym is somewhere you live, not a third location, and the travel model needs to know which zone home is in.
+- Times are New York local strings (`"2026-11-17T07:30"`, `"07:30"`, `"2026-11-16"`; `src/time.ts`), stored as `TIMESTAMP`, `TIME` and `DATE` without time zones.
+- Domain types carry no `user_id`: storage scopes every query to the signed-in user, and the engine only ever sees one user's data.
+- `Facility` adds `hoursVerified`, and `lat`/`lng` are nullable until looked up. Every campus facility has placeholder hours for now.
+
 **Facility seed list for v1.** Hand-enter these, and verify hours before launch:
 - Pottruck, Fox Fitness, Penn Park, Sheerr Pool, Ringe Squash, Levy Tennis.
 - Four to six popular Rittenhouse or Center City gyms and studios. Mark these as TODOs to fill in.
@@ -345,7 +352,7 @@ AnalyticsEvent
 The engine is built and tested with hand-made fixture weeks before any ingestion exists. Ingestion only needs to produce `BusyBlock`s the engine already accepts. Each step is one or a few commits; tests must pass after every commit. Tick boxes as steps complete.
 
 - [x] **1. Kickoff (no code).** Summarize understanding, propose stack and folder structure, list questions. **Checkpoint: wait for stack confirmation.**
-- [ ] **2. Scaffold and foundations.** `chore: scaffold`, `feat(schedule): data model` (section 9), `feat(facilities): seed locations`, `feat(prefs): user preferences + dev auth seam`.
+- [x] **2. Scaffold and foundations.** `chore: scaffold`, `feat(schedule): data model` (section 9), `feat(facilities): seed locations`, `feat(prefs): user preferences + dev auth seam`.
 - [ ] **3. Test fixtures.** The five fixture weeks from section 8.3 as plain data, each with a comment describing what a good plan looks like, plus failing engine tests. `test(engine): fixture weeks and expectations`.
 - [ ] **4. Gap finder and travel model.** Section 8.3 step 1. `feat(engine): gap finder + travel model`.
 - [ ] **5. Scoring, plan, crunch, busyness.** Section 8.3 steps 2 to 5, as separate `feat(engine): ...` commits. All weights in one config object.
