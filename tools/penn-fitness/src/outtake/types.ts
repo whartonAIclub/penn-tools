@@ -29,6 +29,12 @@ export interface BusyBlock {
   confidence: number | null;
   /** The user has reviewed it; only confirmed blocks are planned around. */
   confirmed: boolean;
+  /**
+   * Where the user is during it, if known, so the engine knows where they're
+   * coming from and going to: timetable classes are CAMPUS. Null when unknown,
+   * and the engine assumes home.
+   */
+  zone: Zone | null;
 }
 
 /** A whole day away (a trek, travel): no workouts are suggested on it. */

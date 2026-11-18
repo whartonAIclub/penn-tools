@@ -327,6 +327,7 @@ AnalyticsEvent
 - Home is an area, `CAMPUS | CENTER_CITY`, plus an optional **nearest corner** (e.g. 23rd & Chestnut, which must be in that area) and a separate `hasBuildingGym` flag, instead of a third `BUILDING_GYM` value: a building gym is somewhere you live, not a third location.
 - Times are New York local strings (`"2026-11-17T07:30"`, `"07:30"`, `"2026-11-16"`; `src/time.ts`), stored as `TIMESTAMP`, `TIME` and `DATE` without time zones.
 - Domain types carry no `user_id`: storage scopes every query to the signed-in user, and the engine only ever sees one user's data.
+- `BusyBlock` adds `zone` (step 3): where the user is during it, if known. Timetable classes are `CAMPUS`; `null` means unknown, and the engine assumes home. The spec's "class blocks mean CAMPUS" needs this, since a block otherwise doesn't say where it is.
 - `Facility` adds a `corner` and a `verified` flag, and `lat`/`lng` are nullable until looked up. Every campus facility has placeholder hours and an approximate corner for now (`verified: false`).
 
 **Facility seed list for v1.** Hand-enter these, and verify hours before launch:
@@ -357,7 +358,7 @@ The engine is built and tested with hand-made fixture weeks before any ingestion
 
 - [x] **1. Kickoff (no code).** Summarize understanding, propose stack and folder structure, list questions. **Checkpoint: wait for stack confirmation.**
 - [x] **2. Scaffold and foundations.** `chore: scaffold`, `feat(schedule): data model` (section 9), `feat(facilities): seed locations`, `feat(prefs): user preferences + dev auth seam`.
-- [ ] **3. Test fixtures.** The five fixture weeks from section 8.3 as plain data, each with a comment describing what a good plan looks like, plus failing engine tests. `test(engine): fixture weeks and expectations`.
+- [x] **3. Test fixtures.** The five fixture weeks from section 8.3 as plain data, each with a comment describing what a good plan looks like, plus failing engine tests. `test(engine): fixture weeks and expectations`.
 - [ ] **4. Gap finder and travel model.** Section 8.3 step 1. `feat(engine): gap finder + travel model`.
 - [ ] **5. Scoring, plan, crunch, busyness.** Section 8.3 steps 2 to 5, as separate `feat(engine): ...` commits. All weights in one config object.
 - [ ] **6. Engine review.** A debug script that prints each fixture's plan (normal and crunch) with score breakdowns, busyness and reason lines. **Checkpoint: show me the output and wait; tune weights from my feedback.**

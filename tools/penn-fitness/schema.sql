@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS outtake_busy_blocks (
   recurring_weekly  BOOLEAN     NOT NULL DEFAULT FALSE,
   confidence        REAL        CHECK (confidence BETWEEN 0 AND 1),
   confirmed         BOOLEAN     NOT NULL DEFAULT FALSE,
+  -- Where the user is during it, if known (classes: CAMPUS); null means home.
+  zone              TEXT        CHECK (zone IN ('CAMPUS', 'CENTER_CITY', 'HOME')),
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
