@@ -1,0 +1,274 @@
+/*
+ * Pieces every screen uses: buttons, side panels, the page on screen, the
+ * provider picker and errors. Colors are the tokens on .shell
+ * (ResumeCustomizer.module.css).
+ */
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--rc-accent);
+  color: #fff;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--rc-accent-hover);
+}
+
+.secondary {
+  background: var(--rc-surface);
+  color: var(--rc-accent);
+  border: 1px solid var(--rc-accent);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--rc-accent-light);
+}
+
+.block {
+  width: 100%;
+}
+
+.large {
+  padding: 14px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+.compact {
+  padding: 8px 20px;
+  font-size: 13px;
+}
+
+.small {
+  padding: 7px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.linkButton {
+  color: var(--rc-muted);
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+/* ── Side panels ───────────────────────────────────────────────────────────── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--rc-panel);
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 13px 16px;
+  background: var(--rc-panel-head);
+  border-bottom: 1px solid var(--rc-panel-border);
+  color: var(--rc-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.panelFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  background: var(--rc-panel-head);
+  border-top: 1px solid var(--rc-panel-border);
+}
+
+.dragHandle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--rc-border);
+  transition: background 0.15s;
+  z-index: 1;
+}
+
+.dragHandle:hover {
+  background: var(--rc-input-border);
+}
+
+/* ── Errors, notes and the provider ────────────────────────────────────────── */
+
+.settingsLink {
+  color: var(--rc-accent);
+  font-weight: 600;
+}
+
+.note {
+  font-size: 11px;
+  color: var(--rc-muted);
+  text-align: center;
+}
+
+.provider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--rc-muted);
+}
+
+.provider a {
+  color: var(--rc-accent);
+}
+
+.providerSelect {
+  padding: 3px 6px;
+  border: 1px solid var(--rc-input-border);
+  border-radius: 5px;
+  background: var(--rc-surface);
+  color: var(--rc-text);
+  font-size: 11px;
+}
+
+.pageCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rc-good);
+}
+
+.pageCountOver {
+  color: var(--rc-warn);
+}
+
+/* ── The page on screen ────────────────────────────────────────────────────── */
+
+/* A US Letter page: 8.5 × 11 inches at 96 px an inch (PAGE_WIDTH, PAGE_HEIGHT). */
+.page {
+  position: relative;
+  width: 816px;
+  min-height: 1056px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 1px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* top is set inline: the page height less the bottom margin, where page 1 ends. */
+.pageEnd {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed var(--rc-disabled);
+  pointer-events: none;
+}
+
+.pageEndLabel {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--rc-faint);
+}
+
+.pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.paneScroll {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  /* safe: content taller (or wider) than the box stays scrollable from its start */
+  justify-content: safe center;
+  align-items: flex-start;
+  overflow: auto;
+  padding: 20px;
+  background: var(--rc-canvas);
+}
+
+.paneZoom {
+  width: 816px;
+  flex-shrink: 0;
+}
+
+/* An uploaded file's text, as the AI receives it. */
+.extracted {
+  word-break: break-word;
+}
+
+.extractedLine {
+  white-space: pre-wrap;
+}
+
+.extractedGap {
+  height: 0.6em;
+}
+
+.extractedEmpty {
+  color: var(--rc-faint);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.extractedError {
+  color: var(--rc-error);
+  font-size: 13px;
+}
+
+/*
+ * docToHtml's resume (resumeClass in shared.tsx), laid out as the exports lay it
+ * out: margins add up (a flex column's don't collapse), and letters keep their
+ * plain widths, without kerning or ligatures, which jsPDF doesn't apply and Word
+ * doesn't by default. Otherwise a bullet that fits a line on screen can wrap
+ * in the PDF, and page 1 ends sooner than the editor shows.
+ */
+.resume {
+  display: flex;
+  flex-direction: column;
+  font-kerning: none;
+  font-variant-ligatures: none;
+}
+
+/*
+ * Bullets where the exports put them (LAYOUT in the tool package's resume.ts):
+ * the dot 0.35em from the margin and the text at 1.3em, rather than the
+ * browser's own marker. Lists made with the toolbar get the same.
+ */
+.resume ul {
+  margin: 0;
+  padding-left: 1.3em;
+  list-style: none;
+}
+
+.resume li {
+  position: relative;
+}
+
+.resume li::before {
+  content: "•";
+  position: absolute;
+  left: -0.95em;
+}

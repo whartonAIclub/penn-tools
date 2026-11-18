@@ -74,8 +74,8 @@ export interface ScoredResource extends SampleResource {
 
 /**
  * The resources closest in meaning to `query`, best first. Real tools embed
- * their documents once (in seed.mjs) and store the vectors with pgvector, as
- * Career Canvas does; this demo embeds its few samples with each query.
+ * their documents once and store the vectors with pgvector, as Pass It On
+ * does; this demo embeds its few samples with each query.
  */
 export async function searchResources(
   embeddings: EmbeddingProvider,

@@ -4,14 +4,17 @@
 // can't remind after an event starts; an assignment's event ends at its due
 // time, so its details say when it's due.
 //
-// Event IDs come from the course and title, so the same deadline gets the same
-// ID in every download. Google rejects a whole file if any of its events is
-// already in the calendar, so students update by deleting the Due calendar and
-// importing the new file (see PLAN.md).
+// Each event's ID comes from the course, its term (the first day of classes)
+// and the deadline's title, plus the date for each occurrence of a repeating
+// deadline and for single deadlines that share a title. So the same deadline
+// gets the same ID in every download, and other courses' and terms' IDs never
+// match it. Google rejects a whole file if any of its events is already in the
+// calendar, so students update by deleting the Due calendar and importing the
+// new file (see PLAN.md); Apple Calendar and Outlook match events by ID.
 
-import { addDays, formatDate, formatTime, toMinutes } from "./dates.js";
-import { deadlineProblem, resolveDate } from "./deadlines.js";
-import type { CourseDetails, Deadline, ReminderSettings } from "./types.js";
+import { addDays, formatDate, formatTime, isDate, toMinutes } from "./dates.js";
+import { calendarItems, type CalendarItem } from "./recurring.js";
+import type { CourseDetails, Deadline, RecurringDeadline, ReminderSettings } from "./types.js";
 
 const TIME_ZONE = "America/New_York";
 
@@ -41,18 +44,20 @@ const ASSIGNMENT_MINUTES = 30;
 const EXAM_MINUTES = 60;
 const END_OF_DAY = 23 * 60 + 59;
 
-/** The deadlines that are ticked and ready, as one calendar file. */
+/**
+ * The deadlines that are ticked and ready, and every occurrence of the ready
+ * repeating deadlines, as one calendar file in date order.
+ */
 export function buildCalendar(
   course: CourseDetails,
   deadlines: Deadline[],
   reminders: ReminderSettings,
-  now: Date = new Date(),
+  options: { recurring?: RecurringDeadline[]; now?: Date } = {},
 ): string {
-  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const usedIds = new Set<string>();
-  const events = deadlines
-    .filter((d) => d.include && deadlineProblem(d, course) === null)
-    .flatMap((d) => eventLines(d, course, reminders, uniqueId(course, d, usedIds), stamp));
+  const stamp = (options.now ?? new Date()).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const items = calendarItems(course, deadlines, options.recurring ?? []);
+  const ids = eventIds(course, items);
+  const events = items.flatMap((item, i) => eventLines(item.deadline, item.date, course, reminders, ids[i]!, stamp));
 
   const lines = [
     "BEGIN:VCALENDAR",
@@ -81,12 +86,12 @@ export function eventTitle(deadline: Deadline, course: CourseDetails): string {
 
 function eventLines(
   deadline: Deadline,
+  date: string,
   course: CourseDetails,
   reminders: ReminderSettings,
   uid: string,
   stamp: string,
 ): string[] {
-  const date = resolveDate(deadline, course)!; // ready deadlines always have one
   const summary = eventTitle(deadline, course);
   const { time } = deadline;
   const timing: string[] = [];
@@ -165,12 +170,30 @@ function compactDate(date: string): string {
   return date.replace(/-/g, "");
 }
 
-function uniqueId(course: CourseDetails, deadline: Deadline, used: Set<string>): string {
-  const base = `${slug(course.name) || "course"}-${slug(deadline.title) || "deadline"}`;
-  let id = base;
-  for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
-  used.add(id);
-  return `${id}@due.penntools.org`;
+/**
+ * Each item's event ID, e.g. "fnce-6110-20270113-problem-set-1@due.penntools.org":
+ * the course, its term and the title, plus the date for an occurrence of a
+ * repeating deadline or a single deadline whose title another one shares.
+ * Without a first day of classes, the term is the earliest deadline's date.
+ */
+function eventIds(course: CourseDetails, items: CalendarItem[]): string[] {
+  const term = compactDate(isDate(course.week1Start) ? course.week1Start : (items[0]?.date ?? "")) || "undated";
+  const prefix = `${slug(course.name) || "course"}-${term}`;
+  const titleCounts = new Map<string, number>();
+  for (const item of items) {
+    if (!item.series) titleCounts.set(slug(item.deadline.title), (titleCounts.get(slug(item.deadline.title)) ?? 0) + 1);
+  }
+
+  const used = new Set<string>();
+  return items.map((item) => {
+    const title = slug(item.deadline.title) || "deadline";
+    const withDate = item.series !== null || (titleCounts.get(slug(item.deadline.title)) ?? 0) > 1;
+    const base = `${prefix}-${title}${withDate ? `-${compactDate(item.date)}` : ""}`;
+    let id = base;
+    for (let n = 2; used.has(id); n++) id = `${base}-${n}`; // same title, same day
+    used.add(id);
+    return `${id}@due.penntools.org`;
+  });
 }
 
 function slug(text: string): string {

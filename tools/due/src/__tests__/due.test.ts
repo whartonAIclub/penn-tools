@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDays, formatTime, mondayOf, weekdayOf } from "../dates.js";
+import { addDays, formatTime, mondayOf, todayInPhiladelphia, weekdayOf } from "../dates.js";
 import { deadlineProblem, guessExplanation, isGuessedDate, resolveDate, weekHint } from "../deadlines.js";
 import { buildCalendar, calendarFileName, eventTitle } from "../ics.js";
 import { SAMPLE_COURSE, SAMPLE_DEADLINES } from "../samples.js";
@@ -15,6 +15,7 @@ function deadline(overrides: Partial<Deadline> = {}): Deadline {
     date: "2027-01-27",
     week: null,
     day: null,
+    useWeek: true,
     time: { kind: "all-day" },
     include: true,
     note: null,
@@ -28,6 +29,13 @@ function lines(ics: string): string[] {
 }
 
 describe("dates", () => {
+  it("knows today's date in Philadelphia, not UTC", () => {
+    // 9 PM on Dec 31 in Philadelphia is already Jan 1 in UTC.
+    expect(todayInPhiladelphia(new Date("2027-01-01T02:00:00Z"))).toBe("2026-12-31");
+    expect(todayInPhiladelphia(new Date("2027-07-01T03:59:00Z"))).toBe("2027-06-30"); // daylight time
+    expect(todayInPhiladelphia(new Date("2027-07-01T04:00:00Z"))).toBe("2027-07-01");
+  });
+
   it("counts weekdays from Monday and works across months", () => {
     expect(weekdayOf("2027-01-11")).toBe(1);
     expect(weekdayOf("2027-01-17")).toBe(7);
@@ -54,6 +62,34 @@ describe("resolveDate", () => {
     expect(resolveDate(weekOnly, { ...SAMPLE_COURSE, classDays: [] })).toBe("2027-03-01");
     expect(isGuessedDate(weekOnly, SAMPLE_COURSE)).toBe(true);
     expect(guessExplanation(weekOnly, SAMPLE_COURSE)).toBe("Due picked Mon, Mar 1, the first class in Week 8. Please confirm.");
+    expect(guessExplanation(weekOnly, { ...SAMPLE_COURSE, classDays: [] })).toBe("Due picked Mon, Mar 1, the start of Week 8. Please confirm.");
+  });
+
+  it("guesses the first class after classes start when Week 1 has no class left", () => {
+    // Classes start Wednesday, Jan 13, but the course meets only on Mondays.
+    const mondays = { ...SAMPLE_COURSE, classDays: [1] };
+    const week1 = deadline({ date: null, week: 1 });
+    expect(resolveDate(week1, mondays)).toBe("2027-01-18");
+    expect(deadlineProblem({ ...week1, time: { kind: "class-time" } }, mondays)).toBeNull();
+    expect(guessExplanation(week1, mondays)).toBe("Due picked Mon, Jan 18, the first class after classes start. Please confirm.");
+  });
+
+  it("flags a week and day from the outline that fall before the first day of classes", () => {
+    const week1Monday = deadline({ date: null, week: 1, day: 1 });
+    expect(resolveDate(week1Monday, SAMPLE_COURSE)).toBe("2027-01-11");
+    expect(deadlineProblem(week1Monday, SAMPLE_COURSE)).toBe(
+      "Mon, Jan 11 is before the first day of classes (Wed, Jan 13). Pick a date.",
+    );
+    // A date the student picks is theirs, even before classes start.
+    expect(deadlineProblem(deadline({ date: "2027-01-11" }), SAMPLE_COURSE)).toBeNull();
+  });
+
+  it("leaves the date empty once the student clears it, instead of refilling it from the week", () => {
+    for (const cleared of [deadline({ date: null, week: 8, useWeek: false }), deadline({ date: null, week: 5, day: 3, useWeek: false })]) {
+      expect(resolveDate(cleared, SAMPLE_COURSE)).toBeNull();
+      expect(isGuessedDate(cleared, SAMPLE_COURSE)).toBe(false);
+      expect(deadlineProblem(cleared, SAMPLE_COURSE)).toBe("Pick a date.");
+    }
   });
 
   it("never guesses a date before the first day of classes", () => {
@@ -110,7 +146,7 @@ describe("deadlineProblem", () => {
 
 describe("buildCalendar", () => {
   it("makes an all-day deadline a free, all-day event with its reminder", () => {
-    const ics = lines(buildCalendar(SAMPLE_COURSE, [deadline()], DEFAULT_REMINDERS, NOW));
+    const ics = lines(buildCalendar(SAMPLE_COURSE, [deadline()], DEFAULT_REMINDERS, { now: NOW }));
     expect(ics).toContain("DTSTART;VALUE=DATE:20270127");
     expect(ics).toContain("DTEND;VALUE=DATE:20270128");
     expect(ics).toContain("TRANSP:TRANSPARENT");
@@ -121,7 +157,7 @@ describe("buildCalendar", () => {
 
   it("ends an assignment's event at its due time, says when it's due, and reminds before the event starts", () => {
     const ics = lines(
-      buildCalendar(SAMPLE_COURSE, [deadline({ time: { kind: "end-of-day" } })], DEFAULT_REMINDERS, NOW),
+      buildCalendar(SAMPLE_COURSE, [deadline({ time: { kind: "end-of-day" } })], DEFAULT_REMINDERS, { now: NOW }),
     );
     expect(ics).toContain("DTSTART;TZID=America/New_York:20270127T232900");
     expect(ics).toContain("DTEND;TZID=America/New_York:20270127T235900");
@@ -134,7 +170,7 @@ describe("buildCalendar", () => {
 
   it("starts an assignment's event the day before when it's due just after midnight", () => {
     const ics = lines(
-      buildCalendar(SAMPLE_COURSE, [deadline({ time: { kind: "custom", time: "00:10" } })], DEFAULT_REMINDERS, NOW),
+      buildCalendar(SAMPLE_COURSE, [deadline({ time: { kind: "custom", time: "00:10" } })], DEFAULT_REMINDERS, { now: NOW }),
     );
     expect(ics).toContain("DTSTART;TZID=America/New_York:20270126T234000");
     expect(ics).toContain("DTEND;TZID=America/New_York:20270127T001000");
@@ -142,7 +178,7 @@ describe("buildCalendar", () => {
 
   it("puts a class-time exam in the class's slot", () => {
     const exam = deadline({ kind: "exam", title: "Midterm", date: "2027-02-24", time: { kind: "class-time" } });
-    const ics = lines(buildCalendar(SAMPLE_COURSE, [exam], DEFAULT_REMINDERS, NOW));
+    const ics = lines(buildCalendar(SAMPLE_COURSE, [exam], DEFAULT_REMINDERS, { now: NOW }));
     expect(ics).toContain("DTSTART;TZID=America/New_York:20270224T101500");
     expect(ics).toContain("DTEND;TZID=America/New_York:20270224T114500");
     expect(ics).toContain("TRIGGER:-PT180M");
@@ -154,24 +190,67 @@ describe("buildCalendar", () => {
   });
 
   it("leaves out unticked deadlines and ones that aren't ready", () => {
-    const ics = buildCalendar(SAMPLE_COURSE, SAMPLE_DEADLINES, DEFAULT_REMINDERS, NOW);
+    const ics = buildCalendar(SAMPLE_COURSE, SAMPLE_DEADLINES, DEFAULT_REMINDERS, { now: NOW });
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(5);
     const unticked = SAMPLE_DEADLINES.map((d) => ({ ...d, include: false }));
-    expect(buildCalendar(SAMPLE_COURSE, unticked, DEFAULT_REMINDERS, NOW)).not.toContain("BEGIN:VEVENT");
+    expect(buildCalendar(SAMPLE_COURSE, unticked, DEFAULT_REMINDERS, { now: NOW })).not.toContain("BEGIN:VEVENT");
   });
 
-  it("gives the same deadline the same event ID in every download, and duplicates their own", () => {
-    const twice = [deadline({ id: "a" }), deadline({ id: "b" })];
-    const first = lines(buildCalendar(SAMPLE_COURSE, twice, DEFAULT_REMINDERS, NOW));
-    const later = lines(buildCalendar(SAMPLE_COURSE, twice, DEFAULT_REMINDERS, new Date("2027-01-01T00:00:00Z")));
-    const ids = first.filter((l) => l.startsWith("UID:"));
-    expect(ids).toEqual(["UID:fnce-6110-problem-set-1@due.penntools.org", "UID:fnce-6110-problem-set-1-2@due.penntools.org"]);
-    expect(later.filter((l) => l.startsWith("UID:"))).toEqual(ids);
+  it("gives the same deadline the same event ID in every download, whatever else changes", () => {
+    const ids = (deadlines: Deadline[], now = NOW) =>
+      lines(buildCalendar(SAMPLE_COURSE, deadlines, DEFAULT_REMINDERS, { now })).filter((l) => l.startsWith("UID:"));
+    const exam = deadline({ id: "x", title: "Midterm", kind: "exam", date: "2027-02-24" });
+    expect(ids([deadline(), exam])).toEqual([
+      "UID:fnce-6110-20270113-problem-set-1@due.penntools.org",
+      "UID:fnce-6110-20270113-midterm@due.penntools.org",
+    ]);
+    // Another download later, with an earlier deadline added and the date moved: same IDs.
+    const earlier = deadline({ id: "y", title: "Intro survey", date: "2027-01-14" });
+    const moved = deadline({ date: "2027-01-28" });
+    expect(ids([exam, moved, earlier], new Date("2027-01-01T00:00:00Z"))).toEqual([
+      "UID:fnce-6110-20270113-intro-survey@due.penntools.org",
+      "UID:fnce-6110-20270113-problem-set-1@due.penntools.org",
+      "UID:fnce-6110-20270113-midterm@due.penntools.org",
+    ]);
+  });
+
+  it("tells deadlines with the same title apart by date, and same-day ones by number", () => {
+    const uids = lines(
+      buildCalendar(
+        SAMPLE_COURSE,
+        [deadline({ id: "a", date: "2027-02-03" }), deadline({ id: "b" }), deadline({ id: "c" })],
+        DEFAULT_REMINDERS,
+        { now: NOW },
+      ),
+    ).filter((l) => l.startsWith("UID:"));
+    expect(uids).toEqual([
+      "UID:fnce-6110-20270113-problem-set-1-20270127@due.penntools.org",
+      "UID:fnce-6110-20270113-problem-set-1-20270127-2@due.penntools.org",
+      "UID:fnce-6110-20270113-problem-set-1-20270203@due.penntools.org",
+    ]);
+  });
+
+  it("keeps different terms' and courses' IDs apart", () => {
+    const uid = (course: typeof SAMPLE_COURSE) =>
+      lines(buildCalendar(course, [deadline()], DEFAULT_REMINDERS, { now: NOW })).find((l) => l.startsWith("UID:"));
+    expect(uid({ ...SAMPLE_COURSE, week1Start: "2028-01-12" })).toBe("UID:fnce-6110-20280112-problem-set-1@due.penntools.org");
+    expect(uid({ ...SAMPLE_COURSE, name: "MGMT 6110" })).toBe("UID:mgmt-6110-20270113-problem-set-1@due.penntools.org");
+    // Without a first day of classes, the earliest deadline stands in for the term.
+    expect(uid({ ...SAMPLE_COURSE, week1Start: null })).toBe("UID:fnce-6110-20270127-problem-set-1@due.penntools.org");
+  });
+
+  it("puts events in date order", () => {
+    const later = deadline({ id: "a", title: "Later", date: "2027-03-01" });
+    const sooner = deadline({ id: "b", title: "Sooner", date: "2027-01-20" });
+    const titles = lines(buildCalendar(SAMPLE_COURSE, [later, sooner], DEFAULT_REMINDERS, { now: NOW })).filter((l) =>
+      l.startsWith("SUMMARY:"),
+    );
+    expect(titles).toEqual(["SUMMARY:DUE: Sooner (FNCE 6110)", "SUMMARY:DUE: Later (FNCE 6110)"]);
   });
 
   it("escapes text and keeps every line within 75 bytes", () => {
     const long = deadline({ title: "Reading response; chapters 1, 2 and 3 — the long version of the title goes on" });
-    const ics = buildCalendar(SAMPLE_COURSE, [long], DEFAULT_REMINDERS, NOW);
+    const ics = buildCalendar(SAMPLE_COURSE, [long], DEFAULT_REMINDERS, { now: NOW });
     for (const line of ics.split("\r\n")) expect(Buffer.byteLength(line)).toBeLessThanOrEqual(75);
     expect(lines(ics).find((l) => l.startsWith("SUMMARY:"))).toContain("Reading response\\; chapters 1\\, 2");
     expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);

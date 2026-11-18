@@ -36,6 +36,12 @@ export interface Deadline {
   week: number | null;
   /** "Day 3" of that week, counted from Monday = 1. */
   day: number | null;
+  /**
+   * Whether, with no date picked, the date comes from the week (and day). The
+   * student clearing the date turns it off, so the field stays empty instead
+   * of refilling from the week.
+   */
+  useWeek: boolean;
   time: TimeChoice;
   /** Whether it goes in the calendar file. */
   include: boolean;

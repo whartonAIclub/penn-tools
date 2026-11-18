@@ -4,7 +4,7 @@
 // break) are simply left out.
 
 import { addDays, formatDate, isDate, isTime } from "./dates.js";
-import { deadlineProblem, weekStart } from "./deadlines.js";
+import { deadlineProblem, resolveDate, weekStart } from "./deadlines.js";
 import { WEEKDAY_LABELS, type CourseDetails, type Deadline, type RecurringDeadline } from "./types.js";
 
 /** The most weeks a repeating deadline may span, more than any term. */
@@ -71,17 +71,34 @@ export function expandRecurring(recurring: RecurringDeadline, course: CourseDeta
     date,
     week: null,
     day: null,
+    useWeek: false,
     time: recurring.time,
     include: true,
     note: recurring.note,
   }));
 }
 
-/** Everything that goes in the calendar: ticked deadlines and repeating ones that are ready, in date order. */
-export function calendarDeadlines(course: CourseDetails, deadlines: Deadline[], recurring: RecurringDeadline[]): Deadline[] {
-  const single = deadlines.filter((d) => d.include && deadlineProblem(d, course) === null);
+/** A deadline as it goes in the calendar, and the repeating deadline it comes from, if any. */
+export interface CalendarItem {
+  deadline: Deadline;
+  /** The date it's due; ready deadlines always have one. */
+  date: string;
+  /** The repeating deadline it's one occurrence of, or null for a single deadline. */
+  series: RecurringDeadline | null;
+}
+
+/**
+ * Everything that goes in the calendar, in date order: ticked deadlines and
+ * repeating ones that are ready, with each repeating deadline's occurrences.
+ */
+export function calendarItems(course: CourseDetails, deadlines: Deadline[], recurring: RecurringDeadline[]): CalendarItem[] {
+  const single = deadlines
+    .filter((d) => d.include && deadlineProblem(d, course) === null)
+    .map((deadline): CalendarItem => ({ deadline, date: resolveDate(deadline, course)!, series: null }));
   const repeated = recurring
     .filter((r) => r.include && recurringProblem(r, course) === null)
-    .flatMap((r) => expandRecurring(r, course));
-  return [...single, ...repeated];
+    .flatMap((series) => expandRecurring(series, course).map((deadline): CalendarItem => ({ deadline, date: deadline.date!, series })));
+  return [...single, ...repeated].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.deadline.title.localeCompare(b.deadline.title),
+  );
 }

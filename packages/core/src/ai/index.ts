@@ -1,9 +1,9 @@
-// The AI API for new tools. Existing tools use the legacy LLM API
-// (@penntools/core/llm) until they migrate.
+// The AI API: generation and structured output for every tool.
 
 export { z } from "zod";
 export { AIError, isAIError } from "./AIError.js";
 export type { AIErrorKind, AIErrorInfo } from "./AIError.js";
+export { isSettingsError } from "./errors.js";
 export {
   AI_PROVIDERS,
   AI_TIERS,

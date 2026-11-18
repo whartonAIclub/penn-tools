@@ -9,7 +9,8 @@
 
 import { AI_PROVIDERS, base64FileType, base64Bytes, isBase64, z } from "@penntools/core/ai";
 import type { AI, AIProvider, AIUsage } from "@penntools/core/ai";
-import { isDate, isTime } from "./dates.js";
+import { isDate, isTime, todayInPhiladelphia } from "./dates.js";
+import { MAX_FILENAME_LENGTH, MAX_PDF_BYTES } from "./limits.js";
 import { MAX_RECURRING_WEEKS } from "./recurring.js";
 import {
   REPEAT_KINDS,
@@ -20,13 +21,6 @@ import {
   type TimeChoice,
 } from "./types.js";
 
-/** The largest outline, in bytes. Outlines are rarely over 2 MB. */
-export const MAX_PDF_BYTES = 10 * 1024 * 1024;
-/** The most pages an outline may have, bounding what one read costs the student. The route counts them. */
-export const MAX_PDF_PAGES = 40;
-export const MAX_FILENAME_LENGTH = 200;
-/** The largest request body a valid outline needs: the PDF as base64, plus room for the other fields. */
-export const MAX_REQUEST_BYTES = Math.ceil(MAX_PDF_BYTES / 3) * 4 + 16 * 1024;
 /** More than any outline has; a longer list means the model went wrong. */
 const MAX_DEADLINES = 150;
 const MAX_RECURRING = 20;
@@ -102,7 +96,7 @@ export async function readOutline(
   pdf: { filename: string; data: string },
   options: { today?: string; signal?: AbortSignal } = {},
 ): Promise<OutlineResult> {
-  const today = options.today ?? new Date().toISOString().slice(0, 10);
+  const today = options.today ?? todayInPhiladelphia(); // the outline's dates are Philadelphia dates
   const { object, usage } = await ai.generateObject({
     provider,
     tier: OUTLINE_TIER,
@@ -147,6 +141,7 @@ export function toDue(reading: OutlineReading): { course: CourseDetails; deadlin
         date,
         week,
         day,
+        useWeek: true,
         time,
         include: true,
         note: d.outlineSays.trim() || null,

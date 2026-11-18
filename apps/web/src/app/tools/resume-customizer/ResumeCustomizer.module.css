@@ -1,0 +1,58 @@
+/*
+ * Resume Customizer's look: navy for the main actions, on light gray with white
+ * pages and pale blue side panels. Every screen's module uses these tokens.
+ * Body text is Geist and display headings Libre Baskerville (next/font, which
+ * sets --rc-sans and --rc-serif on .shell); the resume itself uses the export
+ * settings' font, set inline. Text colors meet WCAG AA (4.5:1) on the
+ * backgrounds they're used on; --rc-disabled is only for disabled controls.
+ */
+
+.shell {
+  --rc-accent: #0e2244;
+  --rc-accent-hover: #1a3566;
+  --rc-accent-light: #e8edf4;
+  --rc-panel: #f0f4ff;
+  --rc-panel-head: #e8eefb;
+  --rc-panel-border: #dde4f5;
+  --rc-input-border: #c7d4f0;
+  --rc-bg: #f9fafb;
+  --rc-cream: #f8f7f4;
+  --rc-canvas: #f3f4f6;
+  --rc-surface: #ffffff;
+  --rc-border: #e5e7eb;
+  --rc-text: #111827;
+  --rc-text-2: #374151;
+  --rc-muted: #4b5563;
+  --rc-faint: #6b7280;
+  --rc-disabled: #9ca3af;
+  --rc-error: #b91c1c;
+  --rc-error-bg: #fef2f2;
+  --rc-error-border: #fecaca;
+  --rc-warn: #92400e;
+  --rc-good: #15803d;
+  --rc-good-bg: #f0fdf4;
+  --rc-ui: var(--rc-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  --rc-display: var(--rc-serif), Georgia, serif;
+
+  /* Fills the page area exactly: the manifest sets fullWidth, whose page area
+     is position: relative, and each screen scrolls inside it. */
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--rc-bg);
+  color: var(--rc-text);
+  font-family: var(--rc-ui);
+  container-type: inline-size;
+}
+
+.shell :focus-visible {
+  outline: 2px solid var(--rc-accent);
+  outline-offset: 2px;
+}
+
+.shell select,
+.shell input,
+.shell textarea {
+  font-family: inherit;
+}

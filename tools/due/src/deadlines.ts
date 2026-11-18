@@ -11,36 +11,60 @@ export function weekStart(course: CourseDetails, week: number): string | null {
 }
 
 /**
- * The deadline's date: the one given, or worked out from its week and day.
- * When the outline gives only a week, it's a guess: the week's first class
- * (or its Monday, without class days), the earliest the work is likely due,
- * so a wrong guess reminds the student early rather than late. The review
- * screen asks the student to confirm it (see isGuessedDate).
+ * The deadline's date: the one picked, or else worked out from the outline's
+ * week and day. When the outline gives only a week, it's a guess (see
+ * guessDate), and the review screen asks the student to confirm it. Once the
+ * student clears the date (useWeek false), it stays empty.
  */
 export function resolveDate(deadline: Deadline, course: CourseDetails): string | null {
   if (isDate(deadline.date)) return deadline.date;
-  if (deadline.week === null) return null;
+  if (deadline.week === null || !deadline.useWeek) return null;
   const start = weekStart(course, deadline.week);
   if (!start) return null;
   if (deadline.day !== null) return addDays(start, deadline.day - 1);
-  // The week's first class, but never before the first day of classes (Week 1 can start mid-week).
+  return guessDate(course, start);
+}
+
+/**
+ * A guessed date for a week the outline gives without a day: the week's first
+ * class, the earliest the work is likely due, so a wrong guess reminds the
+ * student early rather than late. Never before the first day of classes: Week 1
+ * can start mid-week, and when it has no class left after that day, the guess
+ * is the next class. Without class days, the week's first day of classes.
+ */
+function guessDate(course: CourseDetails, start: string): string {
   const firstDay = course.week1Start!; // weekStart needs it
-  const classDates = [...course.classDays].sort((a, b) => a - b).map((d) => addDays(start, d - 1));
-  const guess = classDates.find((date) => date >= firstDay) ?? classDates[0] ?? start;
-  return guess < firstDay ? firstDay : guess;
+  const from = start < firstDay ? firstDay : start;
+  if (course.classDays.length === 0) return from;
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(from, i);
+    if (course.classDays.includes(weekdayOf(date))) return date;
+  }
+  return from; // class days are 1–7, so a week always has one
 }
 
 /** Whether resolveDate guessed the day, because the outline gives only a week and the student hasn't picked a date. */
 export function isGuessedDate(deadline: Deadline, course: CourseDetails): boolean {
-  return !isDate(deadline.date) && deadline.week !== null && deadline.day === null && weekStart(course, deadline.week) !== null;
+  return (
+    !isDate(deadline.date) &&
+    deadline.useWeek &&
+    deadline.week !== null &&
+    deadline.day === null &&
+    weekStart(course, deadline.week) !== null
+  );
 }
 
-/** Why the date was picked, for a guessed date, e.g. "Due picked Mon, Nov 30, the first class in Week 3." */
+/** Why the date was picked, for a guessed date, e.g. "Due picked Mon, Nov 30, the first class in Week 3. Please confirm." */
 export function guessExplanation(deadline: Deadline, course: CourseDetails): string | null {
   if (!isGuessedDate(deadline, course)) return null;
   const date = resolveDate(deadline, course)!;
-  const which = course.classDays.length > 0 ? "the first class" : "the first day";
-  return `Due picked ${formatDate(date)}, ${which} in Week ${deadline.week}. Please confirm.`;
+  const start = weekStart(course, deadline.week!)!;
+  let which: string;
+  if (date >= addDays(start, 7)) which = "the first class after classes start";
+  else if (course.classDays.length > 0) which = `the first class in Week ${deadline.week}`;
+  else if (date === course.week1Start) which = "the first day of classes";
+  else which = `the start of Week ${deadline.week}`;
+  return `Due picked ${formatDate(date)}, ${which}. Please confirm.`;
 }
 
 /**
@@ -68,6 +92,11 @@ export function deadlineProblem(deadline: Deadline, course: CourseDetails): stri
       return "Add the first day of classes in course details, or pick a date.";
     }
     return "Pick a date.";
+  }
+
+  // A week and day from the outline can fall before Week 1's first class.
+  if (!isDate(deadline.date) && isDate(course.week1Start) && date < course.week1Start) {
+    return `${formatDate(date)} is before the first day of classes (${formatDate(course.week1Start)}). Pick a date.`;
   }
 
   if (deadline.time.kind === "class-time") {

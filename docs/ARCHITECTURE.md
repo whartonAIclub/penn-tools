@@ -12,14 +12,13 @@
 │  packages/platform  (reads env vars, constructs clients) │
 │   ├─ Prisma repositories                                 │
 │   ├─ AI adapters (OpenAI Responses, Anthropic Messages)  │
-│   ├─ Legacy LLM adapters (OpenAI, Anthropic)             │
 │   ├─ Embedding adapters (OpenAI)                         │
 │   └─ Tool databases (toolSql; setup-tools for db:deploy) │
 ├──────────────────────────────────────────────────────────┤
 │  packages/core  (pure interfaces, no env, no vendor SDK) │
 │   ├─ Tool (manifest), ToolRegistry, Logger               │
 │   ├─ AI API types, model catalog, AIError, z (Zod)       │
-│   ├─ EmbeddingProvider, legacy LLMProvider interfaces    │
+│   ├─ EmbeddingProvider interface                         │
 │   └─ Repository interfaces (User, UserApiKey)            │
 ├──────────────────────────────────────────────────────────┤
 │  tools/<tool_id>  (one folder per tool)                  │
@@ -79,7 +78,7 @@ export class AskPennTool extends Tool {
     category: "Platform", // one of TOOL_CATEGORIES in @penntools/core/tools
     beta: true,           // shown as BETA
     fullWidth: true,      // fill the page area, not the 720px column (see Page layout)
-    // and optionally a mentor, and notYetMigrated (below)
+    // and optionally a mentor
   };
 }
 ```
@@ -143,10 +142,10 @@ pages, routes and server actions.
 
 ## AI API
 
-New tools generate text and structured data through `@penntools/core/ai`;
-existing tools keep the legacy LLM API (`/api/llm/complete`)
-until they migrate, after which it is deleted. How to call it is in CLAUDE.md
-section 4; this section covers the design.
+Tools generate text and structured data through `@penntools/core/ai`. (The
+legacy LLM API, `/api/llm/complete`, was removed once every tool had moved off
+it; `pnpm check:tools` fails a tool that still calls it.) How to call the AI
+API is in CLAUDE.md section 4; this section covers the design.
 
 - **Keys stay server-side.** `createUserAI(userId, toolId)` in `container.ts`
   builds an `AI` bound to one user and tool. Tools get it from
@@ -161,6 +160,13 @@ section 4; this section covers the design.
   has no key for that provider). If the platform's key itself is rejected or
   out of credit, users see `unavailable` and the error is logged, since the
   fix is ours, not theirs.
+- **Errors fixed in Settings.** `missing_key`, `invalid_key`, `no_credit` and
+  `credit_used` are fixed by saving or changing a key, so tool pages link to
+  Settings for them. `isSettingsError(kind)` (`packages/core/src/ai/errors.ts`)
+  decides which kinds those are, from a table listing every kind, so a new kind
+  doesn't compile until it's classified. Pages import it from
+  `@penntools/core/ai/errors`, which keeps Zod and the price tables out of the
+  browser, and `pnpm check:tools` fails a tool that lists the kinds itself.
 - **Reserve, then settle.** Before a call on the platform's key, the
   provider's token counting endpoint counts its input (Anthropic's
   `count_tokens`, OpenAI's `responses/input_tokens`; a local estimate stands in
@@ -176,13 +182,11 @@ section 4; this section covers the design.
   Since calls stop a little short of the credit, less left than the cheapest
   call reserves (`MIN_CALL_USD`, $0.002) counts as used: `providers()` drops
   the platform's providers and Settings shows none left.
-  The legacy LLM API reserves the same way, from a local estimate.
 - **Every call is recorded.** `createAI` reports each billed call's tokens,
   cost (from `MODEL_PRICES` in `pricing.ts`) and whose key paid; `container.ts`
   saves it in `ai_usage` with the user and tool. A stream cut short after the
   provider started answering is recorded with estimated tokens. Search-query
-  embeddings and the legacy LLM API are recorded the same way, and the legacy
-  API spends the same free credit. `/admin`, for admins only, shows spend by
+  embeddings are recorded the same way. `/admin`, for admins only, shows spend by
   tool and by user.
 - **One model catalog.** The tool picks the provider; models and their default
   reasoning come from `packages/core/src/ai/models.ts`, so changing a model is
@@ -221,8 +225,10 @@ section 4; this section covers the design.
   toward the user's free credit but aren't reserved or refused, since they
   cost so little (text-embedding-3-small is $0.02 per million tokens).
 - **Enforcement.** `pnpm check:tools` (`scripts/check-tool-imports.mjs`) fails
-  if tool code imports a vendor SDK, calls a provider API, or touches users'
-  keys or platform internals.
+  if tool code imports a vendor SDK, calls a provider API, touches users'
+  keys or platform internals, or opens a PDF with pdfjs's code execution on
+  (`getDocument` without `isEvalSupported: false`, or pdfjs's legacy build
+  instead of `withPdf` / `pdfPageCount` from `@/lib/pdf`).
 
 ---
 
@@ -278,8 +284,9 @@ need a user for everything use the standard screens: `SignInPrompt` with just
 their title ("Sign in to use AskPenn."), and, if they run on the AI API,
 `ApiKeyPrompt` when the user has used their free AI credit and hasn't saved a
 key (`ai.providers()` is empty), pointing to Settings. Because
-`getCurrentUser()` reads the request's cookies, every page renders per request
-rather than being prerendered; it is cached per request, so the header and the
+`getCurrentUser()` calls `connection()`, and the root layout reads the
+sidebar's cookies, every page renders per request rather than being
+prerendered; it is cached per request, so the header and the
 page share one user lookup.
 
 ### Tool catalog
@@ -297,11 +304,8 @@ Platform team adds categories. Each holds:
 - **Registered tools** whose manifest names that category, in the order
   `container.ts` registers them, so a tool appears as soon as it's registered.
 
-A registered tool is shown as **BETA** when its manifest sets `beta: true` or
-`notYetMigrated: true`. `notYetMigrated` marks a tool still on the legacy LLM
-API; it isn't shown to users except as BETA, and `pnpm check:tools` keeps it
-accurate (it fails if a tool calls `/api/llm/complete` without it, or has it and
-doesn't). A section whose tools are all in beta is marked BETA itself.
+A registered tool is shown as **BETA** when its manifest sets `beta: true`. A
+section whose tools are all in beta is marked BETA itself.
 
 ### Site sidebar
 
@@ -334,8 +338,8 @@ Below the header and beside the sidebar, every page renders inside
 For page authors this means:
 
 - Tool pages sit in a centered 720px column. A tool whose manifest sets
-  `fullWidth: true` fills the whole page area instead, as Career Canvas and
-  AskPenn do; the tools layout (`apps/web/src/app/tools/layout.tsx`) reads that
+  `fullWidth: true` fills the whole page area instead, as AskPenn and
+  Non-Wharton Course Manager do; the tools layout (`apps/web/src/app/tools/layout.tsx`) reads that
   from the manifests. A full-width page area is `position: relative` and at least
   as tall as the space, so a layout that should fill it exactly, such as AskPenn's
   chat, uses `position: absolute; inset: 0`. Don't break out of the column with
@@ -366,8 +370,9 @@ Key design choices:
   four characters. The repository is `userApiKeys` in `container.ts`; tool code
   must not import it (enforced by `pnpm check:tools`). The AI API reads keys on
   the tool's behalf.
-- `ai_usage` has one row per AI call: user, tool, API (AI, embeddings or
-  legacy), model, tokens, cost in USD, and whose key paid. A user's free credit
+- `ai_usage` has one row per AI call: user, tool, API (AI, embeddings, or
+  legacy for past calls of the removed legacy LLM API), model, tokens, cost in
+  USD, and whose key paid. A user's free credit
   is the sum of their `PLATFORM` rows, so costs are stored at the price when
   the call was made and a later price change doesn't rewrite them. A
   `pending` row is a reservation for a call in progress (its cost is the
@@ -387,15 +392,21 @@ Key design choices:
   `community-<id>` (`communityVisitId`) so it stays apart from registered
   tools' IDs. People who reach its site any other way aren't counted. `/admin`
   shows visits and distinct signed-in users per tool, for the last 30 days and
-  all time. `/stats`, linked from the dashboard's footer, shows the same table
-  to anyone, signed in or not, for the tools still on the site
-  (`components/stats/ToolVisitsTable.tsx`, with rows from
+  all time. `/stats`, linked from the dashboard's top tools and its footer,
+  shows the same table to anyone, signed in or not, for the tools still on the
+  site (`components/stats/ToolVisitsTable.tsx`, with rows from
   `lib/visitReport.ts`). It reads the report at most once a minute, so its
-  counts are never more than a minute old. Anyone can call the route, and some
-  ad blockers stop the beacon, so the counts are a guide, not an audit. A
-  removed tool's rows are deleted on every deploy once it's listed in
-  `removed-tools.json` (see **Removing a tool** in the README). Tool code must
-  not import `toolVisits` or `admins`.
+  counts are never more than a minute old (`cachedFor` in `lib/cache.ts`).
+  The home page leads with the most-visited tools of the last 7 and 30 days
+  (`lib/topTools.ts`, `components/dashboard/TopTools.tsx`), every tool but the
+  Platform team's AskPenn and Platform Playground. It reads them at most once
+  a minute too, but doesn't wait long on the database: if a read fails or
+  takes over 2 seconds, it shows the last counts read (`cachedOrStale`), or
+  none just after the server starts, and retries a minute later. Anyone can call
+  the route, and some ad blockers stop the beacon, so the counts are a guide,
+  not an audit. A removed tool's rows are deleted on every deploy once it's
+  listed in `removed-tools.json` (see **Removing a tool** in the README). Tool
+  code must not import `toolVisits` or `admins`.
 - `admins` lists, by email, who can open `/admin` (AI usage, tool visits, and
   the admins themselves, who add and remove each other there; no one can remove
   themselves). `db:deploy` adds the first admins
@@ -418,8 +429,8 @@ Key design choices:
   not on a tool role's `search_path`, so tool SQL schema-qualifies the type and
   operators (`public.vector`, `OPERATOR(public.<=>)`). Each vector is stored
   with the model that made it; searches compare only the current model's
-  vectors, and the seed re-embeds the rest. Career Canvas (`tools/career-canvas`, schema
-  `careercanvas`) is the reference.
+  vectors, and rows from another model are re-embedded. Pass It On
+  (`tools/pass-it-on`, schema `passiton`) is the reference.
 - Tool metadata is not stored in the database; the registry in code is the
   source of truth.
 
@@ -429,16 +440,13 @@ Key design choices:
 
 The platform's env var reads happen in `packages/platform`,
 `apps/web/src/lib/container.ts` and `apps/web/src/lib/auth.ts`; `core` and tool
-packages (`tools/*`) never access `process.env`. Two older tools read their own
-variables in their pages and routes: Compass (`COMPASS_ICS_FEED_URL`,
-`TOOL19_ADMIN_KEY`, `NEXT_PUBLIC_TOOL19_ADMIN_KEY`) and Penn Planner
-(`NEXT_PUBLIC_GCAL_CLIENT_ID`).
+packages (`tools/*`) never access `process.env`.
 
 | Variable | Used by | Purpose |
 |----------|---------|---------|
 | `DATABASE_URL` | platform/prisma, `db:deploy` | Postgres admin connection; tool role passwords are derived from it |
-| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy`, platform/llm | The AI API's OpenAI calls while a user has free credit; embeddings: tool seeds (e.g. Career Canvas course embeddings; skipped when unset) and search queries from users without their own OpenAI key. Also the legacy LLM API |
-| `ANTHROPIC_API_KEY` | web/lib/container, platform/llm | The AI API's Anthropic calls while a user has free credit, and the legacy LLM API |
+| `OPENAI_API_KEY` | platform/embeddings, web/lib/container, `db:deploy` | The AI API's OpenAI calls while a user has free credit; embeddings: tool seeds (skipped when unset) and search queries from users without their own OpenAI key |
+| `ANTHROPIC_API_KEY` | web/lib/container | The AI API's Anthropic calls while a user has free credit |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | web/lib/auth | Google sign-in (OAuth client); without them, development signs in as a local user and production disables sign-in |
 | `NEXTAUTH_SECRET` | web/lib/auth | Signs session cookies; required with the Google credentials |
 | `NEXTAUTH_URL` | web/lib/auth | The site's public URL; required in production |

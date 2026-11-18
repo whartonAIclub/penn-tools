@@ -7,7 +7,6 @@
 // SyllabusDeadlines, or { error: { kind?, message } } (kind is the AIError's).
 
 import type { NextRequest } from "next/server";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.js";
 import { isAIError } from "@penntools/core/ai";
 import type { AIProvider } from "@penntools/core/ai";
 import {
@@ -20,6 +19,7 @@ import {
 } from "@penntools/tool-deadline-calendar";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
+import { pdfPageCount } from "@/lib/pdf";
 
 function failure(message: string, status: number): Response {
   return Response.json({ error: { message } }, { status });
@@ -27,15 +27,8 @@ function failure(message: string, status: number): Response {
 
 /** Why the PDF can't be read, or null: it must open and have at most MAX_PDF_PAGES pages. */
 async function checkPdf({ name, data }: SyllabusFile): Promise<string | null> {
-  const task = getDocument({ data: new Uint8Array(Buffer.from(data, "base64")), isEvalSupported: false, verbosity: 0 });
-  let pages: number;
-  try {
-    pages = (await task.promise).numPages;
-  } catch {
-    return `${name} couldn't be read as a PDF.`;
-  } finally {
-    await task.destroy();
-  }
+  const pages = await pdfPageCount(data);
+  if (pages === null) return `${name} couldn't be read as a PDF.`;
   if (pages > MAX_PDF_PAGES) return `${name} has ${pages} pages; syllabi can have at most ${MAX_PDF_PAGES}.`;
   return null;
 }

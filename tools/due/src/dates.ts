@@ -51,3 +51,9 @@ export function formatTime(time: string): string {
   const suffix = hours < 12 ? "AM" : "PM";
   return `${hours % 12 || 12}:${String(minutes % 60).padStart(2, "0")} ${suffix}`;
 }
+
+/** Today's date in Philadelphia, "YYYY-MM-DD", whatever the server's time zone. */
+export function todayInPhiladelphia(now: Date = new Date()): string {
+  // en-CA formats dates as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(now);
+}

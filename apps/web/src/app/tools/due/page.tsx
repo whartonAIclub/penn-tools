@@ -5,7 +5,6 @@
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
-import { MAX_PDF_BYTES, SAMPLE_COURSE, SAMPLE_DEADLINES, SAMPLE_RECURRING } from "@penntools/tool-due";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { ApiKeyPrompt } from "@/components/layout/ApiKeyPrompt";
@@ -23,14 +22,5 @@ export default async function DuePage() {
   const providers = await (await getAI("due"))!.providers();
   if (providers.length === 0) return <ApiKeyPrompt title="Due" />;
 
-  return (
-    <Due
-      providers={providers}
-      labels={PROVIDER_LABELS}
-      maxPdfBytes={MAX_PDF_BYTES}
-      sampleCourse={SAMPLE_COURSE}
-      sampleDeadlines={SAMPLE_DEADLINES}
-      sampleRecurring={SAMPLE_RECURRING}
-    />
-  );
+  return <Due providers={providers} labels={PROVIDER_LABELS} />;
 }

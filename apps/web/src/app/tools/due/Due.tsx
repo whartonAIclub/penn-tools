@@ -7,16 +7,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { fileType } from "@penntools/core/ai/attachments";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import type { AIErrorInfo, AIProvider } from "@penntools/core/ai";
 import {
   ALL_DAY_REMINDER_OPTIONS,
   DEADLINE_KINDS,
   DEFAULT_REMINDERS,
+  MAX_PDF_BYTES,
+  SAMPLE_COURSE,
+  SAMPLE_DEADLINES,
+  SAMPLE_RECURRING,
   TIMED_REMINDER_OPTIONS,
   WEEKDAY_LABELS,
   REPEAT_KINDS,
   buildCalendar,
-  calendarDeadlines,
+  calendarItems,
   calendarFileName,
   deadlineProblem,
   formatTime,
@@ -34,7 +39,7 @@ import {
   type RepeatKind,
   type ReminderSettings,
   type TimeChoice,
-} from "@penntools/tool-due";
+} from "@penntools/tool-due/client"; // not "@penntools/tool-due", which brings Zod to the browser
 import styles from "./Due.module.css";
 
 type Step = "upload" | "course" | "review" | "download";
@@ -56,24 +61,21 @@ interface Outline {
 /** An error from the read route: an AIError's data, or just a message. */
 type ReadError = Partial<AIErrorInfo> & { message: string };
 
-/** Errors fixed in Settings: no key, a rejected key, no credit, or the free AI credit used up. */
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
+
+const SAMPLE: Outline = { course: SAMPLE_COURSE, deadlines: SAMPLE_DEADLINES, recurring: SAMPLE_RECURRING };
 
 export interface DueProps {
-  /** Providers the student has saved a key for. */
+  /** Providers the student can use: free AI credit left, or a saved key (ai.providers()); never empty. */
   providers: AIProvider[];
+  /** PROVIDER_LABELS, passed in because importing it here would bring Zod and the AI price tables to the browser. */
   labels: Record<AIProvider, string>;
-  maxPdfBytes: number;
-  sampleCourse: CourseDetails;
-  sampleDeadlines: Deadline[];
-  sampleRecurring: RecurringDeadline[];
 }
 
-export function Due({ providers, labels, maxPdfBytes, sampleCourse, sampleDeadlines, sampleRecurring }: DueProps) {
+export function Due({ providers, labels }: DueProps) {
   const [step, setStep] = useState<Step>("upload");
-  const [course, setCourse] = useState<CourseDetails>(sampleCourse);
-  const [deadlines, setDeadlines] = useState<Deadline[]>(sampleDeadlines);
-  const [recurring, setRecurring] = useState<RecurringDeadline[]>(sampleRecurring);
+  const [course, setCourse] = useState<CourseDetails>(SAMPLE.course);
+  const [deadlines, setDeadlines] = useState<Deadline[]>(SAMPLE.deadlines);
+  const [recurring, setRecurring] = useState<RecurringDeadline[]>(SAMPLE.recurring);
   const [reminders, setReminders] = useState<ReminderSettings>(DEFAULT_REMINDERS);
 
   function loadOutline(read: Outline) {
@@ -101,9 +103,8 @@ export function Due({ providers, labels, maxPdfBytes, sampleCourse, sampleDeadli
         <UploadStep
           providers={providers}
           labels={labels}
-          maxPdfBytes={maxPdfBytes}
           onLoad={loadOutline}
-          onSample={() => loadOutline({ course: sampleCourse, deadlines: sampleDeadlines, recurring: sampleRecurring })}
+          onSample={() => loadOutline(SAMPLE)}
         />
       )}
       {step === "course" && (
@@ -169,9 +170,8 @@ function toBase64(file: File): Promise<string> {
 async function readOutline(
   file: File,
   provider: AIProvider,
-  maxPdfBytes: number,
 ): Promise<Outline> {
-  if (file.size > maxPdfBytes) throw { message: `${file.name} is over ${maxPdfBytes / 1024 / 1024} MB.` } satisfies ReadError;
+  if (file.size > MAX_PDF_BYTES) throw { message: `${file.name} is over ${MAX_PDF_BYTES / 1024 / 1024} MB.` } satisfies ReadError;
   if (fileType(new Uint8Array(await file.slice(0, 12).arrayBuffer())) !== "application/pdf") {
     throw { message: `${file.name} isn't a PDF. Download the outline as a PDF and try again.` } satisfies ReadError;
   }
@@ -198,13 +198,11 @@ async function readOutline(
 function UploadStep({
   providers,
   labels,
-  maxPdfBytes,
   onLoad,
   onSample,
 }: {
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
-  maxPdfBytes: number;
   onLoad: (read: Outline) => void;
   onSample: () => void;
 }) {
@@ -219,7 +217,7 @@ function UploadStep({
     setReading(true);
     setError(null);
     try {
-      onLoad(await readOutline(file, provider, maxPdfBytes));
+      onLoad(await readOutline(file, provider));
     } catch (e) {
       setError(typeof e === "object" && e !== null && "message" in e ? (e as ReadError) : { message: "Something went wrong. Try again." });
       setReading(false);
@@ -253,7 +251,7 @@ function UploadStep({
       {error && (
         <p className={styles.error} role="alert">
           {error.message}
-          {error.kind && KEY_PROBLEMS.has(error.kind) && (
+          {isSettingsError(error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.errorLink}>
@@ -309,6 +307,13 @@ function CourseStep({
   onBack: () => void;
   onNext: () => void;
 }) {
+  // The course name goes in every event's title and ID, so courses' events never mix.
+  const problem = !course.name.trim()
+    ? "Add the course name to continue."
+    : isTime(course.classStart) && isTime(course.classEnd) && course.classEnd <= course.classStart
+      ? "Class ends before it starts. Check the class times."
+      : null;
+
   function toggleDay(day: number) {
     const classDays = course.classDays.includes(day)
       ? course.classDays.filter((d) => d !== day)
@@ -330,8 +335,10 @@ function CourseStep({
           className={styles.input}
           value={course.name}
           placeholder="e.g. FNCE 6110"
+          required
           onChange={(e) => onChange({ ...course, name: e.target.value })}
         />
+        <span className={styles.help}>Shown in each event&apos;s title, e.g. &quot;DUE: Problem Set 1 (FNCE 6110)&quot;.</span>
       </label>
 
       <fieldset className={styles.field}>
@@ -387,10 +394,11 @@ function CourseStep({
         <button className={styles.secondaryButton} onClick={onBack}>
           Back
         </button>
-        <button className={styles.button} onClick={onNext}>
+        <button className={styles.button} onClick={onNext} disabled={problem !== null}>
           Continue
         </button>
       </div>
+      {problem && <p className={styles.problem}>{problem}</p>}
     </section>
   );
 }
@@ -420,7 +428,7 @@ function ReviewStep({
   const toConfirm =
     included.filter((d) => deadlineProblem(d, course) === null && isGuessedDate(d, course)).length +
     includedRecurring.filter((r) => recurringProblem(r, course) === null && !r.confirmed).length;
-  const total = calendarDeadlines(course, deadlines, recurring).length;
+  const total = calendarItems(course, deadlines, recurring).length;
 
   function updateRecurring(id: string, patch: Partial<RecurringDeadline>) {
     onRecurringChange(recurring.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -460,6 +468,7 @@ function ReviewStep({
         date: null,
         week: null,
         day: null,
+        useWeek: false,
         time: { kind: "all-day" },
         include: true,
         note: null,
@@ -601,7 +610,8 @@ function DeadlineRow({
             className={styles.input}
             value={date ?? ""}
             aria-label="Date"
-            onChange={(e) => onChange({ date: e.target.value || null })}
+            // Clearing it leaves it empty rather than refilling it from the outline's week.
+            onChange={(e) => onChange(e.target.value ? { date: e.target.value } : { date: null, useWeek: false })}
           />
           <select
             className={styles.select}
@@ -840,14 +850,14 @@ function DownloadStep({
   onStartOver: () => void;
 }) {
   const [downloaded, setDownloaded] = useState(false);
-  const ready = calendarDeadlines(course, deadlines, recurring);
+  const ready = calendarItems(course, deadlines, recurring);
 
   function toggle(list: number[], value: number): number[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
   }
 
   function download() {
-    const ics = buildCalendar(course, ready, reminders);
+    const ics = buildCalendar(course, deadlines, reminders, { recurring });
     const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
     const link = document.createElement("a");
     link.href = url;

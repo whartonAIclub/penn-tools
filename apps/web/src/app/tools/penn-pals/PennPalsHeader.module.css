@@ -1,0 +1,58 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.intro {
+  margin: 4px 0 0;
+  color: var(--section-label);
+  font-size: 0.9rem;
+}
+
+.nav {
+  display: flex;
+  gap: 8px;
+}
+
+.button,
+.current {
+  padding: 8px 16px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button {
+  color: var(--penn-blue);
+}
+
+.button:hover {
+  background: #eef2f9;
+}
+
+/* The page you're on */
+.current {
+  background: var(--penn-blue);
+  color: #fff;
+}

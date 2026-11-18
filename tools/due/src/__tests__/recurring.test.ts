@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  calendarDeadlines,
+  calendarItems,
   expandRecurring,
   occurrenceDates,
   recurringProblem,
@@ -61,18 +61,30 @@ describe("recurringProblem", () => {
 });
 
 describe("in the calendar", () => {
-  it("becomes one event per date, each with its own ID", () => {
+  it("becomes one event per date, each with an ID from its date", () => {
     const expanded = expandRecurring(repeating(), SAMPLE_COURSE);
     expect(expanded).toHaveLength(5);
-    expect(expanded[0]).toMatchObject({ title: "Reflection paper", date: "2027-01-18", time: { kind: "class-time" } });
-    const ics = buildCalendar(SAMPLE_COURSE, expanded, DEFAULT_REMINDERS);
+    expect(expanded[0]).toMatchObject({ title: "Reflection paper", date: "2027-01-18", time: { kind: "class-time" }, useWeek: false });
+    const ics = buildCalendar(SAMPLE_COURSE, [], DEFAULT_REMINDERS, { recurring: [repeating()] });
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(5);
-    expect(new Set(ics.match(/UID:.*/g)).size).toBe(5);
     expect(ics).toContain("DTSTART;TZID=America/New_York:20270118T094500");
+    expect(ics).toContain("UID:fnce-6110-20270113-reflection-paper-20270118@due.penntools.org");
   });
 
-  it("joins the ready single and repeating deadlines, leaving out unticked ones", () => {
-    expect(calendarDeadlines(SAMPLE_COURSE, SAMPLE_DEADLINES, SAMPLE_RECURRING)).toHaveLength(5 + 5);
-    expect(calendarDeadlines(SAMPLE_COURSE, SAMPLE_DEADLINES, [repeating({ include: false })])).toHaveLength(5);
+  it("keeps each occurrence's ID when a week is skipped", () => {
+    const uids = (r: RecurringDeadline) =>
+      (buildCalendar(SAMPLE_COURSE, [], DEFAULT_REMINDERS, { recurring: [r] }).match(/UID:[^\r]*/g) ?? []).map((u) => u.slice(4));
+    const all = uids(repeating());
+    const skipped = uids(repeating({ skipWeeks: [3] }));
+    expect(skipped).toEqual(all.filter((id) => !id.includes("20270125")));
+  });
+
+  it("joins ready single and repeating deadlines in date order, leaving out unticked ones", () => {
+    const items = calendarItems(SAMPLE_COURSE, SAMPLE_DEADLINES, SAMPLE_RECURRING);
+    expect(items).toHaveLength(5 + 5);
+    const dates = items.map((i) => i.date);
+    expect(dates).toEqual([...dates].sort());
+    expect(items.filter((i) => i.series !== null)).toHaveLength(5);
+    expect(calendarItems(SAMPLE_COURSE, SAMPLE_DEADLINES, [repeating({ include: false })])).toHaveLength(5);
   });
 });

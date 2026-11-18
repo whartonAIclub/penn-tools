@@ -98,7 +98,7 @@ model AiUsage {
   id           String         @id @default(uuid())
   createdAt    DateTime       @default(now()) @map("created_at")
   userId       String         @map("user_id")
-  /// The calling tool's manifest id, or "unknown" for a legacy call from outside a tool's pages.
+  /// The calling tool's manifest id, or "unknown" for a past legacy call from outside a tool's pages.
   toolId       String         @map("tool_id")
   api          AiUsageApi
   provider     ApiKeyProvider
@@ -144,6 +144,7 @@ model ToolVisit {
 enum AiUsageApi {
   AI
   EMBEDDINGS
+  /// The legacy LLM API (/api/llm/complete), since removed: kept for past rows.
   LEGACY
 }
 
