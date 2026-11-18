@@ -1,0 +1,198 @@
+.panel {
+  flex: 1;
+}
+
+.messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.suggestionsLabel {
+  margin-bottom: 2px;
+  color: var(--rc-muted);
+  font-size: 11px;
+}
+
+.suggestion {
+  padding: 8px 10px;
+  border: 1px solid var(--rc-input-border);
+  border-radius: 8px;
+  background: var(--rc-surface);
+  color: var(--rc-text-2);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.suggestion:hover {
+  border-color: var(--rc-accent);
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.messageUser {
+  align-items: flex-end;
+}
+
+.bubble {
+  max-width: 90%;
+  padding: 8px 12px;
+  border: 1px solid var(--rc-panel-border);
+  border-radius: 14px 14px 14px 4px;
+  background: var(--rc-surface);
+  color: var(--rc-text);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.messageUser .bubble {
+  border: none;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--rc-accent);
+  color: #fff;
+}
+
+.bubbleError {
+  border-color: var(--rc-error-border);
+  background: var(--rc-error-bg);
+  color: #991b1b;
+}
+
+.apply {
+  margin-top: 5px;
+  padding: 4px 12px;
+  border-radius: 5px;
+  background: var(--rc-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.applied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.appliedLabel {
+  color: var(--rc-good);
+  font-weight: 600;
+}
+
+.undo {
+  color: var(--rc-accent);
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+.typing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.typingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rc-accent);
+  opacity: 0.4;
+  animation: pulse 1s infinite;
+}
+
+.typingDot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typingDot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.panel .foot {
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.input {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--rc-input-border);
+  border-radius: 10px;
+  background: var(--rc-surface);
+}
+
+.inputOver {
+  border-color: #dc2626;
+}
+
+.textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--rc-text);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: none;
+}
+
+.send {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: var(--rc-accent);
+  color: #fff;
+}
+
+.send:disabled {
+  background: var(--rc-disabled);
+  cursor: not-allowed;
+}
+
+.over {
+  color: var(--rc-error);
+  font-size: 11px;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* The box shows focus, not the text area inside it. */
+.input:focus-within {
+  border-color: var(--rc-accent);
+  box-shadow: 0 0 0 1px var(--rc-accent);
+}
+
+.input .textarea:focus-visible {
+  outline: none;
+}

@@ -1,93 +1,94 @@
 /**
- * exportResume.ts — client-side export helpers for the Resume Customizer.
- * Runs only in the browser (called from "use client" components).
+ * exportResume.ts — the PDF and Word downloads, and the page count, in the
+ * browser. The layouts are in the tool package: "/pdf" (with jsPDF and the
+ * fonts) loads when the page first counts pages, "/docx" only when someone
+ * downloads the Word file.
  */
+
+import type { FontSet, FontStyle } from "@penntools/tool-resume-customizer/pdf";
+import type { ExportSettings, ResumeDoc, ResumeFont } from "@penntools/tool-resume-customizer/resume";
 
 /**
- * Render `contentHtml` off-screen, capture it with html2canvas, and save as PDF.
- * The container is styled to match the US Letter PdfCard dimensions.
+ * The PDF's font files, bundled from the tool package. Each URL is written out
+ * so the bundler can find and copy the file.
  */
-export async function downloadAsPDF(
-  contentHtml: string,
-  filename = "resume.pdf",
-): Promise<void> {
-  const { default: jsPDF }     = await import("jspdf");
-  const { default: html2canvas } = await import("html2canvas");
-
-  // Render HTML in a hidden, fixed-size container that mirrors PdfCard
-  const container = document.createElement("div");
-  container.style.cssText = [
-    "position:fixed",
-    "top:-20000px",
-    "left:-20000px",
-    "width:816px",
-    "min-height:1056px",
-    "background:#fff",
-    "padding:72px",
-    "box-sizing:border-box",
-    "font-family:'Times New Roman',Times,serif",
-    "font-size:12pt",
-    "color:#111",
-    "line-height:1.35",
-  ].join(";");
-  container.innerHTML = contentHtml;
-  document.body.appendChild(container);
-
-  try {
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      width: 816,
-      windowWidth: 816,
-    });
-
-    // US Letter at 72 dpi in jsPDF "pt" units = 612 × 792
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-
-    const imgData = canvas.toDataURL("image/png");
-    const imgH    = (canvas.height / canvas.width) * pageW;
-
-    // If the content is taller than one page, add extra pages
-    let yOffset = 0;
-    while (yOffset < imgH) {
-      if (yOffset > 0) pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, -yOffset, pageW, imgH);
-      yOffset += pageH;
-    }
-
-    pdf.save(filename);
-  } finally {
-    document.body.removeChild(container);
+function fontUrls(font: ResumeFont): Record<FontStyle, URL> {
+  if (font === "sans") {
+    return {
+      regular: new URL("@penntools/tool-resume-customizer/fonts/LiberationSans-Regular.ttf", import.meta.url),
+      bold: new URL("@penntools/tool-resume-customizer/fonts/LiberationSans-Bold.ttf", import.meta.url),
+      italic: new URL("@penntools/tool-resume-customizer/fonts/LiberationSans-Italic.ttf", import.meta.url),
+      boldItalic: new URL("@penntools/tool-resume-customizer/fonts/LiberationSans-BoldItalic.ttf", import.meta.url),
+    };
   }
+  return {
+    regular: new URL("@penntools/tool-resume-customizer/fonts/LiberationSerif-Regular.ttf", import.meta.url),
+    bold: new URL("@penntools/tool-resume-customizer/fonts/LiberationSerif-Bold.ttf", import.meta.url),
+    italic: new URL("@penntools/tool-resume-customizer/fonts/LiberationSerif-Italic.ttf", import.meta.url),
+    boldItalic: new URL("@penntools/tool-resume-customizer/fonts/LiberationSerif-BoldItalic.ttf", import.meta.url),
+  };
 }
 
-/**
- * Download the resume as a Word-compatible .doc file (HTML-in-Word wrapper).
- */
-export function downloadAsWord(contentHtml: string, filename = "resume.doc"): void {
-  const wordHtml = `\
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"/></head>
-<body style="font-family:'Times New Roman',serif;font-size:12pt;margin:72px;">
-${contentHtml}
-</body>
-</html>`;
+const fontCache = new Map<ResumeFont, Promise<FontSet>>();
 
-  const blob = new Blob([wordHtml], { type: "application/msword" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
+function loadFonts(font: ResumeFont): Promise<FontSet> {
+  let fonts = fontCache.get(font);
+  if (!fonts) {
+    const urls = fontUrls(font);
+    const load = async (style: FontStyle) => {
+      const res = await fetch(urls[style]);
+      if (!res.ok) throw new Error(`Couldn't load the PDF's font (HTTP ${res.status}).`);
+      return res.arrayBuffer();
+    };
+    fonts = Promise.all([load("regular"), load("bold"), load("italic"), load("boldItalic")]).then(
+      ([regular, bold, italic, boldItalic]) => ({ regular, bold, italic, boldItalic }),
+    );
+    // A failed load is retried next time rather than cached.
+    fonts.catch(() => fontCache.delete(font));
+    fontCache.set(font, fonts);
+  }
+  return fonts;
+}
+
+/** "JANE Q. DOE" → "Jane-Q-Doe-Resume". */
+function baseName(doc: ResumeDoc): string {
+  const name = doc.name
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0]!.toUpperCase() + w.slice(1))
+    .join("-");
+  return name ? `${name}-Resume` : "Resume";
+}
+
+function download(bytes: ArrayBuffer, filename: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
+  const a = document.createElement("a");
+  a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  // Revoking at once can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-/** Copy plain text to the clipboard. */
-export async function copyToClipboard(text: string): Promise<void> {
-  await navigator.clipboard.writeText(text);
+/** How many pages the PDF would have. */
+export async function countPages(doc: ResumeDoc, settings: ExportSettings): Promise<number> {
+  const [{ countPdfPages }, fonts] = await Promise.all([import("@penntools/tool-resume-customizer/pdf"), loadFonts(settings.font)]);
+  return countPdfPages(doc, settings, fonts);
+}
+
+export async function downloadPdf(doc: ResumeDoc, settings: ExportSettings): Promise<void> {
+  const [{ toPdf }, fonts] = await Promise.all([import("@penntools/tool-resume-customizer/pdf"), loadFonts(settings.font)]);
+  download(toPdf(doc, settings, fonts).bytes, `${baseName(doc)}.pdf`, "application/pdf");
+}
+
+export async function downloadDocx(doc: ResumeDoc, settings: ExportSettings): Promise<void> {
+  const { toDocx } = await import("@penntools/tool-resume-customizer/docx");
+  download(
+    await toDocx(doc, settings),
+    `${baseName(doc)}.docx`,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
 }

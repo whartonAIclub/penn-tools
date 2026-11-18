@@ -1,193 +1,27 @@
-# Resume Customizer — Team Guide
+# Resume Customizer
 
-This guide covers everything your team needs to work on this project. No prior Git experience needed.
+Tailors a student's resume to a job description, using their other files (past resumes, projects, writing samples) for experience the resume leaves out. They then refine it in an editor with an AI chat, compare it with the original, and download it as a PDF or Word document.
 
----
+## Where things are
 
-## First time setup
-
-**1. Install the tools you need** (do this once):
-* [Node.js](https://nodejs.org) — download the "LTS" version
-* Open a terminal and run: `npm install -g pnpm`
-
-**2. Clone the repo** (do this once):
-```
-git clone https://github.com/whartonAIclub/penn-tools
-cd penn-tools
-```
-
-**3. Switch to your branch:**
-```
-git checkout Goonbranch_1
-```
-
-**4. Install dependencies and run the app:**
-```
-pnpm install
-pnpm build
-pnpm dev
-```
-
-The app will be running at **http://localhost:3000**. Keep this terminal open while you work.
-
----
-
-## Every time you sit down to work
-
-Before you touch any code, get the latest changes from your teammates:
-
-```
-git pull
-```
-
-That's it. This downloads whatever your teammates pushed since you last worked.
-
----
-
-## Saving your work (committing + pushing)
-
-Think of this as a two-step save:
-1. **Commit** = save a snapshot locally with a message describing what you did
-2. **Push** = upload that snapshot so your teammates can see it
-
-```
-git add .
-git commit -m "describe what you changed here"
-git push
-```
-
-Example commit messages:
-* `"add file upload button to left panel"`
-* `"fix typo in cover letter preview"`
-* `"update resume template styling"`
-
-**Commit often.** Small, frequent commits are much easier to undo if something breaks.
-
-**Do this yourself** — don't use Claude or an AI tool to commit for you. Committing is how you stay aware of exactly what's going into the repo. If you don't know what you're committing, you risk pushing broken code or files that shouldn't be there.
-
-### Before every commit: check what you're about to save
-
-Run this first:
-```
-git status
-```
-
-This shows every file you've changed. Read it carefully. You should only see files inside:
-- `tools/resume-customizer/`
-- `apps/web/src/app/tools/resume-customizer/`
-
-**If you see anything outside those two folders — stop.** Do not commit until you understand why that file changed. You may have accidentally edited something that belongs to another team or the platform. Committing it could break the whole app for everyone.
-
-Common files to watch out for:
-- `apps/web/package.json` — only changes when a new tool is registered; don't touch otherwise
-- `apps/web/src/lib/container.ts` — same
-- Anything in `tools/` that isn't `tools/resume-customizer/`
-- Anything in `packages/`
-
-If you're unsure, ask before pushing.
-
----
-
-## Your files
-
-You work in exactly two places:
-
-| What | Where |
+| | |
 |---|---|
-| Tool logic (backend) | `tools/resume-customizer/src/` |
-| UI (what users see) | `apps/web/src/app/tools/resume-customizer/` |
+| `src/resume.ts` | The resume as data (`ResumeDoc`), its limits and export settings, the editor's HTML (`docToHtml`, which escapes all text), and the comparison with the original. No AI or DOM code: the page imports it from `@penntools/tool-resume-customizer/resume`. |
+| `src/tailor.ts` | The AI calls: `tailorResume` (standard tier, low reasoning) and `reviseResume` for the chat (fast tier). Both use `generateObject`, so there's no model text to parse. `tailorResume` takes an AbortSignal, so cancelling stops the call mid-reply. Also the input checks the route and server action run. |
+| `src/pdf.ts`, `src/docx.ts` | The PDF (jsPDF) and Word (docx) writers. Both write real text, never an image, so applicant tracking systems can read it. The page loads `pdf` when it first counts pages (on the Edit screen) and `docx` only for a Word download. |
+| `fonts/` | Liberation Serif and Sans, embedded in the PDF (SIL Open Font License, `fonts/LICENSE`). They have Times New Roman's and Arial's letter widths, so lines break where they do in the editor and in Word. |
+| `apps/web/src/app/tools/resume-customizer/` | The page: `page.tsx` (sign-in and key checks); `ResumeCustomizer.tsx` (the state the steps share) and one file per screen (`LandingScreen`, `OnboardingScreen`, `WorkspaceScreen`, `GeneratingScreen`, `EditScreen` with `AiChatPanel`, `ComparisonScreen`, `ExportScreen`), each with its CSS module; `shared.tsx`, `hooks.ts` and `StepBar.tsx`; `tailor/route.ts` (tailoring, a route so the page can cancel it), `actions.ts` (the chat's server action), `parseFile.ts` (text from uploads), `editor.ts` (reads the editor back into a `ResumeDoc`), `exportResume.ts` (downloads). The color tokens are on `.shell` in `ResumeCustomizer.module.css`. |
 
-Don't edit anything outside these two folders.
+## Cost
 
----
+A generation sends the base resume, the job description and up to 40,000 characters from at most 50 other files (`LIMITS` in `src/resume.ts`): at most about 20k input tokens on the standard tier. Chat messages send only the current resume, the job description and the last few turns, on the fast tier. Cancelling a generation, or leaving the page during one, stops the call: only the input and what the model had written so far are charged.
 
-## When something goes wrong
-
-**Merge conflict** — this happens when two people edited the same file. You'll see something like:
+## Checks
 
 ```
-<<<<<<< your changes
-...
-=======
-...
->>>>>>> their changes
+pnpm typecheck
+pnpm check:tools
+pnpm test
 ```
 
-Pick which version to keep (or combine them), delete the `<<<<`, `====`, `>>>>` lines, save the file, then commit.
-
-**App won't start** — try:
-```
-pnpm install
-pnpm build
-pnpm dev
-```
-
-**You accidentally edited the wrong file** — before committing, run `git checkout -- path/to/file` to undo changes to that specific file.
-
----
-
-## API keys
-
-The app needs API keys to call the AI model. These are secret — never commit them to Git.
-
-**Setup (do this once):**
-
-1. Check if `apps/web/.env.local` exists. If not, copy the example file:
-   ```
-   cp .env.example apps/web/.env.local
-   ```
-
-2. Open `apps/web/.env.local` and fill in at least one of:
-   ```
-   OPENAI_API_KEY="sk-..."
-   ANTHROPIC_API_KEY="sk-ant-..."
-   ```
-   You only need one. The team may have a shared key — if not, you can get your own from [platform.openai.com](https://platform.openai.com) or [console.anthropic.com](https://console.anthropic.com) (Google it if unsure).
-
-3. Save the file. The app will pick it up automatically next time you run `pnpm dev`.
-
-**Important:**
-* `.env.local` is already in `.gitignore` — it will never accidentally get committed
-* Never paste an API key into a code file or share it in a message
-* If the app starts but AI features don't work, a missing or incorrect key is usually why
-
----
-
-## Things that can seriously mess up the repo
-
-These commands look harmless but can delete or overwrite your teammates' work permanently. Don't run them unless you fully understand what they do:
-
-| Command | Why it's dangerous |
-|---|---|
-| `git push --force` | Overwrites what's on the server with your local copy — can erase teammates' commits |
-| `git reset --hard` | Permanently deletes your uncommitted changes with no undo |
-| `git rebase` | Rewrites commit history — causes major conflicts for everyone else |
-| `git checkout .` or `git restore .` | Wipes all your unsaved changes instantly |
-
-**Rule of thumb:** if a command has `--force`, `--hard`, or you're not sure what it does — stop and Google it first, or ask before running.
-
----
-
-## Do I ever need a new branch?
-
-No — your whole team works on `Goonbranch_1`. You don't need to create new branches.
-
-If you ever end up on the wrong branch by accident, switch back with:
-```
-git checkout Goonbranch_1
-```
-
----
-
-## Quick reference
-
-| What you want to do | Command |
-|---|---|
-| Get latest code from teammates | `git pull` |
-| See what files you've changed | `git status` |
-| Save your work locally | `git add .` then `git commit -m "your message"` |
-| Upload your work | `git push` |
-| See recent saves | `git log --oneline` |
-| Switch back to your branch | `git checkout Goonbranch_1` |
-| Start the app | `pnpm dev` |
-| Stop the app | Ctrl + C in the terminal |
+The export tests read the PDF back with pdf.js and the .docx with JSZip, to check that the text is there.
