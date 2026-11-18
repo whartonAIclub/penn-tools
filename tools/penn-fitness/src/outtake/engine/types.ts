@@ -49,6 +49,13 @@ export interface PlanInput {
   crunchMode: boolean;
   /** Times the user dismissed before, to avoid. */
   dismissed: readonly DismissedTime[];
+  /**
+   * Plan nothing that starts before this, so regenerating mid-week (as crunch
+   * mode does) only changes the rest of the week; null plans the whole week.
+   */
+  planFrom: LocalDateTime | null;
+  /** Slots that stay as they are (completed ones): they count toward the target and fill their day. */
+  keptSlots: readonly PlannedSlot[];
 }
 
 export interface PlannedSlot {
@@ -61,7 +68,7 @@ export interface PlannedSlot {
 }
 
 export interface WeekPlan {
-  /** In time order, at most one a day. */
+  /** In time order, at most one a day; includes the kept slots. */
   slots: PlannedSlot[];
   /** How many sessions the plan aimed for: the user's target, or 2 in crunch mode. */
   targetSessions: number;

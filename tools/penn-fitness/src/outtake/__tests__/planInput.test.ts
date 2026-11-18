@@ -9,6 +9,7 @@ import { SHARED_PREFS, type SharedPrefs } from "../../sharedPrefs.js";
 import { BUILDING_GYM_ID, FACILITIES } from "../facilities.js";
 import { buildPlanInput, type PlanSources } from "../planInput.js";
 import { OUTTAKE_PREFS } from "../prefs.js";
+import type { WorkoutSlot } from "../types.js";
 
 const block = (changes: Partial<BusyBlock>): BusyBlock => ({
   id: "b",
@@ -49,12 +50,20 @@ describe("buildPlanInput", () => {
     expect(input.busyBlocks).toHaveLength(1);
   });
 
-  it("puts blocks with no zone, or HOME, at home, and the rest in their area", () => {
+  it("puts campus blocks at Huntsman, blocks with no zone or HOME at home, and the rest in their area", () => {
     const input = buildPlanInput(
-      sources({ blocks: [block({ zone: "CAMPUS" }), block({ zone: null }), block({ zone: "HOME" })] }, centerCity),
+      sources(
+        { blocks: [block({ zone: "CAMPUS" }), block({ zone: null }), block({ zone: "HOME" }), block({ zone: "CENTER_CITY" })] },
+        centerCity,
+      ),
     );
     const home = { area: "CENTER_CITY", corner: { street: 19, crossStreet: "Walnut" } };
-    expect(input.busyBlocks.map((b) => b.location)).toEqual([{ area: "CAMPUS", corner: null }, home, home]);
+    expect(input.busyBlocks.map((b) => b.location)).toEqual([
+      { area: "CAMPUS", corner: { street: 38, crossStreet: "Walnut" } },
+      home,
+      home,
+      { area: "CENTER_CITY", corner: null },
+    ]);
   });
 
   it("offers the building gym, at home, only to users who have one", () => {
@@ -79,6 +88,30 @@ describe("buildPlanInput", () => {
     expect(input.preferredWindows).toEqual([
       { start: "00:00", end: "12:00" },
       { start: "16:00", end: "24:00" },
+    ]);
+  });
+
+  it("plans the whole week, keeping nothing, unless told otherwise", () => {
+    expect(buildPlanInput(sources())).toMatchObject({ planFrom: null, keptSlots: [] });
+  });
+
+  it("keeps completed slots and plans from now, when regenerating mid-week", () => {
+    const slot = (id: string, status: WorkoutSlot["status"]): WorkoutSlot => ({
+      id,
+      weekStart: "2026-11-16",
+      start: "2026-11-16T07:15",
+      end: "2026-11-16T08:00",
+      placeId: "pottruck",
+      travelMinutes: 10,
+      score: 1.5,
+      status,
+      skipReason: null,
+      attributes: NO_ATTRIBUTES,
+    });
+    const input = buildPlanInput(sources({ slots: [slot("a", "COMPLETED"), slot("b", "ACCEPTED"), slot("c", "SKIPPED")], now: "2026-11-18T12:00" }));
+    expect(input.planFrom).toBe("2026-11-18T12:00");
+    expect(input.keptSlots).toEqual([
+      { start: "2026-11-16T07:15", end: "2026-11-16T08:00", placeId: "pottruck", travelMinutes: 10, score: 1.5 },
     ]);
   });
 

@@ -1,13 +1,12 @@
-// The slot engine: finds the gaps in a week and picks workout slots for them.
-// Built in steps 4 and 5 of docs/outtake.md; its expected behavior is set out
-// by the fixture weeks in __tests__/. Its input comes from buildPlanInput
-// (../planInput.ts).
-
-import type { PlanInput, WeekPlan } from "./types.js";
+// The slot engine (section 8.3 of docs/outtake.md): finds the gaps in a week
+// and picks workout slots for them. Pure functions with no I/O; its expected
+// behavior is set out by the fixture weeks in __tests__/. Its input comes from
+// buildPlanInput (../planInput.ts).
 
 export type { EngineBlock, EnginePlace, PlanInput, PlannedSlot, TimeWindow, WeekPlan } from "./types.js";
-
-export function planWeek(input: PlanInput): WeekPlan {
-  void input;
-  throw new Error("planWeek isn't built yet: see steps 4 and 5 of docs/outtake.md.");
-}
+export { ENGINE_CONFIG, type EngineConfig, type PlanConfig, type ScoringConfig, type TravelConfig } from "./config.js";
+export { walkingMinutes } from "./travel.js";
+export { findGaps, placeOptions, type Gap, type GapInput, type PlaceOption } from "./gaps.js";
+export { scoreSlot, type ScoreParts, type ScoringInput, type SlotToScore } from "./scoring.js";
+export { measureBusyness } from "./busyness.js";
+export { planWeek } from "./plan.js";
