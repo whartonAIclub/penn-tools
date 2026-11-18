@@ -16,7 +16,5 @@ export class PaperTldrTool extends Tool {
     category: "Academics",
     // Fill the whole page area, so the background painting reaches the edges.
     fullWidth: true,
-    // Shown as BETA until the tool is ready; delete this line then.
-    beta: true,
   };
 }

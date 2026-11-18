@@ -84,6 +84,8 @@ TARGETS = {
     "pass-it-on": local("/tools/pass-it-on"),  # needs sign-in and board access: its image was taken signed in, with sample data
     "chatprep": local("/tools/chatprep"),  # needs sign-in: its image was taken signed in
     "penn-pals": local("/tools/penn-pals"),  # its image was taken signed in, with sample contacts and the "how it works" box hidden
+    "paper-tldr": local("/tools/paper-tldr"),
+    "industry-connector": local("/tools/industry-connector"),  # needs sign-in and a loaded directory: its image was taken signed in, with fictional sample people and the admins' upload link hidden
 }
 
 
