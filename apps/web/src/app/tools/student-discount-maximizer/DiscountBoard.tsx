@@ -521,7 +521,13 @@ function DealCard({
         </a>
       )}
       {deal.expiresOn && !expired && <p className={styles.meta}>Expires {formatDate(deal.expiresOn)}</p>}
-      {deal.addedBy && <p className={styles.meta}>Added by {deal.addedBy}</p>}
+      {(deal.sourcedFrom || deal.addedBy) && (
+        <p className={styles.meta}>
+          {[deal.sourcedFrom && `Sourced from ${deal.sourcedFrom}`, deal.addedBy && `Added by ${deal.addedBy}`]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      )}
 
       <div className={styles.cardActions}>
         {expired ? (

@@ -117,6 +117,7 @@ export const LIMITS = {
   url: 500,
   howToClaim: 1000,
   addedBy: 100,
+  sourcedFrom: 100,
   search: 100,
 } as const;
 
@@ -153,6 +154,8 @@ export interface Discount {
   expiresOn: string | null;
   /** Who added it, as they gave their name; null for starter deals. */
   addedBy: string | null;
+  /** Where the deal was found, e.g. "UNiDAYS" or "Student Beans"; null if not given. */
+  sourcedFrom: string | null;
   status: DiscountStatus;
   /** Why it expired: a student marked it, votes did, or its end date passed. Null while active. */
   expiredReason: "marked" | "votes" | "date" | null;
@@ -194,6 +197,7 @@ export interface NewDiscount {
   pennSpecific: boolean;
   expiresOn: string | null;
   addedBy: string;
+  sourcedFrom: string | null;
 }
 
 export interface ListOptions {
@@ -251,8 +255,11 @@ function text(value: unknown, label: string, max: number, required: boolean): st
 }
 
 function link(value: unknown, required: boolean): string | null {
-  const url = text(value, "Link", LIMITS.url, required);
-  if (url === null) return null;
+  const url = text(value, "Link", LIMITS.url, false);
+  if (url === null) {
+    if (required) throw new DiscountError("Add the link to the deal, or tick that there's no link for it.");
+    return null;
+  }
   // Only web links: the page renders this as an href, so a javascript: link must never get through.
   if (!WEB_LINK_RE.test(url)) {
     throw new DiscountError("Enter the link as a full web address, starting with https://.");
@@ -317,7 +324,7 @@ function endDate(value: unknown): string | null {
 export function checkNewDiscount(input: unknown): NewDiscount {
   if (typeof input !== "object" || input === null) throw new DiscountError("Fill in the deal's details.");
   const raw = input as Record<string, unknown>;
-  const business = text(raw["business"], "Establishment name", LIMITS.business, true)!;
+  const business = text(raw["business"], "Store name", LIMITS.business, true)!;
   const dealType = raw["dealType"] as DealType;
   if (!DEAL_TYPES.includes(dealType)) throw new DiscountError("Choose what kind of deal it is.");
   const kinds = kindsOf(raw["kinds"]);
@@ -348,12 +355,15 @@ export function checkNewDiscount(input: unknown): NewDiscount {
     code: withCode ? text(raw["code"], "Code", LIMITS.code, true) : null,
     location: inPerson ? text(raw["location"], "Address", LIMITS.location, false) : null,
     neighborhood: neighborhood as Neighborhood | null,
-    url: link(raw["url"], false),
+    // The link is how students find the deal, so it's required unless the
+    // student ticks that there isn't one (noLink: true), as for some local spots.
+    url: raw["noLink"] === true ? null : link(raw["url"], true),
     howToClaim: text(raw["howToClaim"], "How to claim", LIMITS.howToClaim, false) ?? "",
     category: category as DiscountCategory,
     pennSpecific: raw["pennSpecific"] === true,
     expiresOn: endDate(raw["expiresOn"]),
     addedBy: text(raw["addedBy"], "Added by", LIMITS.addedBy, true)!,
+    sourcedFrom: text(raw["sourcedFrom"], "Sourced from", LIMITS.sourcedFrom, false),
   };
 }
 
@@ -415,6 +425,7 @@ interface DiscountRow {
   expires_on: string | null;
   past_end_date: boolean;
   added_by: string | null;
+  sourced_from: string | null;
   status: DiscountStatus;
   expired_reason: "marked" | "votes" | null;
   status_changed_at: Date;
@@ -452,6 +463,7 @@ function toDiscount(row: DiscountRow): Discount {
     source: row.source,
     expiresOn: row.expires_on,
     addedBy: row.added_by,
+    sourcedFrom: row.sourced_from,
     // A deal past its end date is expired whatever its status column says.
     status: row.past_end_date ? "expired" : row.status,
     expiredReason: row.status === "expired" ? row.expired_reason : row.past_end_date ? "date" : null,
@@ -477,7 +489,7 @@ function discountColumns(sql: Sql, userId: string | null) {
   return sql`
     d.id, d.scope, d.kinds, d.business, d.title, d.deal_type, d.amount, d.applies_to, d.discount, d.code,
     d.location, d.neighborhood, d.url, d.how_to_claim, d.category, d.penn_specific, d.source,
-    d.status, d.expired_reason, d.status_changed_at, d.created_at, d.added_by,
+    d.status, d.expired_reason, d.status_changed_at, d.created_at, d.added_by, d.sourced_from,
     TO_CHAR(d.expires_on, 'YYYY-MM-DD') AS expires_on,
     COALESCE(d.expires_on < CURRENT_DATE, FALSE) AS past_end_date,
     COUNT(v.user_id) FILTER (WHERE v.works) AS works,
@@ -524,7 +536,7 @@ export async function listDiscounts(sql: Sql, options: ListOptions): Promise<Dis
       ${
         pattern
           ? sql`AND (d.business ILIKE ${pattern} OR d.title ILIKE ${pattern} OR d.discount ILIKE ${pattern}
-                  OR d.applies_to ILIKE ${pattern} OR d.location ILIKE ${pattern})`
+                  OR d.applies_to ILIKE ${pattern} OR d.location ILIKE ${pattern} OR d.sourced_from ILIKE ${pattern})`
           : sql``
       }
     GROUP BY d.id
@@ -548,6 +560,69 @@ export async function listDiscountPage(sql: Sql, options: Omit<ListOptions, "lim
  * Whether listDiscounts would list `deal` with these filters, so the board can
  * tell if a deal just added or restored belongs in what's on screen.
  */
+// ── Duplicates ────────────────────────────────────────────────────────────────
+
+/**
+ * A store's name reduced for matching: lowercase letters and digits only,
+ * without a leading "the", so "The Aerie Store!" and "aerie store" match.
+ */
+export function storeKey(name: string): string {
+  return name.toLowerCase().trim().replace(/^the\s+/, "").replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+/**
+ * Whether two store names are the same store: equal once reduced by storeKey,
+ * or one contains the other and is at least 4 characters ("Aerie" and
+ * "American Eagle Aerie"), since posts name the same store differently.
+ */
+export function sameStore(a: string, b: string): boolean {
+  const x = storeKey(a);
+  const y = storeKey(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const [shorter, longer] = x.length <= y.length ? [x, y] : [y, x];
+  return shorter.length >= 4 && longer.includes(shorter);
+}
+
+type DealIdentity = Pick<Discount, "business" | "scope" | "dealType" | "amount" | "appliesTo">;
+
+/**
+ * Whether two deals are the same deal, which can't be added twice: the same
+ * store, type of discount (general, Wharton, local), kind of deal (% off,
+ * $ off…) and amount. Wording, links and details can differ between posts of
+ * one deal, so they don't count. A deal with no amount (BOGO, something free)
+ * is the same when it's for the same thing.
+ */
+export function isSameDeal(a: DealIdentity, b: DealIdentity): boolean {
+  if (!sameStore(a.business, b.business) || a.scope !== b.scope || a.dealType !== b.dealType) return false;
+  if (a.amount !== null || b.amount !== null) return a.amount === b.amount;
+  const thing = (value: string | null) => (value ?? "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  return thing(a.appliesTo) === thing(b.appliesTo);
+}
+
+/** Active deals at the same store as `business` (see sameStore), newest first, at most 20. */
+export async function findSimilarDeals(sql: Sql, business: string, userId: string | null): Promise<Discount[]> {
+  const key = storeKey(String(business ?? "").slice(0, LIMITS.business));
+  if (key.length < 2) return [];
+  // The database narrows the list the way storeKey does; sameStore has the last word.
+  const rows = await sql<DiscountRow[]>`
+    SELECT ${discountColumns(sql, userId)}
+    FROM discounts d
+    LEFT JOIN votes v ON v.discount_id = d.id
+    CROSS JOIN LATERAL (
+      SELECT regexp_replace(regexp_replace(lower(trim(d.business)), '^the\s+', ''), '[^[:alnum:]]', '', 'g') AS k
+    ) s
+    WHERE d.status = 'active' AND (d.expires_on IS NULL OR d.expires_on >= CURRENT_DATE)
+      AND (s.k = ${key}
+           OR (length(${key}) >= 4 AND s.k LIKE '%' || ${key} || '%')
+           OR (length(s.k) >= 4 AND ${key} LIKE '%' || s.k || '%'))
+    GROUP BY d.id
+    ORDER BY d.created_at DESC
+    LIMIT 20
+  `;
+  return rows.map(toDiscount).filter((d) => sameStore(d.business, business));
+}
+
 export function matchesFilters(deal: Discount, filters: Omit<ListOptions, "userId" | "limit" | "offset" | "sort">): boolean {
   const { status, kind, scope, category, audience, neighborhood } = filters;
   const search = filters.search?.trim().slice(0, LIMITS.search).toLowerCase();
@@ -558,7 +633,7 @@ export function matchesFilters(deal: Discount, filters: Omit<ListOptions, "userI
   if (audience && deal.pennSpecific !== (audience === "penn")) return false;
   if (neighborhood && !(deal.kinds.includes("local") && deal.neighborhood === neighborhood)) return false;
   if (search) {
-    const fields = [deal.business, deal.title, deal.discount, deal.appliesTo, deal.location];
+    const fields = [deal.business, deal.title, deal.discount, deal.appliesTo, deal.location, deal.sourcedFrom];
     if (!fields.some((f) => f?.toLowerCase().includes(search))) return false;
   }
   return true;
@@ -600,9 +675,15 @@ async function lockStudent(tx: Sql, userId: string): Promise<void> {
   await tx`SELECT pg_advisory_xact_lock(hashtext(${`studentdiscountmaximizer:${userId}`}))`;
 }
 
-/** Adds a student's deal (checked with checkNewDiscount) and returns it. */
+/**
+ * Adds a student's deal (checked with checkNewDiscount) and returns it. A deal
+ * that's already listed (isSameDeal) is refused; when other deals at the same
+ * store are, the student must confirm theirs isn't one of them, with
+ * `notDuplicate: true` in the input.
+ */
 export async function addDiscount(sql: Sql, userId: string, input: unknown): Promise<Discount> {
   const deal = checkNewDiscount(input);
+  const confirmedNew = (input as Record<string, unknown>)["notDuplicate"] === true;
   const id = await sql.begin(async (t) => {
     const tx = asSql(t);
     await lockStudent(tx, userId);
@@ -613,13 +694,27 @@ export async function addDiscount(sql: Sql, userId: string, input: unknown): Pro
     if (Number(recent!.count) >= DAILY_SUBMISSION_LIMIT) {
       throw new DiscountError(`You can add up to ${DAILY_SUBMISSION_LIMIT} deals a day. Try again tomorrow.`);
     }
+    const atStore = await findSimilarDeals(tx, deal.business, userId);
+    const same = atStore.find((other) => isSameDeal(deal, other));
+    if (same) {
+      throw new DiscountError(
+        `${same.business}: ${same.summary} is already listed. Vote on it instead of adding it again.`,
+      );
+    }
+    if (atStore.length > 0 && !confirmedNew) {
+      throw new DiscountError(
+        `There ${atStore.length === 1 ? "is already a deal" : `are already ${atStore.length} deals`} at ${deal.business}. ` +
+          "Check that yours isn't one of them, then confirm.",
+      );
+    }
     const [row] = await tx<{ id: string }[]>`
       INSERT INTO discounts (scope, kinds, business, title, deal_type, amount, applies_to, discount, code, location,
-                             neighborhood, url, how_to_claim, category, penn_specific, expires_on, added_by,
+                             neighborhood, url, how_to_claim, category, penn_specific, expires_on, added_by, sourced_from,
                              source, created_by)
       VALUES (${deal.scope}, ${tx.array(deal.kinds)}, ${deal.business}, ${deal.title}, ${deal.dealType}, ${deal.amount}, ${deal.appliesTo},
               ${deal.discount}, ${deal.code}, ${deal.location}, ${deal.neighborhood}, ${deal.url}, ${deal.howToClaim},
-              ${deal.category}, ${deal.pennSpecific}, ${deal.expiresOn}, ${deal.addedBy}, 'student', ${userId})
+              ${deal.category}, ${deal.pennSpecific}, ${deal.expiresOn}, ${deal.addedBy}, ${deal.sourcedFrom},
+              'student', ${userId})
       RETURNING id
     `;
     return row!.id;

@@ -18,6 +18,7 @@ import {
   SCOPES,
   addDiscount,
   checkPastedText,
+  findSimilarDeals,
   fillFromText,
   listDiscountPage,
   markExpired,
@@ -111,6 +112,13 @@ export async function addDeal(input: unknown): Promise<ActionResult<Discount>> {
   const user = await getCurrentUser();
   if (!user) return signedOut;
   return run(() => addDiscount(database(), user.id, input));
+}
+
+/** Active deals at the same store, for the Add a deal form's duplicate warning. Works signed out too. */
+export async function similarDeals(business: string): Promise<ActionResult<Discount[]>> {
+  if (typeof business !== "string") return fail("Enter a store name.");
+  const user = await getCurrentUser();
+  return run(() => findSimilarDeals(database(), business, user?.id ?? null));
 }
 
 /** true "works", false "doesn't work", null to take the vote back. */

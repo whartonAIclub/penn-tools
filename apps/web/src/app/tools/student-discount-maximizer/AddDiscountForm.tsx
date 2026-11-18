@@ -1,6 +1,6 @@
 "use client";
 
-// The Add a deal pop-up. Only the establishment, what the deal is and who's
+// The Add a deal pop-up. Only the store, what the deal is and who's
 // adding it are required; everything else sits under "More details". Students
 // can fill it in themselves, or drop a screenshot or photo of the deal, or
 // paste its text, and let AI fill it in (on the platform's free AI credit,
@@ -19,7 +19,8 @@ import type {
   Neighborhood,
   Screenshot,
 } from "@penntools/tool-student-discount-maximizer";
-import { addDeal, fillForm, type ActionResult } from "./actions";
+import { isSameDeal } from "@penntools/tool-student-discount-maximizer/discounts";
+import { addDeal, fillForm, similarDeals, type ActionResult } from "./actions";
 import { callAction } from "./callAction";
 import type { Option } from "./DiscountBoard";
 import { prepareScreenshot } from "./screenshot";
@@ -35,6 +36,7 @@ export interface FormLimits {
   url: number;
   howToClaim: number;
   addedBy: number;
+  sourcedFrom: number;
   search: number;
   pastedText: number;
   /** The largest screenshot or photo sent to AI, in bytes. */
@@ -68,6 +70,9 @@ interface FormState {
   /** YYYY-MM-DD, or empty for no end date. */
   expiresOn: string;
   addedBy: string;
+  sourcedFrom: string;
+  /** Ticked when the deal has no link, the only time the link isn't required. */
+  noLink: boolean;
 }
 
 const EMPTY: FormState = {
@@ -89,7 +94,12 @@ const EMPTY: FormState = {
   pennSpecific: false,
   expiresOn: "",
   addedBy: "",
+  sourcedFrom: "",
+  noLink: false,
 };
+
+/** Suggestions for Sourced from; students can type anything. */
+const SOURCES = ["UNiDAYS", "Student Beans", "ID.me", "SheerID", "The store's website", "In store"];
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -170,6 +180,46 @@ export function AddDiscountForm({
   const type = dealTypes.find((t) => t.value === form.dealType);
   const inPerson = form.kinds.includes("local");
 
+  // Deals already listed at this store, looked up as the student types its
+  // name, so they can see them before adding a duplicate.
+  const [similar, setSimilar] = useState<Discount[]>([]);
+  const [notDuplicate, setNotDuplicate] = useState(false);
+  const similarRequest = useRef(0);
+  useEffect(() => {
+    const request = ++similarRequest.current;
+    setNotDuplicate(false);
+    if (form.business.trim().length < 2) {
+      setSimilar([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const result = await callAction(() => similarDeals(form.business));
+      if (request === similarRequest.current) setSimilar(result.ok ? result.data : []);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [form.business]);
+
+  // The one already listed that this deal would duplicate: the same store,
+  // type of discount and deal (see isSameDeal). The server refuses it too.
+  const amountDigits = form.amount.replace(/[$%,\s]/g, "");
+  const amount = type?.amount === "none" || !amountDigits || !Number.isFinite(Number(amountDigits))
+    ? null
+    : Math.round(Number(amountDigits) * 100) / 100;
+  const duplicate = form.dealType
+    ? similar.find((d) =>
+        isSameDeal(
+          {
+            business: form.business,
+            scope: form.scope,
+            dealType: form.dealType as DealType,
+            amount,
+            appliesTo: form.specificItems && form.dealType !== "other" ? form.appliesTo || null : null,
+          },
+          d,
+        ),
+      )
+    : undefined;
+
   /** Ticks or unticks a way to use the deal, keeping at least one ticked. */
   function toggleKind(kind: DiscountKind) {
     setForm((f) => {
@@ -200,15 +250,28 @@ export function AddDiscountForm({
       // The date field only takes YYYY-MM-DD, so anything else the AI returns is dropped.
       expiresOn: draft.expiresOn && DATE_RE.test(draft.expiresOn) ? draft.expiresOn : f.expiresOn,
       addedBy: f.addedBy,
+      sourcedFrom: draft.sourcedFrom ?? f.sourcedFrom,
+      noLink: draft.url ? false : f.noLink,
     }));
     // Show what the AI filled in beyond the essentials.
-    if (draft.location || draft.url || draft.title || draft.howToClaim || draft.category || draft.expiresOn) {
+    if (draft.location || draft.url || draft.title || draft.howToClaim || draft.category || draft.expiresOn || draft.sourcedFrom) {
       setMoreOpen(true);
     }
   }
 
   async function save(e: FormEvent) {
     e.preventDefault();
+    if (duplicate) return;
+    // The second check, after the checkbox: other deals at this store are listed above.
+    if (
+      similar.length > 0 &&
+      !window.confirm(
+        `Are you sure this isn't a duplicate? ${similar.length === 1 ? "A deal" : `${similar.length} deals`} at ${similar[0]!.business} ` +
+          `${similar.length === 1 ? "is" : "are"} already listed. Please don't add the same deal twice.`,
+      )
+    ) {
+      return;
+    }
     setSaving(true);
     // Only what's on screen is sent: a field hidden by a later choice (a code
     // typed before unticking "Promo code", say) keeps its text in case the
@@ -222,6 +285,8 @@ export function AddDiscountForm({
         code: form.kinds.includes("code") ? fields.code : "",
         location: inPerson ? fields.location : "",
         neighborhood: inPerson ? fields.neighborhood : "",
+        url: form.noLink ? "" : fields.url,
+        notDuplicate: similar.length > 0 && notDuplicate,
       }),
     );
     setSaving(false);
@@ -263,7 +328,7 @@ export function AddDiscountForm({
 
         <form className={styles.form} onSubmit={(e) => void save(e)}>
           <label className={styles.field}>
-            Establishment name
+            Store
             <input
               className={styles.input}
               required
@@ -273,6 +338,53 @@ export function AddDiscountForm({
               onChange={(e) => set("business", e.target.value)}
             />
           </label>
+
+          {similar.length > 0 && (
+            <div className={duplicate ? styles.dupBlock : styles.dupWarning} role="alert">
+              <strong className={styles.dupTitle}>
+                {duplicate
+                  ? "⛔ This deal is already listed"
+                  : `⚠️ ${similar.length === 1 ? "There's already a deal" : `There are already ${similar.length} deals`} at ${similar[0]!.business}`}
+              </strong>
+              <span>
+                {duplicate
+                  ? "You can't add a deal with the same store, type of discount and deal twice. If it still works, vote 👍 on it instead."
+                  : "Please do not add a duplicate. If your deal is one of these, vote on it instead of adding it again."}
+              </span>
+              <ul className={styles.dupList}>
+                {similar.map((d) => (
+                  <li key={d.id} className={duplicate?.id === d.id ? styles.dupMatch : undefined}>
+                    <strong>{d.business}</strong>: {d.title ?? d.summary}
+                    {d.sourcedFrom && ` · ${d.sourcedFrom}`} · 👍 {d.works}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className={styles.linkBox}>
+            <label className={styles.field}>
+              Link to the deal
+              <input
+                className={styles.input}
+                type="url"
+                required={!form.noLink}
+                disabled={form.noLink}
+                maxLength={limits.url}
+                placeholder="https://"
+                value={form.noLink ? "" : form.url}
+                onChange={(e) => set("url", e.target.value)}
+              />
+            </label>
+            <span className={styles.linkNote}>
+              🔗 The right link is the most helpful thing you can add: it&apos;s how students actually get this deal.
+              Please take a moment to find the exact page for it, not just the store&apos;s homepage.
+            </span>
+            <label className={styles.checkbox}>
+              <input type="checkbox" checked={form.noLink} onChange={(e) => set("noLink", e.target.checked)} />
+              There&apos;s no link for this deal (for example, it&apos;s only offered in person)
+            </label>
+          </div>
 
           <label className={styles.field}>
             Type of discount
@@ -429,8 +541,20 @@ export function AddDiscountForm({
                 <span className={styles.meta}>Leave it empty if the deal doesn&apos;t end. After this date it moves to Expired.</span>
               </label>
               <label className={styles.field}>
-                Link
-                <input className={styles.input} type="url" maxLength={limits.url} placeholder="https://" value={form.url} onChange={(e) => set("url", e.target.value)} />
+                Sourced from
+                <input
+                  className={styles.input}
+                  list="deal-sources"
+                  maxLength={limits.sourcedFrom}
+                  placeholder="Where you found it, e.g. UNiDAYS"
+                  value={form.sourcedFrom}
+                  onChange={(e) => set("sourcedFrom", e.target.value)}
+                />
+                <datalist id="deal-sources">
+                  {SOURCES.map((source) => (
+                    <option key={source} value={source} />
+                  ))}
+                </datalist>
               </label>
               <label className={styles.field}>
                 Category
@@ -469,8 +593,16 @@ export function AddDiscountForm({
             />
           </label>
 
+          {similar.length > 0 && !duplicate && (
+            <label className={styles.dupConfirm}>
+              <input type="checkbox" required checked={notDuplicate} onChange={(e) => setNotDuplicate(e.target.checked)} />
+              I checked the {similar.length === 1 ? "deal" : `${similar.length} deals`} at {similar[0]!.business} listed above, and mine
+              isn&apos;t one of them.
+            </label>
+          )}
+          {duplicate && <p className={styles.error}>This deal is already listed, so it can&apos;t be added again.</p>}
           {error && <p className={styles.error}>{error}</p>}
-          <button className={styles.button} type="submit" disabled={saving}>
+          <button className={styles.button} type="submit" disabled={saving || Boolean(duplicate)}>
             {saving ? "Saving…" : "Add deal"}
           </button>
         </form>

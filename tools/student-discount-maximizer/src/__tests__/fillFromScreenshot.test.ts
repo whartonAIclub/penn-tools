@@ -40,6 +40,7 @@ const DRAFT = {
   category: "shopping",
   pennSpecific: true,
   expiresOn: "2026-12-15",
+  sourcedFrom: "UNiDAYS",
 };
 
 // A 1x1 PNG.
@@ -62,6 +63,13 @@ describe("fillFromScreenshot", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("fillFromScreenshot links", () => {
+  it("never fills in a link, since one can't be checked against an image", async () => {
+    const { ai } = fakeAI({ ...DRAFT, url: "https://verify.solidcore.co/verify/student" });
+    expect((await fillFromScreenshot(ai, "anthropic", { mediaType: "image/png", data: PNG })).url).toBeNull();
   });
 });
 

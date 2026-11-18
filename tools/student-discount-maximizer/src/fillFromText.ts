@@ -22,7 +22,7 @@ export const DealDraft = z.object({
     .describe(
       "Every way the deal can be used: code (a promo code to enter), online (a student price online, often after verifying student status), local (in person). E.g. ['online', 'local'] for a store discount that also works online. Null if unclear",
     ),
-  business: z.string().nullable().describe("The establishment or brand offering the deal"),
+  business: z.string().nullable().describe("The store, business or brand offering the deal"),
   title: z.string().nullable().describe("A short headline only if the deal has a name, e.g. 'Student Premium plan'; else null"),
   dealType: z
     .enum(DEAL_TYPES)
@@ -37,19 +37,29 @@ export const DealDraft = z.object({
     .enum(NEIGHBORHOODS)
     .nullable()
     .describe("The Philadelphia neighborhood of an in-person deal, only if the text or address makes it clear; else null"),
-  url: z.string().nullable().describe("The full https:// link to claim the deal, only if it appears in the text"),
+  url: z
+    .string()
+    .nullable()
+    .describe("The link to claim the deal, only if it's written out in the text; never build or guess one. Else null"),
   howToClaim: z.string().nullable().describe("Short steps to claim it, from the text"),
   category: z.enum(CATEGORIES).nullable(),
   pennSpecific: z
     .boolean()
     .nullable()
     .describe("true if only Penn students can get it (e.g. with a PennCard), false if any student can, null if unclear"),
-  expiresOn: z
+  // Plain text, "" when missing: Anthropic allows at most 16 nullable fields in a schema.
+  expiresOn: z.string().describe("The last day the deal works, as YYYY-MM-DD, only if an end date is given; else an empty string"),
+  sourcedFrom: z
     .string()
-    .nullable()
-    .describe("The last day the deal works, as YYYY-MM-DD, only if an end date is given; else null"),
+    .describe("Where the deal is listed, if shown: a student discount site or app such as UNiDAYS, Student Beans, ID.me or SheerID; else an empty string"),
 });
-export type DealDraft = z.infer<typeof DealDraft>;
+/** What the AI returns, before fitDraft. */
+export type RawDealDraft = z.infer<typeof DealDraft>;
+/** A draft for the form, after fitDraft: missing fields are null. */
+export type DealDraft = Omit<RawDealDraft, "expiresOn" | "sourcedFrom"> & {
+  expiresOn: string | null;
+  sourcedFrom: string | null;
+};
 
 /** Shared with fillFromScreenshot. */
 export const FILL_SYSTEM_PROMPT = [
@@ -72,7 +82,7 @@ export function checkPastedText(value: unknown): string | null {
  * rather than cut, since half a link or code would be wrong. An end date
  * that isn't YYYY-MM-DD is dropped too.
  */
-export function fitDraft(draft: DealDraft): DealDraft {
+export function fitDraft(draft: RawDealDraft): DealDraft {
   const cut = (value: string | null, max: number) => (value === null ? null : value.trim().slice(0, max).trim() || null);
   const url = draft.url?.trim() ?? null;
   const code = draft.code?.trim() ?? null;
@@ -87,11 +97,25 @@ export function fitDraft(draft: DealDraft): DealDraft {
     location: cut(draft.location, LIMITS.location),
     url: url && isWebLink(url) ? url : null,
     howToClaim: cut(draft.howToClaim, LIMITS.howToClaim),
-    expiresOn: draft.expiresOn && /^\d{4}-\d{2}-\d{2}$/.test(draft.expiresOn.trim()) ? draft.expiresOn.trim() : null,
+    sourcedFrom: cut(draft.sourcedFrom, LIMITS.sourcedFrom),
+    expiresOn: /^\d{4}-\d{2}-\d{2}$/.test(draft.expiresOn.trim()) ? draft.expiresOn.trim() : null,
   };
 }
 
-/** The deal described in `pastedText`, as a draft for the form (see fitDraft). */
+/**
+ * Whether `url` is written in `text`, with or without https:// and www., since
+ * the model can make up a likely-looking link even when told not to.
+ */
+export function linkAppearsIn(url: string, text: string): boolean {
+  const bare = (value: string) => value.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+  const link = bare(url);
+  return link.length > 0 && text.toLowerCase().includes(link);
+}
+
+/**
+ * The deal described in `pastedText`, as a draft for the form (see fitDraft).
+ * A link is kept only when it's in the pasted text (see linkAppearsIn).
+ */
 export async function fillFromText(ai: AI, provider: AIProvider, pastedText: string): Promise<DealDraft> {
   const { object } = await ai.generateObject({
     provider,
@@ -101,5 +125,6 @@ export async function fillFromText(ai: AI, provider: AIProvider, pastedText: str
     system: FILL_SYSTEM_PROMPT,
     messages: [{ role: "user", content: pastedText }],
   });
-  return fitDraft(object);
+  const draft = fitDraft(object);
+  return { ...draft, url: draft.url && linkAppearsIn(draft.url, pastedText) ? draft.url : null };
 }

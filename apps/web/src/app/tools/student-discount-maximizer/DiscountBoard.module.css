@@ -530,3 +530,66 @@
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+
+/* Deals already listed at the store being added: a warning, or a block for the same deal. */
+.dupWarning,
+.dupBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e0a800;
+  border-radius: 10px;
+  background: #fff8e1;
+  color: #5c4400;
+  font-size: 0.9rem;
+}
+.dupBlock {
+  border-color: #d32f2f;
+  background: #fdecea;
+  color: #7f1d1d;
+}
+.dupTitle { font-size: 1.05rem; }
+.dupList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: 18px;
+}
+.dupMatch {
+  font-weight: 700;
+  text-decoration: underline;
+}
+.dupConfirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e0a800;
+  border-radius: 8px;
+  background: #fff8e1;
+  color: #5c4400;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.dupConfirm input { margin-top: 2px; }
+
+/* The deal's link, near the top of the form: the most useful thing a student adds. */
+.linkBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #dce3ff;
+  border-radius: 10px;
+  background: #f5f7ff;
+}
+.linkNote {
+  color: var(--penn-blue);
+  font-size: 0.85rem;
+  font-weight: 600;
+}

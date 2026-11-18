@@ -87,3 +87,6 @@ ALTER TABLE discounts ADD COLUMN IF NOT EXISTS expires_on DATE;
 
 -- Who added the deal, as they gave their name; null for starter deals.
 ALTER TABLE discounts ADD COLUMN IF NOT EXISTS added_by TEXT;
+
+-- Where the deal was found, e.g. 'UNiDAYS' or 'Student Beans'; null if not given.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS sourced_from TEXT;

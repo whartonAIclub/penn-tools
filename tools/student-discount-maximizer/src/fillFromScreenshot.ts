@@ -53,7 +53,12 @@ export function imageMessage(screenshot: Screenshot): AIMessage {
   };
 }
 
-/** The deal shown in `screenshot`, as a draft for the form (see fitDraft). */
+/**
+ * The deal shown in `screenshot`, as a draft for the form (see fitDraft),
+ * without a link: one can't be checked against an image, and the model has
+ * made up likely-looking links for screenshots that had none. Students paste
+ * the link themselves.
+ */
 export async function fillFromScreenshot(ai: AI, provider: AIProvider, screenshot: Screenshot): Promise<DealDraft> {
   const { object } = await ai.generateObject({
     provider,
@@ -63,5 +68,5 @@ export async function fillFromScreenshot(ai: AI, provider: AIProvider, screensho
     system: FILL_SYSTEM_PROMPT,
     messages: [imageMessage(screenshot)],
   });
-  return fitDraft(object);
+  return { ...fitDraft(object), url: null };
 }

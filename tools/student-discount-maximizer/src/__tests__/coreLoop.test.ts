@@ -35,7 +35,7 @@ let admin: Sql;
 let sql: Sql;
 
 /** The smallest deal the form accepts. */
-const MINIMAL = { business: "Loop Tacos", dealType: "bogo", addedBy: "Loop Tester" };
+const MINIMAL = { business: "Loop Tacos", dealType: "bogo", addedBy: "Loop Tester", noLink: true };
 
 /** A deal with every field filled in, each at its longest allowed length. */
 const AT_LIMITS = {
@@ -53,6 +53,7 @@ const AT_LIMITS = {
   category: "food",
   pennSpecific: true,
   addedBy: "n".repeat(LIMITS.addedBy),
+  sourcedFrom: "s".repeat(LIMITS.sourcedFrom),
 };
 
 // ── Empty inputs ──────────────────────────────────────────────────────────────
@@ -62,12 +63,12 @@ describe("empty inputs", () => {
     for (const input of [undefined, null, "", 0, "deal", []]) {
       expect(() => checkNewDiscount(input)).toThrow(DiscountError);
     }
-    expect(() => checkNewDiscount({})).toThrow("Enter establishment name.");
+    expect(() => checkNewDiscount({})).toThrow("Enter store name.");
   });
 
-  it("treats a blank establishment name as missing", () => {
+  it("treats a blank store name as missing", () => {
     for (const business of ["", "   ", "\n\t", null, undefined]) {
-      expect(() => checkNewDiscount({ ...MINIMAL, business })).toThrow("Enter establishment name.");
+      expect(() => checkNewDiscount({ ...MINIMAL, business })).toThrow("Enter store name.");
     }
   });
 
@@ -118,6 +119,7 @@ describe("empty inputs", () => {
       pennSpecific: false,
       expiresOn: null,
       addedBy: "Loop Tester",
+      sourcedFrom: null,
     });
   });
 
@@ -152,12 +154,13 @@ describe("very long inputs", () => {
       url: AT_LIMITS.url,
       howToClaim: AT_LIMITS.howToClaim,
       addedBy: AT_LIMITS.addedBy,
+      sourcedFrom: AT_LIMITS.sourcedFrom,
     });
   });
 
   it("rejects every field one character over its limit, naming the field", () => {
     const over: [keyof typeof AT_LIMITS, string, string][] = [
-      ["business", "b".repeat(LIMITS.business + 1), "establishment name"],
+      ["business", "b".repeat(LIMITS.business + 1), "store name"],
       ["title", "t".repeat(LIMITS.title + 1), "title"],
       ["appliesTo", "a".repeat(LIMITS.appliesTo + 1), "what it applies to"],
       ["discount", "d".repeat(LIMITS.discount + 1), "details"],
@@ -166,6 +169,7 @@ describe("very long inputs", () => {
       ["url", `${AT_LIMITS.url}p`, "link"],
       ["howToClaim", "h".repeat(LIMITS.howToClaim + 1), "how to claim"],
       ["addedBy", "n".repeat(LIMITS.addedBy + 1), "added by"],
+      ["sourcedFrom", "s".repeat(LIMITS.sourcedFrom + 1), "sourced from"],
     ];
     for (const [field, value, label] of over) {
       expect(() => checkNewDiscount({ ...AT_LIMITS, [field]: value })).toThrow(`Keep ${label} to at most`);
