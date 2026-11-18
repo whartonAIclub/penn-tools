@@ -18,6 +18,7 @@ import type {
   Screenshot,
 } from "@penntools/tool-recruiting-helper";
 import { isDocx, readDocx } from "@penntools/tool-recruiting-helper/docx";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import {
   clearMyChat,
   clearMyOutreachStyle,
@@ -46,7 +47,6 @@ type ScoreResponse = { ok: true; item: SavedItem; replaced: boolean } | { ok: fa
 
 type Status = { state: "idle" } | { state: "loading" } | { state: "error"; error: ScoreError };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 const TIERS: CompanyTier[] = ["target", "secondary", "practice"];
 const TIER_HELP: Record<CompanyTier, string> = {
   target: "Target companies: your top choices (+1 on jobs, +2 on people)",
@@ -378,7 +378,7 @@ function ProfileEditor({
         {upload.state === "error" && (
           <p className={styles.error}>
             {upload.error.message}
-            {upload.error.kind && KEY_PROBLEMS.has(upload.error.kind) && (
+            {isSettingsError(upload.error.kind) && (
               <>
                 {" "}
                 <Link href="/settings" className={styles.link}>
@@ -669,7 +669,7 @@ function AddCard({
       {status.state === "error" && (
         <p className={styles.error}>
           {status.error.message}
-          {status.error.kind && KEY_PROBLEMS.has(status.error.kind) && (
+          {isSettingsError(status.error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>
@@ -838,7 +838,7 @@ function RankedList({
       {drafting.state === "error" && (
         <p className={styles.error}>
           Couldn&apos;t write the missing email drafts: {drafting.error.message}
-          {drafting.error.kind && KEY_PROBLEMS.has(drafting.error.kind) && (
+          {isSettingsError(drafting.error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>
@@ -1264,7 +1264,7 @@ function ReviseAllDrafts({
       {result && (
         <p className={result.ok ? styles.notice : styles.error}>
           {result.message}
-          {result.kind && KEY_PROBLEMS.has(result.kind) && (
+          {isSettingsError(result.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>
@@ -1406,7 +1406,7 @@ function Outreach({
       {error && (
         <p className={styles.error}>
           {error.message}
-          {error.kind && KEY_PROBLEMS.has(error.kind) && (
+          {isSettingsError(error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>
@@ -1633,7 +1633,7 @@ function ItemChat({ item, provider }: { item: SavedItem; provider: AIProvider })
       {error && (
         <p className={styles.error}>
           {error.message}
-          {error.kind && KEY_PROBLEMS.has(error.kind) && (
+          {isSettingsError(error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>

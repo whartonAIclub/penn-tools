@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { PaperSummary } from "@penntools/tool-paper-tldr";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import type { SimplifyEvent, SummaryResult } from "./types";
 import { extractPdfText } from "./extractText";
 import SummaryView from "./SummaryView";
@@ -12,8 +13,6 @@ import styles from "./PaperTldr.module.css";
 const MAX_MB = 20;
 
 type Status = "idle" | "reading" | "summarizing";
-
-const KEY_ERRORS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 const SERVER_ERROR: SummaryResult = {
   ok: false,
@@ -144,7 +143,7 @@ export default function PaperTldr({ signedIn, providers, labels }: Props) {
         );
       } else {
         setError(result.error.message);
-        setKeyProblem(KEY_ERRORS.has(result.error.kind ?? ""));
+        setKeyProblem(isSettingsError(result.error.kind));
       }
     } catch (err) {
       if (controller.signal.aborted) return; // the user left the page

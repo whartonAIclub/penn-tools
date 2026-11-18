@@ -9,8 +9,9 @@
 import { useRef, useState } from "react";
 import type { AIProvider } from "@penntools/core/ai";
 import { upcomingDeadlines, type SavedSyllabus, type Syllabus } from "@penntools/tool-wemba-sync";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { removeSyllabus } from "./actions";
-import { KEY_PROBLEMS, formatDate, formatTime, postFile, todayInPhiladelphia, type UploadError } from "./client";
+import { formatDate, formatTime, postFile, todayInPhiladelphia, type UploadError } from "./client";
 import { ErrorNote } from "./ErrorNote";
 import type { Theme } from "./WembaSync";
 import shared from "./WembaSync.module.css";
@@ -94,7 +95,7 @@ export function Courses({
       if (!result.ok) {
         set({ state: "failed", error: result.error });
         // A key problem fails every file; say once, with the link to Settings.
-        if (result.error.kind && KEY_PROBLEMS.has(result.error.kind)) setError(result.error);
+        if (isSettingsError(result.error.kind)) setError(result.error);
         return;
       }
       const added = result.body.saved;

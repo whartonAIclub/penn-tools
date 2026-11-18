@@ -24,6 +24,7 @@ import {
   type DeliveryMetrics,
   type QuestionCategory,
 } from "@penntools/tool-pitch-coach/delivery";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { analyze, rewrite, type CoachError } from "./actions";
 import { getSpeechRecognition, startRecorder, type Recorder } from "./recorder";
 import styles from "./PitchCoach.module.css";
@@ -88,9 +89,6 @@ type RewriteStatus =
   | { state: "done"; text: string }
   | { state: "error"; error: CoachError };
 
-/** Error kinds the user fixes in Settings. */
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
-
 /** The longest custom question, and resume summary or job description, in characters. */
 interface PitchCoachLimits {
   question: number;
@@ -107,7 +105,7 @@ function ErrorMessage({ error }: { error: CoachError }) {
   return (
     <>
       {error.message}
-      {error.kind && KEY_PROBLEMS.has(error.kind) && (
+      {isSettingsError(error.kind) && (
         <>
           {" "}
           <Link href="/settings" className={styles.settingsLink}>

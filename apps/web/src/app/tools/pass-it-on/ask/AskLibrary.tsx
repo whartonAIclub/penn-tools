@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { AIProvider } from "@penntools/core/ai";
 import type { CitedAnswer, Passage } from "@penntools/tool-pass-it-on";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { askLibrary, searchPassages } from "../actions";
 import styles from "../PassItOn.module.css";
 
@@ -13,8 +14,6 @@ type Status =
   | { state: "done"; answer: CitedAnswer }
   | { state: "passages"; passages: Passage[] }
   | { state: "error"; message: string; settings: boolean };
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit"]);
 
 export function AskLibrary({
   providers,
@@ -50,7 +49,7 @@ export function AskLibrary({
       setStatus(
         result.ok
           ? { state: "done", answer: result.data }
-          : { state: "error", message: result.message, settings: KEY_PROBLEMS.has(result.kind ?? "") || result.message.includes("Settings") },
+          : { state: "error", message: result.message, settings: isSettingsError(result.kind) || result.message.includes("Settings") },
       );
     } catch {
       setStatus({ state: "error", message: "Something went wrong. Try again.", settings: false });

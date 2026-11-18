@@ -4,6 +4,7 @@
 export { z } from "zod";
 export { AIError, isAIError } from "./AIError.js";
 export type { AIErrorKind, AIErrorInfo } from "./AIError.js";
+export { isSettingsError } from "./errors.js";
 export {
   AI_PROVIDERS,
   AI_TIERS,

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Lato, Newsreader } from "next/font/google";
 import type { AIProvider } from "@penntools/core/ai";
 import type { Brief, FileLimits, UploadedFile } from "@penntools/tool-chatprep";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { ACCEPT, readFile, uniqueName } from "./readFile";
 import { loadProfile, saveProfile as storeProfile } from "./savedProfile";
 import styles from "./ChatPrep.module.css";
@@ -39,8 +40,6 @@ type Status =
   | { state: "loading" }
   | { state: "done"; brief: Brief; text: string; company: string }
   | { state: "error"; error: BriefError };
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 interface Limits {
   resume: number;
@@ -364,7 +363,7 @@ export function ChatPrep({
       {status.state === "error" && (
         <p className={styles.error}>
           {status.error.message}
-          {status.error.kind && KEY_PROBLEMS.has(status.error.kind) && (
+          {isSettingsError(status.error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>

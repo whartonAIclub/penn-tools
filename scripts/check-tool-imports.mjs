@@ -18,6 +18,9 @@
 //     withPdf / pdfPageCount from @/lib/pdf. These checks read the source
 //     text, so they catch mistakes, not deliberate workarounds (a renamed
 //     getDocument, or options built in another variable)
+//   - lists the AI error kinds the user fixes in Settings itself (a list naming
+//     both "missing_key" and "invalid_key"): tools call isSettingsError from
+//     @penntools/core/ai/errors, so the list is kept in one place
 //
 // It also checks that each tool's manifest says whether it's still on the
 // legacy LLM API (POST /api/llm/complete): notYetMigrated: true when the tool's
@@ -84,6 +87,11 @@ const RULES = [
     test: (src) => matches(src, /["']pdfjs-dist\/legacy\//g),
     fix: "open PDFs on the server with withPdf / pdfPageCount from @/lib/pdf",
   },
+  {
+    name: "Settings error list",
+    test: settingsErrorLists,
+    fix: "call isSettingsError(kind) from @penntools/core/ai/errors instead of listing the error kinds",
+  },
 ];
 
 function matches(src, regex) {
@@ -106,6 +114,17 @@ function unsafeGetDocument(src) {
     if (!/\bisEvalSupported\s*:\s*false\b/.test(args)) found.push(m.index);
   }
   return found;
+}
+
+/**
+ * Hand-written lists of the AI error kinds Settings fixes: array literals
+ * (including a Set's) naming both "missing_key" and "invalid_key". One kind on
+ * its own, such as a route's own { kind: "missing_key" }, is fine.
+ */
+function settingsErrorLists(src) {
+  return [...src.matchAll(/\[[^[\]]*\]/g)]
+    .filter((m) => /["'`]missing_key["'`]/.test(m[0]) && /["'`]invalid_key["'`]/.test(m[0]))
+    .map((m) => m.index);
 }
 
 /** Imports from @penntools/platform other than `{ toolSql }` from @penntools/platform/db. */
