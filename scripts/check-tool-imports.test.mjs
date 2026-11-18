@@ -99,6 +99,36 @@ test("flags PDFs opened without isEvalSupported: false, and pdfjs's legacy build
   }
 });
 
+test("flags a hand-written list of the error kinds Settings fixes", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/Page.tsx": [
+      `import { useState } from "react";`,
+      `const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);`,
+      `const KEY_ERRORS = [`,
+      `  'no_credit',`,
+      `  'invalid_key',`,
+      `  'missing_key',`,
+      `];`,
+    ].join("\n"),
+  });
+  assert.equal(code, 1);
+  assert.match(output, /Page\.tsx:2 {2}Settings error list: call isSettingsError/);
+  assert.match(output, /Page\.tsx:3 {2}Settings error list/);
+  assert.match(output, /2 platform rule/);
+});
+
+test("allows one error kind on its own, and the shared helper", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/route.ts": [
+      `import { isSettingsError } from "@penntools/core/ai/errors";`,
+      `const missing = { error: "Add a key in Settings.", kind: "missing_key" };`,
+      `const kinds = ["missing_key", "rate_limited"];`,
+      `const shown = isSettingsError(missing.kind);`,
+    ].join("\n"),
+  });
+  assert.equal(code, 0, output);
+});
+
 test("doesn't stretch one import match across several import statements", () => {
   // Regression: a lazy match used to run from the first import to the platform one.
   const { code, output } = check({
@@ -117,38 +147,10 @@ test("skips known exceptions and ignores build output", () => {
   assert.match(output, /known exception/);
 });
 
-/** A tool's manifest, with notYetMigrated (line 5) when `flag` is set. */
-const LEGACY_MANIFEST = (flag) =>
-  [
-    `export class Demo extends Tool {`,
-    `  readonly manifest: ToolManifest = {`,
-    `    id: "demo",`,
-    `    category: "Other",`,
-    ...(flag ? [`    notYetMigrated: true,`] : []),
-    `  };`,
-    `}`,
-  ].join("\n");
-const LEGACY_CALL = `await fetch("/api/llm/complete", { method: "POST" });\n`;
-
-test("passes a tool that calls the legacy LLM API and says so in its manifest", () => {
+test("flags calls to the removed legacy LLM API", () => {
   const { code, output } = check({
-    "tools/demo/src/DemoTool.ts": LEGACY_MANIFEST(true),
-    "apps/web/src/app/tools/demo/page.tsx": LEGACY_CALL,
-  });
-  assert.equal(code, 0, output);
-});
-
-test("flags a tool that calls the legacy LLM API without notYetMigrated", () => {
-  const { code, output } = check({
-    "tools/demo/src/DemoTool.ts": LEGACY_MANIFEST(false),
-    "apps/web/src/app/tools/demo/page.tsx": LEGACY_CALL,
+    "apps/web/src/app/tools/demo/page.tsx": `const res = await fetch("/api/llm/complete", { method: "POST" });\n`,
   });
   assert.equal(code, 1);
-  assert.match(output, /tools\/demo\/src\/DemoTool\.ts:2  not yet migrated: apps\/web\/src\/app\/tools\/demo\/page\.tsx calls the legacy LLM API/);
-});
-
-test("flags notYetMigrated on a tool that no longer calls the legacy LLM API", () => {
-  const { code, output } = check({ "tools/demo/src/DemoTool.ts": LEGACY_MANIFEST(true) });
-  assert.equal(code, 1);
-  assert.match(output, /tools\/demo\/src\/DemoTool\.ts:5  not yet migrated: nothing in the tool calls the legacy LLM API/);
+  assert.match(output, /apps\/web\/src\/app\/tools\/demo\/page\.tsx:1  removed LLM API/);
 });

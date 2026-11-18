@@ -1,0 +1,299 @@
+.screen {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── Left: the files ───────────────────────────────────────────────────────── */
+
+.files {
+  flex-shrink: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--rc-surface);
+}
+
+.filesHead {
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--rc-canvas);
+}
+
+.filesTitle {
+  margin-bottom: 6px;
+  color: #0d0d0d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.uploadTag {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: var(--rc-surface);
+  color: var(--rc-text-2);
+  font-size: 11px;
+}
+
+.list {
+  flex: 1;
+  overflow: hidden auto;
+  padding: 6px 0;
+}
+
+.empty {
+  padding: 20px 14px;
+  color: var(--rc-faint);
+  font-size: 12px;
+  text-align: center;
+}
+
+.file {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rc-canvas);
+  border-left: 3px solid transparent;
+}
+
+.fileActive {
+  border-left-color: var(--rc-accent);
+  background: var(--rc-accent-light);
+}
+
+.fileTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  color: var(--rc-faint);
+}
+
+.fileActive .fileTop {
+  color: var(--rc-accent);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--rc-text);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.fileActive .fileName {
+  color: var(--rc-accent);
+  font-weight: 700;
+}
+
+.fileNameError,
+.fileActive .fileNameError {
+  color: var(--rc-error);
+}
+
+.remove {
+  flex-shrink: 0;
+  padding: 0 2px;
+  color: var(--rc-faint);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.remove:hover {
+  color: var(--rc-error);
+}
+
+.fileBottom {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tag {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 5px;
+  border: 1px solid #d3d1c7;
+  border-radius: 4px;
+  background: #f0f0ee;
+  color: #444441;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tagBase {
+  border-color: var(--rc-accent);
+}
+
+.base {
+  flex-shrink: 0;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: var(--rc-border);
+  color: var(--rc-text-2);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.baseOn {
+  background: var(--rc-accent);
+  color: #fff;
+}
+
+.filesFoot {
+  padding: 10px 14px;
+  border-top: 1px solid var(--rc-canvas);
+  color: var(--rc-faint);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+/* ── Middle: the previewed file's text ─────────────────────────────────────── */
+
+.preview {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--rc-border);
+}
+
+.previewHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  height: 46px;
+  padding: 0 16px;
+  background: var(--rc-surface);
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.previewLabel {
+  flex-shrink: 0;
+  color: var(--rc-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.previewName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Also on hover, which .primary:hover would otherwise outrank. */
+.previewHead .copied,
+.previewHead .copied:hover:not(:disabled) {
+  background: var(--rc-good-bg);
+  color: var(--rc-good);
+  border: 1px solid var(--rc-good);
+}
+
+/* ── Right: the job description and Generate ───────────────────────────────── */
+
+.generate {
+  flex-shrink: 0;
+}
+
+.generateBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 10px;
+}
+
+.using {
+  padding: 10px 12px;
+  border: 1px solid var(--rc-input-border);
+  border-radius: 7px;
+  background: var(--rc-panel-head);
+  color: var(--rc-text-2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.usingTitle {
+  margin-bottom: 4px;
+  color: var(--rc-accent);
+  font-weight: 600;
+}
+
+.usingMuted {
+  color: var(--rc-muted);
+}
+
+.usingWarn {
+  margin-top: 4px;
+  color: var(--rc-warn);
+}
+
+.jdLabel {
+  color: var(--rc-text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.jd {
+  flex: 1;
+  min-height: 120px;
+  padding: 10px 12px;
+  border: 1px solid var(--rc-input-border);
+  border-radius: 8px;
+  background: var(--rc-surface);
+  color: var(--rc-text);
+  font-size: 12px;
+  line-height: 1.6;
+  resize: none;
+}
+
+.jdOver {
+  border-color: #dc2626;
+}
+
+.count {
+  color: var(--rc-faint);
+  font-size: 11px;
+  text-align: right;
+}
+
+.countOver {
+  color: var(--rc-error);
+}
+
+.generate .generateButton {
+  padding: 11px;
+  font-size: 13px;
+}
+
+/* ── Dropping files ────────────────────────────────────────────────────────── */
+
+.dropOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--rc-accent);
+  background: rgba(14, 34, 68, 0.08);
+  color: var(--rc-accent);
+  font-size: 18px;
+  font-weight: 700;
+  pointer-events: none;
+}

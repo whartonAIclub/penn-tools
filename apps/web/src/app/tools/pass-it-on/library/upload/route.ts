@@ -1,0 +1,61 @@
+// POST /tools/pass-it-on/library/upload — adds one file to the library
+//
+// Body: multipart form with `file` (a .docx, .xlsx, .csv, .txt, .md, .pdf or a
+// .zip of those), optional `tags` (comma-separated), `eventId`, and `confirm`
+// ("yes" once a person has checked a flagged file holds no logins).
+// Responds with the LibraryUploadResult as JSON: status "saved", "blocked",
+// "needs_confirmation" or "empty". Files named like the Pub Email & Social
+// Accounts document are always blocked.
+
+import type { NextRequest } from "next/server";
+import { checkTags, databaseProblem, databaseProblemMessage, plannedEventExists } from "@penntools/tool-pass-it-on";
+import { uploadLibraryFile, ZipTooLargeError } from "@penntools/tool-pass-it-on/imports";
+import { getEmbeddings } from "@/lib/ai";
+import { routeMember } from "../../access";
+import { maybeDb } from "../../db";
+
+export async function POST(req: NextRequest): Promise<Response> {
+  const gate = await routeMember();
+  if (!gate.ok) return gate.response;
+  const user = gate.user;
+  const sql = maybeDb();
+  if (!sql) return Response.json({ error: "Pass It On's database is not configured." }, { status: 500 });
+
+  const form = await req.formData().catch(() => null);
+  const file = form?.get("file");
+  if (!form || !(file instanceof File) || file.size === 0) return Response.json({ error: "Choose a file to upload." }, { status: 400 });
+
+  const tags = checkTags(String(form.get("tags") ?? "").split(","));
+  if (!tags.ok) return Response.json({ error: tags.message }, { status: 400 });
+  const eventId = String(form.get("eventId") ?? "") || null;
+  const NO_EVENT = "That event no longer exists. Reload the page and choose another, or No event.";
+  try {
+    if (eventId !== null && !(await plannedEventExists(sql, eventId))) return Response.json({ error: NO_EVENT }, { status: 400 });
+  } catch (error) {
+    const problem = databaseProblem(error);
+    if (problem) return Response.json({ error: databaseProblemMessage(problem) }, { status: 503 });
+    throw error;
+  }
+
+  try {
+    const result = await uploadLibraryFile({
+      sql,
+      embeddings: await getEmbeddings("pass-it-on"),
+      filename: file.name,
+      data: new Uint8Array(await file.arrayBuffer()),
+      tags: tags.value,
+      eventId,
+      uploadedBy: user.id,
+      confirmedNoCredentials: form.get("confirm") === "yes",
+    });
+    return Response.json(result);
+  } catch (error) {
+    if (error instanceof ZipTooLargeError) return Response.json({ error: error.message }, { status: 400 });
+    // 23503: the event was deleted after the check above, before the file was saved.
+    const fk = error as { code?: unknown; constraint_name?: unknown };
+    if (fk?.code === "23503" && fk.constraint_name === "sources_event_id_fkey") return Response.json({ error: NO_EVENT }, { status: 400 });
+    const problem = databaseProblem(error);
+    if (problem) return Response.json({ error: databaseProblemMessage(problem) }, { status: 503 });
+    throw error;
+  }
+}

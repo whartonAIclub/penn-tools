@@ -1,0 +1,760 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Penn Pals contacts: the form's data, its checks, and the follow-up rules
+//
+// Pure functions with no AI and no storage of their own: the page passes in
+// `today` and keeps the contacts (in the browser for now). That keeps every
+// rule testable (see __tests__/contacts.test.ts).
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { z } from "@penntools/core/ai";
+import { addDays, DEFAULT_FOLLOW_UP_DAYS, isDate, MAX_NOTES_LENGTH } from "./debrief.js";
+
+/**
+ * Every stored relationship. "recruiter" is kept so older contacts still load,
+ * but the form no longer offers it: a recruiter is someone outside Penn, so it
+ * overlapped with "industry".
+ */
+export const RELATIONSHIPS = ["1Y", "2Y", "alumni", "faculty", "industry", "recruiter", "other"] as const;
+export type Relationship = (typeof RELATIONSHIPS)[number];
+
+/** What the form offers: one answer per person, with "other" for anything else, written in. */
+export const FORM_RELATIONSHIPS = ["1Y", "2Y", "alumni", "faculty", "industry", "other"] as const satisfies readonly Relationship[];
+
+export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
+  "1Y": "Wharton 1Y",
+  "2Y": "Wharton 2Y",
+  alumni: "Penn or Wharton alum",
+  faculty: "Penn faculty or staff",
+  industry: "Outside Penn (industry, recruiters)",
+  recruiter: "Recruiter",
+  other: "Other",
+};
+
+/** How a contact's relationship reads: the user's own words for "other", when given. */
+export function relationshipLabel(contact: Pick<Contact, "relationship" | "relationshipOther">): string {
+  return contact.relationship === "other" && contact.relationshipOther
+    ? contact.relationshipOther
+    : RELATIONSHIP_LABELS[contact.relationship];
+}
+
+/** The user's own relationship labels across their contacts, without duplicates (ignoring case), A to Z. */
+export function customRelationships(contacts: Contact[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const c of contacts) {
+    const label = c.relationship === "other" ? c.relationshipOther?.trim() : null;
+    if (label && !byKey.has(label.toLowerCase())) byKey.set(label.toLowerCase(), label);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+}
+
+export const VIBES = ["great", "good", "neutral", "lukewarm"] as const;
+export type Vibe = (typeof VIBES)[number];
+
+/** How senior the person is: one level each, from student to executive. */
+export const SENIORITIES = ["student", "entry", "mid", "senior", "executive"] as const;
+export type Seniority = (typeof SENIORITIES)[number];
+
+export const SENIORITY_LABELS: Record<Seniority, string> = {
+  student: "Student or intern",
+  entry: "Entry level (Analyst, Associate)",
+  mid: "Mid level (Manager, Senior Associate)",
+  senior: "Senior (Director, Principal)",
+  executive: "Executive (VP, Partner, C-suite, Founder)",
+};
+
+/** How far back a conversation can be dated, and how far ahead a follow-up, so a mistyped year (0011, 2206) is caught. */
+export const MAX_YEARS_BACK = 10;
+export const MAX_YEARS_AHEAD = 2;
+
+/** The units a check-in can repeat in: every N weeks, months or years. */
+export const RECURRENCE_UNITS = ["week", "month", "year"] as const;
+export type RecurrenceUnit = (typeof RECURRENCE_UNITS)[number];
+
+/** The most a check-in can repeat by, per unit: about two years, so a repeat can't land past the form's date limit. */
+export const MAX_RECURRENCE: Record<RecurrenceUnit, number> = { week: 104, month: 24, year: MAX_YEARS_AHEAD };
+
+/** Months after the chat that the form suggests for the check-in. */
+export const SUGGESTED_CHECK_IN_MONTHS = 2;
+
+/** The intervals the AI intake can suggest; each becomes a repeat setting (see intervalToRecurrence). */
+export const FOLLOW_UP_INTERVALS = ["week", "twoWeeks", "month"] as const;
+export type FollowUpInterval = (typeof FOLLOW_UP_INTERVALS)[number];
+
+/** The next steps the form offers. */
+export const STEP_ACTIONS = ["Send a thank-you email", "Follow up"] as const;
+
+/** Days ahead that count as "due this week". */
+export const DUE_SOON_DAYS = 7;
+
+const MAX_FIELD_LENGTH = 300;
+const MAX_STEPS = 20;
+
+// ── What gets stored ──────────────────────────────────────────────────────────
+
+const NextStep = z.object({
+  action: z.string(),
+  owner: z.enum(["me", "them"]),
+  dueDate: z.string().nullable(),
+  done: z.boolean(),
+  /** The day it was marked done; missing or null while open, and for steps finished before this was recorded. */
+  doneOn: z.string().nullable().optional(),
+  /** Stays with the step for good (its position in the list changes); given when the step is first saved. Missing on steps saved before it existed. */
+  id: z.string().optional(),
+  /** The date of the chat this step came from, once a later chat has been logged; before that, it belongs to the contact's latest chat. */
+  chatDate: z.string().optional(),
+});
+export type NextStep = z.infer<typeof NextStep>;
+
+/** `contact` with an id on every step that lacks one. `makeId` makes a new unique id (crypto.randomUUID in the browser). */
+export function ensureStepIds(contact: Contact, makeId: () => string): Contact {
+  if (contact.nextSteps.every((step) => step.id)) return contact;
+  return { ...contact, nextSteps: contact.nextSteps.map((step) => (step.id ? step : { ...step, id: makeId() })) };
+}
+
+/** How a check-in repeats once it's done: every `every` weeks, months or years. */
+const Recurrence = z.object({
+  every: z.number().int().min(1),
+  unit: z.enum(RECURRENCE_UNITS),
+});
+export type Recurrence = z.infer<typeof Recurrence>;
+
+/** An AI-suggested interval as a repeat setting. */
+export function intervalToRecurrence(interval: FollowUpInterval): Recurrence {
+  if (interval === "week") return { every: 1, unit: "week" };
+  if (interval === "twoWeeks") return { every: 2, unit: "week" };
+  return { every: 1, unit: "month" };
+}
+
+/** "every week", "every 2 months", "every year". */
+export function describeRecurrence({ every, unit }: Recurrence): string {
+  return every === 1 ? `every ${unit}` : `every ${every} ${unit}s`;
+}
+
+/** A problem with a typed repeat setting, or null when it's fine: a whole number from 1 up to the unit's limit. */
+export function checkRecurrence(every: string, unit: string): string | null {
+  if (!(RECURRENCE_UNITS as readonly string[]).includes(unit)) return "Choose weeks, months or years for the repeat.";
+  const max = MAX_RECURRENCE[unit as RecurrenceUnit];
+  const n = /^\d+$/.test(every.trim()) ? Number(every.trim()) : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > max) return `Repeat every a whole number from 1 to ${max} ${unit}s.`;
+  return null;
+}
+
+/** An earlier chat with the same person. The contact's own fields hold the latest one. */
+const PastChat = z.object({
+  meetingDate: z.string(),
+  vibe: z.enum(VIBES),
+  takeaways: z.array(z.string()),
+  notes: z.string(),
+  offeredReferral: z.boolean().default(false),
+  offeredIntro: z.boolean().default(false),
+});
+export type PastChat = z.infer<typeof PastChat>;
+
+export const Contact = z.object({
+  id: z.string(),
+  name: z.string(),
+  relationship: z.enum(RELATIONSHIPS),
+  /** The user's own label when the relationship is "other"; null or missing otherwise (optional so older contacts load). */
+  relationshipOther: z.string().nullable().optional(),
+  classYear: z.string().nullable(),
+  /** Optional so contacts saved before it existed still load. */
+  seniority: z.enum(SENIORITIES).nullable().optional(),
+  company: z.string().nullable(),
+  role: z.string().nullable(),
+  area: z.string().nullable(),
+  location: z.string().nullable(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  linkedin: z.string().nullable(),
+  meetingDate: z.string(),
+  vibe: z.enum(VIBES),
+  // .default(false) so contacts saved before these fields existed still load.
+  offeredReferral: z.boolean().default(false),
+  offeredIntro: z.boolean().default(false),
+  takeaways: z.array(z.string()),
+  nextSteps: z.array(NextStep),
+  /** The user's full notes, kept as written. */
+  notes: z.string(),
+  /** When to check in if no open next step has a due date; set automatically, not on the form. */
+  checkInDate: z.string(),
+  /** Repeat the check-in this often once it's done; null for a one-off. Missing in older contacts, which parseStoredContacts converts. */
+  recurrence: Recurrence.nullable().optional(),
+  /** Earlier chats, newest first; missing when there's been only one (optional so older contacts load). */
+  pastChats: z.array(PastChat).optional(),
+  createdAt: z.string(),
+});
+export type Contact = z.infer<typeof Contact>;
+
+// ── What the form holds ───────────────────────────────────────────────────────
+
+/** The form's fields as typed: every one a string, empty when left blank. */
+export interface ContactDraft {
+  name: string;
+  relationship: Relationship;
+  /** The user's own label, used when the relationship is "other". */
+  relationshipOther: string;
+  classYear: string;
+  /** Empty when not given. */
+  seniority: Seniority | "";
+  company: string;
+  role: string;
+  area: string;
+  location: string;
+  email: string;
+  phone: string;
+  linkedin: string;
+  meetingDate: string;
+  vibe: Vibe;
+  /** They offered to refer you. */
+  offeredReferral: boolean;
+  /** They offered to connect you with someone else at their company. */
+  offeredIntro: boolean;
+  /** One takeaway per line. */
+  takeaways: string;
+  nextSteps: { action: string; owner: "me" | "them"; dueDate: string }[];
+  /** The check-in repeats once it's done. */
+  repeat: boolean;
+  /** How many units between repeats, as typed. */
+  repeatEvery: string;
+  repeatUnit: RecurrenceUnit;
+  notes: string;
+}
+
+export function emptyDraft(today: string): ContactDraft {
+  return {
+    name: "",
+    relationship: "industry",
+    relationshipOther: "",
+    classYear: "",
+    seniority: "",
+    company: "",
+    role: "",
+    area: "",
+    location: "",
+    email: "",
+    phone: "",
+    linkedin: "",
+    meetingDate: today,
+    vibe: "good",
+    offeredReferral: false,
+    offeredIntro: false,
+    takeaways: "",
+    nextSteps: [],
+    repeat: false,
+    repeatEvery: "1",
+    repeatUnit: "month",
+    notes: "",
+  };
+}
+
+export type BuildResult = { ok: true; contact: Contact } | { ok: false; errors: string[] };
+
+/**
+ * A contact from the form. Only the name is required. The check-in date is
+ * `today` plus DEFAULT_FOLLOW_UP_DAYS; blank steps are dropped.
+ */
+export function buildContact(draft: ContactDraft, today: string, id: string): BuildResult {
+  const errors: string[] = [];
+  const text = (value: string, label: string): string | null => {
+    const trimmed = value.trim();
+    if (trimmed.length > MAX_FIELD_LENGTH) errors.push(`Keep ${label} to at most ${MAX_FIELD_LENGTH} characters.`);
+    return trimmed || null;
+  };
+
+  const name = draft.name.trim();
+  if (!name) errors.push("Enter the contact's full name.");
+  else if (name.length > MAX_FIELD_LENGTH) errors.push(`Keep the name to at most ${MAX_FIELD_LENGTH} characters.`);
+
+  const relationshipOther = draft.relationship === "other" ? text(draft.relationshipOther, "the relationship") : null;
+  const classYear = text(draft.classYear, "the class year");
+  const company = text(draft.company, "the company");
+  const role = text(draft.role, "the role");
+  const area = text(draft.area, "the area");
+  const location = text(draft.location, "the location");
+  const phone = text(draft.phone, "the phone number");
+  const linkedin = text(draft.linkedin, "the LinkedIn link");
+  const email = text(draft.email, "the email");
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) errors.push("Enter a valid email address.");
+
+  // The date of the chat is required. Forms start with today filled in (emptyDraft), but a blank date is never quietly replaced.
+  const meetingDate = draft.meetingDate.trim();
+  const earliest = addDays(today, -365 * MAX_YEARS_BACK);
+  const latest = addDays(today, 365 * MAX_YEARS_AHEAD);
+  if (!meetingDate) errors.push("Enter the date of the chat.");
+  else if (!isDate(meetingDate)) errors.push("Enter a valid date for the chat.");
+  else if (meetingDate > today) errors.push("The date of the chat can't be in the future.");
+  else if (meetingDate < earliest) errors.push(`The date of the chat can't be more than ${MAX_YEARS_BACK} years ago. Check the year.`);
+
+  if (draft.notes.length > MAX_NOTES_LENGTH) errors.push(`Keep the notes to at most ${MAX_NOTES_LENGTH} characters.`);
+
+  const steps = draft.nextSteps.filter((s) => s.action.trim());
+  if (steps.length > MAX_STEPS) errors.push(`Keep next steps to at most ${MAX_STEPS}.`);
+  const nextSteps: NextStep[] = steps.map((s) => {
+    if (!(STEP_ACTIONS as readonly string[]).includes(s.action.trim())) {
+      errors.push(`"${s.action.trim()}" isn't one of the next step options.`);
+    }
+    const dueDate = s.dueDate.trim();
+    if (dueDate && !isDate(dueDate)) errors.push(`"${s.action.trim()}" has an invalid due date.`);
+    else if (dueDate && dueDate < meetingDate) errors.push(`"${s.action.trim()}" is due before the chat. Check the date.`);
+    else if (dueDate && dueDate > latest) errors.push(`"${s.action.trim()}" is due more than ${MAX_YEARS_AHEAD} years from now. Check the year.`);
+    return { action: s.action.trim(), owner: s.owner, dueDate: dueDate || null, done: false, doneOn: null };
+  });
+
+  // The repeat setting only means something while there is a check-in to repeat.
+  let recurrence: Recurrence | null = null;
+  if (draft.repeat && nextSteps.some((s) => s.action === STEP_ACTIONS[1])) {
+    const problem = checkRecurrence(draft.repeatEvery, draft.repeatUnit);
+    if (problem) errors.push(problem);
+    else recurrence = { every: Number(draft.repeatEvery.trim()), unit: draft.repeatUnit };
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+
+  return {
+    ok: true,
+    contact: {
+      id,
+      name,
+      relationship: draft.relationship,
+      relationshipOther,
+      classYear,
+      seniority: draft.seniority || null,
+      company,
+      role,
+      area,
+      location,
+      email,
+      phone,
+      linkedin,
+      meetingDate,
+      vibe: draft.vibe,
+      offeredReferral: draft.offeredReferral,
+      offeredIntro: draft.offeredIntro,
+      takeaways: draft.takeaways
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+      nextSteps,
+      recurrence,
+      notes: draft.notes,
+      checkInDate: addDays(today, DEFAULT_FOLLOW_UP_DAYS),
+      createdAt: today,
+    },
+  };
+}
+
+// ── Editing ───────────────────────────────────────────────────────────────────
+
+/**
+ * The form's fields for an existing contact. Only open next steps go in the
+ * form; finished ones stay in the contact's history and aren't edited.
+ */
+export function contactToDraft(contact: Contact): ContactDraft {
+  return {
+    name: contact.name,
+    relationship: contact.relationship,
+    relationshipOther: contact.relationshipOther ?? "",
+    classYear: contact.classYear ?? "",
+    seniority: contact.seniority ?? "",
+    company: contact.company ?? "",
+    role: contact.role ?? "",
+    area: contact.area ?? "",
+    location: contact.location ?? "",
+    email: contact.email ?? "",
+    phone: contact.phone ?? "",
+    linkedin: contact.linkedin ?? "",
+    meetingDate: contact.meetingDate,
+    vibe: contact.vibe,
+    offeredReferral: contact.offeredReferral,
+    offeredIntro: contact.offeredIntro,
+    takeaways: contact.takeaways.join("\n"),
+    nextSteps: contact.nextSteps
+      .filter((step) => !step.done)
+      .map((step) => ({ action: step.action, owner: step.owner, dueDate: step.dueDate ?? "" })),
+    repeat: Boolean(contact.recurrence),
+    repeatEvery: String(contact.recurrence?.every ?? 1),
+    repeatUnit: contact.recurrence?.unit ?? "month",
+    notes: contact.notes,
+  };
+}
+
+/**
+ * `original` with the edited form applied. The id, creation date and check-in
+ * date are kept, and finished next steps stay as they were, ahead of the open
+ * ones from the form.
+ */
+export function updateContact(original: Contact, draft: ContactDraft, today: string): BuildResult {
+  const result = buildContact(draft, today, original.id);
+  if (!result.ok) return result;
+  // The form rebuilds the open steps; each keeps its id and chat date from the one it replaces (same place in the open list, same action).
+  const openBefore = original.nextSteps.filter((step) => !step.done);
+  const openSteps = result.contact.nextSteps.map((step, i) => {
+    const before = openBefore[i];
+    if (!before || before.action !== step.action) return step;
+    return { ...step, ...(before.id ? { id: before.id } : {}), ...(before.chatDate ? { chatDate: before.chatDate } : {}) };
+  });
+  return {
+    ok: true,
+    contact: {
+      ...result.contact,
+      createdAt: original.createdAt,
+      checkInDate: original.checkInDate,
+      nextSteps: [...original.nextSteps.filter((step) => step.done), ...openSteps],
+      ...(original.pastChats ? { pastChats: original.pastChats } : {}),
+    },
+  };
+}
+
+// ── Another chat with the same person ─────────────────────────────────────────
+
+/** Every chat with the person, newest first: the latest (the contact's own fields), then the earlier ones. */
+export function chatsWith(contact: Contact): PastChat[] {
+  const latest: PastChat = {
+    meetingDate: contact.meetingDate,
+    vibe: contact.vibe,
+    takeaways: contact.takeaways,
+    notes: contact.notes,
+    offeredReferral: contact.offeredReferral,
+    offeredIntro: contact.offeredIntro,
+  };
+  return [latest, ...(contact.pastChats ?? [])];
+}
+
+/**
+ * The form for a new chat with someone already logged: their details filled
+ * in, the chat's own fields (date, how it went, takeaways, notes, offers)
+ * fresh, and both follow-ups on.
+ */
+export function anotherChatDraft(contact: Contact, today: string): ContactDraft {
+  const fresh = emptyDraft(today);
+  return {
+    ...contactToDraft(contact),
+    meetingDate: fresh.meetingDate,
+    vibe: fresh.vibe,
+    takeaways: "",
+    notes: "",
+    offeredReferral: false,
+    offeredIntro: false,
+    nextSteps: [STEP_ACTIONS[0], STEP_ACTIONS[1]].map((action) => ({ action, owner: "me" as const, dueDate: "" })),
+  };
+}
+
+/**
+ * `contact` after another chat, logged with `draft`: the chat becomes the
+ * latest, the previous one moves to `pastChats`, and the chat counts as a
+ * check-in, so open check-ins are marked done on its date. Other open steps stay,
+ * and the form's new steps are added. The new chat can't be before the latest.
+ */
+export function logAnotherChat(contact: Contact, draft: ContactDraft, today: string): BuildResult {
+  const result = buildContact(draft, today, contact.id);
+  if (!result.ok) return result;
+  const chat = result.contact;
+  if (chat.meetingDate < contact.meetingDate) {
+    return { ok: false, errors: [`This chat is dated before your last one with ${contact.name} (${contact.meetingDate}). Log your most recent chat.`] };
+  }
+  const [previous] = chatsWith(contact);
+  // Steps so far belong to the chat that's becoming an earlier one: they keep that chat's date, so a thank-you
+  // for it that's still open is judged from then, not from this new chat.
+  const steps = contact.nextSteps.map((step) => {
+    const owned = step.chatDate ? step : { ...step, chatDate: contact.meetingDate };
+    return !step.done && step.action === STEP_ACTIONS[1] ? { ...owned, done: true, doneOn: chat.meetingDate } : owned;
+  });
+  return {
+    ok: true,
+    contact: {
+      ...chat,
+      createdAt: contact.createdAt,
+      nextSteps: [...steps, ...chat.nextSteps],
+      pastChats: [previous!, ...(contact.pastChats ?? [])],
+    },
+  };
+}
+
+/** What can be changed on an earlier chat: its own fields, as the form has them (takeaways one per line). */
+export interface ChatEdit {
+  meetingDate: string;
+  vibe: Vibe;
+  takeaways: string;
+  notes: string;
+  offeredReferral: boolean;
+  offeredIntro: boolean;
+}
+
+export type EditChatResult = { ok: true; contact: Contact } | { ok: false; errors: string[] };
+
+/** The editable fields of an earlier chat, as the edit form shows them. */
+export function chatToEdit(chat: PastChat): ChatEdit {
+  return {
+    meetingDate: chat.meetingDate,
+    vibe: chat.vibe,
+    takeaways: chat.takeaways.join("\n"),
+    notes: chat.notes,
+    offeredReferral: chat.offeredReferral,
+    offeredIntro: chat.offeredIntro,
+  };
+}
+
+/**
+ * `contact` with its earlier chat at `pastIndex` (0 is the most recent of the
+ * earlier ones, as in `contact.pastChats`) changed. Only that chat changes: the
+ * latest chat, the person's details and the follow-ups stay as they are (the
+ * latest chat is edited with "Edit details"). The date is checked like a new
+ * chat's, and must keep the chats in order: not after the next chat, not
+ * before the one before it.
+ */
+export function editPastChat(contact: Contact, pastIndex: number, edit: ChatEdit, today: string): EditChatResult {
+  const past = contact.pastChats ?? [];
+  if (!Number.isInteger(pastIndex) || pastIndex < 0 || pastIndex >= past.length) {
+    return { ok: false, errors: ["That chat could not be found."] };
+  }
+  // The same checks as a new chat's (date, notes length), with nothing else in the way.
+  const checked = buildContact({ ...contactToDraft(contact), ...edit, nextSteps: [] }, today, contact.id);
+  if (!checked.ok) return checked;
+  const newer = pastIndex === 0 ? contact.meetingDate : past[pastIndex - 1]!.meetingDate;
+  const older = past[pastIndex + 1]?.meetingDate;
+  if (checked.contact.meetingDate > newer) {
+    return { ok: false, errors: [`This chat can't be after the next one with ${contact.name} (${newer}).`] };
+  }
+  if (older && checked.contact.meetingDate < older) {
+    return { ok: false, errors: [`This chat can't be before the one before it (${older}).`] };
+  }
+  const { meetingDate, vibe, takeaways, notes, offeredReferral, offeredIntro } = checked.contact;
+  const pastChats = past.map((chat, i) => (i === pastIndex ? { meetingDate, vibe, takeaways, notes, offeredReferral, offeredIntro } : chat));
+  return { ok: true, contact: { ...contact, pastChats } };
+}
+
+// ── Duplicates ────────────────────────────────────────────────────────────────
+// Logging a chat with someone already saved should add a chat to them, not a
+// second contact. The form warns when a new chat looks like a saved person and
+// lets the user merge it or keep both (two people can share a name).
+
+/** A name as compared for duplicates: without accents, capitals or extra spaces. */
+export function nameKey(name: string): string {
+  return name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** A LinkedIn profile link as compared: just its /in/ slug, lowercased; "" when it isn't a profile link. */
+export function linkedinKey(url: string): string {
+  const match = /linkedin\.com\/in\/([^/?#\s]+)/i.exec(url);
+  return match ? match[1]!.toLowerCase() : "";
+}
+
+/**
+ * Where a saved LinkedIn value may be linked to: an http(s) address on
+ * linkedin.com or www.linkedin.com (https:// is added when missing), else null.
+ * The value can come from the AI reading a pasted email or screenshot, so
+ * anything else (another site, javascript:) is shown as text, never as a link.
+ */
+export function linkedinHref(value: string): string | null {
+  const text = value.trim();
+  if (!text) return null;
+  let url: URL;
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  if ((url.protocol !== "https:" && url.protocol !== "http:") || (host !== "linkedin.com" && host !== "www.linkedin.com")) return null;
+  return url.href;
+}
+
+/**
+ * The saved contacts that could be the person in the form, best match first:
+ * those with the same LinkedIn profile, else those with the same name, else
+ * (when only a first name was given, as in "talked to Meghan again") every
+ * saved contact with that first name. Empty when there are none. More than one
+ * means the user has to say which, so a chat is never added to the wrong person.
+ */
+export function findSameContacts(contacts: Contact[], draft: Pick<ContactDraft, "name" | "linkedin">): Contact[] {
+  const link = linkedinKey(draft.linkedin);
+  const byLink = link ? contacts.filter((c) => linkedinKey(c.linkedin ?? "") === link) : [];
+  if (byLink.length > 0) return byLink;
+  const name = nameKey(draft.name);
+  if (!name) return [];
+  const byName = contacts.filter((c) => nameKey(c.name) === name);
+  if (byName.length > 0) return byName;
+  if (name.includes(" ")) return []; // a full name that matches nobody is someone new
+  return contacts.filter((c) => nameKey(c.name).split(" ")[0] === name);
+}
+
+/**
+ * The form for logging `draft`, filled in as a new contact, as another chat
+ * with `contact` instead. The chat (date, vibe, offers, takeaways, notes,
+ * follow-ups) is the draft's. Their details are the draft's where it has them,
+ * so a new title or company updates them, and otherwise what's saved. Their
+ * name and relationship stay as saved: the name matched, and a relationship
+ * left at the form's default would otherwise overwrite the saved one.
+ */
+export function asAnotherChat(contact: Contact, draft: ContactDraft, today: string): ContactDraft {
+  const saved = anotherChatDraft(contact, today);
+  const pick = (key: "classYear" | "company" | "role" | "area" | "location" | "email" | "phone" | "linkedin") =>
+    draft[key].trim() || saved[key];
+  return {
+    ...saved,
+    classYear: pick("classYear"),
+    company: pick("company"),
+    role: pick("role"),
+    area: pick("area"),
+    location: pick("location"),
+    email: pick("email"),
+    phone: pick("phone"),
+    linkedin: pick("linkedin"),
+    seniority: draft.seniority || saved.seniority,
+    meetingDate: draft.meetingDate,
+    vibe: draft.vibe,
+    offeredReferral: draft.offeredReferral,
+    offeredIntro: draft.offeredIntro,
+    takeaways: draft.takeaways,
+    notes: draft.notes,
+    nextSteps: draft.nextSteps,
+    ...(draft.repeat ? { repeat: true, repeatEvery: draft.repeatEvery, repeatUnit: draft.repeatUnit } : {}),
+  };
+}
+
+// ── Follow-up rules ───────────────────────────────────────────────────────────
+
+export type DueStatus = "overdue" | "soon" | "later";
+
+/**
+ * What the contact is due for: the earliest open next step that has a due date,
+ * otherwise a check-in on `checkInDate`.
+ */
+export function nextDue(contact: Contact): { date: string; label: string } {
+  const open = contact.nextSteps
+    .filter((step) => !step.done && step.dueDate)
+    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
+  const first = open[0];
+  return first ? { date: first.dueDate!, label: first.action } : { date: contact.checkInDate, label: "Check in" };
+}
+
+/** Overdue before today, soon within DUE_SOON_DAYS (today included), later after that. */
+export function dueStatus(contact: Contact, today: string): DueStatus {
+  const { date } = nextDue(contact);
+  if (date < today) return "overdue";
+  if (date <= addDays(today, DUE_SOON_DAYS)) return "soon";
+  return "later";
+}
+
+/** Earliest due first; ties by name. Doesn't change the input. */
+export function sortByFollowUp(contacts: Contact[]): Contact[] {
+  return [...contacts].sort((a, b) => nextDue(a).date.localeCompare(nextDue(b).date) || a.name.localeCompare(b.name));
+}
+
+/** The contacts to act on now (overdue or due soon) and the rest, each earliest first. */
+export function splitByDue(contacts: Contact[], today: string): { dueNow: Contact[]; later: Contact[] } {
+  const sorted = sortByFollowUp(contacts);
+  return {
+    dueNow: sorted.filter((c) => dueStatus(c, today) !== "later"),
+    later: sorted.filter((c) => dueStatus(c, today) === "later"),
+  };
+}
+
+/**
+ * The user followed up: steps due today or earlier are marked done, and the
+ * next check-in is DEFAULT_FOLLOW_UP_DAYS from today. Steps due later stay open.
+ */
+export function completeFollowUp(contact: Contact, today: string): Contact {
+  return {
+    ...contact,
+    nextSteps: contact.nextSteps.map((step) =>
+      step.dueDate && step.dueDate <= today ? { ...step, done: true, doneOn: step.doneOn ?? today } : step,
+    ),
+    checkInDate: addDays(today, DEFAULT_FOLLOW_UP_DAYS),
+  };
+}
+
+/** The contact with next step `index` ticked or unticked. */
+export function toggleStep(contact: Contact, index: number): Contact {
+  return {
+    ...contact,
+    nextSteps: contact.nextSteps.map((step, i) => (i === index ? { ...step, done: !step.done, doneOn: null } : step)),
+  };
+}
+
+// ── Storage helpers ───────────────────────────────────────────────────────────
+
+/** Contacts from stored JSON. Bad JSON gives none; entries that don't match the shape are skipped. */
+export function parseStoredContacts(raw: string | null): Contact[] {
+  if (!raw) return [];
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((item) => {
+    const contact = parseContact(item);
+    return contact ? [contact] : [];
+  });
+}
+
+/**
+ * The most steps and earlier chats a stored contact can hold. Higher than the
+ * form's MAX_STEPS because finished steps stay in the contact and repeating
+ * check-ins add one each time; this only stops runaway writes.
+ */
+const MAX_STORED_STEPS = 200;
+const MAX_STORED_CHATS = 200;
+const MAX_TAKEAWAYS = 100;
+const MAX_TAKEAWAY_LENGTH = 2000;
+
+/**
+ * A problem with a contact's size, or null when it's within the limits the form
+ * enforces (field lengths, notes) and the generous ones for what builds up over
+ * time (steps, chats, takeaways). The server runs this on everything it stores,
+ * since the form's checks only run in the browser.
+ */
+export function checkContactLimits(contact: Contact): string | null {
+  const shortFields = [
+    contact.name,
+    contact.relationshipOther,
+    contact.classYear,
+    contact.company,
+    contact.role,
+    contact.area,
+    contact.location,
+    contact.email,
+    contact.phone,
+    contact.linkedin,
+  ];
+  if (shortFields.some((value) => (value?.length ?? 0) > MAX_FIELD_LENGTH)) {
+    return `${contact.name}: a detail is longer than ${MAX_FIELD_LENGTH} characters.`;
+  }
+  if (contact.notes.length > MAX_NOTES_LENGTH) return `${contact.name}'s notes are too long.`;
+  if (contact.takeaways.length > MAX_TAKEAWAYS || contact.takeaways.some((t) => t.length > MAX_TAKEAWAY_LENGTH)) {
+    return `${contact.name} has too many or too long takeaways.`;
+  }
+  if (contact.nextSteps.length > MAX_STORED_STEPS) return `${contact.name} has too many next steps.`;
+  if (contact.nextSteps.some((s) => s.action.length > MAX_FIELD_LENGTH || (s.id?.length ?? 0) > 100 || (s.chatDate?.length ?? 0) > 40)) {
+    return `${contact.name} has a next step that is too long.`;
+  }
+  const past = contact.pastChats ?? [];
+  if (past.length > MAX_STORED_CHATS) return `${contact.name} has too many chats.`;
+  if (past.some((p) => p.notes.length > MAX_NOTES_LENGTH || p.takeaways.length > MAX_TAKEAWAYS || p.takeaways.some((t) => t.length > MAX_TAKEAWAY_LENGTH))) {
+    return `${contact.name} has an earlier chat with notes or takeaways that are too long.`;
+  }
+  return null;
+}
+
+/** One stored contact, brought up to the current shape and checked; null if it doesn't fit. */
+export function parseContact(item: unknown): Contact | null {
+  const parsed = Contact.safeParse(migrateStored(item));
+  return parsed.success ? parsed.data : null;
+}
+
+/** An entry saved by an earlier version, brought up to the current shape. */
+function migrateStored(item: unknown): unknown {
+  if (!item || typeof item !== "object") return item;
+  let out = item as Record<string, unknown>;
+  // Earlier versions stored `followUpDate`; it becomes the check-in date.
+  if (!("checkInDate" in out) && "followUpDate" in out) out = { ...out, checkInDate: out.followUpDate };
+  // Then came a fixed choice of week, twoWeeks or month (monthly when none was chosen); it becomes a repeat setting.
+  if (!("recurrence" in out)) {
+    const chosen = out.followUpEvery;
+    const interval = (FOLLOW_UP_INTERVALS as readonly unknown[]).includes(chosen) ? (chosen as FollowUpInterval) : "month";
+    out = { ...out, recurrence: intervalToRecurrence(interval) };
+  }
+  return out;
+}

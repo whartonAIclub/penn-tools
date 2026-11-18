@@ -1,0 +1,265 @@
+.screen {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* ── Left: before and after ────────────────────────────────────────────────── */
+
+.intro {
+  width: 45%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* safe: content taller (or wider) than the box stays scrollable from its start */
+  justify-content: safe center;
+  gap: 24px;
+  padding: 2.5rem;
+  background: #0f2640;
+  color: #fff;
+}
+
+.introTitle {
+  margin: 0;
+  font-family: var(--rc-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.example {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.exampleMuted {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.exampleLabel {
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.exampleLine {
+  margin-bottom: 4px;
+  color: #fef9c3;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.exampleMuted .exampleLine {
+  color: #fff;
+  opacity: 0.75;
+}
+
+/* ── Right: the upload form ────────────────────────────────────────────────── */
+
+.form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  justify-content: safe center;
+  gap: 20px;
+  padding: 2.5rem;
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+.formTitle {
+  margin: 0;
+  color: #0d0d0d;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.drop {
+  width: 100%;
+  padding: 2rem;
+  border: 1.5px dashed #b8b6ad;
+  border-radius: 8px;
+  background: #fafaf8;
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.dropFilled {
+  border-color: #a3b5c8;
+  background: #f5f7fa;
+}
+
+.dropActive,
+.drop:hover:not(:disabled) {
+  border-color: var(--rc-accent);
+  background: var(--rc-accent-light);
+}
+
+.dropText {
+  color: var(--rc-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dropFilled .dropText {
+  color: var(--rc-accent);
+}
+
+.dropHint {
+  margin-top: 6px;
+  color: var(--rc-faint);
+  font-size: 11px;
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fileRow {
+  padding: 6px 10px;
+  background: var(--rc-surface);
+  border: 1px solid #e5e3dc;
+  border-radius: 6px;
+}
+
+.fileRowError {
+  border-color: #fca5a5;
+}
+
+.fileLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fileIcon {
+  flex-shrink: 0;
+  color: var(--rc-faint);
+}
+
+.fileName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.tag {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid #d3d1c7;
+  border-radius: 4px;
+  background: #f0f0ee;
+  color: #444441;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tagResume {
+  border-color: var(--rc-accent);
+}
+
+.remove {
+  flex-shrink: 0;
+  padding: 0 2px;
+  color: var(--rc-faint);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.remove:hover {
+  color: var(--rc-error);
+}
+
+.fileError {
+  margin-top: 4px;
+  color: var(--rc-error);
+  font-size: 11px;
+}
+
+.more {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--rc-muted);
+  font-size: 13px;
+}
+
+.moreSign {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.context {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #f0f0ee;
+}
+
+.contextText {
+  margin: 0;
+  color: var(--rc-muted);
+  font-size: 12px;
+}
+
+.contextRow {
+  display: flex;
+  gap: 8px;
+}
+
+.contextSelect {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #d3d1c7;
+  border-radius: 6px;
+  background: var(--rc-surface);
+  color: var(--rc-text-2);
+  font-size: 12px;
+}
+
+.contextCount {
+  color: var(--rc-muted);
+  font-size: 11px;
+}
+
+.form .continue {
+  padding: 13px;
+  border-radius: 9px;
+}
+
+.form .hint {
+  margin: -12px 0 0;
+}
+
+/* A narrow page area has room for the form only. */
+@container (max-width: 720px) {
+  .intro {
+    display: none;
+  }
+
+  .form {
+    padding: 1.5rem 1rem;
+  }
+}

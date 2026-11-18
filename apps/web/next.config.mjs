@@ -20,9 +20,7 @@ const config = {
       // AI Compass was a registered tool whose page only redirected here; it's a community tool now.
       { source: "/tools/ai-compass", destination: "https://akshitkalra.com/aicompass", permanent: true },
       // Tools that had numeric IDs, so old links and bookmarks keep working.
-      { source: "/tools/1/:path*", destination: "/tools/coursematch-assist/:path*", permanent: true },
       { source: "/tools/7/:path*", destination: "/tools/resume-customizer/:path*", permanent: true },
-      { source: "/tools/8/:path*", destination: "/tools/career-canvas/:path*", permanent: true },
     ];
   },
 };

@@ -3,13 +3,16 @@ import type { ApiKeyProvider, UserId } from "../types/index.js";
 /** Whose key paid for a call: the platform's (the free credit) or the user's own. */
 export type AiKeySource = "platform" | "user";
 
-/** Which platform API made a call. */
+/**
+ * Which platform API made a call. "legacy" is the legacy LLM API's
+ * (/api/llm/complete), since removed: only past calls have it.
+ */
 export type AiUsageApi = "ai" | "embeddings" | "legacy";
 
 /** One AI call, recorded after the provider bills it. */
 export interface AiUsageEntry {
   userId: UserId;
-  /** The calling tool's manifest id, or "unknown" for a legacy call from outside a tool's pages. */
+  /** The calling tool's manifest id, or "unknown" for a past legacy call from outside a tool's pages. */
   toolId: string;
   api: AiUsageApi;
   provider: ApiKeyProvider;

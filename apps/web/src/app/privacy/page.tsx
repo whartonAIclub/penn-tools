@@ -19,7 +19,7 @@ export default function PrivacyPage() {
     <div className={cardPage.page}>
       <div>
         <h1 className={cardPage.title}>Privacy policy</h1>
-        <p className={cardPage.muted}>Last updated: November 16, 2026</p>
+        <p className={cardPage.muted}>Last updated: November 17, 2026</p>
       </div>
 
       <p>
@@ -59,18 +59,7 @@ export default function PrivacyPage() {
       </section>
 
       <section className={cardPage.card}>
-        <h2 className={styles.heading}>Google Calendar (Penn Planner)</h2>
-        <p>
-          If you connect Google Calendar, Penn Planner reads your calendar events to find when you&apos;re busy, so
-          it doesn&apos;t suggest study blocks at those times, and adds the study blocks you choose to your
-          calendar. This happens entirely in your browser: your calendar data is not sent to or stored on
-          PennTools&apos; servers, is not sent to AI providers, and Penn Planner&apos;s access expires after one
-          hour. You can remove its access at any time at{" "}
-          <a className={cardPage.link} href="https://myaccount.google.com/permissions">
-            myaccount.google.com/permissions
-          </a>
-          .
-        </p>
+        <h2 className={styles.heading}>Google user data</h2>
         <p>
           PennTools&apos; use and transfer of information received from Google APIs will adhere to the{" "}
           <a className={cardPage.link} href="https://developers.google.com/terms/api-services-user-data-policy">

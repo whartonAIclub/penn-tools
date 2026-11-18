@@ -18,10 +18,12 @@
 //     withPdf / pdfPageCount from @/lib/pdf. These checks read the source
 //     text, so they catch mistakes, not deliberate workarounds (a renamed
 //     getDocument, or options built in another variable)
-//
-// It also checks that each tool's manifest says whether it's still on the
-// legacy LLM API (POST /api/llm/complete): notYetMigrated: true when the tool's
-// code calls it, and not otherwise. The site shows those tools as BETA.
+//   - lists the AI error kinds the user fixes in Settings itself (a list naming
+//     both "missing_key" and "invalid_key"): tools call isSettingsError from
+//     @penntools/core/ai/errors, so the list is kept in one place
+//   - calls the removed legacy LLM API (POST /api/llm/complete): the call would
+//     fail only when the page runs, and a branch from before the removal may
+//     still make it
 //
 // Run: pnpm check:tools (optionally with a folder to scan instead of the repo,
 // as the tests do). Existing violations are listed in KNOWN_EXCEPTIONS until
@@ -84,6 +86,16 @@ const RULES = [
     test: (src) => matches(src, /["']pdfjs-dist\/legacy\//g),
     fix: "open PDFs on the server with withPdf / pdfPageCount from @/lib/pdf",
   },
+  {
+    name: "Settings error list",
+    test: settingsErrorLists,
+    fix: "call isSettingsError(kind) from @penntools/core/ai/errors instead of listing the error kinds",
+  },
+  {
+    name: "removed LLM API",
+    test: (src) => matches(src, /\/api\/llm\/complete\b/g),
+    fix: "the legacy LLM API was removed; call the AI API (getAI from @/lib/ai) from the tool's routes or server actions",
+  },
 ];
 
 function matches(src, regex) {
@@ -108,6 +120,17 @@ function unsafeGetDocument(src) {
   return found;
 }
 
+/**
+ * Hand-written lists of the AI error kinds Settings fixes: array literals
+ * (including a Set's) naming both "missing_key" and "invalid_key". One kind on
+ * its own, such as a route's own { kind: "missing_key" }, is fine.
+ */
+function settingsErrorLists(src) {
+  return [...src.matchAll(/\[[^[\]]*\]/g)]
+    .filter((m) => /["'`]missing_key["'`]/.test(m[0]) && /["'`]invalid_key["'`]/.test(m[0]))
+    .map((m) => m.index);
+}
+
 /** Imports from @penntools/platform other than `{ toolSql }` from @penntools/platform/db. */
 function platformImports(src) {
   const found = [];
@@ -123,50 +146,6 @@ function platformImports(src) {
       .filter(Boolean);
     const onlyToolSql = specifier === "@penntools/platform/db" && names?.every((n) => n === "toolSql");
     if (!onlyToolSql) found.push(m.index);
-  }
-  return found;
-}
-
-// A manifest declares its type, so other objects with an `id` don't count.
-const MANIFEST = /\breadonly\s+manifest\s*:\s*ToolManifest\b/;
-const NOT_YET_MIGRATED = /\bnotYetMigrated\s*:\s*true\b/;
-const LEGACY_API = /\/api\/llm\/complete\b/;
-
-/**
- * Tools whose manifest's notYetMigrated doesn't match their code. A tool is its
- * folder in tools/ and its page folder in apps/web/src/app/tools/.
- */
-function migrationViolations() {
-  const found = [];
-  let dirs;
-  try {
-    dirs = readdirSync(join(repoRoot, "tools"));
-  } catch {
-    return found;
-  }
-  for (const dir of dirs) {
-    if (!statSync(join(repoRoot, "tools", dir)).isDirectory()) continue;
-    if (KNOWN_EXCEPTIONS.some((e) => `tools/${dir}/`.startsWith(e.prefix))) continue;
-    const sources = [...walk(join(repoRoot, "tools", dir)), ...walk(join(repoRoot, "apps/web/src/app/tools", dir))].map(
-      (file) => ({ path: relative(repoRoot, file).split(sep).join("/"), src: readFileSync(file, "utf8") }),
-    );
-    const manifest = sources.find((s) => s.path.startsWith(`tools/${dir}/`) && MANIFEST.test(s.src));
-    if (!manifest) continue;
-    const legacy = sources.find((s) => LEGACY_API.test(s.src));
-    const flag = manifest.src.match(NOT_YET_MIGRATED);
-    if (legacy && !flag) {
-      found.push({
-        path: manifest.path,
-        line: lineOf(manifest.src, manifest.src.match(MANIFEST).index),
-        rule: { name: "not yet migrated", fix: `${legacy.path} calls the legacy LLM API; add notYetMigrated: true to the manifest` },
-      });
-    } else if (flag && !legacy) {
-      found.push({
-        path: manifest.path,
-        line: lineOf(manifest.src, flag.index),
-        rule: { name: "not yet migrated", fix: "nothing in the tool calls the legacy LLM API any more; remove notYetMigrated from the manifest" },
-      });
-    }
   }
   return found;
 }
@@ -205,7 +184,6 @@ for (const root of ROOTS) {
     for (const hit of hits) violations.push({ path, ...hit });
   }
 }
-violations.push(...migrationViolations());
 
 if (violations.length > 0) {
   console.error(`Tool code breaks ${violations.length} platform rule(s):\n`);

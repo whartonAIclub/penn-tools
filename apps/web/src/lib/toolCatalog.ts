@@ -29,7 +29,7 @@ export interface CatalogTool {
   href: string;
   /** Community tools live outside this repo and open in a new tab. */
   external: boolean;
-  /** Its manifest says it's in beta, or it hasn't migrated off the legacy LLM API. */
+  /** Its manifest says it's in beta. */
   beta: boolean;
   /** Screenshot of the tool's homepage, from scripts/capture-tool-screenshots.py. */
   preview: string;
@@ -69,7 +69,7 @@ function fromManifest(m: ToolManifest): CatalogTool {
     builders: m.contributors,
     href: `/tools/${m.id}`,
     external: false,
-    beta: m.beta === true || m.notYetMigrated === true,
+    beta: m.beta === true,
     preview: `/dashboard/${m.id}.jpg`,
   };
 }

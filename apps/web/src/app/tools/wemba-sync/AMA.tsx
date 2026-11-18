@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import Link from "next/link";
 import type { AIProvider, GenerateResult } from "@penntools/core/ai";
 import type { WeekendSchedule } from "@penntools/tool-wemba-sync";
-import { KEY_PROBLEMS } from "./client";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import styles from "./WembaSync.module.css";
 
 const MAX_QUESTION_LENGTH = 1000;
@@ -203,7 +203,7 @@ export function AMA({
                   {m.error ? (
                     <span className={styles.error} role="alert">
                       {m.error.message}
-                      {m.error.kind && KEY_PROBLEMS.has(m.error.kind) && (
+                      {isSettingsError(m.error.kind) && (
                         <>
                           {" "}
                           <Link href="/settings" className={styles.link}>

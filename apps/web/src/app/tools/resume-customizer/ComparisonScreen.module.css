@@ -1,0 +1,112 @@
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 14px 32px;
+  background: var(--rc-surface);
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.headText {
+  min-width: 0;
+}
+
+.title {
+  color: #0d0d0d;
+  font-family: var(--rc-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--rc-muted);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.columns {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--rc-border);
+}
+
+.column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--rc-surface);
+}
+
+.column + .column {
+  border-left: 1px solid var(--rc-border);
+  background: var(--rc-accent-light);
+}
+
+.columnTitle {
+  color: var(--rc-muted);
+  font-family: var(--rc-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.column + .column .columnTitle {
+  color: var(--rc-accent);
+}
+
+.legends {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--rc-text-2);
+  font-size: 11px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 2px;
+}
+
+.panes {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--rc-canvas);
+}
+
+.divider {
+  flex-shrink: 0;
+  width: 1px;
+  background: var(--rc-border);
+}

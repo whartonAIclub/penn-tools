@@ -26,28 +26,15 @@ import type {
 import { createAI, createUserEmbeddings } from "@penntools/platform/ai";
 import { EMBEDDING_MODEL, FREE_CREDIT_USD, MIN_CALL_USD } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
-import { OpenAIAdapter, AnthropicAdapter } from "@penntools/platform/llm";
-import { OpenAIEmbeddingAdapter } from "@penntools/platform/embeddings";
 import type { EmbeddingProvider } from "@penntools/core/embeddings";
 import { toolRegistry } from "@penntools/core/tools";
-import type { LLMProvider } from "@penntools/core/llm";
 import type { UserId } from "@penntools/core/types";
 
 // ── Tool bootstrap ────────────────────────────────────────────────────────────
 import { PlatformPlaygroundTool } from "@penntools/tool-platform-playground";
 toolRegistry.register(new PlatformPlaygroundTool());
-// import { Tool3 } from "@penntools/tool-3";
-// toolRegistry.register(new Tool3());
 import { ResumeCustomizerTool } from "@penntools/tool-resume-customizer";
 toolRegistry.register(new ResumeCustomizerTool());
-import { CareerCanvasTool } from "@penntools/tool-career-canvas";
-toolRegistry.register(new CareerCanvasTool());
-import { PennPlannerTool } from "@penntools/tool-penn-planner";
-toolRegistry.register(new PennPlannerTool());
-import { CourseMatchAssistTool } from "@penntools/tool-coursematch-assist";
-toolRegistry.register(new CourseMatchAssistTool());
-// import { Tool18 } from "@penntools/tool-18";
-// toolRegistry.register(new Tool18());
 import { PitchCoachTool } from "@penntools/tool-pitch-coach";
 toolRegistry.register(new PitchCoachTool());
 import { AskPennTool } from "@penntools/tool-askpenn";
@@ -66,6 +53,22 @@ import { DeadlineCalendarTool } from "@penntools/tool-deadline-calendar";
 toolRegistry.register(new DeadlineCalendarTool());
 import { WembaSyncTool } from "@penntools/tool-wemba-sync";
 toolRegistry.register(new WembaSyncTool());
+import { IndustryConnectorTool } from "@penntools/tool-industry-connector";
+toolRegistry.register(new IndustryConnectorTool());
+import { PassItOnTool } from "@penntools/tool-pass-it-on";
+toolRegistry.register(new PassItOnTool());
+import { StudentDiscountMaximizerTool } from "@penntools/tool-student-discount-maximizer";
+toolRegistry.register(new StudentDiscountMaximizerTool());
+import { ChatprepTool } from "@penntools/tool-chatprep";
+toolRegistry.register(new ChatprepTool());
+import { FeedbackInsightsTool } from "@penntools/tool-feedback-insights";
+toolRegistry.register(new FeedbackInsightsTool());
+import { PennPalsTool } from "@penntools/tool-penn-pals";
+toolRegistry.register(new PennPalsTool());
+import { PaperTldrTool } from "@penntools/tool-paper-tldr";
+toolRegistry.register(new PaperTldrTool());
+import { DueTool } from "@penntools/tool-due";
+toolRegistry.register(new DueTool());
 import { PennpawsTool } from "@penntools/tool-pennpaws";
 toolRegistry.register(new PennpawsTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
@@ -91,21 +94,6 @@ export const admins: AdminRepository = new PrismaAdminRepository(prisma);
 // Visits to each tool, recorded by POST /api/visits for /admin, /stats and the
 // home page's top tools.
 export const toolVisits: ToolVisitRepository = new PrismaToolVisitRepository(prisma);
-
-// ── Embedding provider ─────────────────────────────────────────────────────
-// The platform's OpenAI key, for tools that embed with it directly (Career
-// Canvas). Null when OPENAI_API_KEY is absent; tools then skip semantic search.
-
-export const embeddingProvider: EmbeddingProvider | null =
-  process.env["OPENAI_API_KEY"]
-    ? new OpenAIEmbeddingAdapter(process.env["OPENAI_API_KEY"])
-    : null;
-
-if (!embeddingProvider) {
-  console.warn(
-    "[PennTools] OPENAI_API_KEY not set — the platform's embeddings are disabled."
-  );
-}
 
 // ── AI API (new tools) ────────────────────────────────────────────────────────
 // Generation uses the platform's keys (OPENAI_API_KEY, ANTHROPIC_API_KEY) while
@@ -166,38 +154,6 @@ export async function createUserEmbeddingProvider(
     recordUsage: (usage) => aiUsage.record({ ...usage, userId, toolId, api: "embeddings" }),
     logger,
   });
-}
-
-// ── LLM provider (legacy) ─────────────────────────────────────────────────────
-// For existing tools only (/api/llm/complete); new tools use the AI API above.
-// Uses ANTHROPIC_API_KEY if set, else OPENAI_API_KEY.
-
-function createLLMProvider(): LLMProvider {
-  if (process.env["ANTHROPIC_API_KEY"]) {
-    return new AnthropicAdapter(process.env["ANTHROPIC_API_KEY"]);
-  }
-  if (process.env["OPENAI_API_KEY"]) {
-    return new OpenAIAdapter(process.env["OPENAI_API_KEY"]);
-  }
-  // No platform key: legacy requests fail with an authentication error, unless
-  // the browser sends its own key (X-Api-Key, see createLLMFromKey).
-  console.warn(
-    "[PennTools] Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is set — the legacy LLM API (/api/llm/complete) will fail without a browser-sent key."
-  );
-  return new OpenAIAdapter("missing-key");
-}
-
-export const llm: LLMProvider = createLLMProvider();
-
-/**
- * Create a per-request LLM provider from a user-supplied API key.
- * Detects provider by key prefix: "sk-ant-" → Anthropic, otherwise → OpenAI.
- */
-export function createLLMFromKey(apiKey: string): LLMProvider {
-  if (apiKey.startsWith("sk-ant-")) {
-    return new AnthropicAdapter(apiKey);
-  }
-  return new OpenAIAdapter(apiKey);
 }
 
 // ── Logger ────────────────────────────────────────────────────────────────────
