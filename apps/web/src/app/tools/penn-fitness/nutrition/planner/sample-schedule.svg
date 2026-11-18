@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="386" viewBox="0 0 700 386" font-family="Arial, Helvetica, sans-serif">
+<rect width="700" height="386" fill="#fff"/>
+<text x="115.0" y="25" text-anchor="middle" font-size="13" fill="#3c4043">Mon</text>
+<line x1="50" y1="40" x2="50" y2="386" stroke="#dadce0"/>
+<text x="245.0" y="25" text-anchor="middle" font-size="13" fill="#3c4043">Tue</text>
+<line x1="180" y1="40" x2="180" y2="386" stroke="#dadce0"/>
+<text x="375.0" y="25" text-anchor="middle" font-size="13" fill="#3c4043">Wed</text>
+<line x1="310" y1="40" x2="310" y2="386" stroke="#dadce0"/>
+<text x="505.0" y="25" text-anchor="middle" font-size="13" fill="#3c4043">Thu</text>
+<line x1="440" y1="40" x2="440" y2="386" stroke="#dadce0"/>
+<text x="635.0" y="25" text-anchor="middle" font-size="13" fill="#3c4043">Fri</text>
+<line x1="570" y1="40" x2="570" y2="386" stroke="#dadce0"/>
+<line x1="50" y1="40" x2="700" y2="40" stroke="#dadce0"/>
+<text x="44" y="44" text-anchor="end" font-size="9" fill="#70757a">8 AM</text>
+<line x1="50" y1="68" x2="700" y2="68" stroke="#dadce0"/>
+<text x="44" y="72" text-anchor="end" font-size="9" fill="#70757a">9 AM</text>
+<line x1="50" y1="96" x2="700" y2="96" stroke="#dadce0"/>
+<text x="44" y="100" text-anchor="end" font-size="9" fill="#70757a">10 AM</text>
+<line x1="50" y1="124" x2="700" y2="124" stroke="#dadce0"/>
+<text x="44" y="128" text-anchor="end" font-size="9" fill="#70757a">11 AM</text>
+<line x1="50" y1="152" x2="700" y2="152" stroke="#dadce0"/>
+<text x="44" y="156" text-anchor="end" font-size="9" fill="#70757a">12 PM</text>
+<line x1="50" y1="180" x2="700" y2="180" stroke="#dadce0"/>
+<text x="44" y="184" text-anchor="end" font-size="9" fill="#70757a">1 PM</text>
+<line x1="50" y1="208" x2="700" y2="208" stroke="#dadce0"/>
+<text x="44" y="212" text-anchor="end" font-size="9" fill="#70757a">2 PM</text>
+<line x1="50" y1="236" x2="700" y2="236" stroke="#dadce0"/>
+<text x="44" y="240" text-anchor="end" font-size="9" fill="#70757a">3 PM</text>
+<line x1="50" y1="264" x2="700" y2="264" stroke="#dadce0"/>
+<text x="44" y="268" text-anchor="end" font-size="9" fill="#70757a">4 PM</text>
+<line x1="50" y1="292" x2="700" y2="292" stroke="#dadce0"/>
+<text x="44" y="296" text-anchor="end" font-size="9" fill="#70757a">5 PM</text>
+<line x1="50" y1="320" x2="700" y2="320" stroke="#dadce0"/>
+<text x="44" y="324" text-anchor="end" font-size="9" fill="#70757a">6 PM</text>
+<line x1="50" y1="348" x2="700" y2="348" stroke="#dadce0"/>
+<text x="44" y="352" text-anchor="end" font-size="9" fill="#70757a">7 PM</text>
+<line x1="50" y1="376" x2="700" y2="376" stroke="#dadce0"/>
+<text x="44" y="380" text-anchor="end" font-size="9" fill="#70757a">8 PM</text>
+<rect x="53" y="104.0" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="58" y="116" font-size="10" font-weight="bold" fill="#fff">FNCE 6110</text>
+<text x="58" y="140" font-size="9" fill="#fff">Huntsman Hall</text>
+<text x="58" y="129.0" font-size="9" fill="#fff">10:15 – 11:45am</text>
+<rect x="53" y="202.0" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="58" y="214" font-size="10" font-weight="bold" fill="#fff">MKTG 6110</text>
+<text x="58" y="238" font-size="9" fill="#fff">Huntsman Hall</text>
+<text x="58" y="227.0" font-size="9" fill="#fff">1:45 – 3:15pm</text>
+<rect x="183" y="55.0" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="188" y="67" font-size="10" font-weight="bold" fill="#fff">STAT 6130</text>
+<text x="188" y="91" font-size="9" fill="#fff">Huntsman Hall</text>
+<text x="188" y="80.0" font-size="9" fill="#fff">8:30 – 10am</text>
+<rect x="183" y="153" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="188" y="165" font-size="10" font-weight="bold" fill="#fff">MGMT 6100</text>
+<text x="188" y="189" font-size="9" fill="#fff">Vance Hall</text>
+<text x="188" y="178" font-size="9" fill="#fff">12 – 1:30pm</text>
+<rect x="313" y="104.0" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="318" y="116" font-size="10" font-weight="bold" fill="#fff">FNCE 6110</text>
+<text x="318" y="140" font-size="9" fill="#fff">Huntsman Hall</text>
+<text x="318" y="129.0" font-size="9" fill="#fff">10:15 – 11:45am</text>
+<rect x="313" y="202.0" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="318" y="214" font-size="10" font-weight="bold" fill="#fff">MKTG 6110</text>
+<text x="318" y="238" font-size="9" fill="#fff">Huntsman Hall</text>
+<text x="318" y="227.0" font-size="9" fill="#fff">1:45 – 3:15pm</text>
+<rect x="443" y="55.0" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="448" y="67" font-size="10" font-weight="bold" fill="#fff">STAT 6130</text>
+<text x="448" y="91" font-size="9" fill="#fff">Huntsman Hall</text>
+<text x="448" y="80.0" font-size="9" fill="#fff">8:30 – 10am</text>
+<rect x="443" y="153" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="448" y="165" font-size="10" font-weight="bold" fill="#fff">MGMT 6100</text>
+<text x="448" y="189" font-size="9" fill="#fff">Vance Hall</text>
+<text x="448" y="178" font-size="9" fill="#fff">12 – 1:30pm</text>
+<rect x="443" y="321" width="124" height="40.0" rx="4" fill="#039be5"/>
+<text x="448" y="333" font-size="10" font-weight="bold" fill="#fff">Club meeting</text>
+<text x="448" y="357" font-size="9" fill="#fff">Houston Hall</text>
+<text x="448" y="346" font-size="9" fill="#fff">6 – 7:30pm</text>
+</svg>

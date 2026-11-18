@@ -19,7 +19,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@penntools/core": "workspace:*"
+    "@penntools/core": "workspace:*",
+    "ical.js": "^2"
   },
   "devDependencies": {
     "postgres": "^3.4.5",

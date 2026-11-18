@@ -327,6 +327,9 @@ importers:
       '@penntools/core':
         specifier: workspace:*
         version: link:../../packages/core
+      ical.js:
+        specifier: ^2
+        version: 2.2.1
     devDependencies:
       postgres:
         specifier: ^3.4.5
@@ -1505,6 +1508,9 @@ packages:
   human-signals@5.0.0:
     resolution: {integrity: sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==}
     engines: {node: '>=16.17.0'}
+
+  ical.js@2.2.1:
+    resolution: {integrity: sha512-yK/UlPbEs316igb/tjRgbFA8ZV75rCsBJp/hWOatpyaPNlgw0dGDmU+FoicOcwX4xXkeXOkYiOmCqNPFpNPkQg==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -3542,6 +3548,8 @@ snapshots:
     optional: true
 
   human-signals@5.0.0: {}
+
+  ical.js@2.2.1: {}
 
   ieee754@1.2.1: {}
 
