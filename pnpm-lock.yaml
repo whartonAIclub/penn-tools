@@ -41,6 +41,9 @@ importers:
       '@penntools/tool-deadline-calendar':
         specifier: workspace:*
         version: link:../../tools/deadline-calendar
+      '@penntools/tool-feedback-insights':
+        specifier: workspace:*
+        version: link:../../tools/feedback-insights
       '@penntools/tool-industry-connector':
         specifier: workspace:*
         version: link:../../tools/industry-connector
@@ -221,6 +224,19 @@ importers:
         version: 1.6.1(@types/node@22.20.5)
 
   tools/deadline-calendar:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/feedback-insights:
     dependencies:
       '@penntools/core':
         specifier: workspace:*

@@ -63,6 +63,8 @@ import { StudentDiscountMaximizerTool } from "@penntools/tool-student-discount-m
 toolRegistry.register(new StudentDiscountMaximizerTool());
 import { ChatprepTool } from "@penntools/tool-chatprep";
 toolRegistry.register(new ChatprepTool());
+import { FeedbackInsightsTool } from "@penntools/tool-feedback-insights";
+toolRegistry.register(new FeedbackInsightsTool());
 import { PennPalsTool } from "@penntools/tool-penn-pals";
 toolRegistry.register(new PennPalsTool());
 import { PaperTldrTool } from "@penntools/tool-paper-tldr";
