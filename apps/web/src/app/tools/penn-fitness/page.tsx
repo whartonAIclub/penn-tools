@@ -20,7 +20,7 @@ export default async function PennFitnessPage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Penn Fitness" />;
 
-  const providers = await (await getAI())!.providers();
+  const providers = await (await getAI("penn-fitness"))!.providers();
 
   return (
     <div className={styles.page}>

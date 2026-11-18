@@ -50,7 +50,7 @@ export async function quickLog(
   text: string,
   preferences: unknown,
 ): Promise<ActionResult<MealLog>> {
-  const ai = await getAI();
+  const ai = await getAI("penn-fitness");
   if (!ai) return signedOut;
   const problem = checkMealText(text);
   if (problem) return invalid(problem);
@@ -60,7 +60,7 @@ export async function quickLog(
 }
 
 export async function planWeek(provider: AIProvider, input: unknown): Promise<ActionResult<MealPlan>> {
-  const ai = await getAI();
+  const ai = await getAI("penn-fitness");
   if (!ai) return signedOut;
   const parsed = PlanInput.safeParse(input);
   if (!parsed.success) return invalid("Some of your answers look wrong. Go back through the steps and save them again.");
