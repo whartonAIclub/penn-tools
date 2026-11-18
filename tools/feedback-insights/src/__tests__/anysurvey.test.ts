@@ -31,7 +31,8 @@ describe("surveys that are not the AI PMT form", () => {
   });
 });
 
-import { AI_PMT_PRESET, SAMPLE_RESPONSES_CSV, applyPreset, matchPreset } from "../index.js";
+import { AI_PMT_PRESET, applyPreset, matchPreset } from "../index.js";
+import { SAMPLE_RESPONSES_CSV } from "../sample.js";
 
 describe("presets", () => {
   it("recognizes the AI PMT survey and nothing else", () => {

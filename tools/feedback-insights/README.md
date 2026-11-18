@@ -24,16 +24,21 @@ All analysis runs in the browser. The tool has no database.
 
 ## Where data lives, and what leaves the browser
 
-- The survey, tags and decisions are kept in the browser's `localStorage`
-  (`apps/web/src/app/tools/feedback-insights/storage.ts`), not on PennTools,
-  until the user chooses **Start over**. It is not tied to the signed-in user.
+- The survey, tags and decisions are kept in the browser
+  (`apps/web/src/app/tools/feedback-insights/storage.ts`), not on PennTools.
+  Signed in, they are in `localStorage` under the user's ID, so another
+  account on the same computer doesn't see them, until **Start over**. Signed
+  out, they are in `sessionStorage` and are gone when the tab closes.
 - **Save a copy** downloads the whole workspace as JSON; opening that file
   loads it back. This is how people share work today.
 - The two AI buttons call server actions (`actions.ts`) that use the
   platform's AI API. Only written answers are sent, with emails, phone
   numbers, @handles and names after role words ("thanks Ananya", "mentor
-  sam") masked first (`src/privacy.ts`). Other names can still get through;
-  tags that may hold one are flagged for a person to check.
+  sam", "thanks Dr. Patel") masked first (`src/privacy.ts`). Other names can
+  still get through; tags that may hold one are flagged for a person to check.
+- **Sort with AI** sends answers that say the same thing ("N/A", "n/a.") once,
+  40 to a request, and asks before starting when it would take more than 5
+  requests, so a large survey can't use up someone's free AI credit unseen.
 
 ## Files the tool reads and writes
 
@@ -41,7 +46,7 @@ All analysis runs in the browser. The tool has no database.
 |------|------------------|
 | Tags CSV | `comment_id, response_id, source, question, text, theme, topic, sentiment` |
 | Review CSV | `response_id, decision (Keep or Exclude), reason, reviewer` |
-| Workspace JSON | `{ format: "penntools-feedback-insights", version: 1, name, table, setup, tags, decisions, skipped }` |
+| Workspace JSON | `{ format: "penntools-feedback-insights", version: 2, name, table: { columns, rows }, setup, tags, decisions, skipped }`, each row a list of cells in column order (version 1, with rows keyed by column name, still opens) |
 
 A response's ID is its standardized timestamp (`YYYY-MM-DD HH:MM:SS`), with
 ` (2)`, ` (3)` added when several share one, or `row N` when the file has no
@@ -60,7 +65,9 @@ pnpm typecheck && pnpm check:tools
 ```
 
 Tests use a fake AI, so they need no keys. Made-up survey files for trying the
-page are in `src/sample.ts` (the "Try sample data" button).
+page are in `src/sample.ts` (the "Try sample data" button). It is its own entry,
+`@penntools/tool-feedback-insights/sample`, which the page loads only when the
+button is pressed.
 
 ## Not built yet
 

@@ -24,18 +24,19 @@ export const unguard = (cell: string) => cell.replace(/^'(?=[=+\-@\t\r])/, "");
 
 const lowerKeys = (row: Record<string, string>) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), unguard(v)]));
 
-/** Tags from a "Coded" CSV. `type` may be headed sentiment or type. */
-export function tagsFromCsv(text: string): Imported<Tag> {
+/** Tags from a "Coded" CSV. `type` may be headed sentiment or type. Rows with no comment_id get new IDs after those in `existing`. */
+export function tagsFromCsv(text: string, existing: Tag[] = []): Imported<Tag> {
   const table = parseCsv(text);
   const have = new Set(table.columns.map((c) => c.trim().toLowerCase()));
   const need = ["response_id", "text", "theme"].filter((c) => !have.has(c));
   if (need.length) {
     return { items: [], notes: [`This doesn't look like a tags file: it has no ${need.join(", ")} column. Its first row should read: ${TAG_COLUMNS.join(", ")}.`] };
   }
-  const items = table.rows.map((raw, i): Tag => {
+  let fresh = 0;
+  const items = table.rows.map((raw): Tag => {
     const row = lowerKeys(raw);
     return {
-      id: (row["comment_id"] ?? "").trim() || `T${String(i + 1).padStart(3, "0")}`,
+      id: (row["comment_id"] ?? "").trim() || nextTagId(existing, fresh++),
       responseId: (row["response_id"] ?? "").trim(),
       source: (row["source"] ?? "").trim(),
       question: (row["question"] ?? "").trim(),
@@ -93,8 +94,14 @@ export function decisionsToCsv(decisions: Decision[]): string {
 
 const WORKSPACE_FORMAT = "penntools-feedback-insights";
 
+/**
+ * The workspace as JSON. Rows are saved as lists of cells in column order
+ * (version 2), so long column headers are written once rather than in every
+ * row; version 1 copies, with each row keyed by header, still open.
+ */
 export function workspaceToJson(ws: Workspace): string {
-  return JSON.stringify({ format: WORKSPACE_FORMAT, version: 1, ...ws });
+  const { columns, rows } = ws.table;
+  return JSON.stringify({ format: WORKSPACE_FORMAT, version: 2, ...ws, table: { columns, rows: rows.map((r) => columns.map((c) => r[c] ?? "")) } });
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -124,7 +131,10 @@ export function workspaceFromJson(json: string): Workspace | null {
   if (!isRecord(data) || data["format"] !== WORKSPACE_FORMAT || !isRecord(data["table"])) return null;
   const allColumns = texts(data["table"]["columns"], []);
   const rawRows = Array.isArray(data["table"]["rows"]) ? data["table"]["rows"] : [];
-  const rows = rawRows.filter(isRecord).slice(0, MAX_ROWS).map((r) => Object.fromEntries(allColumns.map((c) => [c, text(r[c])])));
+  const rows = rawRows
+    .filter((r): r is unknown[] | Record<string, unknown> => Array.isArray(r) || isRecord(r))
+    .slice(0, MAX_ROWS)
+    .map((r) => Object.fromEntries(allColumns.map((c, i) => [c, text(Array.isArray(r) ? r[i] : r[c])])));
   // A copy saved by an older version, or edited by hand, may still hold identity columns.
   const { table } = stripIdentityColumns({ columns: allColumns, rows });
   const columns = table.columns;

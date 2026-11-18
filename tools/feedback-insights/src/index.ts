@@ -36,6 +36,9 @@ export {
   TaggedAnswers,
   SuggestedThemes,
   MAX_ANSWERS_PER_BATCH,
+  CONFIRM_REQUESTS,
+  groupSameAnswers,
+  tagRequestCount,
   MAX_ANSWER_LENGTH,
   MAX_THEMES,
   MAX_TOPIC_LENGTH,
@@ -58,6 +61,6 @@ export {
   MAX_ROWS,
 } from "./files.js";
 export type { Imported } from "./files.js";
-export { sampleWorkspace, SAMPLE_NAME, SAMPLE_RESPONSES_CSV } from "./sample.js";
+// The sample survey is its own entry, "@penntools/tool-feedback-insights/sample", so the page loads it only when asked.
 export { PRESETS, AI_PMT_PRESET, matchPreset, applyPreset } from "./presets.js";
 export type { Preset } from "./presets.js";

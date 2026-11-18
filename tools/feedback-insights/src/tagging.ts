@@ -10,17 +10,18 @@
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
 import { quoteMatches } from "./analyze.js";
-import { OTHER_THEME } from "./detect.js";
+import { MAX_THEME_LENGTH, MAX_THEMES, OTHER_THEME } from "./detect.js";
+
+export { MAX_THEME_LENGTH, MAX_THEMES };
 import { hasPersonalInfo, maskPersonalInfo } from "./privacy.js";
 import { TAG_TYPES } from "./types.js";
 import type { TagType } from "./types.js";
 
-export const MAX_ANSWERS_PER_BATCH = 20;
+export const MAX_ANSWERS_PER_BATCH = 40;
+/** Above this many AI requests, the page asks before it starts tagging. */
+export const CONFIRM_REQUESTS = 5;
 export const MAX_ANSWER_LENGTH = 2000;
-export const MAX_THEMES = 30;
 export const MAX_TOPIC_LENGTH = 60;
-/** The longest theme name the server accepts. */
-export const MAX_THEME_LENGTH = 100;
 export const MAX_TOPICS = 200;
 /** How many written answers "Suggest themes" reads. */
 export const MAX_THEME_SAMPLE = 60;
@@ -206,4 +207,25 @@ export async function suggestThemes(ai: AI, provider: AIProvider, answers: strin
       return !same.has(w) && !taken.some((t) => ` ${w} `.includes(` ${t} `) || ` ${t} `.includes(` ${w} `));
     });
   return [...new Map(names.map((n) => [n.toLowerCase(), n])).values()].slice(0, 8);
+}
+
+/**
+ * Answers to the same question that say the same thing once case, spacing
+ * and end punctuation are ignored ("N/A", "n/a."). The page sends each group
+ * to the AI once and gives every answer in it the same tags.
+ */
+export function groupSameAnswers<A extends { question: string; text: string }>(answers: A[]): A[][] {
+  const groups = new Map<string, A[]>();
+  for (const a of answers) {
+    const key = a.question + "\u0000" + a.text.toLowerCase().replace(/\s+/g, " ").replace(/[\s.!?,;:]+$/, "").trim();
+    const group = groups.get(key);
+    if (group) group.push(a);
+    else groups.set(key, [a]);
+  }
+  return [...groups.values()];
+}
+
+/** How many AI requests tagging this many distinct answers takes. */
+export function tagRequestCount(distinct: number): number {
+  return Math.ceil(distinct / MAX_ANSWERS_PER_BATCH);
 }

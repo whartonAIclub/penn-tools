@@ -7,8 +7,11 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  CONFIRM_REQUESTS,
+  groupSameAnswers,
   MAX_ANSWERS_PER_BATCH,
   MAX_TOPICS,
+  tagRequestCount,
   needsPrivacyLook,
   nextTagId,
   TAG_TYPES,
@@ -16,11 +19,11 @@ import {
   type UntaggedAnswer,
   type Workspace,
 } from "@penntools/tool-feedback-insights";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { tagBatch, type ActionError } from "./actions";
 import { Badge, plural, Short, typeTone, type AIAccess, type TabProps } from "./shared";
 import styles from "./FeedbackInsights.module.css";
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 const PAGE = 100;
 const DROPPED: Record<string, string> = {
   orphan: "Not counted: its response isn't in the file",
@@ -197,14 +200,22 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
 
   const skip = (answer: UntaggedAnswer) => update((w) => ({ ...w, skipped: [...w.skipped, { responseId: answer.responseId, question: answer.question }] }));
 
+  // Answers that say the same thing are sent once and share the AI's tags.
+  const groups = useMemo(() => groupSameAnswers(untagged), [untagged]);
+  const requests = tagRequestCount(groups.length);
+  const [confirming, setConfirming] = useState(false);
+
   async function tagWithAI() {
     const provider = ai.provider;
     if (!provider || progress) return;
-    const todo = untagged;
+    setConfirming(false);
+    const todo = groups;
+    const total = untagged.length;
     stop.current = false;
     setError(null);
     setResult(null);
-    setProgress({ done: 0, total: todo.length });
+    setProgress({ done: 0, total });
+    let done = 0;
     let added = 0;
     let nothing = 0;
     // Answers the AI skipped without saying why: they stay to tag.
@@ -219,7 +230,7 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
           provider,
           themes,
           knownTopics.slice(0, MAX_TOPICS),
-          batch.map((a, i) => ({ ref: start + i, question: labelOf.get(a.question) ?? a.question, text: a.text })),
+          batch.map(([a], i) => ({ ref: start + i, question: labelOf.get(a!.question) ?? a!.question, text: a!.text })),
         );
         if (!reply.ok) {
           setError(reply.error);
@@ -228,33 +239,39 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
         const proposed = reply.data.tags;
         // Only answers the AI said have nothing to tag are set aside; one it left out stays to tag, for the next run.
         const none = new Set(reply.data.nothingToTag);
-        const empty = batch.filter((_, i) => none.has(start + i));
+        const tagged = new Set(proposed.map((p) => p.ref));
+        const empty = batch.filter((_, i) => none.has(start + i)).flat();
         knownTopics = [...new Set([...knownTopics, ...proposed.map((p) => p.topic).filter(Boolean)])];
-        privacy += proposed.filter(needsPrivacyLook).length;
-        added += proposed.length;
+        for (const p of proposed) {
+          const size = todo[p.ref]?.length ?? 0;
+          added += size;
+          if (needsPrivacyLook(p)) privacy += size;
+        }
         nothing += empty.length;
-        missed += batch.length - empty.length - new Set(proposed.map((p) => p.ref)).size;
+        missed += batch.filter((_, i) => !none.has(start + i) && !tagged.has(start + i)).flat().length;
+        done += batch.flat().length;
         update((w): Workspace => {
           const tags: Tag[] = [...w.tags];
+          let fresh = 0;
           for (const p of proposed) {
-            const answer = todo[p.ref];
-            if (!answer) continue;
-            const id = nextTagId(tags);
-            made.add(id);
-            tags.push({
-              id,
-              responseId: answer.responseId,
-              source: w.setup.surveySource,
-              question: answer.question,
-              text: p.text,
-              theme: p.theme,
-              topic: p.topic,
-              type: p.type,
-            });
+            for (const answer of todo[p.ref] ?? []) {
+              const id = nextTagId(w.tags, fresh++);
+              made.add(id);
+              tags.push({
+                id,
+                responseId: answer.responseId,
+                source: w.setup.surveySource,
+                question: answer.question,
+                text: p.text,
+                theme: p.theme,
+                topic: p.topic,
+                type: p.type,
+              });
+            }
           }
           return { ...w, tags, skipped: [...w.skipped, ...empty.map((a) => ({ responseId: a.responseId, question: a.question }))] };
         });
-        setProgress({ done: Math.min(start + batch.length, todo.length), total: todo.length });
+        setProgress({ done, total });
       }
     } catch {
       setError({ message: "Something went wrong while tagging. The tags made so far were kept; try again for the rest." });
@@ -313,7 +330,7 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
           ) : (
             <>
               <div className={styles.actions}>
-                <button type="button" className={styles.buttonPrimary} disabled={progress != null} onClick={() => void tagWithAI()}>
+                <button type="button" className={styles.buttonPrimary} disabled={progress != null || confirming} onClick={() => (requests > CONFIRM_REQUESTS ? setConfirming(true) : void tagWithAI())}>
                   {progress
                     ? `Sorting… ${progress.done} of ${progress.total}`
                     : `Sort ${untagged.length} ${plural(untagged.length, "answer", "answers")} into themes with AI`}
@@ -336,9 +353,25 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
                   </label>
                 )}
               </div>
+{confirming && (
+                <div className={styles.notice} role="alertdialog" aria-label="Confirm AI tagging">
+                  <p>
+                    This makes {requests} AI {plural(requests, "request", "requests")}, which can use a large part of your free AI credit. Stop it any time;
+                    the tags made so far are kept.
+                  </p>
+                  <div className={styles.actions}>
+                    <button type="button" className={styles.buttonPrimary} onClick={() => void tagWithAI()}>
+                      Start
+                    </button>
+                    <button type="button" className={styles.button} onClick={() => setConfirming(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               <p className={styles.muted}>
-                Sends these answers to {ai.labels[ai.provider]} in about {Math.ceil(untagged.length / MAX_ANSWERS_PER_BATCH)}{" "}
-                {plural(Math.ceil(untagged.length / MAX_ANSWERS_PER_BATCH), "request", "requests")}, using your PennTools AI credit. Emails, phone numbers,
+                Sends {groups.length < untagged.length ? `${groups.length} distinct answers (repeats are sent once)` : "these answers"} to{" "}
+                {ai.labels[ai.provider]} in {requests} {plural(requests, "request", "requests")}, using your PennTools AI credit. Emails, phone numbers,
                 @handles and names after words like “thanks” or “mentor” are masked first. Other names are sent as written, so you review every tag afterwards.
               </p>
             </>
@@ -346,7 +379,7 @@ export function Feedback({ ws, analysis, update, ai, focus }: TabProps & { ai: A
           {error && (
             <p className={styles.noticeBad} role="alert">
               {error.message}
-              {error.kind && KEY_PROBLEMS.has(error.kind) && (
+              {isSettingsError(error.kind) && (
                 <>
                   {" "}
                   <Link href="/settings" className={styles.link}>

@@ -6,6 +6,7 @@
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
 import { getAI } from "@/lib/ai";
+import { getCurrentUser } from "@/lib/auth";
 import { FeedbackInsights } from "./FeedbackInsights";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 
 export default async function FeedbackInsightsPage() {
   // Null when signed out; no providers when the free credit is used and no key is saved.
-  const ai = await getAI("feedback-insights");
+  const [user, ai] = await Promise.all([getCurrentUser(), getAI("feedback-insights")]);
   const providers = ai ? await ai.providers() : [];
-  return <FeedbackInsights signedIn={ai !== null} providers={providers} labels={PROVIDER_LABELS} />;
+  return <FeedbackInsights signedIn={ai !== null} userId={user?.id ?? null} providers={providers} labels={PROVIDER_LABELS} />;
 }

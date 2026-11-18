@@ -471,8 +471,8 @@ export function HowItWorks({ ws, analysis }: TabProps) {
       <h2 className={styles.h2}>Privacy</h2>
       <ul>
         <li>
-          Your file is read in this browser and kept in this browser&apos;s storage, even after you sign out, until you use Start over. PennTools does not
-          store it. On a shared computer, use Start over when you finish.
+          Your file is read in this browser and kept on this computer, for your account only, until you use Start over. Signed out, it&apos;s kept only
+          until you close the tab. PennTools does not store it. On a shared computer, use Start over when you finish.
         </li>
         <li>Responses are shown by number, never by timestamp. Columns named like Name, Email or Penn ID are removed as the file is read.</li>
         <li>

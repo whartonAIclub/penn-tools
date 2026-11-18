@@ -15,7 +15,6 @@ import {
   normalizeTimestamp,
   parseCsv,
   quoteMatches,
-  sampleWorkspace,
   setQuestionKind,
   stripIdentityColumns,
   tagsFromCsv,
@@ -24,6 +23,7 @@ import {
   workspaceFromJson,
   workspaceToJson,
 } from "../index.js";
+import { sampleWorkspace } from "../sample.js";
 import type { Workspace } from "../index.js";
 
 const HEADER = "Timestamp,How useful was each part? [Setup],How useful was each part? [Launch],How useful was each part? [Support],Pace,Where did you get stuck?";
@@ -309,7 +309,7 @@ describe("files in and out", () => {
   it("round-trips tags through CSV, with either heading for the type", () => {
     const { tags } = sampleWorkspace();
     expect(tagsFromCsv(tagsToCsv(tags)).items).toEqual(tags);
-    expect(tagsFromCsv("response_id,text,theme,type\nR1,hello,Setup,idea").items[0]).toMatchObject({ id: "T001", type: "Idea" });
+    expect(tagsFromCsv("response_id,text,theme,type\nR1,hello,Setup,idea").items[0]).toMatchObject({ id: "C001", type: "Idea" });
     expect(tagsFromCsv("a,b\n1,2").notes[0]).toMatch(/doesn't look like a tags file/);
   });
 

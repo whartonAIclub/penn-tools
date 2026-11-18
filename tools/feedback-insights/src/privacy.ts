@@ -9,7 +9,8 @@ const HANDLE = /(^|[\s(])@[A-Za-z0-9_.]{2,}/g;
 const PHONE = /(?:\+\d{1,3}[-.\s]?)?(?:\(\d{3}\)|\b\d{3})[-.\s]?\d{3}[-.\s]?\d{4}\b/g;
 
 // A word after one of these is often a name.
-const ROLE = /\b(?:professor|prof\.?|dr\.?|mr\.?|ms\.?|mrs\.?|mentor|ta|teammate|partner|coach|instructor|organizer|thanks|thank you|thx|shout ?out to|shout-out to)\s+([A-Za-z][a-z'-]+)/gi;
+// Role words can follow each other: "thanks mentor Sam", "Thanks Dr. Patel".
+const ROLE = /\b(?:(?:professor|prof\.?|dr\.?|mr\.?|ms\.?|mrs\.?|mentor|ta|teammate|partner|coach|instructor|organizer|thanks|thank you|thx|shout ?out to|shout-out to)\s+)+([A-Za-z][a-z'-]+)/gi;
 // …unless it is one of these.
 const NOT_NAMES = new Set(
   "was were is are and or but so the a an for to of in on at who that helped help never always really very sessions session office hours support feedback team teams meetings check everyone all you guys y much again everything did didn could would should had has have kept made gave from with responded replied answered program organizers mentors tas it this me us my our".split(
@@ -21,7 +22,9 @@ const NOT_PEOPLE = new Set(
   "penn penntools wharton upenn claude anthropic openai chatgpt gpt google microsoft apple amazon meta linkedin slack zoom github notion canvas waiac pmt ai companies company firms organizers organizer everyone team club".split(" "),
 );
 // "Thanks Acme team", "mentor Google engineer": a group or job after the word.
-const GROUP_AFTER = /^(?:\s+[A-Z][\w'-]*)*\s+(?:team|teams|club|clubs|platform|staff|folks|people|crew|engineers?|companies|company|firm|program|school|center|office)\b/i;
+const GROUP_WORDS = new Set("team teams club clubs platform staff folks people crew engineer engineers companies company firm program school center office".split(" "));
+// Capitalized words, then the group word: "Acme team", "Google Cloud engineers". Case matters for the capitals, so "Ananya and the team" is a person.
+const groupAfter = (rest: string) => GROUP_WORDS.has((rest.match(/^(?:\s+[A-Z][\w'-]*)*\s+([A-Za-z]+)\b/)?.[1] ?? "").toLowerCase());
 
 // A lowercase word after a role is a name only when the sentence goes on like this.
 const AFTER_NAME = /^\s*(?:$|[,.!;)]|(?:was|is|were|helped|did|didn't|never|always|said|told|kept|and|who|really|actually|literally|basically|carried|saved)\b)/i;
@@ -43,7 +46,7 @@ function namesIn(text: string): { start: number; end: number }[] {
     const after = m.index + m[0].length;
     if (!/^[A-Z]/.test(word) && !AFTER_NAME.test(text.slice(after))) continue;
     // "Thanks PennTools", "thank you Wharton AI Club", "Partner Companies": an organization, not a person.
-    if (NOT_PEOPLE.has(word.toLowerCase()) || /^[A-Z][a-z]*[A-Z]/.test(word) || GROUP_AFTER.test(text.slice(after))) continue;
+    if (NOT_PEOPLE.has(word.toLowerCase()) || /^[A-Z][a-z]*[A-Z]/.test(word) || groupAfter(text.slice(after))) continue;
     // "Jamie Lee": capitalized words right after a capitalized name are the rest of it.
     const rest = /^[A-Z]/.test(word) ? text.slice(after).match(/^(?:\s+[A-Z][a-z'-]+)+/) : null;
     found.push({ start: after - word.length, end: after + (rest ? rest[0].length : 0) });

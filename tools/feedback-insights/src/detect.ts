@@ -24,6 +24,9 @@ export const DEFAULT_NON_ANSWERS = [
 export const SURVEY_SOURCE = "Survey";
 /** The theme for tags that fit no other; always available. */
 export const OTHER_THEME = "Other";
+/** The most themes, and the longest theme name, the AI actions accept. */
+export const MAX_THEMES = 30;
+export const MAX_THEME_LENGTH = 100;
 
 /** The number a rating cell holds: "4", or "5 - Very useful" as Google Forms grids export labeled ends. A range like "4-6" is not a rating. */
 export function ratingNumber(value: unknown): number | null {
@@ -286,7 +289,9 @@ export function tidyExport(table: Table): Table {
     if (/^Q\d+(_\d+)?$/.test(c) && (text[c] ?? "").trim()) {
       name = (text[c] ?? "").trim().replace(/^(.*?)\s+-\s+(.+)$/, "$1 [$2]");
     }
-    while (used.has(name)) name += " ";
+    // Two columns with the same name: the second becomes "Name (2)", so trimming never merges them.
+    const base = name;
+    for (let n = 2; used.has(name); n++) name = `${base} (${n})`;
     used.add(name);
     return name;
   });
@@ -310,7 +315,10 @@ export function detectSetup(table: Table): Setup {
       return isIdentityColumn(column) || NOT_A_QUESTION.test(column.trim()) ? { ...q, kind: "ignore" } : q;
     });
   // Each rated part is a theme; a rating of the whole thing ("How satisfied were you overall?") isn't one, or every comment would fit it.
-  const rated = questions.filter((q) => q.kind === "rating" && !(q.group == null && OVERALL.test(q.column))).map((q) => q.label);
+  // Labels too long for a theme name are left out, and the list stops where the AI actions' limit would.
+  const rated = [
+    ...new Set(questions.filter((q) => q.kind === "rating" && !(q.group == null && OVERALL.test(q.column)) && q.label.length <= MAX_THEME_LENGTH).map((q) => q.label)),
+  ].slice(0, MAX_THEMES - 1);
   return {
     timestampColumn,
     questions,

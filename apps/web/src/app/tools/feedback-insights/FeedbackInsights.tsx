@@ -15,7 +15,6 @@ import {
   MAX_ROWS,
   mergeSetup,
   parseCsv,
-  sampleWorkspace,
   stripIdentityColumns,
   workspaceFromJson,
   workspaceToJson,
@@ -91,6 +90,8 @@ const CHECK_TAB: Record<string, TabId> = {
 
 interface Props {
   signedIn: boolean;
+  /** The signed-in user's ID, whose saved survey the page opens; null when signed out. */
+  userId: string | null;
   /** Providers the user can call (ai.providers()); empty when signed out. */
   providers: AIProvider[];
   labels: Record<AIProvider, string>;
@@ -98,13 +99,13 @@ interface Props {
 
 export function FeedbackInsights(props: Props) {
   return (
-    <CrashGuard>
+    <CrashGuard owner={props.userId}>
       <Tool {...props} />
     </CrashGuard>
   );
 }
 
-function Tool({ signedIn, providers, labels }: Props) {
+function Tool({ signedIn, userId, providers, labels }: Props) {
   const [ws, setWs] = useState<Workspace | null>(null);
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState<TabId>("summary");
@@ -128,17 +129,22 @@ function Tool({ signedIn, providers, labels }: Props) {
 
   // The saved survey is read after the first render: the server can't see this browser's storage.
   useEffect(() => {
-    setWs(loadWorkspace());
+    setWs(loadWorkspace(userId));
     setReady(true);
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!ready) return;
-    const timer = setTimeout(() => setUnsaved(!saveWorkspace(ws)), 400);
+    const timer = setTimeout(() => setUnsaved(!saveWorkspace(userId, ws)), 400);
     return () => clearTimeout(timer);
-  }, [ws, ready]);
+  }, [ws, ready, userId]);
 
-  const analysis = useMemo(() => (ws ? analyze(ws) : null), [ws]);
+  // Rerun only when something analyze reads changes, not when the survey is renamed.
+  const { table, setup, tags, decisions, skipped } = ws ?? {};
+  const analysis = useMemo(
+    () => (table && setup && tags && decisions && skipped ? analyze({ name: "", table, setup, tags, decisions, skipped }) : null),
+    [table, setup, tags, decisions, skipped],
+  );
   const update = (change: (ws: Workspace) => Workspace) => setWs((current) => (current ? change(current) : current));
   const ai: AIAccess = { signedIn, providers, labels, provider, setProvider };
 
@@ -273,7 +279,9 @@ function Tool({ signedIn, providers, labels }: Props) {
               <button
                 type="button"
                 className={styles.button}
-                onClick={() => {
+                onClick={async () => {
+                  // Loaded only when asked for, so the sample isn't in every visitor's download.
+                  const { sampleWorkspace } = await import("@penntools/tool-feedback-insights/sample");
                   setWs(sampleWorkspace());
                   setNotice({
                     tone: "info",
@@ -302,8 +310,8 @@ function Tool({ signedIn, providers, labels }: Props) {
           <p className={styles.muted}>
             Your file stays in this browser; it isn&apos;t uploaded or stored on PennTools. Columns that identify people, such as names and email addresses, are
             removed as the file is read. If you choose to sort written answers with AI, those answers are sent to the AI provider with emails, phone numbers,
-            @handles and most names masked. The survey stays saved in this browser until you use Start over, even after you sign out, so use Start over on a
-            shared computer.
+            @handles and most names masked. While you&apos;re signed in, the survey is kept on this computer for your account until you use Start over;
+            signed out, it&apos;s kept only until you close the tab. On a shared computer, use Start over when you finish.
           </p>
         </div>
       </div>

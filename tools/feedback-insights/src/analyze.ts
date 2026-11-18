@@ -281,11 +281,13 @@ function praise(comments: TagView[], ratings: RatingSummary[]): Strength[] {
   return rows.map((r, i) => ({ rank: i + 1, ...r }));
 }
 
-/** True when every piece of `quote` outside [brackets] appears, in order, in `answer`. */
+/** True when every piece of `quote` outside [brackets] appears, in order, in `answer`. A quote that is only [placeholders] never matches. */
 export function quoteMatches(quote: string, answer: string): boolean {
   const haystack = squash(answer);
+  const pieces = squash(quote).split(/\[[^\]]*\]/).map((p) => p.trim()).filter((p) => /[\p{L}\p{N}]/u.test(p));
+  if (pieces.length === 0) return false;
   let at = 0;
-  for (const piece of squash(quote).split(/\[[^\]]*\]/).map((p) => p.trim()).filter(Boolean)) {
+  for (const piece of pieces) {
     const i = haystack.indexOf(piece, at);
     if (i < 0) return false;
     at = i + piece.length;
@@ -311,7 +313,8 @@ function runChecks(ws: Workspace, responses: CleanResponse[], tags: TagView[], u
     add("no_timestamp", "info", table.rows.length, "responses are identified by their row, because the file has no timestamp column. Keep the rows in the same order when you upload a newer file.");
   }
 
-  const openColumns = new Set(setup.questions.filter((q) => q.kind === "text").map((q) => q.column));
+  // Keyed by the trimmed name, which is how tags store their question.
+  const openColumns = new Map(setup.questions.filter((q) => q.kind === "text").map((q) => [tidy(q.column), q.column]));
   const orphans = tags.filter((t) => t.dropped === "orphan");
   if (orphans.length) {
     add("orphan_tags", "warn", orphans.length, `${plural(orphans.length, "tag points", "tags point")} at a response that isn't in the file, so ${plural(orphans.length, "it is", "they are")} left out. Check the response ID, or whether the response was deleted: ${sample(orphans.map((t) => t.responseId || "(blank)"))}`);
@@ -330,7 +333,7 @@ function runChecks(ws: Workspace, responses: CleanResponse[], tags: TagView[], u
   const stale = comments.filter((t) => {
     const response = byId.get(t.responseKey);
     if (t.other || !response || !openColumns.has(tidy(t.question)) || !tidy(t.text)) return false;
-    return !quoteMatches(t.text, String(response.values[tidy(t.question)] ?? ""));
+    return !quoteMatches(t.text, String(response.values[openColumns.get(tidy(t.question)) ?? ""] ?? ""));
   });
   if (stale.length) {
     add("stale_tags", "warn", stale.length, `${plural(stale.length, "tag quotes", "tags quote")} text that isn't in the response any more, so the answer may have changed since tagging. Tag again: ${sample(stale.map((t) => t.id || t.responseId))}`);
@@ -384,7 +387,7 @@ export function analyze(ws: Workspace): Analysis {
   const untagged: UntaggedAnswer[] = [];
   for (const r of counted) {
     for (const column of r.tagColumns) {
-      if (!taggedAnswers.has(`${r.id}|${column}`)) untagged.push({ responseId: r.id, responseNumber: r.number, question: column, text: String(r.values[column] ?? "") });
+      if (!taggedAnswers.has(`${r.id}|${tidy(column)}`)) untagged.push({ responseId: r.id, responseNumber: r.number, question: column, text: String(r.values[column] ?? "") });
     }
   }
 

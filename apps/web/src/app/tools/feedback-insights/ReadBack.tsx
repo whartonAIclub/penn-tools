@@ -3,9 +3,8 @@
 // Shown once after a file is loaded: what the tool took each column to be, in
 // plain words, so a wrong guess is caught before anyone trusts a chart.
 
-import { useState } from "react";
-import { MAX_THEME_SAMPLE, themeSample, type Analysis, type QuestionKind, type Workspace } from "@penntools/tool-feedback-insights";
-import { proposeThemes } from "./actions";
+import type { Analysis, QuestionKind, Workspace } from "@penntools/tool-feedback-insights";
+import { useThemeSuggestions } from "./useThemeSuggestions";
 import { plural, Short, type AIAccess } from "./shared";
 import styles from "./FeedbackInsights.module.css";
 
@@ -32,26 +31,8 @@ type Props = {
 export function ReadBack({ ws, analysis, removed, ai, update, onNotice, onFix, onDone }: Props) {
   const { questions, timestampColumn } = ws.setup;
   const n = ws.table.rows.length;
-  const [suggested, setSuggested] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
   const noRatings = !questions.some((q) => q.kind === "rating");
-  const written = themeSample(analysis, MAX_THEME_SAMPLE);
-  const has = (t: string) => ws.setup.themes.some((x) => x.toLowerCase() === t.toLowerCase());
-  const add = (themes: string[]) =>
-    update((w) => ({ ...w, setup: { ...w.setup, themes: [...w.setup.themes, ...themes.filter((t) => !w.setup.themes.some((x) => x.toLowerCase() === t.toLowerCase()))] } }));
-  async function suggest() {
-    if (!ai.provider) return;
-    setBusy(true);
-    try {
-      const reply = await proposeThemes(ai.provider, written, ws.setup.themes);
-      if (reply.ok) setSuggested(reply.data);
-      else onNotice(reply.error.message, "bad");
-    } catch {
-      onNotice("Something went wrong asking for themes. Try again.", "bad");
-    }
-    setBusy(false);
-  }
-  const open = suggested.filter((t) => !has(t));
+  const { open, suggesting: busy, suggest, add, canSuggest } = useThemeSuggestions(ws, analysis, ai, update, onNotice);
   return (
     <section className={styles.callout} aria-label="How your file was read">
       <h2 className={styles.h2}>
@@ -87,7 +68,7 @@ export function ReadBack({ ws, analysis, removed, ai, update, onNotice, onFix, o
         {removed.length > 0 &&
           ` ${removed.length} ${plural(removed.length, "column that identifies people was", "columns that identify people were")} removed and not kept: ${removed.join(", ")}.`}
       </p>
-      {noRatings && written.length > 0 && (
+      {noRatings && canSuggest && (
         <div>
           <p>
             <strong>This survey has no rating questions</strong>, so there is nothing to rank. Themes are how you will see what people said. Start by asking AI to suggest themes from the

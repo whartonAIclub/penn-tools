@@ -164,26 +164,33 @@ export function cleanResponses(table: Table, setup: Setup, decisions: Decision[]
     };
   });
 
-  // Duplicates: only responses close in time are compared, walking back from each one.
+  // Duplicates: a response is compared only with earlier ones close in time that gave the same closed answers
+  // (a duplicate or resubmission always does), so a large time window doesn't mean comparing every pair.
   const timed = rows
     .map((r) => ({ r, at: minutesOf(r.id) }))
     .filter((x): x is { r: Working; at: number } => x.at != null)
     .sort((a, b) => a.at - b.at || a.r.number - b.r.number);
-  timed.forEach(({ r, at }, i) => {
-    if (r.flags.includes(FLAGS.empty)) return;
-    for (let j = i - 1; j >= 0; j--) {
-      const earlier = timed[j]!;
+  const sameClosed = new Map<string, { r: Working; at: number }[]>();
+  for (const item of timed) {
+    const { r, at } = item;
+    let earlierSame = sameClosed.get(r.closed);
+    if (!earlierSame) sameClosed.set(r.closed, (earlierSame = []));
+    const before = earlierSame.length;
+    earlierSame.push(item);
+    if (r.flags.includes(FLAGS.empty)) continue;
+    for (let j = before - 1; j >= 0; j--) {
+      const earlier = earlierSame[j]!;
       if (at - earlier.at > setup.duplicateMinutes) break;
       if (earlier.r.all === r.all) {
         r.flags.push(FLAGS.duplicate);
         break;
       }
-      if (earlier.r.closed === r.closed && r.written.some((w) => w.length > 3 && earlier.r.written.includes(w))) {
+      if (r.written.some((w) => w.length > 3 && earlier.r.written.includes(w))) {
         r.flags.push(FLAGS.resubmitted);
         break;
       }
     }
-  });
+  }
 
   const idCounts = new Map<string, number>();
   for (const r of rows) idCounts.set(r.id, (idCounts.get(r.id) ?? 0) + 1);

@@ -8,7 +8,8 @@ export function parseCells(text: string): string[][] {
   const source = text.replace(/^﻿/, "");
   const firstLine = source.slice(0, source.search(/\r?\n|$/));
   const count = (ch: string) => firstLine.split(ch).length - 1;
-  const separator = count("\t") > count(",") ? "\t" : count(";") > count(",") ? ";" : ",";
+  // Cells pasted from a spreadsheet are tab-separated, and their headers may hold commas.
+  const separator = count("\t") > 0 ? "\t" : count(";") > count(",") ? ";" : ",";
 
   const rows: string[][] = [];
   let row: string[] = [];

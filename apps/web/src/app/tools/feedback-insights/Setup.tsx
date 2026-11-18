@@ -19,8 +19,8 @@ import {
   type QuestionKind,
   type Setup as SetupData,
 } from "@penntools/tool-feedback-insights";
-import { applyPreset, matchPreset, MAX_THEME_SAMPLE, themeSample } from "@penntools/tool-feedback-insights";
-import { proposeThemes } from "./actions";
+import { applyPreset, matchPreset } from "@penntools/tool-feedback-insights";
+import { useThemeSuggestions } from "./useThemeSuggestions";
 import { Short, type AIAccess, type TabProps } from "./shared";
 import { download, slug } from "./storage";
 import styles from "./FeedbackInsights.module.css";
@@ -57,6 +57,8 @@ function NumberField({
   step?: number;
   onSave: (n: number | null) => void;
 }) {
+  // The typed text is kept as it is while the field has focus; it is saved once it's a valid number, and put back on blur if it isn't.
+  const [text, setText] = useState<string | null>(null);
   return (
     <label className={styles.field}>
       {label}
@@ -66,12 +68,14 @@ function NumberField({
         min={min}
         max={max}
         step={step}
-        value={value ?? ""}
+        value={text ?? value ?? ""}
         onChange={(e) => {
+          setText(e.target.value);
           if (e.target.value === "") return onSave(null);
           const n = Number(e.target.value);
           if (Number.isFinite(n) && n >= min && n <= max) onSave(n);
         }}
+        onBlur={() => setText(null)}
       />
     </label>
   );
@@ -103,41 +107,21 @@ function WordList({ label, words, onSave }: { label: string; words: string[]; on
 
 export function Setup({ ws, analysis, update, ai, onNotice }: TabProps & { ai: AIAccess; onNotice: (text: string, tone?: "info" | "bad") => void }) {
   const [newTheme, setNewTheme] = useState("");
-  const [suggested, setSuggested] = useState<string[]>([]);
-  const [suggesting, setSuggesting] = useState(false);
   const tagsInput = useRef<HTMLInputElement>(null);
   const decisionsInput = useRef<HTMLInputElement>(null);
   const { setup } = ws;
   const set = (change: Partial<SetupData>) => update((w) => ({ ...w, setup: { ...w.setup, ...change } }));
-  const has = (theme: string) => setup.themes.some((t) => t.toLowerCase() === theme.trim().toLowerCase());
-  const addTheme = (theme: string) => {
-    const name = theme.trim().replace(/\s+/g, " ");
-    if (name && !has(name)) set({ themes: [...setup.themes, name] });
-  };
+  const { open: suggested, suggesting, suggest, add, has, canSuggest } = useThemeSuggestions(ws, analysis, ai, update, onNotice);
+  const addTheme = (theme: string) => add([theme]);
   const preset = matchPreset(ws.table);
   const presetMissing = preset ? preset.themes.some((t) => !has(t)) : false;
   const used = new Set(analysis.comments.map((c) => c.theme.toLowerCase()));
-  const written = themeSample(analysis, MAX_THEME_SAMPLE);
-
-  async function suggest() {
-    if (!ai.provider) return;
-    setSuggesting(true);
-    try {
-      const reply = await proposeThemes(ai.provider, written, ws.setup.themes);
-      if (reply.ok) setSuggested(reply.data);
-      else onNotice(reply.error.message, "bad");
-    } catch {
-      onNotice("Something went wrong asking for themes. Try again.", "bad");
-    }
-    setSuggesting(false);
-  }
-
   async function importFile(file: File | undefined, kind: "tags" | "decisions") {
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) return onNotice("That file is over 5 MB, which is more than this tool can open.", "bad");
     const text = await file.text();
     if (kind === "tags") {
-      const { items, notes } = tagsFromCsv(text);
+      const { items, notes } = tagsFromCsv(text, ws.tags);
       if (items.length) update((w) => ({ ...w, tags: [...w.tags, ...items] }));
       onNotice(
         [items.length ? `Added ${items.length} tags. Any that repeat a tag you already had are counted once.` : "", ...notes].filter(Boolean).join(" ") ||
@@ -226,17 +210,16 @@ export function Setup({ ws, analysis, update, ai, onNotice }: TabProps & { ai: A
           <button type="submit" className={styles.button} disabled={!newTheme.trim() || has(newTheme)}>
             Add theme
           </button>
-          {ai.provider && written.length > 0 && (
+          {ai.provider && canSuggest && (
             <button type="button" className={styles.button} disabled={suggesting} onClick={() => void suggest()}>
               {suggesting ? "Reading answers…" : "Suggest themes with AI"}
             </button>
           )}
         </form>
-        {suggested.filter((s) => !has(s)).length > 0 && (
+        {suggested.length > 0 && (
           <p className={styles.actions}>
             <span className={styles.muted}>Suggested:</span>
             {suggested
-              .filter((s) => !has(s))
               .map((s) => (
                 <button key={s} type="button" className={styles.buttonSmall} onClick={() => addTheme(s)}>
                   + {s}

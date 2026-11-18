@@ -1,14 +1,27 @@
 // Where a survey lives between visits: this browser's storage, and nowhere
 // else. Nothing here talks to a server.
+//
+// Each signed-in account has its own saved survey, so the next person to sign
+// in on a shared computer doesn't see it. Signed out, the survey is kept only
+// for the tab (sessionStorage) and is gone when the tab closes.
 
 import { workspaceFromJson, workspaceToJson, type Workspace } from "@penntools/tool-feedback-insights";
 
-const KEY = "penntools:feedback-insights:workspace";
+const PREFIX = "penntools:feedback-insights:workspace";
+
+/** Whose survey this is: the signed-in user's ID, or null when signed out. */
+export type Owner = string | null;
+
+function place(owner: Owner): { store: Storage; key: string } {
+  // Before surveys were kept per account, one key held them all; nobody owns it, so it goes.
+  window.localStorage.removeItem(PREFIX);
+  return owner ? { store: window.localStorage, key: `${PREFIX}:${owner}` } : { store: window.sessionStorage, key: PREFIX };
+}
 
 /** The saved workspace, or null if there is none or the browser blocks storage. */
-export function loadWorkspace(): Workspace | null {
+export function loadWorkspace(owner: Owner): Workspace | null {
   try {
-    const json = window.localStorage.getItem(KEY);
+    const json = savedText(owner);
     return json ? workspaceFromJson(json) : null;
   } catch {
     return null;
@@ -16,10 +29,11 @@ export function loadWorkspace(): Workspace | null {
 }
 
 /** False when the browser wouldn't keep it (storage full or blocked). */
-export function saveWorkspace(ws: Workspace | null): boolean {
+export function saveWorkspace(owner: Owner, ws: Workspace | null): boolean {
   try {
-    if (ws) window.localStorage.setItem(KEY, workspaceToJson(ws));
-    else window.localStorage.removeItem(KEY);
+    const { store, key } = place(owner);
+    if (ws) store.setItem(key, workspaceToJson(ws));
+    else store.removeItem(key);
     return true;
   } catch {
     return false;
@@ -44,9 +58,10 @@ export function slug(name: string): string {
 }
 
 /** The saved survey exactly as stored, for rescuing it when the page can't open it. */
-export function savedText(): string | null {
+export function savedText(owner: Owner): string | null {
   try {
-    return window.localStorage.getItem(KEY);
+    const { store, key } = place(owner);
+    return store.getItem(key);
   } catch {
     return null;
   }

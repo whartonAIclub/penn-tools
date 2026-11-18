@@ -5,10 +5,10 @@
 // every time. This catches the crash and offers a way out that keeps the data.
 
 import { Component, type ReactNode } from "react";
-import { download, savedText, saveWorkspace } from "./storage";
+import { download, savedText, saveWorkspace, type Owner } from "./storage";
 import styles from "./FeedbackInsights.module.css";
 
-export class CrashGuard extends Component<{ children: ReactNode }, { crashed: boolean; attempt: number }> {
+export class CrashGuard extends Component<{ owner: Owner; children: ReactNode }, { crashed: boolean; attempt: number }> {
   override state = { crashed: false, attempt: 0 };
 
   static getDerivedStateFromError() {
@@ -17,7 +17,7 @@ export class CrashGuard extends Component<{ children: ReactNode }, { crashed: bo
 
   override render() {
     if (!this.state.crashed) return <div key={this.state.attempt}>{this.props.children}</div>;
-    const saved = savedText();
+    const saved = savedText(this.props.owner);
     return (
       <div className={styles.shell}>
         <div className={styles.page}>
@@ -25,8 +25,8 @@ export class CrashGuard extends Component<{ children: ReactNode }, { crashed: bo
           <section className={styles.callout} role="alert">
             <h2 className={styles.h2}>Something in this survey stopped the page from loading</h2>
             <p className={styles.muted}>
-              Your survey, tags and decisions are still saved in this browser. Download them first, then start over. If you send the downloaded file to the
-              tool&apos;s contributors (listed under the info button at the top), they can find what went wrong.
+              Your survey, tags and decisions are still saved in this browser. Download them first, then start over. The download holds every
+              respondent&apos;s answers, so keep it to people who may see the survey.
             </p>
             <div className={styles.actions}>
               {saved && (
@@ -41,7 +41,7 @@ export class CrashGuard extends Component<{ children: ReactNode }, { crashed: bo
                 type="button"
                 className={styles.buttonDanger}
                 onClick={() => {
-                  saveWorkspace(null);
+                  saveWorkspace(this.props.owner, null);
                   this.setState((s) => ({ crashed: false, attempt: s.attempt + 1 }));
                 }}
               >
