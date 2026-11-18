@@ -16,5 +16,6 @@ export class HandoffTool extends Tool {
     category: "LLM Tools",
     // Shown as BETA until the tool is ready; delete this line then.
     beta: true,
+    fullWidth: true,
   };
 }
