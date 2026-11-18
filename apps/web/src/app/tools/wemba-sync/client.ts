@@ -10,9 +10,6 @@ export interface UploadError {
   message: string;
 }
 
-/** AIError kinds that Settings fixes: the user's own key is missing, wrong or out of credit, or their free credit is used up. */
-export const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
-
 /** The file's bytes as base64, without the data: prefix. */
 export function toBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { OutreachDraft, PersonCard } from "@penntools/tool-industry-connector";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { draftNote, type ActionError } from "./actions";
 import styles from "./IndustryConnector.module.css";
 
@@ -37,8 +38,6 @@ export interface SenderDetails {
   senderBackground: string;
   recruitingGoal: string;
 }
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 export function OutreachForm({
   person,
@@ -250,7 +249,7 @@ export function OutreachForm({
       {error && (
         <p className={styles.error} role="alert">
           {error.message}
-          {error.kind && KEY_PROBLEMS.has(error.kind) && (
+          {isSettingsError(error.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>

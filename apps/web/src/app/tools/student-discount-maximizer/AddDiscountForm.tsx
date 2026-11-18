@@ -19,6 +19,7 @@ import type {
   Neighborhood,
   Screenshot,
 } from "@penntools/tool-student-discount-maximizer";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { isSameDeal } from "@penntools/tool-student-discount-maximizer/discounts";
 import { addDeal, fillForm, similarDeals, type ActionResult } from "./actions";
 import { callAction } from "./callAction";
@@ -115,9 +116,6 @@ const WHERE: { value: DiscountKind; label: string }[] = [
   { value: "online", label: "Online" },
   { value: "code", label: "Promo code" },
 ];
-
-// Errors about the student's AI key, or their used-up free AI credit, send them to Settings.
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 /** Sends a screenshot to the tool's fill-screenshot route (a route, since server actions refuse requests over 1 MB). */
 async function fillFormFromScreenshot(provider: AIProvider, screenshot: Screenshot): Promise<ActionResult<DealDraft>> {
@@ -654,7 +652,7 @@ function FillWithAI({
       onDraft(result.data);
       setError(null);
     } else {
-      setError({ message: result.error.message, keyProblem: KEY_PROBLEMS.has(result.error.kind ?? "") });
+      setError({ message: result.error.message, keyProblem: isSettingsError(result.error.kind) });
     }
   }
 

@@ -99,6 +99,36 @@ test("flags PDFs opened without isEvalSupported: false, and pdfjs's legacy build
   }
 });
 
+test("flags a hand-written list of the error kinds Settings fixes", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/Page.tsx": [
+      `import { useState } from "react";`,
+      `const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);`,
+      `const KEY_ERRORS = [`,
+      `  'no_credit',`,
+      `  'invalid_key',`,
+      `  'missing_key',`,
+      `];`,
+    ].join("\n"),
+  });
+  assert.equal(code, 1);
+  assert.match(output, /Page\.tsx:2 {2}Settings error list: call isSettingsError/);
+  assert.match(output, /Page\.tsx:3 {2}Settings error list/);
+  assert.match(output, /2 platform rule/);
+});
+
+test("allows one error kind on its own, and the shared helper", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/route.ts": [
+      `import { isSettingsError } from "@penntools/core/ai/errors";`,
+      `const missing = { error: "Add a key in Settings.", kind: "missing_key" };`,
+      `const kinds = ["missing_key", "rate_limited"];`,
+      `const shown = isSettingsError(missing.kind);`,
+    ].join("\n"),
+  });
+  assert.equal(code, 0, output);
+});
+
 test("doesn't stretch one import match across several import statements", () => {
   // Regression: a lazy match used to run from the first import to the platform one.
   const { code, output } = check({

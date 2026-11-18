@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type 
 import Link from "next/link";
 import type { AIProvider, AIReasoning, AIStreamEvent, AITier } from "@penntools/core/ai";
 import type { Attachment, AttachmentLimits, ChatMessage, ChatSummary } from "@penntools/tool-askpenn";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { loadChat, loadChats } from "./actions";
 import { ACCEPT, attachmentSize, readAttachment, uniqueName } from "./attachments";
 import styles from "./AskPenn.module.css";
@@ -32,7 +33,6 @@ interface ReplySettings {
 const SPEEDS: Record<AITier, string> = { fast: "Fast", standard: "Balanced", best: "Best" };
 const THINKING: Record<AIReasoning, string> = { low: "Low", medium: "Medium", high: "High" };
 
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 const SETTINGS_STORAGE_KEY = "askpenn_settings";
 const URL_RE = /(https?:\/\/[^\s)]+)/g;
 const MB = 1024 * 1024;
@@ -504,7 +504,7 @@ function Bubble({ message, thinking }: { message: ShownMessage; thinking: boolea
         {message.error ? (
           <p className={styles.error}>
             {message.error.message}
-            {message.error.kind && KEY_PROBLEMS.has(message.error.kind) && (
+            {isSettingsError(message.error.kind) && (
               <>
                 {" "}
                 <Link href="/settings" className={styles.link}>

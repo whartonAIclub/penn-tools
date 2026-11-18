@@ -20,14 +20,13 @@ import {
   type CalendarCourse,
 } from "@penntools/tool-deadline-calendar/calendar";
 import { busyWeeks, type BusyWeek } from "@penntools/tool-deadline-calendar/workload";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import styles from "./DeadlineCalendar.module.css";
 
 /** The most syllabi at once: a full course load, with room to spare. */
 const MAX_SYLLABI = 8;
 /** How many syllabi are read at the same time, so a full load doesn't hit the provider's rate limits. */
 const CONCURRENT_READS = 3;
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 /** A deadline with a key that stays the same while the student edits and deletes others. */
 type Item = Deadline & { key: number };
@@ -789,7 +788,7 @@ function ClassCard({
       {upload.state === "error" && (
         <p className={styles.error} role="alert">
           {upload.message}
-          {upload.kind && KEY_PROBLEMS.has(upload.kind) && (
+          {isSettingsError(upload.kind) && (
             <>
               {" "}
               <Link href="/settings" className={styles.link}>

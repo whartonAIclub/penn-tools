@@ -16,6 +16,7 @@ import {
   type IntakeScreenshot,
   type ReviewField,
 } from "@penntools/tool-penn-pals";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import type { IntakeResult } from "./actions";
 import { SettingsLink } from "../SettingsLink";
 import { Collapsible } from "./Collapsible";
@@ -34,8 +35,6 @@ type Status =
   | { state: "reading" }
   | { state: "done"; tokens: number; review: boolean }
   | { state: "error"; message: string; keyProblem: boolean };
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 const TITLE = "✨ Fill it in with AI";
 const SUBTITLE = "Paste your notes or drop in screenshots (a LinkedIn profile, a calendar invite, an email). AI fills in the form; you check it and save.";
@@ -149,7 +148,7 @@ export function AiIntake({
       }
       const result = (await response.json()) as IntakeResult;
       if (!result.ok) {
-        return setStatus({ state: "error", message: result.error.message, keyProblem: KEY_PROBLEMS.has(result.error.kind ?? "") });
+        return setStatus({ state: "error", message: result.error.message, keyProblem: isSettingsError(result.error.kind) });
       }
       onFilled(result.draft, result.missing, result.toCheck);
       onTyping(false); // it's in the form now, which asks before leaving

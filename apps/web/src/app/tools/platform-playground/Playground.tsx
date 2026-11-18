@@ -7,6 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { AIProvider, GenerateResult } from "@penntools/core/ai";
 import type { ScoredResource, SyllabusTasks } from "@penntools/tool-platform-playground";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { extract, generate, search, type DemoError, type DemoResult } from "./actions";
 import styles from "./Playground.module.css";
 
@@ -15,8 +16,6 @@ type Status<T> =
   | { state: "loading" }
   | { state: "done"; data: T }
   | { state: "error"; error: DemoError };
-
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 /** Runs a server action and tracks its status. If the call itself fails (e.g. offline), that's an error too. */
 function useDemo<T>() {
@@ -324,7 +323,7 @@ function Outcome<T>({ status, children }: { status: Status<T>; children: (data: 
   return (
     <p className={styles.error}>
       {status.error.message}
-      {status.error.kind && KEY_PROBLEMS.has(status.error.kind) && (
+      {isSettingsError(status.error.kind) && (
         <>
           {" "}
           <Link href="/settings" className={styles.link}>

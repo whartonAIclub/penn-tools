@@ -15,7 +15,5 @@ export class IndustryConnectorTool extends Tool {
     // Its section in the site sidebar and on the dashboard, one of TOOL_CATEGORIES
     // in @penntools/core/tools. To add a category, ask the Platform team.
     category: "Recruiting",
-    // Shown as BETA until the tool is ready; delete this line then.
-    beta: true,
   };
 }
