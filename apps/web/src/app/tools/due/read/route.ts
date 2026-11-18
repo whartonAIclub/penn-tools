@@ -14,6 +14,7 @@ import { MAX_PDF_PAGES, MAX_REQUEST_BYTES, checkOutlineRequest, readOutline } fr
 import { getAI } from "@/lib/ai";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
 import { pdfPageCount } from "@/lib/pdf";
+import { readBodyText } from "@/lib/readBody";
 
 /**
  * Why the PDF can't be read, or null: it must open and have at most
@@ -27,31 +28,11 @@ async function checkPdf(filename: string, data: string): Promise<string | null> 
   return null;
 }
 
-/** The body as text, or null once it's over MAX_REQUEST_BYTES, counted while reading (as AskPenn does). */
-async function readBody(req: NextRequest): Promise<string | null> {
-  if (Number(req.headers.get("content-length")) > MAX_REQUEST_BYTES) return null;
-  const reader = req.body?.getReader();
-  if (!reader) return "";
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_REQUEST_BYTES) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return signInRequired();
 
-  const text = await readBody(req);
+  const text = await readBodyText(req, MAX_REQUEST_BYTES);
   if (text === null) return Response.json({ error: { message: "This file is too large." } }, { status: 413 });
   let body: Record<string, unknown> | null = null;
   try {
