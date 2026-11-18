@@ -5,7 +5,15 @@
 // on close. Empty sections are left out rather than shown with blank labels.
 
 import { useEffect, useRef } from "react";
-import { formatDate, formatDateRange, nextDeadline, tripDays, type Deadline, type Trip } from "@penntools/tool-trek-finder";
+import {
+  currentPriceStage,
+  formatDate,
+  formatDateRange,
+  nextDeadline,
+  tripDays,
+  type Deadline,
+  type Trip,
+} from "@penntools/tool-trek-finder";
 import { PriceLine } from "./PriceInfo";
 import { SaveButton } from "./SaveButton";
 import styles from "./TripDetails.module.css";
@@ -40,6 +48,8 @@ export function TripDetails({
   const dialog = useRef<HTMLDialogElement>(null);
   const days = tripDays(trip.startDate, trip.endDate);
   const upcoming = nextDeadline(trip, today);
+  // The note on today's price, e.g. when the deposit is due.
+  const priceNote = currentPriceStage(trip.priceStages, today)?.note ?? null;
   const itinerary = (trip.itinerary ?? "")
     .split("\n")
     .map((line) => line.trim())
@@ -88,6 +98,7 @@ export function TripDetails({
               <p className={styles.credit}>Course credit{trip.creditNote && ` · ${trip.creditNote}`}</p>
             )}
             <PriceLine trip={trip} today={today} />
+            {priceNote && <p className={styles.priceNote}>{priceNote}</p>}
             {upcoming && (
               <p className={styles.deadline}>
                 {upcoming.label}: {formatDeadline(upcoming)}

@@ -113,6 +113,11 @@
   color: #fff;
 }
 
+.priceNote {
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+
 .deadline {
   font-size: 0.85rem;
   color: var(--section-label);

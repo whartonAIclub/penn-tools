@@ -6,6 +6,7 @@ export type TripType = (typeof TRIP_TYPES)[number];
 
 export const REGIONS = [
   "Africa",
+  "Antarctica",
   "Asia",
   "Europe",
   "Middle East",

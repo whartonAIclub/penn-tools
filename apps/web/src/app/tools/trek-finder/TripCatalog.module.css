@@ -232,6 +232,12 @@
   color: var(--section-label);
 }
 
+.full {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b42318;
+}
+
 .info {
   display: inline-flex;
 }

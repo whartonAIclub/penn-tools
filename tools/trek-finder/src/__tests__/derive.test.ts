@@ -52,11 +52,23 @@ describe("currentPriceStage", () => {
     expect(position(mixed, "2026-12-01")).toBe(2);
   });
 
-  it("returns null in a gap between tiers, before the first and after the last", () => {
+  it("returns null in a gap between tiers and before the first", () => {
     const gappy = [stage(1, "2026-11-01", "2026-11-30"), stage(2, "2026-12-05", "2027-02-01")];
     expect(position(gappy, "2026-12-02")).toBe(null);
     expect(position(gappy, "2026-10-31")).toBe(null);
-    expect(position(gappy, "2027-02-02")).toBe(null);
+  });
+
+  it("keeps the last tier's price once every tier has ended", () => {
+    const tiers = [stage(1, null, "2026-05-03"), stage(2, "2026-05-04", "2026-09-04"), stage(3, "2026-09-05", "2026-11-04")];
+    expect(position(tiers, "2026-11-04")).toBe(3);
+    expect(position(tiers, "2026-11-05")).toBe(3);
+    // Order in the Sheet doesn't matter: the tier that ended last wins.
+    expect(position([stage(2, null, "2026-11-04"), stage(1, null, "2026-05-03")], "2026-12-01")).toBe(2);
+  });
+
+  it("returns null after the last dated tier when a stage has no end date", () => {
+    // An open-ended stage that hasn't started yet means the price isn't settled.
+    expect(position([stage(1, null, "2026-11-30"), stage(2, "2027-01-01", null)], "2026-12-15")).toBe(null);
   });
 
   it("returns null with no stages, and keeps a stage whose price is TBD", () => {

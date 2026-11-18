@@ -24,7 +24,9 @@ export function todayInNewYork(now: Date = new Date()): string {
  * The stage in effect today: of the stages whose dates include today (both
  * ends included, a missing date meaning no bound), the one with the highest
  * position. Stages without dates always count, so when no stage has dates the
- * latest one entered wins. Null when no stage covers today, which shows as TBD.
+ * latest one entered wins. Once every stage has ended, the one that ended last
+ * (e.g. the late-bird price) stays in effect. Null when no stage covers today
+ * otherwise (no stages, before the first or in a gap), which shows as TBD.
  */
 export function currentPriceStage(stages: readonly PriceStage[], today: string): PriceStage | null {
   let current: PriceStage | null = null;
@@ -33,7 +35,15 @@ export function currentPriceStage(stages: readonly PriceStage[], today: string):
     const notEnded = stage.validUntil === null || today <= stage.validUntil;
     if (started && notEnded && (current === null || stage.position > current.position)) current = stage;
   }
-  return current;
+  if (current !== null) return current;
+
+  let last: PriceStage | null = null;
+  for (const stage of stages) {
+    if (stage.validUntil === null || stage.validUntil >= today) return null;
+    if (last === null || last.validUntil === null || stage.validUntil > last.validUntil) last = stage;
+    else if (stage.validUntil === last.validUntil && stage.position > last.position) last = stage;
+  }
+  return last;
 }
 
 /** Where a trip stands today. Deadline times are ignored: a deadline passes the day after it's due. */

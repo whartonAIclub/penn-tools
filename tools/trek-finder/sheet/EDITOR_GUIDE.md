@@ -21,8 +21,10 @@ PennTools' code. To put your edits on the site:
    goes in.
 3. The trips change **the next time PennTools is deployed**.
 
-> **The copy in the code can be seen by anyone who can see PennTools' code.** Use club or program email addresses, not
-> personal ones, and keep private notes somewhere else.
+> **The copy in the code can be seen by anyone who can see PennTools' code.** Never enter personal contact details:
+> no email addresses, phone numbers or people's names, anywhere in the Sheet. Name a club, office or company instead,
+> leave links to private group chats or documents out, and keep private notes somewhere else. The tests fail if the
+> file has anything that looks like an email address or phone number.
 
 After a deploy:
 
@@ -55,7 +57,7 @@ After a deploy:
 | **Trip type** | One of: `GIP`, `GMC`, `Leadership Venture`, `Club/Other Trek` | `Club/Other Trek` |
 | **Location** | Country or countries, as students should see them | `Italy & France` |
 | Cities | Separated by semicolons | `Tokyo; Kyoto; Osaka` |
-| **Region** | One of: `Africa`, `Asia`, `Europe`, `Middle East`, `North America`, `Oceania`, `South America` | `Asia` |
+| **Region** | One of: `Africa`, `Antarctica`, `Asia`, `Europe`, `Middle East`, `North America`, `Oceania`, `South America` | `Asia` |
 | **Start date** | First day of the trip | `2027-03-06` |
 | **End date** | Last day of the trip | `2027-03-14` |
 | **Timing** | One of: `break`, `opportunity_week`, `other`. Students can't see or filter by it, but a trip with this blank or misspelled won't import. | `break` |
@@ -72,9 +74,9 @@ After a deploy:
 
 | Column | What to enter | Example |
 |---|---|---|
-| Organizer name | The club or department running it. Leave blank if there isn't one. | `Wharton Asia Club` |
-| Organizer contact | A person's name | `Alex Example` |
-| Organizer email | Use a club address, since the Sheet is public | `treks@example.edu` |
+| Organizer name | The club, office or company running it, never a person. Leave blank if there isn't one. | `Wharton Asia Club` |
+| Organizer contact | Leave blank: it's public, so no names or phone numbers | |
+| Organizer email | Leave blank: it's public, so no email addresses | |
 | Application URL | Full link, starting with `https://` | |
 | Image URL | Full link to the card's photo | |
 | Image credit | The credit its license requires: author and license name | `Photo by A. Example, CC BY 2.0` |
@@ -125,7 +127,7 @@ Each deadline uses four columns, from `Deadline 1 kind` through `Deadline 1 time
 If you use a deadline, its kind, label and date are all required.
 
 **A trip can have only one `preliminary` deadline.** Once that date has passed, the trip is greyed out and students are told
-to contact the organizer, so make sure the organizer contact details are filled in.
+to contact the organizer, so make sure the organizer name is filled in.
 
 ### Other links: up to 3 per trip
 

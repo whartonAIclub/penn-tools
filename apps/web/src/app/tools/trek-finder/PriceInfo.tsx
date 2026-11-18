@@ -15,9 +15,11 @@ const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD",
 const monthDay = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 /**
- * Today's price, e.g. "$3,300 Early bird, until Nov 30 ⓘ". The stage only
+ * Today's price, e.g. "$3,300 ⓘ Early bird, until Nov 30". The stage only
  * shows when a trip's price changes, and "until" only when the stage ends on a
- * set date. No price shows as "Price: TBD".
+ * set date that hasn't passed. Once every stage has ended, the last one shows
+ * without a date, e.g. "$3,190 Late bird". A full trip shows "Deadline passed -
+ * Join waitlist" in place of the stage. No price shows as "Price: TBD".
  */
 export function PriceLine({ trip, today }: { trip: Trip; today: string }) {
   const stage = currentPriceStage(trip.priceStages, today);
@@ -25,13 +27,20 @@ export function PriceLine({ trip, today }: { trip: Trip; today: string }) {
   return (
     <div className={styles.priceRow}>
       <span className={styles.cost}>{cost === null ? "Price: TBD" : usd.format(cost)}</span>
-      {stage && trip.priceStages.length > 1 && (
+      {trip.priceIncludes && <PriceInfo text={trip.priceIncludes} />}
+      {trip.availabilityStatus === "full" ? (
+        <span className={styles.full}>Deadline passed - Join waitlist</span>
+      ) : (
+        stage &&
+        trip.priceStages.length > 1 && (
         <span className={styles.stage}>
           {stage.label}
-          {stage.validUntil && `, until ${monthDay.format(new Date(`${stage.validUntil}T00:00:00Z`))}`}
+          {stage.validUntil &&
+            stage.validUntil >= today &&
+            `, until ${monthDay.format(new Date(`${stage.validUntil}T00:00:00Z`))}`}
         </span>
+        )
       )}
-      {trip.priceIncludes && <PriceInfo text={trip.priceIncludes} />}
     </div>
   );
 }
