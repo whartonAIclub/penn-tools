@@ -6,10 +6,10 @@ export class ResumeCustomizerTool extends Tool {
     id: "resume-customizer",
     title: "Resume Customizer",
     description:
-      "AI-powered tool that generates tailored resumes and cover letters from a student's full professional knowledge base",
+      "Tailor your resume to a job description using your past resumes, projects and writing samples, then refine it with AI and download it as a PDF or Word document.",
     contributors: ["Vismay Churiwala", "Nicole Goon", "Hongyu Mao", "Samir Patki"],
     mentor: "Sanjana Wadhwa",
-    category: "LLM Tools",
-    notYetMigrated: true,
+    category: "Recruiting",
+    fullWidth: true,
   };
 }

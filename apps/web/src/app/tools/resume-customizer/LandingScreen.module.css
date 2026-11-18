@@ -1,0 +1,176 @@
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* safe: content taller (or wider) than the box stays scrollable from its start */
+  justify-content: safe center;
+  gap: 20px;
+  padding: 40px;
+  overflow-y: auto;
+  background: var(--rc-cream);
+  text-align: center;
+}
+
+.title {
+  max-width: 560px;
+  margin: 0;
+  color: var(--rc-accent);
+  font-family: var(--rc-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.lead {
+  max-width: 440px;
+  margin: 0;
+  color: #5f5e5a;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.screen .start {
+  padding: 14px 40px;
+  font-size: 16px;
+  border-radius: 10px;
+}
+
+/* ── The animation of bullets being tailored ───────────────────────────────── */
+
+.hero {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.card {
+  padding: 20px 24px;
+  background: var(--rc-surface);
+  border: 1px solid #e5e3dc;
+  border-radius: 10px;
+  box-shadow: 0 2px 16px rgba(14, 34, 68, 0.07);
+  text-align: left;
+}
+
+.bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0 9px 10px;
+  margin-left: -10px;
+  border-left: 3px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.bullet + .bullet {
+  border-top: 1px solid #f0f0ee;
+}
+
+.bulletActive {
+  border-left-color: var(--rc-accent);
+}
+
+.dot {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--rc-accent);
+  font-size: 12px;
+}
+
+.body {
+  position: relative;
+  flex: 1;
+}
+
+.shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent 0%, rgba(14, 34, 68, 0.06) 50%, transparent 100%);
+  background-size: 400px 100%;
+  animation: shimmer 0.9s ease-in-out;
+}
+
+.text {
+  color: var(--rc-faint);
+  font-size: 13px;
+  line-height: 1.5;
+  transition: color 0.4s;
+}
+
+.textTailored {
+  color: var(--rc-accent);
+  font-weight: 500;
+}
+
+.tag {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--rc-accent-light);
+  color: var(--rc-accent);
+  font-size: 10px;
+  font-weight: 600;
+  animation: fadeInUp 0.3s ease;
+}
+
+.progress {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.progressDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d3d1c7;
+  transition: background 0.3s;
+}
+
+.progressDotActive {
+  background: #7a90b8;
+}
+
+.progressDotDone {
+  background: var(--rc-accent);
+}
+
+.status {
+  min-height: 18px;
+  margin-top: 10px;
+  color: #5f5e5a;
+  font-size: 12px;
+  text-align: center;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer,
+  .tag {
+    animation: none;
+  }
+}

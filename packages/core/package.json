@@ -12,13 +12,17 @@
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js"
     },
-    "./llm": {
-      "types": "./dist/llm/index.d.ts",
-      "import": "./dist/llm/index.js"
-    },
     "./ai": {
       "types": "./dist/ai/index.d.ts",
       "import": "./dist/ai/index.js"
+    },
+    "./ai/attachments": {
+      "types": "./dist/ai/attachments.d.ts",
+      "import": "./dist/ai/attachments.js"
+    },
+    "./ai/errors": {
+      "types": "./dist/ai/errors.d.ts",
+      "import": "./dist/ai/errors.js"
     },
     "./repositories": {
       "types": "./dist/repositories/index.d.ts",
@@ -39,10 +43,12 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
   },
   "dependencies": {
     "zod": "^4.6.7"

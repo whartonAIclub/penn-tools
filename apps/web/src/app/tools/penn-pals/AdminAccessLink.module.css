@@ -1,0 +1,14 @@
+.footer {
+  margin-top: 32px;
+  text-align: left;
+}
+.link {
+  font-size: 0.65rem;
+  color: var(--section-label);
+  opacity: 0.55;
+  text-decoration: none;
+}
+.link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}

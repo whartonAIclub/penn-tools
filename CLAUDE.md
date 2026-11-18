@@ -47,23 +47,24 @@ If a user requests a change outside their scope, explain the boundary politely a
 
 When the user says "Register new team", collect these inputs one at a time:
 
-1. **Tool ID** — a short name in lowercase words joined by hyphens, e.g. `course-finder`. It becomes the page URL (`/tools/course-finder`), the package name and the class name (`CourseFinderTool`), so check that `tools/{id}/` doesn't already exist and that the ID isn't retired (`apps/web/next.config.mjs` redirects a retired tool's URL elsewhere); the scaffold refuses both
+1. **Tool ID** — a short name in lowercase words joined by hyphens, e.g. `course-finder`. It becomes the page URL (`/tools/course-finder`), the package name and the class name (`CourseFinderTool`), so check that `tools/{id}/` doesn't already exist, that it doesn't start with `community-` (kept for community tools' click counts), and that the ID isn't retired (`apps/web/next.config.mjs` redirects a retired tool's URL elsewhere) or a removed tool's (`packages/platform/scripts/removed-tools.json`); the scaffold refuses all of these
 2. **Tool title** — human-readable, e.g. `"Course Finder"`
 3. **Short description** — one sentence
 4. **Contributors** — comma-separated names
-5. **Mentor name** — optional
+5. **Category** — the tool's section in the site sidebar and on the dashboard. Offer the choices in `TOOL_CATEGORIES` (`packages/core/src/tools/Tool.ts`) with what each covers, from the comment above it; leave out Platform, which is for the Platform team's own tools. A tool that fits none goes in Other. If the team wants a category that doesn't exist, tell them to ask the Platform team to add it, and pick the closest existing one for now; it's a one-line change in their manifest later
+6. **Mentor name** — optional
 
 Show a summary and ask for confirmation. Then run the scaffold script with the answers, quoting each value for the shell:
 
 ```
-pnpm new-tool --id course-finder --title "Course Finder" --description "…" --contributors "Ada Lovelace, Alan Turing" --mentor "Grace Hopper" --yes
+pnpm new-tool --id course-finder --title "Course Finder" --description "…" --contributors "Ada Lovelace, Alan Turing" --category "Academics" --mentor "Grace Hopper" --yes
 ```
 
 Leave out `--mentor` when there is none. Don't create or patch the files by hand. The script creates `tools/{id}/` (`package.json`, `tsconfig.json`, `src/{Name}Tool.ts` with the manifest, `src/index.ts`) and a placeholder page at `apps/web/src/app/tools/{id}/page.tsx`, and registers the tool in `apps/web/package.json` and `apps/web/src/lib/container.ts`. It checks everything before writing, so if it fails it has changed nothing: fix the input it names and run it again.
 
 After scaffolding, remind the team to:
 - Run `pnpm install`, then `pnpm dev` to work on it
-- Set the tool's `category` in its manifest (`tools/{id}/src/{Name}Tool.ts`): one of `TOOL_CATEGORIES` in `@penntools/core/tools`, which decides its section in the site sidebar and on the dashboard. The scaffold puts it in "LLM Tools", the catch-all, and marks it `beta: true`; delete `beta` when the tool is ready
+- Delete `beta: true` from the manifest (`tools/{id}/src/{Name}Tool.ts`) when the tool is ready; until then it's shown as BETA. To move the tool to another section, change its `category` there, to one of `TOOL_CATEGORIES` in `@penntools/core/tools`
 - Build the tool with the platform APIs in section 4, using AskPenn and the Platform Playground as the reference tools
 
 ---
@@ -80,22 +81,19 @@ Get the logged-in user's name and ID.
 > **Usage:** Ask your coding agent: `Implement User API and refer to the platform playground implementation for guidance.`
 
 #### AI API
-Generate text, streams or structured data (typed objects checked against a Zod schema) with OpenAI or Anthropic, using the signed-in user's own API key from Settings. The tool picks the provider on every call, plus a model tier (`fast`, `standard`, `best`) and reasoning level; the platform sets the models and defaults in `packages/core/src/ai/models.ts`. The tool never sees the key: if the user hasn't saved one for that provider, the call fails with `AIError("missing_key")`. The platform's own keys are never used for generation.
+Generate text, streams or structured data (typed objects checked against a Zod schema) with OpenAI or Anthropic. The tool picks the provider on every call, plus a model tier (`fast`, `standard`, `best`) and reasoning level; the platform sets the models and defaults in `packages/core/src/ai/models.ts`. The platform picks the key, which the tool never sees: its own keys until the signed-in user has used their free AI credit ($0.50 in all, `FREE_CREDIT_USD` in `packages/core/src/ai/pricing.ts`), then the user's own key from Settings. If the user has used the credit and hasn't saved a key for that provider, the call fails with `AIError("credit_used")`. Every call's tokens and cost are recorded against the user and the tool, which is why `getAI` takes the tool's ID. A user message can also carry images (JPEG, PNG, GIF or WebP, up to 7 MB each) and PDFs, and the AI API rejects any file that isn't really the type it's labelled. It takes no other files: convert them first, to text (as AskPenn does for text files) or to a supported image (as AskPenn does for HEIC).
 
-> **Usage:** Ask your coding agent: `Implement AI API and refer to the platform playground implementation for guidance.` The Platform Playground shows single replies and structured output; for streaming and chat history, refer to the AskPenn (tools/askpenn) implementation instead.
+> **Usage:** Ask your coding agent: `Implement AI API and refer to the platform playground implementation for guidance.` The Platform Playground shows single replies and structured output; for streaming and chat history, refer to the AskPenn (tools/askpenn) implementation instead. AskPenn is also the reference for sending images, PDFs and text files with a message: reading and shrinking them in the browser (`apps/web/src/app/tools/askpenn/attachments.ts`), checking them (`checkRequest` in `tools/askpenn/src/conversation.ts`, and a PDF's page count with `pdfPageCount` from `@/lib/pdf` in `stream/route.ts`), and sending them as content parts. Send files from the page to a route in the tool's folder, as AskPenn's `stream/route.ts` does, not to a server action: Next.js refuses server action requests over 1 MB. Read the route's body with `readBodyText` from `@/lib/readBody`, which refuses one over the size you give it.
 
 #### Embeddings API
 Turn text into vectors for semantic search. To search more than a handful of documents, embed them once and store the vectors with pgvector in the tool's own tables, which requires the Database API. Always OpenAI, with the model set by the platform; tools can't choose another.
 
-> **Usage:** Ask your coding agent: `Implement Embeddings API and refer to the platform playground implementation for guidance.` Routes or server actions get an `EmbeddingProvider` from `getEmbeddings("<tool id>")` in `@/lib/ai`: it embeds with the user's OpenAI key, or the platform's when they have none, and is `null` when signed out or no key exists. The Playground shows getting and using it; Career Canvas (`tools/career-canvas`) shows storing and searching vectors in the tool's tables, but predates `getEmbeddings` and still uses the container's `embeddingProvider`, which new tools don't use.
+> **Usage:** Ask your coding agent: `Implement Embeddings API and refer to the platform playground implementation for guidance.` Routes or server actions get an `EmbeddingProvider` from `getEmbeddings("<tool id>")` in `@/lib/ai`: it embeds with the user's OpenAI key, or the platform's when they have none, and is `null` when signed out or no key exists. The Playground shows getting and using it; Pass It On (`tools/pass-it-on`) shows storing and searching vectors in the tool's tables.
 
 #### Database API
 Tables of the tool's own, in a Postgres schema that only the tool can access (see **Tool database isolation** in section 5).
 
-> **Usage:** Ask your coding agent: `Implement Database API and refer to the AskPenn (tools/askpenn) implementation for guidance.` The tool team writes `tools/{id}/schema.sql` (and, for reference data, `tools/{id}/seed.mjs`, as Career Canvas does), and its routes or server actions pass `toolSql("<name>")` into the tool's functions. Registering the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs` is outside a tool team's scope, so ask the Platform team to add that one line.
-
-#### LLM API (legacy)
-`POST /api/llm/complete`, which uses the platform's key or one the browser sends in `X-Api-Key`. Existing tools keep using it until they migrate; new tools use the AI API instead. A tool still on it sets `notYetMigrated: true` in its manifest, which shows it as BETA; `pnpm check:tools` fails if a tool calls the legacy API without it, or keeps it after migrating, so remove it when the tool moves to the AI API.
+> **Usage:** Ask your coding agent: `Implement Database API and refer to the AskPenn (tools/askpenn) implementation for guidance.` The tool team writes `tools/{id}/schema.sql` (and, for reference data, `tools/{id}/seed.mjs`, as Student Discount Central does), and its routes or server actions pass `toolSql("<name>")` into the tool's functions. Registering the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs` is outside a tool team's scope, so ask the Platform team to add that one line.
 
 ### How to add an API integration
 
@@ -104,7 +102,7 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
    The Platform Playground (`/tools/platform-playground`) covers single replies, structured output, embeddings, the User API and tests:
    - `tools/platform-playground/src/demos.ts` — the tool's logic: `ai.generate()`, `ai.generateObject()` with a Zod schema, and semantic search with an `EmbeddingProvider`
    - `tools/platform-playground/src/__tests__/demos.test.ts` — testing that logic with fake AI and Embeddings APIs: no keys, no network, no cost
-   - `apps/web/src/app/tools/platform-playground/` — `page.tsx` (checks sign-in and saved keys), `actions.ts` (server actions that get the APIs, check input and return errors as data), `Playground.tsx` (calls them, shows errors, lets the user pick the provider, and calls `GET /api/me`)
+   - `apps/web/src/app/tools/platform-playground/` — `page.tsx` (checks sign-in and that the user can call a provider), `actions.ts` (server actions that get the APIs, check input and return errors as data), `Playground.tsx` (calls them, shows errors, lets the user pick the provider, and calls `GET /api/me`)
 
    AskPenn (`/tools/askpenn`) covers streaming, chat history and the tool's own database:
    - `tools/askpenn/src/conversation.ts` — a streamed reply with the user's key, saved with the tool's own database
@@ -112,7 +110,7 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 
    And the APIs themselves:
    - `packages/core/src/ai/types.ts` and `AIError.ts` — the full AI API and the error kinds
-   - `apps/web/src/lib/ai.ts` — `getAI()` and `getEmbeddings()` for the tool's routes and server actions
+   - `apps/web/src/lib/ai.ts` — `getAI(toolId)` and `getEmbeddings(toolId)` for the tool's routes and server actions
 
 2. **Backend (tool logic)** — Edit only `tools/{id}/src/`:
    - For **User API**: take the user's ID as a parameter from the tool's route or server action, as AskPenn's `chats.ts` does
@@ -123,8 +121,8 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 
 3. **Frontend and the tool's server code** — Edit only `apps/web/src/app/tools/{id}/`:
    - For **User API**: call `GET /api/me` to get the logged-in user's name and ID (it returns `401` when signed out). In the tool's own routes and server actions, call `getCurrentUser()` from `@/lib/auth` (null when signed out; respond with `signInRequired()`) — never create your own user IDs or identity cookies
-   - For **AI API**: call it only from server code: `getAI()` from `@/lib/ai` in the tool's routes and server actions (null when signed out). The page calls the tool's own server actions; prompts never come from or go to the browser as API calls. Return an `AIError` as data (`error.toJSON()`), since thrown errors lose their class across a server action. Server actions can't stream, so to show text as it's written, add a route in the tool's folder that sends `ai.stream()` events to the page, like AskPenn's `stream/route.ts`. To let users pick a provider, read `ai.providers()` in the tool's `page.tsx` (a server component) and pass the list to the page's client component; when an error's kind is `missing_key`, `invalid_key` or `no_credit`, point users to Settings
-   - **If the tool needs a signed-in user for everything**, use the standard screens in its `page.tsx`, as AskPenn and the Platform Playground do: return `<SignInPrompt title="…" />` (`@/components/layout/SignInPrompt`) when `getCurrentUser()` is null, and, if it runs on the AI API, `<ApiKeyPrompt title="…" />` (`@/components/layout/ApiKeyPrompt`) when `ai.providers()` is empty. Don't write your own versions. A tool with parts that work signed out shouldn't block the whole page; ask for sign-in only where it's needed
+   - For **AI API**: call it only from server code: `getAI("<tool id>")` from `@/lib/ai` in the tool's routes and server actions (null when signed out); pass the tool's manifest ID, which its usage is recorded against. The page calls the tool's own server actions; prompts never come from or go to the browser as API calls. Return an `AIError` as data (`error.toJSON()`), since thrown errors lose their class across a server action. Server actions can't stream, so to show text as it's written, add a route in the tool's folder that sends `ai.stream()` events to the page, like AskPenn's `stream/route.ts`. To let users pick a provider, read `ai.providers()` in the tool's `page.tsx` (a server component) and pass the list to the page's client component; when `isSettingsError(error.kind)` from `@penntools/core/ai/errors` is true (the user's key is missing, wrong or out of credit, or their free credit is used up), point users to Settings. Don't list those error kinds yourself: `pnpm check:tools` fails a tool that does
+   - **If the tool needs a signed-in user for everything**, use the standard screens in its `page.tsx`, as AskPenn and the Platform Playground do: return `<SignInPrompt title="…" />` (`@/components/layout/SignInPrompt`) when `getCurrentUser()` is null, and, if it runs on the AI API, `<ApiKeyPrompt title="…" />` (`@/components/layout/ApiKeyPrompt`) when `ai.providers()` is empty (the user has used their free credit and saved no key). Don't write your own versions. A tool with parts that work signed out shouldn't block the whole page; ask for sign-in only where it's needed
    - Mirror the patterns in the Platform Playground's and AskPenn's folders
 
 4. **Verify** after changes:
@@ -140,8 +138,8 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 - **All changes must stay within the tool's two directories.** Only the APIs listed above are available. If a team needs something beyond these, explain that they should request it from the Platform team — do not add it yourself.
 - **Do not create routes under `apps/web/src/app/api/`.** Those are platform routes; only the Platform team creates them. A tool may add its own routes or server actions inside its landing page folder (`apps/web/src/app/tools/{id}/`), as AskPenn and the Platform Playground do.
 - **Do not duplicate platform logic.** If the Platform Playground or AskPenn already demonstrates the pattern, adapt it — don't reinvent it.
-- **New tools use the AI API, not the legacy LLM API.**
-- **Never read users' saved API keys, or use them for anyone but the signed-in user.** Keys are stored in plain text. Tool code must not import `userApiKeys`, `createUserAI` or `createUserEmbeddingProvider` from `@/lib/container`, or query the `user_api_keys` table; use `getAI` and `getEmbeddings`. `pnpm check:tools` enforces this, along with no vendor SDKs, no direct provider API calls and no platform imports besides `toolSql`.
+- **Generate text through the AI API.** The legacy LLM API (`POST /api/llm/complete`) has been removed; `pnpm check:tools` fails a tool that still calls it.
+- **Never read users' saved API keys, or use them for anyone but the signed-in user.** Keys are stored in plain text. Tool code must not import `userApiKeys`, `aiUsage`, `freeCreditLeft`, `createUserAI` or `createUserEmbeddingProvider` from `@/lib/container`, or query the `user_api_keys` or `ai_usage` tables; use `getAI` and `getEmbeddings`. `pnpm check:tools` enforces this, along with no vendor SDKs, no direct provider API calls, no importing the platform's `admins` or `toolVisits`, and no platform imports besides `toolSql`.
 
 ---
 
@@ -153,8 +151,9 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 | DB / AI implementations | `packages/platform/` | Platform team |
 | Web app + API routes | `apps/web/src/` | Platform team |
 | Tool registration | `apps/web/src/lib/container.ts` | `pnpm new-tool` writes it; otherwise the Platform team |
-| Tool categories (sidebar and dashboard sections) | `TOOL_CATEGORIES` in `packages/core/src/tools/Tool.ts` | Platform team; a tool team picks one in its manifest |
+| Tool categories (sidebar and dashboard sections) | `TOOL_CATEGORIES` in `packages/core/src/tools/Tool.ts` | Platform team, who add categories when tool teams ask; a tool team picks one in its manifest |
 | Community tools (apps outside this repo) | `apps/web/src/data/communityTools.ts` | Platform team |
+| Removing or renaming a tool, registered or community | To remove one, take out its code and list it in `packages/platform/scripts/removed-tools.json`; a rename is not a removal. See **Removing a tool** in `README.md` | Platform team |
 | Tool landing pages | `apps/web/src/app/tools/{id}/` | That tool's team |
 | Tool implementations | `tools/{id}/` | That tool's team |
 
@@ -163,7 +162,7 @@ Tables of the tool's own, in a Postgres schema that only the tool can access (se
 Every page, including tool pages, renders below the site header (the sidebar's hamburger, logo and PennTools on the left, then, on a tool's pages, the tool's name and its info button; the GitHub link, then **Sign in** or the profile icon and **Log out**, on the right) and beside the site sidebar, which lists every tool by section. Tool pages render in the area left over, which scrolls on its own:
 
 - Size full-height layouts with `height: 100%` / `min-height: 100%`, not `100vh`.
-- Tool pages sit in a centered 720px column. To fill the whole page area instead, set `fullWidth: true` in the tool's manifest, as Career Canvas and AskPenn do; don't break out of the column with CSS. A full-width page area is `position: relative`, so a layout that should fill it exactly, such as AskPenn's chat, can use `position: absolute; inset: 0`. The page area is all the tool's: the platform's info button is in the site header, never on top of the page.
+- Tool pages sit in a centered 720px column. To fill the whole page area instead, set `fullWidth: true` in the tool's manifest, as AskPenn and Non-Wharton Course Manager do; don't break out of the column with CSS. A full-width page area is `position: relative`, so a layout that should fill it exactly, such as AskPenn's chat, can use `position: absolute; inset: 0`. The page area is all the tool's: the platform's info button is in the site header, never on top of the page.
 - Size full-width layouts with `width: 100%`, not `100vw`. `100vw` is the whole window, so with the sidebar open it's wider than the page: it adds a horizontal scrollbar and pushes content out of view. The page's width also changes when the user hides or shows the sidebar.
 - `position: fixed` is relative to the page's area (beside the sidebar and under the header), not the window. Use it for modals and toasts, which then stay put while the page scrolls, not to make a page fill the area (that's `fullWidth`).
 - Don't build sign-in UI. When a platform API returns `401`, tell the user to sign in with the button in the header.
@@ -176,17 +175,19 @@ See **Site header**, **Site sidebar** and **Page layout** in `docs/ARCHITECTURE.
 - Named exports only from library packages (`packages/*`, `tools/*`); Next.js pages and layouts use default exports as Next.js requires.
 - No side effects at module load time; tools are registered only in `container.ts`.
 - CSS Modules for component styles, no global class names.
+- The web app runs Next.js 16 and React 19, newer than most examples online. `cookies()`, `headers()` and `draftMode()` return promises, and so do `params` (in pages, layouts, `generateMetadata` and route handlers' `context.params`) and `searchParams` (in pages and their `generateMetadata`); `await` them. Type them with Next's generated `PageProps<"/tools/{id}">`, `LayoutProps<…>` and `RouteContext<…>` (as WEMBA Sync's `page.tsx` does): with a hand-written `{ searchParams: { … } }`, reading a field without `await` compiles but is always `undefined`. `next dev` and `next build` use Turbopack, so don't add a `webpack` hook to `next.config.mjs`. The docs for this exact version are in `apps/web/node_modules/next/dist/docs/`.
+- Open PDFs on the server with `withPdf` or `pdfPageCount` from `@/lib/pdf`, never pdfjs's `getDocument` directly: they switch off pdfjs's code execution, so a malicious PDF can't run code, and always close the PDF. In the browser, pass `isEvalSupported: false` to `getDocument`; `pnpm check:tools` fails without it.
 
 ### Tool database isolation
 
 Tools that need their own tables get a dedicated Postgres role and schema in the shared database — never tables in `public` (which `prisma db push` manages and would drop):
 
-- Name the role and schema the same short, lowercase word for the tool: its tool ID without hyphens (`course-finder` → `coursefinder`), or for an older tool with a numeric ID, a word for its name (e.g. `compass` for tool 19). Use it everywhere the tool's database is referenced (`TOOLS`, `toolSql`).
+- Name the role and schema the same short, lowercase word for the tool: its tool ID without hyphens (`course-finder` → `coursefinder`). Use it everywhere the tool's database is referenced (`TOOLS`, `toolSql`). It can't be a removed tool's name (in `packages/platform/scripts/removed-tools.json`), whose database every deploy drops; `db:deploy` fails if it is.
 - Register the tool in `TOOLS` in `packages/platform/scripts/setup-tools.mjs`. The `db:deploy` pre-deploy step (see **Deploying** in `README.md`) runs `prisma db push`, then creates the role and schema and, as that role, applies `tools/{id}/schema.sql` and runs `tools/{id}/seed.mjs` if present — no manual setup.
 - There are no migrations: `schema.sql` is the tool's full schema and runs on every deploy, so every statement must be safe to re-run (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`). To add a column to a table that may already exist, append `ALTER TABLE … ADD COLUMN IF NOT EXISTS`. `seed.mjs` (optional) default-exports `async ({ sql, embeddings }) => {}` to fill reference data (`embeddings` is the platform's `EmbeddingProvider`, or `null` without `OPENAI_API_KEY`); it also runs every deploy, so it must skip work already done. A failed seed is logged and does not block the deploy.
 - The tool's API routes in `apps/web/src/app/tools/{id}/` (web-app code, where platform imports are allowed) get a shared database client from `toolSql("<role>")` in `@penntools/platform/db` and pass it into the tool's functions. The tool package itself (`tools/{id}/src/`) never creates connections; its only non-core import is `import type { Sql } from "postgres"` to type that parameter. The role's `search_path` is its schema; it cannot read other tools' or platform tables. The password is derived from `DATABASE_URL`, so there is no per-tool secret. This isolation guards against mistakes, not deliberate misuse: tool code runs in the same process as platform code (the web app, and `db:deploy` for seeds), which holds the admin `DATABASE_URL`, so reviewing tool PRs is what guards against that.
 - No tool can read another tool's data today. If one ever must, add explicit `GRANT`s to that same script so all shared access lives in one reviewed place; grant on a view rather than a table (a view is a stable contract) and schema-qualify names.
-- For vector search, use pgvector from `public`, where the platform installs it; it is not on the tool's `search_path`, so schema-qualify the type and operators (`public.vector`, `OPERATOR(public.<=>)`, `::public.vector`). Tool code gets embeddings from the platform's `EmbeddingProvider` (`@penntools/core/embeddings`), passed in by the route like the database client. Store `embeddings.model` next to each vector and search only rows from the current model, and have the seed re-embed rows from any other model, so changing the platform's model can't mix incomparable vectors.
-- AskPenn (`tools/askpenn`) is the reference implementation, including tests against a throwaway schema; Career Canvas (`tools/career-canvas`) is the reference for `seed.mjs` and vector search.
+- For vector search, use pgvector from `public`, where the platform installs it; it is not on the tool's `search_path`, so schema-qualify the type and operators (`public.vector`, `OPERATOR(public.<=>)`, `::public.vector`). Tool code gets embeddings from the platform's `EmbeddingProvider` (`@penntools/core/embeddings`), passed in by the route like the database client. Store `embeddings.model` next to each vector, search only rows from the current model, and re-embed rows from any other model (in `seed.mjs` for reference data, or as Pass It On's `embedLibrary` does for data users add), so changing the platform's model can't mix incomparable vectors.
+- AskPenn (`tools/askpenn`) is the reference implementation, including tests against a throwaway schema; Student Discount Central (`tools/student-discount-maximizer`) is the reference for `seed.mjs`, and Pass It On (`tools/pass-it-on`) for vector search.
 
 After any change, verify it with the commands in step 4 of section 4 (`pnpm typecheck`, `pnpm check:tools`, `pnpm test`).

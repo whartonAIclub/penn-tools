@@ -1,0 +1,700 @@
+.page {
+  --overdue: #b42318;
+  --overdue-bg: #fef3f2;
+  --today: #b54708;
+  --today-bg: #fffaeb;
+  --penn-blue-bg: #eef2f9;
+  --thank-you: #067647;
+  --thank-you-bg: #ecfdf3;
+  --meeting: #5925dc;
+  --meeting-bg: #f4f3ff;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Summary ───────────────────────────────────────────────────────────────── */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--penn-blue);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.statThankYou {
+  border-top-color: var(--thank-you);
+}
+
+.statFollowUp {
+  border-top-color: var(--meeting);
+}
+
+.statNumber {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--penn-blue);
+}
+
+.statThankYou .statNumber {
+  color: var(--thank-you);
+}
+
+.statFollowUp .statNumber {
+  color: var(--meeting);
+}
+
+.statLabel {
+  color: var(--section-label);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ── Lanes ─────────────────────────────────────────────────────────────────── */
+
+/* Always two columns: follow-ups on the left, people on the right */
+.lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.laneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.laneTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.count {
+  margin-left: 4px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.chip {
+  padding: 4px 10px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 999px;
+  background: var(--penn-blue-bg);
+  color: var(--penn-blue);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+/* The three timeline buckets, each with its own accent */
+.bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.bucketLater {
+  background: var(--sidebar-bg);
+}
+
+.bucketToday {
+  background: var(--today-bg);
+}
+
+.bucketOverdue {
+  background: var(--overdue-bg);
+}
+
+.bucket .followUp {
+  background: var(--bg);
+}
+
+.bucketTitle {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--section-label);
+}
+
+.bucketToday .bucketTitle {
+  color: var(--today);
+}
+
+.bucketOverdue .bucketTitle {
+  color: var(--overdue);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.groupLabel {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--section-label);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.empty {
+  margin: 0;
+  color: var(--section-label);
+  font-size: 0.875rem;
+}
+
+.meta {
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+
+/* ── Follow-ups ────────────────────────────────────────────────────────────── */
+
+.followUp {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+}
+
+/* Color-coded by bucket: a thank-you email, or a follow-up meeting to set up */
+.kindThankYou {
+  border-left-color: var(--thank-you);
+}
+
+.kindFollowUp {
+  border-left-color: var(--meeting);
+}
+
+.legend {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tagThankYou {
+  background: var(--thank-you-bg);
+  color: var(--thank-you);
+}
+
+.tagFollowUp {
+  background: var(--meeting-bg);
+  color: var(--meeting);
+}
+
+.check {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--penn-blue);
+  cursor: pointer;
+}
+
+.followUpBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.action,
+.actionLink {
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.actionLink {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.actionLink:hover {
+  color: var(--penn-blue);
+  text-decoration: underline;
+}
+
+.followUpBody .meta {
+  margin: 0;
+}
+
+.due {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nav-hover);
+  color: var(--section-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dueOverdue {
+  background: var(--overdue-bg);
+  color: var(--overdue);
+}
+
+.dueToday {
+  background: var(--today-bg);
+  color: var(--today);
+}
+
+/* ── People ────────────────────────────────────────────────────────────────── */
+
+.search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.person {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.person:hover {
+  background: var(--sidebar-bg);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.personBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.personName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.classYear {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.personSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--penn-blue-bg);
+  color: var(--penn-blue);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Person card (pop-up) ──────────────────────────────────────────────────── */
+
+/* position: fixed covers the tool's page area, beside the sidebar and under the header */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.2);
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--nav-hover);
+  color: var(--section-label);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 36px;
+}
+
+.cardHeader .meta {
+  margin: 2px 0 0;
+}
+
+.avatarLarge {
+  width: 52px;
+  height: 52px;
+  font-size: 1rem;
+}
+
+.cardName {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.takeawaysBox {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--penn-blue-bg);
+}
+
+.takeawaysBox .groupLabel {
+  margin: 0 0 6px;
+}
+
+.takeaways {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offer {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--thank-you-bg);
+  color: var(--thank-you);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Edit and delete, at the foot of the person card */
+.cardActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.editLink {
+  color: var(--penn-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.deleteButton {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #b42318;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.deleteButton:hover { text-decoration: underline; }
+
+/* The relationship under the person's name, as a small pill */
+.relationship {
+  display: inline-block;
+  margin: 4px 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--penn-blue-bg);
+  color: var(--penn-blue);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* The due-date tag is a button: clicking it opens a calendar */
+.dueWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.dueButton {
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+.dueButton:hover,
+.dueButton:focus-visible {
+  border-color: currentColor;
+}
+.dueIcon {
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 0.95em;
+  line-height: 1;
+  vertical-align: -1px;
+}
+/* Invisible, under the tag, so the browser's calendar opens next to it */
+.dueInput {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* "Log another chat" on the person card */
+.anotherChat {
+  align-self: flex-start;
+  display: inline-block;
+  margin: 12px 0 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.anotherChat:hover {
+  opacity: 0.9;
+}
+
+/* Every chat with the person, newest first */
+.chats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chat {
+  padding: 8px 12px;
+  border-left: 3px solid var(--border);
+}
+.chat:first-child {
+  border-left-color: var(--penn-blue);
+}
+.chatDate {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.chatLatest {
+  color: var(--penn-blue);
+}
+
+/* Editing an earlier chat in place, on the person's card */
+.chatEditButton {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-top: 4px;
+  color: var(--penn-blue);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chatEditButton:hover { text-decoration: underline; }
+.chatEdit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--penn-blue-bg);
+}
+.chatEditField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--section-label);
+}
+.chatEditField input,
+.chatEditField select,
+.chatEditField textarea {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.chatEditCheck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.chatEditErrors {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: #b42318;
+}
+.chatEditActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.chatEditSave {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: var(--penn-blue);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* "Chat #N" in the list: click it to edit that chat */
+.chatLink {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--penn-blue);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.chatLink:hover {
+  text-decoration-style: solid;
+}

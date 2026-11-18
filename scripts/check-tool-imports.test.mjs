@@ -51,6 +51,10 @@ test("flags each kind of violation on its own line", () => {
       `const zod = await import("@anthropic-ai/sdk/helpers/zod");`,
       `await fetch("https://api.anthropic.com/v1/messages");`,
       `const keys = userApiKeys;`,
+      `const spend = await aiUsage.platformSpend(id);`,
+      `import { logger, admins } from "@/lib/container";`,
+      `import {\n  toolVisits,\n} from "@/lib/container";`,
+      `const note = "Ask the admins";`,
     ].join("\n"),
   });
   assert.equal(code, 1);
@@ -63,10 +67,66 @@ test("flags each kind of violation on its own line", () => {
     "bad.ts:7  vendor SDK",
     "bad.ts:8  provider API URL",
     "bad.ts:9  users' API keys",
+    "bad.ts:10  users' API keys",
+    "bad.ts:11  platform data",
+    "bad.ts:12  platform data",
   ]) {
     assert.ok(output.includes(expected), `missing "${expected}" in:\n${output}`);
   }
   assert.ok(!output.includes("bad.ts:1 "), "the next/server import must not be flagged");
+  assert.ok(!output.includes("bad.ts:15 "), "the word admins in text must not be flagged");
+});
+
+test("flags PDFs opened without isEvalSupported: false, and pdfjs's legacy build", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/pdf.ts": [
+      `const pdfjs = await import("pdfjs-dist");`,
+      `const a = await pdfjs.getDocument({ data, isEvalSupported: false }).promise;`,
+      `const b = await pdfjs.getDocument({\n  data: new Uint8Array(buf),\n  isEvalSupported: false,\n}).promise;`,
+      `const c = await pdfjs.getDocument({ data }).promise;`,
+      `const d = await pdfjs.getDocument(url).promise;`,
+      `const e = await pdfjs.getDocument({ data: f(x), isEvalSupported: true }).promise;`,
+      `interface Lib { getDocument: (s: { data: ArrayBuffer }) => unknown }`,
+      `const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.js");`,
+    ].join("\n"),
+  });
+  assert.equal(code, 1);
+  for (const expected of ["pdf.ts:7  unsafe PDF", "pdf.ts:8  unsafe PDF", "pdf.ts:9  unsafe PDF", "pdf.ts:11  pdfjs legacy build"]) {
+    assert.ok(output.includes(expected), `missing "${expected}" in:\n${output}`);
+  }
+  for (const line of [1, 2, 3, 10]) {
+    assert.ok(!output.includes(`pdf.ts:${line} `), `line ${line} must not be flagged:\n${output}`);
+  }
+});
+
+test("flags a hand-written list of the error kinds Settings fixes", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/Page.tsx": [
+      `import { useState } from "react";`,
+      `const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);`,
+      `const KEY_ERRORS = [`,
+      `  'no_credit',`,
+      `  'invalid_key',`,
+      `  'missing_key',`,
+      `];`,
+    ].join("\n"),
+  });
+  assert.equal(code, 1);
+  assert.match(output, /Page\.tsx:2 {2}Settings error list: call isSettingsError/);
+  assert.match(output, /Page\.tsx:3 {2}Settings error list/);
+  assert.match(output, /2 platform rule/);
+});
+
+test("allows one error kind on its own, and the shared helper", () => {
+  const { code, output } = check({
+    "apps/web/src/app/tools/demo/route.ts": [
+      `import { isSettingsError } from "@penntools/core/ai/errors";`,
+      `const missing = { error: "Add a key in Settings.", kind: "missing_key" };`,
+      `const kinds = ["missing_key", "rate_limited"];`,
+      `const shown = isSettingsError(missing.kind);`,
+    ].join("\n"),
+  });
+  assert.equal(code, 0, output);
 });
 
 test("doesn't stretch one import match across several import statements", () => {
@@ -87,38 +147,10 @@ test("skips known exceptions and ignores build output", () => {
   assert.match(output, /known exception/);
 });
 
-/** A tool's manifest, with notYetMigrated (line 5) when `flag` is set. */
-const LEGACY_MANIFEST = (flag) =>
-  [
-    `export class Demo extends Tool {`,
-    `  readonly manifest: ToolManifest = {`,
-    `    id: "demo",`,
-    `    category: "LLM Tools",`,
-    ...(flag ? [`    notYetMigrated: true,`] : []),
-    `  };`,
-    `}`,
-  ].join("\n");
-const LEGACY_CALL = `await fetch("/api/llm/complete", { method: "POST" });\n`;
-
-test("passes a tool that calls the legacy LLM API and says so in its manifest", () => {
+test("flags calls to the removed legacy LLM API", () => {
   const { code, output } = check({
-    "tools/demo/src/DemoTool.ts": LEGACY_MANIFEST(true),
-    "apps/web/src/app/tools/demo/page.tsx": LEGACY_CALL,
-  });
-  assert.equal(code, 0, output);
-});
-
-test("flags a tool that calls the legacy LLM API without notYetMigrated", () => {
-  const { code, output } = check({
-    "tools/demo/src/DemoTool.ts": LEGACY_MANIFEST(false),
-    "apps/web/src/app/tools/demo/page.tsx": LEGACY_CALL,
+    "apps/web/src/app/tools/demo/page.tsx": `const res = await fetch("/api/llm/complete", { method: "POST" });\n`,
   });
   assert.equal(code, 1);
-  assert.match(output, /tools\/demo\/src\/DemoTool\.ts:2  not yet migrated: apps\/web\/src\/app\/tools\/demo\/page\.tsx calls the legacy LLM API/);
-});
-
-test("flags notYetMigrated on a tool that no longer calls the legacy LLM API", () => {
-  const { code, output } = check({ "tools/demo/src/DemoTool.ts": LEGACY_MANIFEST(true) });
-  assert.equal(code, 1);
-  assert.match(output, /tools\/demo\/src\/DemoTool\.ts:5  not yet migrated: nothing in the tool calls the legacy LLM API/);
+  assert.match(output, /apps\/web\/src\/app\/tools\/demo\/page\.tsx:1  removed LLM API/);
 });

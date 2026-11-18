@@ -3,7 +3,7 @@
 
 Usage (use `python` or `py` instead of `python3` on Windows):
     python3 scripts/capture-tool-screenshots.py                          # every tool
-    python3 scripts/capture-tool-screenshots.py career-canvas stactab    # just these
+    python3 scripts/capture-tool-screenshots.py askpenn stactab          # just these
 
 Needs Pillow (`pip install pillow`) and Chrome, or Edge, which every Windows
 install has; set CHROME to the browser's path if it isn't found. Images are
@@ -51,6 +51,7 @@ def local(path: str) -> dict:
 TARGETS = {
     # Community tools (apps/web/src/data/communityTools.ts)
     "quakercal": {"url": "https://quakercal.vercel.app/"},
+    "mbakit": {"url": "https://mbakit.vercel.app/"},
     "mba-tech-internships": {
         # The README, not GitHub's file listing.
         "url": "https://github.com/TrevorDohm/MBA-Tech-Internships-2027",
@@ -68,13 +69,24 @@ TARGETS = {
     },
     "ai-compass": {"url": "https://akshitkalra.com/aicompass"},
     # Registered tools (tools/*), keyed by manifest id
-    "resume-customizer": local("/tools/resume-customizer"),
-    "career-canvas": local("/tools/career-canvas"),
-    "coursematch-assist": local("/tools/coursematch-assist"),
-    "penn-planner": local("/tools/penn-planner"),
-    "pitch-coach": local("/tools/pitch-coach"),
+    "resume-customizer": local("/tools/resume-customizer"),  # needs sign-in: its image was taken signed in
+    "pitch-coach": local("/tools/pitch-coach"),  # needs sign-in: its image was taken signed in
     "platform-playground": local("/tools/platform-playground"),
     "askpenn": local("/tools/askpenn"),
+    "recruiting-helper": local("/tools/recruiting-helper"),  # needs sign-in: its image was taken signed in
+    "accounting-practice": local("/tools/accounting-practice"),
+    "choose-mba-major": local("/tools/choose-mba-major"),
+    "non-wharton-course-manager": local("/tools/non-wharton-course-manager"),
+    "keepintouch": local("/tools/keepintouch"),  # needs sign-in: its image was taken signed in
+    "deadline-calendar": local("/tools/deadline-calendar"),  # needs sign-in: its image was taken signed in
+    "wemba-sync": local("/tools/wemba-sync"),  # needs sign-in: its image was taken signed in, with sample data
+    "student-discount-maximizer": local("/tools/student-discount-maximizer"),  # needs the seeded deals (db:deploy)
+    "pass-it-on": local("/tools/pass-it-on"),  # needs sign-in and board access: its image was taken signed in, with sample data
+    "chatprep": local("/tools/chatprep"),  # needs sign-in: its image was taken signed in
+    "penn-pals": local("/tools/penn-pals"),  # its image was taken signed in, with sample contacts and the "how it works" box hidden
+    "paper-tldr": local("/tools/paper-tldr"),
+    "industry-connector": local("/tools/industry-connector"),  # needs sign-in and a loaded directory: its image was taken signed in, with fictional sample people and the admins' upload link hidden
+    "feedback-insights": local("/tools/feedback-insights"),  # its image was taken with "Try sample data" loaded and its notice dismissed
 }
 
 

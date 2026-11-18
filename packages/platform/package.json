@@ -12,10 +12,6 @@
       "types": "./dist/db/index.d.ts",
       "import": "./dist/db/index.js"
     },
-    "./llm": {
-      "types": "./dist/llm/index.d.ts",
-      "import": "./dist/llm/index.js"
-    },
     "./ai": {
       "types": "./dist/ai/index.d.ts",
       "import": "./dist/ai/index.js"
@@ -34,13 +30,13 @@
     "test": "vitest run",
     "clean": "rm -rf dist",
     "db:generate": "prisma generate",
-    "db:deploy": "prisma db push --skip-generate && node scripts/setup-tools.mjs"
+    "db:deploy": "prisma db push --skip-generate && node scripts/seed-platform.mjs && node scripts/setup-tools.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "@penntools/core": "workspace:*",
     "@prisma/client": "^5.14.0",
-    "openai": "^7.39.0",
+    "openai": "^7.57.0",
     "postgres": "^3.4.5",
     "zod": "^4.6.7"
   },

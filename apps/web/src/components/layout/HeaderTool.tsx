@@ -12,8 +12,8 @@ import { ToolInfoButton } from "./ToolInfoButton";
 import styles from "./SiteHeader.module.css";
 
 export function HeaderTool({ tools }: { tools: Record<string, ToolInfo> }) {
-  // From the root layout, the segments of /tools/career-canvas/wizard are
-  // ["tools", "career-canvas", "wizard"].
+  // From the root layout, the segments of /tools/pass-it-on/board are
+  // ["tools", "pass-it-on", "board"].
   const [section, id] = useSelectedLayoutSegments();
   const tool = section === "tools" && id !== undefined ? tools[id] : undefined;
   if (!tool) return null;

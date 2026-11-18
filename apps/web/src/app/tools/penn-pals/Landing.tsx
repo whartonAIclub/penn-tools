@@ -1,0 +1,660 @@
+"use client";
+
+// A summary of people, thank-yous and follow-ups on top, then two lanes:
+// follow-ups in three buckets, due today, overdue and coming up (left), and
+// everyone the student has talked to (right). Clicking a person opens their card.
+// Everything shown comes from the user's saved contacts: in their account when
+// signed in, in this browser otherwise (useContacts). Follow-ups come from
+// followUpsFor(), so marking one done saves it and schedules the next.
+
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  chatsWith,
+  chatToEdit,
+  countByKind,
+  daysFrom,
+  followUpStatus,
+  followUpsFor,
+  linkedinHref,
+  localToday,
+  markFollowUpDone,
+  relationshipLabel,
+  reopenStep,
+  describeRecurrence,
+  editPastChat,
+  rescheduleStep,
+  SENIORITY_LABELS,
+} from "@penntools/tool-penn-pals";
+import type { ChatEdit, Contact, FollowUp, FollowUpKind, FollowUpStatus, Recurrence } from "@penntools/tool-penn-pals";
+import { HowItWorks } from "./HowItWorks";
+import { StorageNote } from "./StorageNote";
+import { useContacts } from "./useContacts";
+import styles from "./Landing.module.css";
+
+// The three timeline buckets, in the order the lane shows them
+const BUCKETS: { label: string; statuses: FollowUpStatus[]; empty: string; className: string }[] = [
+  { label: "Due today", statuses: ["today"], empty: "Nothing due today.", className: styles.bucketToday! },
+  { label: "Overdue", statuses: ["overdue"], empty: "Nothing overdue. 🎉", className: styles.bucketOverdue! },
+  { label: "Coming up", statuses: ["thisWeek", "later"], empty: "Nothing coming up.", className: styles.bucketLater! },
+];
+
+// The two buckets the debrief sorts next steps into, each with its own color
+const KINDS: Record<FollowUpKind, { label: string; card: string; tag: string }> = {
+  thankYou: { label: "Thank-you email", card: styles.kindThankYou!, tag: styles.tagThankYou! },
+  followUp: { label: "Check-in", card: styles.kindFollowUp!, tag: styles.tagFollowUp! },
+};
+
+function dueLabel(days: number): string {
+  if (days < -1) return `${-days} days overdue`;
+  if (days === -1) return "1 day overdue";
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return `In ${days} days`;
+}
+
+function chatLabel(days: number): string {
+  if (days === 0) return "Talked today";
+  if (days === -1) return "Talked yesterday";
+  return `Talked ${-days} days ago`;
+}
+
+function initials(name: string): string {
+  return name.split(" ").map((part) => part[0]).join("").slice(0, 2);
+}
+
+const VIBE_WORDS: Record<Contact["vibe"], string> = {
+  great: "Went great",
+  good: "Went well",
+  neutral: "Neutral",
+  lukewarm: "Lukewarm",
+};
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/** YYYY-MM-DD for a local date. */
+function isoDate(date: Date): string {
+  return date.toLocaleDateString("en-CA");
+}
+
+/**
+ * The due-date tag; clicking it opens a calendar to pick a new date. The date
+ * input sits invisibly under the tag so the browser's picker opens beside it.
+ */
+function DueDate({ due, today, onChange }: { due: string; today: Date; onChange: (date: string) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const days = daysFrom(today, due);
+  const open = () => {
+    const el = input.current;
+    if (!el) return;
+    try {
+      el.showPicker(); // Chrome, Edge, Firefox, Safari 16+
+    } catch {
+      el.focus();
+    }
+  };
+  return (
+    <span className={styles.dueWrap}>
+      <button
+        type="button"
+        className={`${styles.due} ${styles.dueButton} ${days < 0 ? styles.dueOverdue : days === 0 ? styles.dueToday : ""}`}
+        title="Change the date"
+        onClick={open}
+      >
+        {dueLabel(days)} <span className={styles.dueIcon} aria-hidden>▾</span>
+      </button>
+      <input
+        ref={input}
+        type="date"
+        className={styles.dueInput}
+        aria-label="New due date"
+        tabIndex={-1}
+        value={due}
+        min={isoDate(today)}
+        max={isoDate(new Date(today.getFullYear() + 2, today.getMonth(), today.getDate()))}
+        onChange={(e) => e.target.value && e.target.value !== due && onChange(e.target.value)}
+      />
+    </span>
+  );
+}
+
+function FollowUpRow({
+  followUp,
+  contact,
+  recurrence,
+  today,
+  onDone,
+  onReschedule,
+  onOpen,
+}: {
+  followUp: FollowUp;
+  contact: Contact | undefined;
+  /** How the person's check-in repeats, if it does; shown on check-ins. */
+  recurrence?: Recurrence | null | undefined;
+  today: Date;
+  onDone: (f: FollowUp) => void;
+  onReschedule: (f: FollowUp, date: string) => void;
+  onOpen?: (contactId: string) => void;
+}) {
+  return (
+    <li className={`${styles.followUp} ${KINDS[followUp.kind].card}`}>
+      <input
+        type="checkbox"
+        className={styles.check}
+        aria-label={`Mark done: ${followUp.action}`}
+        checked={false}
+        onChange={() => onDone(followUp)}
+      />
+      <div className={styles.followUpBody}>
+        {onOpen ? (
+          <button type="button" className={styles.actionLink} onClick={() => onOpen(followUp.contactId)}>
+            {followUp.action}
+          </button>
+        ) : (
+          <p className={styles.action}>{followUp.action}</p>
+        )}
+        {contact?.company && <p className={styles.meta}>{contact.company}</p>}
+        {followUp.kind === "followUp" && recurrence && <p className={styles.meta}>↻ Repeats {describeRecurrence(recurrence)}</p>}
+      </div>
+      <DueDate due={followUp.due} today={today} onChange={(date) => onReschedule(followUp, date)} />
+    </li>
+  );
+}
+
+const VIBE_ORDER: Contact["vibe"][] = ["great", "good", "neutral", "lukewarm"];
+
+/** The edit form for one earlier chat, shown in place of its summary. */
+function ChatEditForm({
+  chat,
+  label,
+  onSave,
+  onDone,
+}: {
+  chat: ChatEdit;
+  label: string;
+  onSave: (edit: ChatEdit) => string[];
+  onDone: () => void;
+}) {
+  const [draft, setDraft] = useState<ChatEdit>(chat);
+  const [errors, setErrors] = useState<string[]>([]);
+  const set = <K extends keyof ChatEdit>(key: K, value: ChatEdit[K]) => setDraft((d) => ({ ...d, [key]: value }));
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const problems = onSave(draft);
+    if (problems.length > 0) return setErrors(problems);
+    onDone();
+  }
+
+  return (
+    <form className={styles.chatEdit} onSubmit={submit} aria-label={`Edit ${label}`}>
+      <label className={styles.chatEditField}>
+        Date of chat *
+        <input type="date" value={draft.meetingDate} onChange={(e) => set("meetingDate", e.target.value)} required />
+      </label>
+      <label className={styles.chatEditField}>
+        How it went
+        <select value={draft.vibe} onChange={(e) => set("vibe", e.target.value as Contact["vibe"])}>
+          {VIBE_ORDER.map((vibe) => (
+            <option key={vibe} value={vibe}>
+              {VIBE_WORDS[vibe]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.chatEditField}>
+        Key takeaways (one per line)
+        <textarea rows={3} value={draft.takeaways} onChange={(e) => set("takeaways", e.target.value)} />
+      </label>
+      <label className={styles.chatEditField}>
+        Notes
+        <textarea rows={3} value={draft.notes} onChange={(e) => set("notes", e.target.value)} />
+      </label>
+      <label className={styles.chatEditCheck}>
+        <input type="checkbox" checked={draft.offeredReferral} onChange={(e) => set("offeredReferral", e.target.checked)} />
+        Offered a referral
+      </label>
+      <label className={styles.chatEditCheck}>
+        <input type="checkbox" checked={draft.offeredIntro} onChange={(e) => set("offeredIntro", e.target.checked)} />
+        Offered an introduction
+      </label>
+      {errors.length > 0 && (
+        <ul className={styles.chatEditErrors} role="alert">
+          {errors.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      )}
+      <div className={styles.chatEditActions}>
+        <button type="submit" className={styles.chatEditSave}>
+          Save changes
+        </button>
+        <button type="button" className={styles.chatEditButton} onClick={onDone}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PersonCard({
+  contact,
+  followUps,
+  today,
+  onDone,
+  onReschedule,
+  onReopen,
+  onEditChat,
+  onDelete,
+  onClose,
+}: {
+  contact: Contact;
+  followUps: FollowUp[];
+  today: Date;
+  onDone: (f: FollowUp) => void;
+  onReschedule: (f: FollowUp, date: string) => void;
+  /** Puts the finished step at this index back on the to-do list. */
+  onReopen: (stepIndex: number) => void;
+  /** Saves changes to an earlier chat (0 is the most recent of the earlier ones); returns what's wrong, or nothing when saved. */
+  onEditChat: (pastIndex: number, edit: ChatEdit) => string[];
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const links = [
+    contact.email && { label: contact.email, href: `mailto:${contact.email}` },
+    // Linked only when it really is a linkedin.com address; the AI can fill this from pasted text, so anything else is shown as text.
+    contact.linkedin &&
+      (linkedinHref(contact.linkedin)
+        ? { label: "LinkedIn", href: linkedinHref(contact.linkedin) }
+        : { label: `LinkedIn: ${contact.linkedin}`, href: null }),
+    contact.phone && { label: contact.phone, href: `tel:${contact.phone}` },
+  ].filter((link): link is { label: string; href: string | null } => Boolean(link));
+
+  const chats = chatsWith(contact);
+  // Which earlier chat is being edited (its place in `chats`), if any.
+  const [editingChat, setEditingChat] = useState<number | null>(null);
+
+  // Finished steps stay on the person: most recent first, those without a recorded date last.
+  const completed = contact.nextSteps
+    .map((step, index) => ({ step, index }))
+    .filter(({ step }) => step.done)
+    .sort((a, b) => (b.step.doneOn ?? "").localeCompare(a.step.doneOn ?? ""));
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="person-card-name"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" className={styles.close} aria-label="Close" onClick={onClose} autoFocus>
+          ✕
+        </button>
+
+        <div className={styles.cardHeader}>
+          <span className={`${styles.avatar} ${styles.avatarLarge}`} aria-hidden>
+            {initials(contact.name)}
+          </span>
+          <div>
+            <h2 id="person-card-name" className={styles.cardName}>
+              {contact.name} {contact.classYear && <span className={styles.classYear}>{contact.classYear}</span>}
+            </h2>
+            {(contact.role || contact.company) && (
+              <p className={styles.meta}>{[contact.role, contact.company].filter(Boolean).join(" · ")}</p>
+            )}
+            <p className={styles.relationship}>{relationshipLabel(contact)}</p>
+            {contact.seniority && <p className={styles.meta}>{SENIORITY_LABELS[contact.seniority]}</p>}
+            <p className={styles.meta}>
+              {chatLabel(daysFrom(today, contact.meetingDate))} · {contact.meetingDate}
+            </p>
+          </div>
+        </div>
+
+        <Link href={`/tools/penn-pals/tracker?another=${encodeURIComponent(contact.id)}`} className={styles.anotherChat}>
+          + Log chat #{chats.length + 1}
+        </Link>
+
+        {contact.takeaways.length > 0 && (
+          <div className={styles.takeawaysBox}>
+            <h3 className={styles.groupLabel}>Key takeaways</h3>
+            <ul className={styles.takeaways}>
+              {contact.takeaways.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {(contact.offeredReferral || contact.offeredIntro) && (
+          <ul className={styles.offers}>
+            {contact.offeredReferral && <li className={styles.offer}>✓ Offered to refer you</li>}
+            {contact.offeredIntro && <li className={styles.offer}>✓ Offered to make an introduction</li>}
+          </ul>
+        )}
+
+        <div className={styles.group}>
+          <h3 className={styles.groupLabel}>Next steps</h3>
+          {followUps.length === 0 ? (
+            <p className={styles.empty}>Nothing owed right now.</p>
+          ) : (
+            <ul className={styles.list}>
+              {followUps.map((f) => (
+                <FollowUpRow key={f.id} followUp={f} contact={undefined} recurrence={contact.recurrence} today={today} onDone={onDone} onReschedule={onReschedule} />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {completed.length > 0 && (
+          <div className={styles.group}>
+            <h3 className={styles.groupLabel}>History</h3>
+            <ul className={styles.list}>
+              {completed.map(({ step, index }) => (
+                <li key={index} className={styles.meta}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked
+                      aria-label={`Reopen: ${step.action}`}
+                      title="Uncheck to move this back to your to-do list"
+                      onChange={() => onReopen(index)}
+                    />{" "}
+                    {step.action}
+                    {step.doneOn && ` · completed ${step.doneOn}`}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {chats.length > 1 && (
+          <div className={styles.group}>
+            <h3 className={styles.groupLabel}>
+              Your chats <span className={styles.count}>{chats.length}</span>
+            </h3>
+            <ol className={styles.chats}>
+              {chats.map((chat, i) => (
+                <li key={`${chat.meetingDate}-${i}`} className={styles.chat}>
+                  <p className={styles.chatDate}>
+                    {i === 0 ? (
+                      // The latest chat is edited with the person's details, on the form.
+                      <Link
+                        href={`/tools/penn-pals/tracker?edit=${encodeURIComponent(contact.id)}`}
+                        className={styles.chatLink}
+                        aria-label={`Edit chat #${chats.length - i}`}
+                      >
+                        Chat #{chats.length - i}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.chatLink}
+                        aria-label={`Edit chat #${chats.length - i}`}
+                        aria-expanded={editingChat === i}
+                        onClick={() => setEditingChat(editingChat === i ? null : i)}
+                      >
+                        Chat #{chats.length - i}
+                      </button>
+                    )}{" "}
+                    · {chat.meetingDate}
+                    {i === 0 && <span className={styles.chatLatest}> · latest</span>} · {VIBE_WORDS[chat.vibe]}
+                  </p>
+                  {i > 0 && editingChat === i ? (
+                    <ChatEditForm
+                      chat={chatToEdit(chat)}
+                      label={`Chat #${chats.length - i}`}
+                      onSave={(edit) => onEditChat(i - 1, edit)}
+                      onDone={() => setEditingChat(null)}
+                    />
+                  ) : (
+                    <>
+                      {i > 0 && chat.takeaways.length > 0 && ( // the latest chat's are under Key takeaways
+                        <ul className={styles.takeaways}>
+                          {chat.takeaways.map((t) => (
+                            <li key={t}>{t}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {links.length > 0 && (
+          <div className={styles.links}>
+            {links.map((link) =>
+              link.href ? (
+                <a key={link.href} href={link.href} className={styles.chip} target="_blank" rel="noreferrer">
+                  {link.label}
+                </a>
+              ) : (
+                <span key={link.label} className={styles.chip}>
+                  {link.label}
+                </span>
+              ),
+            )}
+          </div>
+        )}
+
+        <div className={styles.cardActions}>
+          <Link href={`/tools/penn-pals/tracker?edit=${encodeURIComponent(contact.id)}`} className={styles.editLink}>
+            Edit details
+          </Link>
+          <button
+            type="button"
+            className={styles.deleteButton}
+            onClick={() => {
+              if (window.confirm(`Delete ${contact.name} and their follow-ups? This can't be undone.`)) onDelete();
+            }}
+          >
+            Delete contact
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Landing({ signedIn }: { signedIn: boolean }) {
+  // Today is the user's own date, worked out in the browser (the server runs in UTC, so its date can be a day off in the evening).
+  const [todayIso, setTodayIso] = useState<string | null>(null);
+  useEffect(() => setTodayIso(localToday()), []);
+
+  // null until the contacts are loaded, so the page doesn't flash empty.
+  const store = useContacts(signedIn);
+  const saved = store.contacts;
+  const [opened, setOpened] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  const allContacts = saved ?? [];
+
+  const contactsById = useMemo(() => new Map(allContacts.map((c) => [c.id, c])), [allContacts]);
+  const followUps = useMemo(
+    () => allContacts.flatMap(followUpsFor).sort((a, b) => a.due.localeCompare(b.due)),
+    [allContacts],
+  );
+
+  if (!saved || !todayIso) {
+    return store.error ? <StorageNote store={store} /> : <p className={styles.empty}>Loading…</p>;
+  }
+
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const today = new Date(y!, m! - 1, d!);
+  const totals = countByKind(followUps);
+
+  const openCount = (contactId: string) =>
+    followUps.filter((f) => f.contactId === contactId && followUpStatus(today, f.due) !== "later").length;
+
+  const q = query.trim().toLowerCase();
+  const people = allContacts
+    .filter((c) => !q || `${c.name} ${c.company ?? ""} ${c.role ?? ""}`.toLowerCase().includes(q))
+    .sort((a, b) => b.meetingDate.localeCompare(a.meetingDate));
+
+  // Shows the change at once; a failed save shows in the note above, with a retry.
+  const save = (next: Contact[]) => void store.save(next);
+
+  const markDone = (followUp: FollowUp) => {
+    // (The team's follow-through numbers are recorded by the server when this is saved to the account.)
+    save(allContacts.map((c) => (c.id === followUp.contactId ? markFollowUpDone(c, followUp, todayIso) : c)));
+  };
+
+  const reschedule = (followUp: FollowUp, date: string) =>
+    save(allContacts.map((c) => (c.id === followUp.contactId ? rescheduleStep(c, followUp.stepIndex, date) : c)));
+
+  const reopen = (contactId: string, stepIndex: number) =>
+    save(allContacts.map((c) => (c.id === contactId ? reopenStep(c, stepIndex) : c)));
+
+  const editChat = (contactId: string, pastIndex: number, edit: ChatEdit): string[] => {
+    const contact = allContacts.find((c) => c.id === contactId);
+    if (!contact) return ["That contact could not be found."];
+    const result = editPastChat(contact, pastIndex, edit, todayIso);
+    if (!result.ok) return result.errors;
+    save(allContacts.map((c) => (c.id === contactId ? result.contact : c)));
+    return [];
+  };
+
+  const remove = (contactId: string) => {
+    setOpened(null);
+    save(allContacts.filter((c) => c.id !== contactId));
+  };
+
+  const openedContact = opened ? contactsById.get(opened) : undefined;
+  const row = (f: FollowUp) => (
+    <FollowUpRow
+      key={f.id}
+      followUp={f}
+      contact={contactsById.get(f.contactId)}
+      recurrence={contactsById.get(f.contactId)?.recurrence}
+      today={today}
+      onDone={markDone}
+      onReschedule={reschedule}
+      onOpen={setOpened}
+    />
+  );
+
+  return (
+    <div className={styles.page}>
+      <HowItWorks empty={allContacts.length === 0} />
+      <StorageNote store={store} />
+      <section className={styles.summary} aria-label="Summary">
+        <div className={styles.stat}>
+          <span className={styles.statNumber}>{allContacts.length}</span>
+          <span className={styles.statLabel}>{allContacts.length === 1 ? "Person" : "People"} in your network</span>
+        </div>
+        <div className={`${styles.stat} ${styles.statThankYou}`}>
+          <span className={styles.statNumber}>{totals.thankYou}</span>
+          <span className={styles.statLabel}>{totals.thankYou === 1 ? "Thank-you note" : "Thank-you notes"} to send</span>
+        </div>
+        <div className={`${styles.stat} ${styles.statFollowUp}`}>
+          <span className={styles.statNumber}>{totals.followUp}</span>
+          <span className={styles.statLabel}>{totals.followUp === 1 ? "Check-in" : "Check-ins"} to send</span>
+        </div>
+      </section>
+
+      <div className={styles.lanes}>
+        <section className={styles.lane} aria-labelledby="followups-title">
+          <div className={styles.laneHeader}>
+            <h2 id="followups-title" className={styles.laneTitle}>
+              Follow-ups <span className={styles.count}>{followUps.length}</span>
+            </h2>
+            <div className={styles.legend}>
+              {Object.values(KINDS).map((k) => (
+                <span key={k.label} className={`${styles.tag} ${k.tag}`}>
+                  {k.label}
+                </span>
+              ))}
+            </div>
+          </div>
+          {BUCKETS.map(({ label, statuses, empty, className }) => {
+            const items = followUps.filter((f) => statuses.includes(followUpStatus(today, f.due)));
+            return (
+              <div key={label} className={`${styles.bucket} ${className}`}>
+                <h3 className={styles.bucketTitle}>
+                  {label} <span className={styles.count}>{items.length}</span>
+                </h3>
+                {items.length === 0 ? <p className={styles.empty}>{empty}</p> : <ul className={styles.list}>{items.map(row)}</ul>}
+              </div>
+            );
+          })}
+        </section>
+
+        <section className={styles.lane} aria-labelledby="people-title">
+          <div className={styles.laneHeader}>
+            <h2 id="people-title" className={styles.laneTitle}>
+              People you&apos;ve talked to <span className={styles.count}>{allContacts.length}</span>
+            </h2>
+          </div>
+          <input
+            type="search"
+            className={styles.search}
+            placeholder="Search by name, company or role"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {allContacts.length === 0 ? (
+            <p className={styles.empty}>
+              Your network starts here. <Link href="/tools/penn-pals/tracker">Log your first chat</Link>.
+            </p>
+          ) : people.length === 0 ? (
+            <p className={styles.empty}>No one matches &ldquo;{query}&rdquo;.</p>
+          ) : (
+            <ul className={styles.list}>
+              {people.map((c) => {
+                const open = openCount(c.id);
+                return (
+                  <li key={c.id}>
+                    <button type="button" className={styles.person} onClick={() => setOpened(c.id)}>
+                      <span className={styles.avatar} aria-hidden>
+                        {initials(c.name)}
+                      </span>
+                      <span className={styles.personBody}>
+                        <span className={styles.personName}>
+                          {c.name} {c.classYear && <span className={styles.classYear}>{c.classYear}</span>}
+                        </span>
+                        {(c.role || c.company) && (
+                          <span className={styles.meta}>{[c.role, c.company].filter(Boolean).join(" · ")}</span>
+                        )}
+                      </span>
+                      <span className={styles.personSide}>
+                        <span className={styles.meta}>{chatLabel(daysFrom(today, c.meetingDate))}</span>
+                        {open > 0 && <span className={styles.badge}>{plural(open, "follow-up", "follow-ups")}</span>}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {openedContact && (
+        <PersonCard
+          contact={openedContact}
+          followUps={followUps.filter((f) => f.contactId === openedContact.id)}
+          today={today}
+          onDone={markDone}
+          onReschedule={reschedule}
+          onReopen={(stepIndex) => reopen(openedContact.id, stepIndex)}
+          onEditChat={(pastIndex, edit) => editChat(openedContact.id, pastIndex, edit)}
+          onDelete={() => remove(openedContact.id)}
+          onClose={() => setOpened(null)}
+        />
+      )}
+    </div>
+  );
+}
