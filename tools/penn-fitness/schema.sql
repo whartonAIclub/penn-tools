@@ -13,17 +13,15 @@
 
 -- ── Shared ──────────────────────────────────────────────────────────────────
 
--- Where the user lives and when they're awake: used by both halves.
-CREATE TABLE IF NOT EXISTS profiles (
-  user_id           TEXT        PRIMARY KEY,
-  home_base         TEXT        NOT NULL CHECK (home_base IN ('CAMPUS', 'CENTER_CITY')),
-  has_building_gym  BOOLEAN     NOT NULL,
-  waking_start      TIME        NOT NULL,
-  waking_end        TIME        NOT NULL,
-  -- Recurring timetable events repeat between these dates.
-  semester_start    DATE,
-  semester_end      DATE,
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- Each user's preferences, one JSON value per section: 'shared' (home,
+-- waking hours, semester dates), 'outtake', 'intake'. Fields are defined and
+-- checked in code (src/preferences.ts), so adding one needs no change here.
+CREATE TABLE IF NOT EXISTS preferences (
+  user_id     TEXT        NOT NULL,
+  section     TEXT        NOT NULL,
+  data        JSONB       NOT NULL DEFAULT '{}',
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, section)
 );
 
 -- Every analytics event from both halves (section 10 of docs/outtake.md).
@@ -39,15 +37,6 @@ CREATE INDEX IF NOT EXISTS analytics_events_name_idx ON analytics_events (name, 
 CREATE INDEX IF NOT EXISTS analytics_events_user_idx ON analytics_events (user_id, created_at);
 
 -- ── Outtake (exercise) ──────────────────────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS outtake_prefs (
-  user_id                 TEXT        PRIMARY KEY,
-  weekly_target_sessions  INTEGER     NOT NULL,
-  session_minutes         INTEGER     NOT NULL,
-  -- Any of MORNING, MIDDAY, EVENING; empty means no preference.
-  preferred_times         TEXT[]      NOT NULL DEFAULT '{}',
-  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 
 CREATE TABLE IF NOT EXISTS outtake_busy_blocks (
   id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),

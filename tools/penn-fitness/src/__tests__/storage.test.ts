@@ -1,16 +1,16 @@
-// Profile and workout-preference storage against a real Postgres, in a
-// throwaway schema. Skipped when no database is configured.
+// Preference storage against a real Postgres, in a throwaway schema. Skipped
+// when no database is configured.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { DEFAULT_PROFILE, type UserProfile } from "../profile.js";
-import { InvalidProfileError, getProfile, saveProfile } from "../storage/profile.js";
-import { DEFAULT_FITNESS_PREFS } from "../outtake/prefs.js";
-import { InvalidFitnessPrefsError, getFitnessPrefs, saveFitnessPrefs } from "../outtake/storage/prefs.js";
+import type { PreferenceSection } from "../preferences.js";
+import { SHARED_PREFS, type SharedPrefs } from "../sharedPrefs.js";
+import { InvalidPreferencesError, getPreferences, savePreferences } from "../storage/preferences.js";
+import { OUTTAKE_PREFS } from "../outtake/prefs.js";
 import { createTestDatabase, databaseUrl, type TestDatabase } from "./testDatabase.js";
 
 let db: TestDatabase;
 
-describe.skipIf(!databaseUrl)("Penn Fitness storage (Postgres)", () => {
+describe.skipIf(!databaseUrl)("Penn Fitness preference storage (Postgres)", () => {
   beforeAll(async () => {
     db = await createTestDatabase("storage");
   });
@@ -19,53 +19,55 @@ describe.skipIf(!databaseUrl)("Penn Fitness storage (Postgres)", () => {
     await db?.drop();
   });
 
-  describe("profiles", () => {
-    it("gives a user the default profile until they save one", async () => {
-      expect(await getProfile(db.sql, "new-user")).toEqual(DEFAULT_PROFILE);
-    });
-
-    it("saves, replaces and reads back a profile, including a day ending at midnight", async () => {
-      const profile: UserProfile = {
-        homeBase: "CENTER_CITY",
-        hasBuildingGym: true,
-        wakingStart: "06:30",
-        wakingEnd: "24:00",
-        semesterStart: "2027-01-13",
-        semesterEnd: "2027-05-05",
-      };
-      await saveProfile(db.sql, "alice", { ...profile, homeBase: "CAMPUS" });
-      await saveProfile(db.sql, "alice", profile);
-      expect(await getProfile(db.sql, "alice")).toEqual(profile);
-    });
-
-    it("keeps each user's profile separate", async () => {
-      await saveProfile(db.sql, "bob", { ...DEFAULT_PROFILE, wakingStart: "09:00" });
-      expect((await getProfile(db.sql, "bob")).wakingStart).toBe("09:00");
-      expect((await getProfile(db.sql, "alice")).wakingStart).toBe("06:30");
-    });
-
-    it("refuses to save an invalid profile", async () => {
-      await expect(saveProfile(db.sql, "carol", { ...DEFAULT_PROFILE, wakingEnd: "06:00" })).rejects.toThrow(InvalidProfileError);
-      expect(await getProfile(db.sql, "carol")).toEqual(DEFAULT_PROFILE);
-    });
+  it("gives a user each section's defaults until they save their own", async () => {
+    expect(await getPreferences(db.sql, "new-user", SHARED_PREFS)).toEqual(SHARED_PREFS.defaults);
+    expect(await getPreferences(db.sql, "new-user", OUTTAKE_PREFS)).toEqual(OUTTAKE_PREFS.defaults);
   });
 
-  describe("workout preferences", () => {
-    it("gives a user the defaults until they save their own", async () => {
-      expect(await getFitnessPrefs(db.sql, "new-user")).toEqual(DEFAULT_FITNESS_PREFS);
-    });
+  it("saves, replaces and reads back a section, including a corner and a day ending at midnight", async () => {
+    const shared: SharedPrefs = {
+      homeBase: "CENTER_CITY",
+      homeCorner: { street: 23, crossStreet: "Chestnut" },
+      hasBuildingGym: true,
+      wakingStart: "06:30",
+      wakingEnd: "24:00",
+      semesterStart: "2027-01-13",
+      semesterEnd: "2027-05-05",
+    };
+    await savePreferences(db.sql, "alice", SHARED_PREFS, { ...shared, hasBuildingGym: false });
+    await savePreferences(db.sql, "alice", SHARED_PREFS, shared);
+    expect(await getPreferences(db.sql, "alice", SHARED_PREFS)).toEqual(shared);
+  });
 
-    it("saves, replaces and reads back preferences, per user", async () => {
-      await saveFitnessPrefs(db.sql, "alice", { weeklyTargetSessions: 4, sessionMinutes: 30, preferredTimes: ["MORNING"] });
-      await saveFitnessPrefs(db.sql, "alice", { weeklyTargetSessions: 2, sessionMinutes: 60, preferredTimes: ["MIDDAY", "EVENING"] });
-      expect(await getFitnessPrefs(db.sql, "alice")).toEqual({ weeklyTargetSessions: 2, sessionMinutes: 60, preferredTimes: ["MIDDAY", "EVENING"] });
-      expect(await getFitnessPrefs(db.sql, "bob")).toEqual(DEFAULT_FITNESS_PREFS);
-    });
+  it("keeps sections and users separate", async () => {
+    await savePreferences(db.sql, "alice", OUTTAKE_PREFS, { weeklyTargetSessions: 2, sessionMinutes: 60, preferredTimes: ["MIDDAY"] });
+    expect(await getPreferences(db.sql, "alice", OUTTAKE_PREFS)).toEqual({ weeklyTargetSessions: 2, sessionMinutes: 60, preferredTimes: ["MIDDAY"] });
+    expect((await getPreferences(db.sql, "alice", SHARED_PREFS)).homeBase).toBe("CENTER_CITY");
+    expect(await getPreferences(db.sql, "bob", OUTTAKE_PREFS)).toEqual(OUTTAKE_PREFS.defaults);
+  });
 
-    it("refuses to save invalid preferences", async () => {
-      await expect(saveFitnessPrefs(db.sql, "carol", { ...DEFAULT_FITNESS_PREFS, weeklyTargetSessions: 0 })).rejects.toThrow(
-        InvalidFitnessPrefsError,
-      );
-    });
+  it("refuses to save invalid preferences, keeping what was there", async () => {
+    await expect(
+      savePreferences(db.sql, "alice", OUTTAKE_PREFS, { ...OUTTAKE_PREFS.defaults, weeklyTargetSessions: 0 }),
+    ).rejects.toThrow(InvalidPreferencesError);
+    expect((await getPreferences(db.sql, "alice", OUTTAKE_PREFS)).weeklyTargetSessions).toBe(2);
+  });
+
+  it("gives fields added after a user saved their defaults", async () => {
+    // A section as Manali might first write it, then the same section after she adds a field.
+    const before: PreferenceSection<{ diet: string }> = { name: "intake", defaults: { diet: "any" }, check: () => [] };
+    const after: PreferenceSection<{ diet: string; waterGoalCups: number }> = {
+      name: "intake",
+      defaults: { diet: "any", waterGoalCups: 8 },
+      check: () => [],
+    };
+    await savePreferences(db.sql, "alice", before, { diet: "vegetarian" });
+    expect(await getPreferences(db.sql, "alice", after)).toEqual({ diet: "vegetarian", waterGoalCups: 8 });
+  });
+
+  it("doesn't let callers change the section's defaults through what they're given", async () => {
+    const prefs = await getPreferences(db.sql, "nobody", OUTTAKE_PREFS);
+    prefs.preferredTimes.push("MORNING");
+    expect(OUTTAKE_PREFS.defaults.preferredTimes).toEqual([]);
   });
 });

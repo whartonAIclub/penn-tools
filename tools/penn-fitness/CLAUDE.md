@@ -14,7 +14,8 @@ The repo's root `CLAUDE.md` still applies: platform APIs only, and changes only 
 Both halves plug into these; neither half builds them alone:
 
 - **This week:** a home screen where both halves contribute cards.
-- **Profile and preferences:** onboarding, home base, waking hours, privacy.
+- **Profile and preferences:** onboarding, home, waking hours, privacy. Preferences live in one `preferences` table as a JSON value per section (`shared`, `outtake`, `intake`), each defined in code with defaults and checks (`src/preferences.ts`): a half adds a field in its own section with no database change. `shared` (`src/sharedPrefs.ts`) is for what both halves use.
+- **Location:** places are their nearest corner on the street grid, e.g. 23rd & Chestnut (`src/location.ts`), never a street address.
 - **Integrations and body signals:** wearables, sleep, heart rate, HRV.
 - **Analytics:** one events table for both halves.
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { areaOfCorner, isCorner } from "../../location.js";
 import { WEEKDAYS, isTimeOfDay, minutesOfDay } from "../../time.js";
 import { BUILDING_GYM_ID, FACILITIES, findFacility } from "../facilities.js";
 
@@ -21,15 +22,18 @@ describe("facility list", () => {
     }
   });
 
-  it("includes the campus facilities from the spec", () => {
+  it("includes the campus facilities from the spec, each with a corner on campus", () => {
     for (const id of ["pottruck", "fox-fitness", "penn-park", "sheerr-pool", "ringe-squash", "levy-tennis"]) {
-      expect(findFacility(id)?.zone).toBe("CAMPUS");
+      const facility = findFacility(id);
+      expect(facility?.zone).toBe("CAMPUS");
+      expect(facility?.corner && isCorner(facility.corner), id).toBe(true);
+      expect(facility?.corner && areaOfCorner(facility.corner), id).toBe("CAMPUS");
     }
   });
 
-  it("has a building gym at home that is always open", () => {
+  it("has a building gym at home, with no corner of its own, that is always open", () => {
     const gym = findFacility(BUILDING_GYM_ID);
-    expect(gym).toMatchObject({ zone: "HOME", type: "BUILDING_GYM" });
+    expect(gym).toMatchObject({ zone: "HOME", type: "BUILDING_GYM", corner: null });
     for (const day of WEEKDAYS) expect(gym?.hours[day]).toEqual({ open: "00:00", close: "24:00" });
   });
 

@@ -210,10 +210,11 @@ This is the core of the feature. Write it as **pure functions with no I/O and no
 - Waking hours are configurable, defaulting to 07:00–22:30.
 - Find free windows between busy blocks within waking hours.
 - A gap is usable if: `gap_length >= travel_to_facility + session_length + travel_back`.
-- **Travel model (keep it simple for v1):**
-  - Divide space into zones: `CAMPUS`, `CENTER_CITY` (includes Rittenhouse), and `HOME` (the user's home base). Each facility belongs to a zone.
-  - Use a small constant matrix of walking minutes between zones, for example 0 within a zone and about 25 between campus and Center City. Make it configurable.
-  - Infer where the user is before and after a gap from the adjacent busy blocks. Class blocks mean `CAMPUS` by default. If unknown, assume the user's home base.
+- **Travel model (street grid, decided November 18, 2026):**
+  - Places are their **nearest corner** on Philadelphia's grid: a numbered street and a cross street, e.g. 23rd & Chestnut (`src/location.ts`). Users may give their home corner; facilities have one. No street addresses are stored.
+  - Walking minutes = blocks between corners (numbered streets crossed + cross streets crossed) × minutes per block, a configurable setting (about 1.5 to start; tune at the engine review). It's an approximation: blocks vary in length and the Schuylkill has fixed bridges.
+  - **Zones are the fallback** when a corner is missing: `CAMPUS`, `CENTER_CITY` (includes Rittenhouse) and `HOME`, with a small configurable matrix of walking minutes (0 within a zone, about 25 between campus and Center City).
+  - Infer where the user is before and after a gap from the adjacent busy blocks. Class blocks mean `CAMPUS` by default. If unknown, assume home: their corner if they gave one, else their home area.
   - Pick the facility that minimizes total travel and is open during the slot.
 
 **Step 2: Slot scoring**
@@ -319,11 +320,14 @@ AnalyticsEvent
 ```
 
 **As built (step 2).** Where the code differs from the sketch above:
-- `UserPrefs` is split in two. A shared **profile** (`src/profile.ts`, table `profiles`) holds what the intake half needs too: home base, waking hours, semester dates. Exercise-only **preferences** (`src/outtake/prefs.ts`, table `outtake_prefs`) hold the weekly target, session length and preferred times.
-- `home_base` is `CAMPUS | CENTER_CITY`, plus a separate `has_building_gym` flag, instead of a third `BUILDING_GYM` value: a building gym is somewhere you live, not a third location, and the travel model needs to know which zone home is in.
+- `UserPrefs` is **flexible**: one `preferences` table holds a JSON value per user and section, so a half adds a preference without a database change. Each section is defined in code with defaults and checks (`src/preferences.ts`), and fields added later get their defaults for users who saved before.
+  - `shared` (`src/sharedPrefs.ts`), used by both halves: home area, home corner, building gym, waking hours, semester dates.
+  - `outtake` (`src/outtake/prefs.ts`): weekly target, session length, preferred times.
+  - `intake`: Manali's.
+- Home is an area, `CAMPUS | CENTER_CITY`, plus an optional **nearest corner** (e.g. 23rd & Chestnut, which must be in that area) and a separate `hasBuildingGym` flag, instead of a third `BUILDING_GYM` value: a building gym is somewhere you live, not a third location.
 - Times are New York local strings (`"2026-11-17T07:30"`, `"07:30"`, `"2026-11-16"`; `src/time.ts`), stored as `TIMESTAMP`, `TIME` and `DATE` without time zones.
 - Domain types carry no `user_id`: storage scopes every query to the signed-in user, and the engine only ever sees one user's data.
-- `Facility` adds `hoursVerified`, and `lat`/`lng` are nullable until looked up. Every campus facility has placeholder hours for now.
+- `Facility` adds a `corner` and a `verified` flag, and `lat`/`lng` are nullable until looked up. Every campus facility has placeholder hours and an approximate corner for now (`verified: false`).
 
 **Facility seed list for v1.** Hand-enter these, and verify hours before launch:
 - Pottruck, Fox Fitness, Penn Park, Sheerr Pool, Ringe Squash, Levy Tennis.

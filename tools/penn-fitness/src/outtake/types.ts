@@ -2,11 +2,12 @@
 // are plain values with no user ID: storage scopes every read and write to the
 // signed-in user, and the engine only ever sees one user's data.
 
+import type { Corner } from "../location.js";
 import type { LocalDate, LocalDateTime, TimeOfDay, Weekday } from "../time.js";
 
 /**
- * Where someone is, for the travel model. HOME is the user's home base, which
- * is CAMPUS or CENTER_CITY (see UserProfile); a building gym is always at HOME.
+ * Where someone is, when there's no corner to go on. HOME is wherever the user
+ * lives (see SharedPrefs); a building gym is always at HOME.
  */
 export const ZONES = ["CAMPUS", "CENTER_CITY", "HOME"] as const;
 export type Zone = (typeof ZONES)[number];
@@ -47,10 +48,12 @@ export interface Facility {
   id: string;
   name: string;
   zone: Zone;
+  /** Its nearest corner, for walking times; null for one at the user's home. */
+  corner: Corner | null;
   type: FacilityType;
   hours: OpeningHours;
-  /** False until someone has checked the hours against the facility's own listing. */
-  hoursVerified: boolean;
+  /** False until someone has checked its hours and corner against the facility's own listing. */
+  verified: boolean;
   /** For Penn Now's map later; null until looked up. */
   lat: number | null;
   lng: number | null;
