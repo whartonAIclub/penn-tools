@@ -64,6 +64,8 @@ export function RequestDetail({
     setBusy(false);
     if (!result.ok) {
       setError(result.error);
+      // Show what changed meanwhile, such as a newer agreement.
+      await reload();
       return false;
     }
     await reload();
@@ -320,7 +322,7 @@ export function RequestDetail({
               className={styles.panelPlain}
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (await act(() => askForChange(request.id, change))) {
+                if (await act(() => askForChange(request.id, agreement.version, change))) {
                   setChanging(false);
                   setChange("");
                 }

@@ -18,7 +18,7 @@ import {
   type MemberLocation,
   type SitterProfile,
 } from "./profile.js";
-import { petsByIds } from "./pets.js";
+import { petDetailsByIds } from "./pets.js";
 import type { RequestDraft } from "./request.js";
 import { LANGUAGES, OTHER, labelOf, listLabels } from "./survey.js";
 
@@ -282,16 +282,20 @@ export async function loadOwners(sql: Sql, requestIds: readonly string[]): Promi
     FROM requests r LEFT JOIN members m ON m.user_id = r.owner_id
     WHERE r.id = ANY(${sql.array([...requestIds])}::uuid[])
   `;
+  // Every request's saved pets in one more query, not one per request.
+  const saved = await petDetailsByIds(sql, rows.flatMap((row) => row.pet_ids));
   return new Map(
-    await Promise.all(
-      rows.map(async (row): Promise<[string, OwnerContext]> => {
-        // An owner on the sitter side keeps their pet and home in other_profile.
-        const profile = ownerSideOf(row.profile, row.other_profile);
-        const pets = row.pet_ids.length ? await petsByIds(sql, row.owner_id, row.pet_ids) : [];
-        const location = profile?.location ?? { area: row.area ?? "", lat: row.lat, lng: row.lng };
-        return [row.id, { point: pointOf(location), profile, ...(pets.length ? { pets } : {}) }];
-      }),
-    ),
+    rows.map((row): [string, OwnerContext] => {
+      // An owner on the sitter side keeps their pet and home in other_profile.
+      const profile = ownerSideOf(row.profile, row.other_profile);
+      // Only the request owner's own pets, in the order they were posted.
+      const pets = row.pet_ids.flatMap((id) => {
+        const found = saved.get(id);
+        return found && found.ownerId === row.owner_id ? [found.pet] : [];
+      });
+      const location = profile?.location ?? { area: row.area ?? "", lat: row.lat, lng: row.lng };
+      return [row.id, { point: pointOf(location), profile, ...(pets.length ? { pets } : {}) }];
+    }),
   );
 }
 

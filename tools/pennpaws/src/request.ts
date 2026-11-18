@@ -8,7 +8,14 @@ import { ACCESS, CARE_TYPES, FREQUENCIES, LANGUAGES, LIMITS, MUST_HAVES, OTHER, 
 const values = <T extends readonly { value: string }[]>(options: T) =>
   options.map((option) => option.value) as [T[number]["value"], ...T[number]["value"][]];
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.");
+/** A real calendar day in YYYY-MM-DD: 2026-02-31 matches the pattern but isn't one, and would fail inside the INSERT. */
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.")
+  .refine((s) => {
+    const d = new Date(`${s}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+  }, "That date doesn't exist. Use the date picker.");
 const optionalText = (max: number) => z.string().trim().max(max).nullable();
 
 export const RequestDraft = z

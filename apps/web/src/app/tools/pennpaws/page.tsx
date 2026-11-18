@@ -20,7 +20,6 @@ import {
   listSitterJobs,
   matchRequests,
   postedRates,
-  savePetFromProfile,
   verifySchool,
   type Pet,
 } from "@penntools/tool-pennpaws";
@@ -90,13 +89,9 @@ export default async function PennPawsPage() {
   // market rather than a rate we guessed once.
   const rates = member.profile.role === "owner" ? await postedRates(sql) : {};
   const matches = member.profile.role === "sitter" ? await matchRequests(sql, member.profile, open.filter((r) => !r.mine)) : [];
-  // An owner's saved pets. The pet they described at setup becomes the first
-  // one, so My Pets is never empty for someone who has already answered.
-  let pets: Pet[] = [];
-  if (member.profile.role === "owner") {
-    await savePetFromProfile(sql, user.id, member.profile.pet);
-    pets = await listPets(sql, user.id);
-  }
+  // An owner's saved pets. The pet they described at setup was copied in when
+  // they finished it (saveProfile), so viewing the page never writes.
+  const pets: Pet[] = member.profile.role === "owner" ? await listPets(sql, user.id) : [];
 
   return (
     <div className={fonts}>

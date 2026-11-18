@@ -121,6 +121,9 @@ function toPet(row: PetRow): Pet | null {
   return checked.ok ? { id: row.id, ...checked.value } : null;
 }
 
+/** A pet id as Postgres stores it. Anything else would make the uuid comparison throw, so it can't be one of theirs. (requests.ts has the same check; it imports this file, so it isn't shared.) */
+const PET_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** An owner's pets, oldest first, so My Pets keeps a steady order. */
 export async function listPets(sql: Sql, ownerId: string): Promise<Pet[]> {
   const rows = await sql<PetRow[]>`SELECT ${COLUMNS(sql)} FROM pets WHERE owner_id = ${ownerId} ORDER BY created_at, id`;
@@ -129,17 +132,40 @@ export async function listPets(sql: Sql, ownerId: string): Promise<Pet[]> {
 
 /** One of this owner's pets, or null. Checks the owner, so ids can't be guessed across accounts. */
 export async function getPet(sql: Sql, ownerId: string, petId: string): Promise<Pet | null> {
+  if (!PET_ID.test(petId)) return null;
   const [row] = await sql<PetRow[]>`SELECT ${COLUMNS(sql)} FROM pets WHERE id = ${petId} AND owner_id = ${ownerId}`;
   return row ? toPet(row) : null;
 }
 
 /** Several of this owner's pets by id, in the order they were saved. Ids that aren't theirs are left out. */
 export async function petsByIds(sql: Sql, ownerId: string, petIds: string[]): Promise<Pet[]> {
-  if (petIds.length === 0) return [];
+  const ids = petIds.filter((id) => PET_ID.test(id));
+  if (ids.length === 0) return [];
   const rows = await sql<PetRow[]>`
-    SELECT ${COLUMNS(sql)} FROM pets WHERE owner_id = ${ownerId} AND id IN ${sql(petIds)} ORDER BY created_at, id
+    SELECT ${COLUMNS(sql)} FROM pets WHERE owner_id = ${ownerId} AND id IN ${sql(ids)} ORDER BY created_at, id
   `;
   return rows.map(toPet).filter((pet): pet is Pet => pet !== null);
+}
+
+/**
+ * Several owners' pets in one query, for scoring sitters against requests:
+ * each pet's details by id, with the owner it belongs to. Leaves out photos,
+ * which scoring never reads and which are the bulk of each row.
+ */
+export async function petDetailsByIds(sql: Sql, petIds: readonly string[]): Promise<Map<string, { ownerId: string; pet: Pet }>> {
+  const ids = [...new Set(petIds)].filter((id) => PET_ID.test(id));
+  if (ids.length === 0) return new Map();
+  const rows = await sql<(Omit<PetRow, "photo"> & { owner_id: string })[]>`
+    SELECT id, owner_id, name, kind, kind_other, size, age, energy, with_people, with_animals,
+           alone, special_care, special_care_other, bites, bites_details, breed, diet, health, shared_early
+    FROM pets WHERE id = ANY(${sql.array(ids)}::uuid[])
+  `;
+  const found = new Map<string, { ownerId: string; pet: Pet }>();
+  for (const row of rows) {
+    const pet = toPet({ ...row, photo: null });
+    if (pet) found.set(row.id, { ownerId: row.owner_id, pet });
+  }
+  return found;
 }
 
 /** Adds a pet and returns its id. */
@@ -159,6 +185,7 @@ export async function addPet(sql: Sql, ownerId: string, pet: SavedPet): Promise<
 
 /** Replaces one of this owner's pets. Returns false when the pet isn't theirs. */
 export async function updatePet(sql: Sql, ownerId: string, petId: string, pet: SavedPet): Promise<boolean> {
+  if (!PET_ID.test(petId)) return false;
   const rows = await sql`
     UPDATE pets SET name = ${pet.name}, kind = ${pet.kind}, kind_other = ${pet.kindOther}, size = ${pet.size},
                     age = ${pet.age}, energy = ${pet.energy}, with_people = ${pet.withPeople},
@@ -174,16 +201,22 @@ export async function updatePet(sql: Sql, ownerId: string, petId: string, pet: S
 
 /** Removes one of this owner's pets. Requests already posted keep their own copy of the answers. */
 export async function removePet(sql: Sql, ownerId: string, petId: string): Promise<boolean> {
+  if (!PET_ID.test(petId)) return false;
   const rows = await sql`DELETE FROM pets WHERE id = ${petId} AND owner_id = ${ownerId}`;
   return rows.count > 0;
 }
 
 /**
  * Gives an owner their first saved pet from the one they entered at setup, so
- * nobody answers those questions twice. Does nothing once they have any pet,
- * which also makes it safe to call on every visit to My Pets.
+ * nobody answers those questions twice. Runs when owner setup is saved, and
+ * only the first time: after that it does nothing, even if they removed every pet.
  */
 export async function savePetFromProfile(sql: Sql, ownerId: string, pet: PetDetails): Promise<Pet | null> {
+  // Only ever once per member, so an owner who deletes every pet doesn't get the setup pet back.
+  const [first] = await sql<{ user_id: string }[]>`
+    UPDATE members SET pets_seeded_at = NOW() WHERE user_id = ${ownerId} AND pets_seeded_at IS NULL RETURNING user_id
+  `;
+  if (!first) return null;
   const [existing] = await sql<{ id: string }[]>`SELECT id FROM pets WHERE owner_id = ${ownerId} LIMIT 1`;
   if (existing) return null;
   const checked = checkPet({ ...pet, photo: null });

@@ -160,6 +160,11 @@ export interface AfterMatchView {
   visits: Visit[];
   /** The agreed rate per visit or night, to fill in the payment. */
   rate: number | null;
+  /**
+   * The total the sitter recorded for the whole booking, when the owner paid
+   * in one go rather than visit by visit. Visits then need no payment of their own.
+   */
+  paidInFull: { amount: number; method: string } | null;
 }
 
 interface PartyRow {
@@ -228,6 +233,7 @@ export async function getAfterMatch(sql: Sql, viewerId: string, requestId: strin
     SELECT id, arrived_at, arrived_photo, arrived_note, left_at, left_photo, left_note, amount, paid_method, paid_at, received_at
     FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id} ORDER BY arrived_at DESC
   `;
+  const whole = await paidInOneGo(sql, requestId, p.sitter_id);
   return {
     role: p.role,
     status: p.status,
@@ -238,7 +244,18 @@ export async function getAfterMatch(sql: Sql, viewerId: string, requestId: strin
     handles: showHandles && h ? { venmo: h.venmo, paypal: h.paypal } : null,
     visits: visits.map(toVisit),
     rate: parsePay(p.pay)?.dollars ?? null,
+    paidInFull: whole,
   };
+}
+
+/** The sitter's recorded total, when no visit was paid one by one: the booking paid in one go. */
+async function paidInOneGo(sql: Sql, requestId: string, sitterId: string): Promise<{ amount: number; method: string } | null> {
+  const [row] = await sql<{ amount: string; method: string }[]>`
+    SELECT amount, method FROM payments
+    WHERE request_id = ${requestId} AND sitter_id = ${sitterId}
+      AND NOT EXISTS (SELECT 1 FROM visits WHERE request_id = ${requestId} AND sitter_id = ${sitterId} AND paid_at IS NOT NULL)
+  `;
+  return row ? { amount: Number(row.amount), method: row.method } : null;
 }
 
 /**
@@ -254,7 +271,8 @@ export async function afterMatchStamp(sql: Sql, viewerId: string, requestId: str
       ${p.status}::text, ${p.sitter_id}::text,
       (SELECT concat_ws(',', COUNT(*), MAX(arrived_at), MAX(left_at), MAX(paid_at), MAX(received_at)) FROM visits WHERE request_id = ${requestId} AND sitter_id = ${p.sitter_id}),
       (SELECT updated_at::text FROM entry_guides WHERE request_id = ${requestId}),
-      (SELECT updated_at::text FROM pay_handles WHERE user_id = ${p.sitter_id})
+      (SELECT updated_at::text FROM pay_handles WHERE user_id = ${p.sitter_id}),
+      (SELECT concat_ws(',', amount, method, created_at) FROM payments WHERE request_id = ${requestId})
     ) AS stamp
   `;
   return s?.stamp ?? null;
@@ -341,6 +359,10 @@ export async function markVisitPaid(
   if (!UUID_RE.test(visitId)) throw new PennPawsError("That visit doesn't exist.");
   const p = await party(sql, ownerId, requestId);
   if (!p || p.role !== "owner") throw new PennPawsError("That booking isn't yours.");
+  // A total the sitter already recorded for the whole booking covers every visit; don't write over it.
+  if (await paidInOneGo(sql, requestId, p.sitter_id)) {
+    throw new PennPawsError(`${firstWord(p.sitter_name)} already recorded your payment for the whole booking, so this visit is covered.`);
+  }
   await sql.begin(async (transaction) => {
     // postgres.js types drop the call signature from TransactionSql, though it has one.
     const tx = transaction as unknown as Sql;

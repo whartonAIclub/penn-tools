@@ -186,19 +186,29 @@ interface RequestRow {
   picked: boolean;
 }
 
-/** Request `r`'s finished visits, by the sitter it's booked with now, that aren't paid. */
+/**
+ * Request `r`'s finished visits, by the sitter it's booked with now, that
+ * aren't paid. Counts only when the owner pays visit by visit (at least one
+ * visit marked paid). A total the sitter recorded with no visit paid is the
+ * whole booking paid in one go, so nothing is left to pay.
+ */
 function unpaidVisits(sql: Sql) {
   return sql`(
-    SELECT COUNT(*)::int FROM visits v
+    SELECT CASE
+      WHEN EXISTS (SELECT 1 FROM payments p WHERE p.request_id = r.id)
+       AND COUNT(*) FILTER (WHERE v.paid_at IS NOT NULL) = 0 THEN 0
+      ELSE COUNT(*) FILTER (WHERE v.left_at IS NOT NULL AND v.paid_at IS NULL)
+    END::int
+    FROM visits v
     JOIN offers o ON o.request_id = v.request_id AND o.sitter_id = v.sitter_id AND o.status = 'accepted'
-    WHERE v.request_id = r.id AND v.left_at IS NOT NULL AND v.paid_at IS NULL
+    WHERE v.request_id = r.id
   )`;
 }
 
 function selectRequests(sql: Sql, viewerId: string) {
   return sql`
     SELECT r.id, r.owner_id, r.owner_name, r.owner_email, r.pet_name, r.pet_kind, r.pet_kind_other,
-           r.pet_details, left(md5(${shownPhoto(sql)}), 10) AS photo_version, r.weekly,
+           r.pet_details, ${shownPhotoVersion(sql)} AS photo_version, r.weekly,
            to_char(r.starts_on, 'YYYY-MM-DD') AS starts_on, to_char(r.ends_on, 'YYYY-MM-DD') AS ends_on,
            r.frequency, r.frequency_other, r.tasks, r.tasks_other, r.access, r.access_other,
            r.pay, r.area, r.vet, r.notes, r.status, r.created_at, r.completed_at,
@@ -229,6 +239,16 @@ function shownPhoto(sql: Sql) {
      WHERE p.id = ANY(r.pet_ids) AND p.owner_id = r.owner_id AND p.photo IS NOT NULL
      ORDER BY array_position(r.pet_ids, p.id) LIMIT 1),
     r.photo
+  )`;
+}
+
+/** The stored fingerprint of the photo shownPhoto picks, so lists never read the photos themselves. */
+function shownPhotoVersion(sql: Sql) {
+  return sql`COALESCE(
+    (SELECT p.photo_version FROM pets p
+     WHERE p.id = ANY(r.pet_ids) AND p.owner_id = r.owner_id AND p.photo_version IS NOT NULL
+     ORDER BY array_position(r.pet_ids, p.id) LIMIT 1),
+    r.photo_version
   )`;
 }
 
@@ -821,6 +841,7 @@ export async function changeAgreement(
   userId: string,
   requestId: string,
   terms: Terms,
+  base: number,
   change: string | null = null,
   channels: readonly NotificationChannel[] = [],
 ): Promise<void> {
@@ -831,19 +852,25 @@ export async function changeAgreement(
   const [before] = await sql<{ terms: unknown }[]>`SELECT terms FROM agreements WHERE request_id = ${requestId}`;
   const old = before ? AgreementTerms.safeParse(before.terms) : null;
   const fields = (Object.keys(checked) as (keyof Terms)[]).filter((k) => !old?.success || old.data[k] !== checked[k]);
-  await sql`
+  // Only from the version the change was based on, so two changes at once can't silently replace each other.
+  const changed = await sql`
     UPDATE agreements SET terms = ${sql.json(checked)}, version = version + 1,
       owner_approved_at = NULL, sitter_approved_at = NULL, updated_at = NOW(),
       last_change = ${change?.trim().slice(0, LIMITS.message) || null}, changed_by = ${party.me}, changed_fields = ${sql.array(fields)}
-    WHERE request_id = ${requestId}
+    WHERE request_id = ${requestId} AND version = ${base}
+    RETURNING version
   `;
+  if (changed.length === 0) throw new PennPawsError(AGREEMENT_CHANGED);
   await notify(sql, party.other.id, `${party.me} asked for a change to the agreement for ${party.pet}. Take a look.`, requestId, channels);
 }
 
-/** The current terms, for the person asking to change them. */
-export async function getTerms(sql: Sql, userId: string, requestId: string): Promise<{ terms: Terms; me: string } | null> {
+/** What a person sees when the agreement changed under them before their own change landed. */
+export const AGREEMENT_CHANGED = "The agreement just changed. Read the new version, then ask again.";
+
+/** The current terms and their version, for the person asking to change them. */
+export async function getTerms(sql: Sql, userId: string, requestId: string): Promise<{ terms: Terms; version: number; me: string } | null> {
   const party = await partyOf(sql, userId, requestId);
   if (!party) return null;
-  const [a] = await sql<{ terms: unknown }[]>`SELECT terms FROM agreements WHERE request_id = ${requestId}`;
-  return a ? { terms: AgreementTerms.parse(a.terms), me: party.me } : null;
+  const [a] = await sql<{ terms: unknown; version: number }[]>`SELECT terms, version FROM agreements WHERE request_id = ${requestId}`;
+  return a ? { terms: AgreementTerms.parse(a.terms), version: a.version, me: party.me } : null;
 }

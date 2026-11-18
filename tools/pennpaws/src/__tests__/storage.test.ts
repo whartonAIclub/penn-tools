@@ -160,13 +160,27 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     expect((await listPets(sql, lu.id)).map((p) => p.name)).toEqual(["Bunny"]);
   });
 
-  it("gives an owner their setup pet once, not on every visit", async () => {
+  it("gives an owner their setup pet once, and never brings it back", async () => {
     const { photo: _photo, ...fromProfile } = petAnswers;
-    const first = await savePetFromProfile(sql, sam.id, fromProfile);
+    const pip: Person = { id: "user-pip", name: "Pip Owner", email: "pip@example.upenn.edu" };
+    // Not a member yet: nothing to seed.
+    expect(await savePetFromProfile(sql, pip.id, fromProfile)).toBeNull();
+    await saveMember(sql, pip, "upenn.edu", {
+      role: "owner",
+      location: { area: "Fishtown", lat: null, lng: null },
+      pet: fromProfile,
+      sitterGenderPref: "none",
+      sitterLanguages: [],
+    });
+    const first = await savePetFromProfile(sql, pip.id, fromProfile);
     expect(first?.name).toBe("Pepper");
     // Called again it must add nothing, or My Pets would fill with copies.
-    expect(await savePetFromProfile(sql, sam.id, fromProfile)).toBeNull();
-    expect(await listPets(sql, sam.id)).toHaveLength(1);
+    expect(await savePetFromProfile(sql, pip.id, fromProfile)).toBeNull();
+    expect(await listPets(sql, pip.id)).toHaveLength(1);
+    // Deleting the only pet sticks: saving setup again doesn't re-add it.
+    expect(await removePet(sql, pip.id, first!.id)).toBe(true);
+    expect(await savePetFromProfile(sql, pip.id, fromProfile)).toBeNull();
+    expect(await listPets(sql, pip.id)).toEqual([]);
   });
 
   it("posts a request from saved pets, and shows their private details only once booked", async () => {
@@ -229,7 +243,7 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
 
     await approveAgreement(sql, lu.id, requestId, 1, { phone: "215-555-0111", address: "3900 Spruce St" });
     // A change clears approvals; approving an old version is refused.
-    await changeAgreement(sql, priya.id, requestId, { ...view!.agreement!.terms, visits: "Twice a day, 7am and 6pm" });
+    await changeAgreement(sql, priya.id, requestId, { ...view!.agreement!.terms, visits: "Twice a day, 7am and 6pm" }, view!.agreement!.version);
     await expect(approveAgreement(sql, priya.id, requestId, 1, { phone: "215-555-0122", address: null })).rejects.toThrow("The agreement changed");
     view = await getRequestView(sql, priya.id, requestId);
     expect(view?.agreement).toMatchObject({ version: 2, ownerApproved: false, sitterApproved: false });
@@ -261,8 +275,8 @@ describe.skipIf(!databaseUrl)("PennPaws storage (Postgres)", () => {
     const priyaOffer = (await getRequestView(sql, lu.id, requestId))!.offers.find((o) => o.status === "pending")!;
     await acceptOffer(sql, lu.id, priyaOffer.id, template);
     // A phone number in the terms stays hidden from the sitter until both approve.
-    const terms = (await getRequestView(sql, lu.id, requestId))!.agreement!.terms;
-    await changeAgreement(sql, lu.id, requestId, { ...terms, notes: "Text me at 215-555-0199" }, "Add my number");
+    const { terms, version } = (await getRequestView(sql, lu.id, requestId))!.agreement!;
+    await changeAgreement(sql, lu.id, requestId, { ...terms, notes: "Text me at 215-555-0199" }, version, "Add my number");
     expect((await getRequestView(sql, priya.id, requestId))?.agreement?.terms.notes).toBe("Text me at [number hidden]");
     expect((await getRequestView(sql, lu.id, requestId))?.agreement?.terms.notes).toBe("Text me at 215-555-0199");
     await approveAgreement(sql, lu.id, requestId, 2, { phone: "215-555-0111", address: "3900 Spruce St" });

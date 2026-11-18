@@ -374,6 +374,10 @@ function VisitItem({
                 <span className={styles.hint}>Waiting for {view.otherFirstName} to confirm it arrived</span>
               )}
             </div>
+          ) : view.paidInFull ? (
+            <span className={styles.pillGood}>
+              Covered by the {money(view.paidInFull.amount)} paid for the whole booking
+            </span>
           ) : view.role === "owner" ? (
             <PayBox view={view} busy={busy} onPay={onPay} />
           ) : (

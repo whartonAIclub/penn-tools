@@ -19,6 +19,7 @@ import {
   applyChange,
   approveAgreement,
   cancelRequest,
+  AGREEMENT_CHANGED,
   changeAgreement,
   checkDates,
   checkDraft,
@@ -79,6 +80,7 @@ import {
   polishAgreement,
   recordPayment,
   saveMember,
+  savePetFromProfile,
   sendMessage,
   verifySchool,
   type ParsedRequest,
@@ -151,7 +153,10 @@ export async function saveProfile(input: unknown, name: unknown): Promise<Action
   if (!chosen) return { ok: false, error: "Tell us what to call you." };
   if (chosen.length > LIMITS.name) return { ok: false, error: `Keep your name under ${LIMITS.name} characters.` };
   return run(async () => {
-    await saveMember(db(), { ...user, name: chosen }, school, checked.value);
+    const sql = db();
+    await saveMember(sql, { ...user, name: chosen }, school, checked.value);
+    // The pet from owner setup becomes their first saved pet, once.
+    if (checked.value.role === "owner") await savePetFromProfile(sql, user.id, checked.value.pet);
     return null;
   });
 }
@@ -399,6 +404,9 @@ export async function message(requestId: string, body: string, threadId: string 
   const user = await signedIn();
   if (!user) return signedOut;
   if (typeof body !== "string" || body.length > LIMITS.message) return { ok: false, error: `Keep it under ${LIMITS.message} characters.` };
+  // Only members who finished setup, with a school we verify, may message.
+  const member = await getMember(db(), user.id);
+  if (!member || !verifySchool(user.email, ALLOW_LOCAL_TEST_ACCOUNT)) return { ok: false, error: "Finish setting up PennPaws before sending messages." };
   return run(async () => {
     await sendMessage(db(), user, String(requestId), body, threadId ? String(threadId) : null);
     return null;
@@ -459,15 +467,17 @@ export async function markDone(requestId: string): Promise<ActionResult> {
 }
 
 /** Applies the change with AI when the user has a key; otherwise records it in the notes. */
-export async function askForChange(requestId: string, change: string): Promise<ActionResult> {
+export async function askForChange(requestId: string, version: number, change: string): Promise<ActionResult> {
   const user = await signedIn();
   if (!user) return signedOut;
+  if (!Number.isInteger(version)) return { ok: false, error: "Reload the page and try again." };
   const text = typeof change === "string" ? change.trim() : "";
   if (!text) return { ok: false, error: "Say what you'd like to change." };
   if (text.length > LIMITS.message) return { ok: false, error: `Keep it under ${LIMITS.message} characters.` };
   const sql = db();
   const current = await getTerms(sql, user.id, String(requestId));
   if (!current) return { ok: false, error: "This agreement can't be changed now." };
+  if (current.version !== version) return { ok: false, error: AGREEMENT_CHANGED };
   const ai = await userAI();
   return run(async () => {
     let terms = noteChange(current.terms, text, current.me);
@@ -478,7 +488,7 @@ export async function askForChange(requestId: string, change: string): Promise<A
         if (!isAIError(error)) throw error;
       }
     }
-    await changeAgreement(sql, user.id, String(requestId), terms, text);
+    await changeAgreement(sql, user.id, String(requestId), terms, version, text);
     return null;
   });
 }

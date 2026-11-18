@@ -267,6 +267,12 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS pet_ids UUID[] NOT NULL DEFAULT '{
 -- (members.ts). Null until they have used both sides.
 ALTER TABLE members ADD COLUMN IF NOT EXISTS other_profile JSONB;
 
+-- When the pet an owner described at setup was copied into My Pets. Set once,
+-- so deleting every pet sticks instead of the setup pet coming back.
+ALTER TABLE members ADD COLUMN IF NOT EXISTS pets_seeded_at TIMESTAMPTZ;
+UPDATE members m SET pets_seeded_at = NOW()
+  WHERE pets_seeded_at IS NULL AND EXISTS (SELECT 1 FROM pets p WHERE p.owner_id = m.user_id);
+
 -- After matching (visits.ts): how the sitter gets in, each visit checked in
 -- with a photo of the pet, and the owner paying for each visit when it's done.
 -- The guide's codes reach the sitter only once both approve, like phone numbers.
@@ -309,3 +315,8 @@ CREATE INDEX IF NOT EXISTS visits_request_idx ON visits (request_id, arrived_at 
 ALTER TABLE visits ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ;  -- the sitter confirmed getting the money
 DROP INDEX IF EXISTS visits_one_open_idx;
 CREATE UNIQUE INDEX IF NOT EXISTS visits_one_open_sitter_idx ON visits (request_id, sitter_id) WHERE left_at IS NULL;
+
+-- A short fingerprint of each photo, worked out once when the photo is saved,
+-- so request lists can version photo links without reading the photos.
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS photo_version TEXT GENERATED ALWAYS AS (left(md5(photo), 10)) STORED;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS photo_version TEXT GENERATED ALWAYS AS (left(md5(photo), 10)) STORED;

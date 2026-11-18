@@ -7,7 +7,7 @@ import type { Sql } from "postgres";
 import { assertActive } from "./members.js";
 import type { RequestStatus } from "./booking.js";
 import { notify, type NotificationChannel } from "./notifications.js";
-import { PennPawsError, UUID_RE, firstName, type Person } from "./requests.js";
+import { PennPawsError, UUID_RE, firstName, isBrowsable, type Person } from "./requests.js";
 import { LIMITS } from "./survey.js";
 
 export interface Message {
@@ -120,6 +120,9 @@ export async function sendMessage(
   }
 
   if (!canMessage(facts.status, facts.picked_sitter === sender.id)) throw new PennPawsError("This request already has a sitter.");
+  // Starting a new conversation needs a request the sitter could find in the list: not hidden, ended or paused.
+  const [existing] = await sql<{ id: string }[]>`SELECT id FROM threads WHERE request_id = ${requestId} AND sitter_id = ${sender.id}`;
+  if (!existing && !(await isBrowsable(sql, requestId))) throw new PennPawsError("This request isn't taking messages.");
   const [thread] = await sql<{ id: string }[]>`
     INSERT INTO threads (request_id, sitter_id, sitter_name) VALUES (${requestId}, ${sender.id}, ${sender.name})
     ON CONFLICT (request_id, sitter_id) DO UPDATE SET sitter_name = EXCLUDED.sitter_name
