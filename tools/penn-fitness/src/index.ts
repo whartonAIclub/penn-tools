@@ -5,3 +5,4 @@ export * from "./time.js";
 
 // Outtake (exercise)
 export * from "./outtake/types.js";
+export * from "./outtake/facilities.js";
