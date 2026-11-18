@@ -8,7 +8,7 @@ import { ErrorText, IconChat, IconSend, ProviderPicker, UNREACHABLE, cx, type Pr
 import shared from "./shared.module.css";
 import styles from "./AiChatPanel.module.css";
 
-export interface ChatMsg {
+interface ChatMsg {
   role: "user" | "assistant";
   content: string;
   /** The revised resume the reply came with. */

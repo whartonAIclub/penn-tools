@@ -29,7 +29,7 @@ export function ExportScreen({ doc, settings, baseText, jobDescription, onRestar
       await (kind === "pdf" ? downloadPdf(doc, settings) : downloadDocx(doc, settings));
     } catch (err) {
       console.error(err);
-      setError("Couldn't create the file. Check your connection and try again.");
+      setError("Couldn't create the file. Try again; if it keeps failing, use Copy text instead.");
     } finally {
       setBusy(null);
     }

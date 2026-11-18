@@ -5,9 +5,15 @@ import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import JSZip from "jszip";
 import { toDocx } from "../docx.js";
-import { FONT_FILES, countPdfPages, toPdf, type FontSet, type FontStyle } from "../pdf.js";
+import { countPdfPages, toPdf, usedStyles, type FontSet, type FontStyle } from "../pdf.js";
 import { DEFAULT_SETTINGS, run, type ExportSettings, type ResumeDoc } from "../resume.js";
 import { sample } from "./fixtures.js";
+
+/** The fonts/ folder's files, as the page bundles them (exportResume.ts). */
+const FONT_FILES = {
+  serif: { regular: "LiberationSerif-Regular.ttf", bold: "LiberationSerif-Bold.ttf", italic: "LiberationSerif-Italic.ttf", boldItalic: "LiberationSerif-BoldItalic.ttf" },
+  sans: { regular: "LiberationSans-Regular.ttf", bold: "LiberationSans-Bold.ttf", italic: "LiberationSans-Italic.ttf", boldItalic: "LiberationSans-BoldItalic.ttf" },
+} as const;
 
 function fonts(settings: ExportSettings): FontSet {
   const load = (style: FontStyle) => {
@@ -52,8 +58,8 @@ async function pdfLines(bytes: ArrayBuffer): Promise<string[][]> {
 
 describe("toPdf", () => {
   it("writes real text, non-Latin letters included", async () => {
-    const { bytes, pages } = toPdf(sample, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS));
-    expect(pages).toBe(1);
+    const bytes = toPdf(sample, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS));
+    expect(countPdfPages(sample, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS))).toBe(1);
     const text = (await pdfLines(bytes)).flat().join("\n");
     expect(text).toContain("ŁUKASZ NGUYỄN");
     expect(text).toContain("BAIN & COMPANY");
@@ -64,30 +70,42 @@ describe("toPdf", () => {
 
   it("draws each contact line, in order, under the name", async () => {
     const doc: ResumeDoc = { ...sample, contact: "jane@wharton.upenn.edu\nlinkedin.com/in/jane" };
-    const [lines] = await pdfLines(toPdf(doc, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS)).bytes);
+    const [lines] = await pdfLines(toPdf(doc, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS)));
     expect(lines!.slice(0, 4)).toEqual(["ŁUKASZ NGUYỄN", "jane@wharton.upenn.edu", "linkedin.com/in/jane", "EXPERIENCE"]);
     const zip = await JSZip.loadAsync(await toDocx(doc, DEFAULT_SETTINGS));
     const xml = await zip.file("word/document.xml")!.async("string");
     expect(xml.indexOf("jane@wharton.upenn.edu")).toBeLessThan(xml.indexOf("linkedin.com/in/jane"));
   });
 
+  it("needs only the font styles the resume uses", async () => {
+    // The sample has no italic run other than the role, and no bold italic.
+    const needed = usedStyles(sample);
+    expect(needed.has("boldItalic")).toBe(false);
+    const all = fonts(DEFAULT_SETTINGS);
+    const some: FontSet = Object.fromEntries([...needed].map((s) => [s, all[s]]));
+    expect(countPdfPages(sample, DEFAULT_SETTINGS, some)).toBe(1);
+    // A style it does use, missing, fails clearly rather than drawing nothing.
+    const { bold: _bold, ...noBold } = all;
+    expect(() => toPdf(sample, DEFAULT_SETTINGS, noBold)).toThrow(/bold font/);
+  });
+
   it("lays out a resume that uses only some font styles", async () => {
     // Bold only: the regular style isn't loaded, so nothing may measure in it.
     const boldOnly: ResumeDoc = { name: "JANE DOE", contact: "", sections: [{ heading: "EXPERIENCE", lines: [] }] };
-    const text = (await pdfLines(toPdf(boldOnly, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS)).bytes)).flat().join("\n");
+    const text = (await pdfLines(toPdf(boldOnly, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS)))).flat().join("\n");
     expect(text).toContain("JANE DOE");
     expect(text).toContain("EXPERIENCE");
   });
 
   it("embeds only the letters it uses, so the file stays small", () => {
-    const { bytes } = toPdf(sample, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS));
+    const bytes = toPdf(sample, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS));
     // Each font file is about 400 KB; the four whole would be 1.5 MB.
     expect(bytes.byteLength).toBeLessThan(200_000);
   });
 
   it("works in the sans font", async () => {
     const settings: ExportSettings = { font: "sans", sizePt: 10, marginIn: 0.5 };
-    const text = (await pdfLines(toPdf(sample, settings, fonts(settings)).bytes)).flat().join("\n");
+    const text = (await pdfLines(toPdf(sample, settings, fonts(settings)))).flat().join("\n");
     expect(text).toContain("Associate Consultant");
   });
 
@@ -99,8 +117,7 @@ describe("toPdf", () => {
       ...sample,
       sections: [{ heading: "EXPERIENCE", lines: Array.from({ length: 30 }, (_, i) => ({ kind: "bullet" as const, runs: [run(`${i + 1}. ${bullet}`)] })) }],
     };
-    const { bytes, pages } = toPdf(long, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS));
-    expect(pages).toBe(2);
+    const bytes = toPdf(long, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS));
     // The editor's page count, without writing the file, agrees.
     expect(countPdfPages(long, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS))).toBe(2);
     expect(countPdfPages(sample, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS))).toBe(1);
@@ -116,7 +133,7 @@ describe("toPdf", () => {
       contact: "https://www.example.com/a/very/long/link/that/does/not/fit/on/one/line/of/the/page/at/all/ever/really",
       sections: [],
     };
-    const text = (await pdfLines(toPdf(doc, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS)).bytes)).flat().join("");
+    const text = (await pdfLines(toPdf(doc, DEFAULT_SETTINGS, fonts(DEFAULT_SETTINGS)))).flat().join("");
     expect(text.replace(/\s/g, "")).toContain(doc.contact);
   });
 });

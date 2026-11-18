@@ -8,35 +8,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { jsPDF } from "jspdf";
-import { LAYOUT, LETTER_POINTS, contactLines, run, type ExportSettings, type ResumeDoc, type ResumeFont, type TextRun } from "./resume.js";
+import { LAYOUT, LETTER_POINTS, contactLines, run, type ExportSettings, type ResumeDoc, type TextRun } from "./resume.js";
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 
 export type FontStyle = "regular" | "bold" | "italic" | "boldItalic";
 
 /**
- * The font files the PDF embeds, in this package's fonts/ folder: Liberation
- * Serif and Sans (SIL Open Font License, fonts/LICENSE), which have Times New
- * Roman's and Arial's letter widths and cover accented Latin, Greek and
- * Cyrillic, which the PDF's built-in fonts don't.
+ * The settings' font's files, as loaded by the caller: Liberation Serif or
+ * Sans from this package's fonts/ folder (SIL Open Font License,
+ * fonts/LICENSE), which have Times New Roman's and Arial's letter widths and
+ * cover accented Latin, Greek and Cyrillic, which the PDF's built-in fonts
+ * don't. Only the styles usedStyles names are needed.
  */
-export const FONT_FILES: Record<ResumeFont, Record<FontStyle, string>> = {
-  serif: {
-    regular: "LiberationSerif-Regular.ttf",
-    bold: "LiberationSerif-Bold.ttf",
-    italic: "LiberationSerif-Italic.ttf",
-    boldItalic: "LiberationSerif-BoldItalic.ttf",
-  },
-  sans: {
-    regular: "LiberationSans-Regular.ttf",
-    bold: "LiberationSans-Bold.ttf",
-    italic: "LiberationSans-Italic.ttf",
-    boldItalic: "LiberationSans-BoldItalic.ttf",
-  },
-};
-
-/** The settings' font's four files, as loaded by the caller. */
-export type FontSet = Record<FontStyle, ArrayBuffer>;
+export type FontSet = Partial<Record<FontStyle, ArrayBuffer>>;
 
 const JSPDF_STYLES: Record<FontStyle, string> = {
   regular: "normal",
@@ -101,7 +86,9 @@ class PdfWriter {
     // pages after every edit: give it only the styles this resume uses.
     for (const style of usedStyles(doc)) {
       const file = `${style}.ttf`;
-      this.pdf.addFileToVFS(file, toBase64(fonts[style]));
+      const data = fonts[style];
+      if (!data) throw new Error(`The PDF needs the ${style} font, which wasn't loaded.`);
+      this.pdf.addFileToVFS(file, toBase64(data));
       this.pdf.addFont(file, FAMILY, JSPDF_STYLES[style], undefined, "Identity-H");
     }
     this.margin = settings.marginIn * 72;
@@ -226,8 +213,9 @@ class PdfWriter {
     for (const section of doc.sections) {
       if (section.heading.trim()) {
         this.y += this.em(LAYOUT.beforeHeading);
-        // Keep the heading with at least the first two lines under it.
-        this.ensure(lh * 3);
+        // Keep the heading with the first two lines under it, or as many as the
+        // section has, so a short last section isn't pushed to a new page.
+        this.ensure(lh * (1 + Math.min(2, section.lines.length)));
         this.centered([run(section.heading, { bold: true })], size);
         this.y += this.em(LAYOUT.afterHeading);
       }
@@ -275,8 +263,8 @@ class PdfWriter {
   }
 }
 
-/** The font styles laying out `doc` draws text in. */
-function usedStyles(doc: ResumeDoc): Set<FontStyle> {
+/** The font styles laying out `doc` draws text in: the only fonts the caller needs to load. */
+export function usedStyles(doc: ResumeDoc): Set<FontStyle> {
   const styles = new Set<FontStyle>();
   if (doc.name.trim()) styles.add("bold");
   if (contactLines(doc).length) styles.add("regular");
@@ -290,17 +278,12 @@ function usedStyles(doc: ResumeDoc): Set<FontStyle> {
   return styles;
 }
 
-export interface PdfExport {
-  bytes: ArrayBuffer;
-  pages: number;
-}
-
-/** The resume as a PDF of real text, in the settings' font, size and margins. */
-export function toPdf(doc: ResumeDoc, settings: ExportSettings, fonts: FontSet): PdfExport {
+/** The resume as a PDF file of real text, in the settings' font, size and margins. */
+export function toPdf(doc: ResumeDoc, settings: ExportSettings, fonts: FontSet): ArrayBuffer {
   const writer = new PdfWriter(doc, settings, fonts);
   writer.write(doc);
   writer.pdf.setProperties({ title: doc.name.trim() ? `${doc.name.trim()} Resume` : "Resume", creator: "PennTools Resume Customizer" });
-  return { bytes: writer.pdf.output("arraybuffer"), pages: writer.pdf.getNumberOfPages() };
+  return writer.pdf.output("arraybuffer");
 }
 
 /**

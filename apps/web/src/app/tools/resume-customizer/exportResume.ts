@@ -1,16 +1,17 @@
 /**
- * exportResume.ts — the PDF and Word downloads, and the page count, in the
- * browser. The layouts are in the tool package: "/pdf" (with jsPDF and the
- * fonts) loads when the page first counts pages, "/docx" only when someone
- * downloads the Word file.
+ * exportResume.ts — the PDF and Word downloads, the page count, and the
+ * editor's fonts, in the browser. The layouts are in the tool package: "/pdf"
+ * (with jsPDF) loads when the page first counts pages, "/docx" only when
+ * someone downloads the Word file.
  */
 
 import type { FontSet, FontStyle } from "@penntools/tool-resume-customizer/pdf";
-import type { ExportSettings, ResumeDoc, ResumeFont } from "@penntools/tool-resume-customizer/resume";
+import { EDITOR_FONT_FAMILIES, type ExportSettings, type ResumeDoc, type ResumeFont } from "@penntools/tool-resume-customizer/resume";
 
 /**
- * The PDF's font files, bundled from the tool package. Each URL is written out
- * so the bundler can find and copy the file.
+ * The font files, bundled from the tool package's fonts/ folder. Each URL is
+ * written out so the bundler can find and copy the file; the package's export
+ * tests list the same files.
  */
 function fontUrls(font: ResumeFont): Record<FontStyle, URL> {
   if (font === "sans") {
@@ -29,25 +30,55 @@ function fontUrls(font: ResumeFont): Record<FontStyle, URL> {
   };
 }
 
-const fontCache = new Map<ResumeFont, Promise<FontSet>>();
+const STYLES: FontStyle[] = ["regular", "bold", "italic", "boldItalic"];
 
-function loadFonts(font: ResumeFont): Promise<FontSet> {
-  let fonts = fontCache.get(font);
-  if (!fonts) {
-    const urls = fontUrls(font);
-    const load = async (style: FontStyle) => {
-      const res = await fetch(urls[style]);
+/** Each font file, fetched once, when first needed. */
+const fileCache = new Map<string, Promise<ArrayBuffer>>();
+
+function loadFont(font: ResumeFont, style: FontStyle): Promise<ArrayBuffer> {
+  const key = `${font}:${style}`;
+  let file = fileCache.get(key);
+  if (!file) {
+    // force-cache: the editor's FontFace may have downloaded the file already.
+    file = fetch(fontUrls(font)[style], { cache: "force-cache" }).then((res) => {
       if (!res.ok) throw new Error(`Couldn't load the PDF's font (HTTP ${res.status}).`);
       return res.arrayBuffer();
-    };
-    fonts = Promise.all([load("regular"), load("bold"), load("italic"), load("boldItalic")]).then(
-      ([regular, bold, italic, boldItalic]) => ({ regular, bold, italic, boldItalic }),
-    );
+    });
     // A failed load is retried next time rather than cached.
-    fonts.catch(() => fontCache.delete(font));
-    fontCache.set(font, fonts);
+    file.catch(() => fileCache.delete(key));
+    fileCache.set(key, file);
   }
-  return fonts;
+  return file;
+}
+
+/** The fonts `styles` names, in the settings' font. */
+async function loadFonts(font: ResumeFont, styles: Iterable<FontStyle>): Promise<FontSet> {
+  const wanted = [...styles];
+  const files = await Promise.all(wanted.map((style) => loadFont(font, style)));
+  return Object.fromEntries(wanted.map((style, i) => [style, files[i]]));
+}
+
+let editorFontsRegistered = false;
+
+/**
+ * Registers the PDF's fonts with the browser under EDITOR_FONT_FAMILIES, which
+ * FONT_CSS names first, so the editor shows exactly the PDF's letters and line
+ * breaks on any computer. The browser downloads a file only when the page
+ * first shows text in it.
+ */
+export function registerEditorFonts(): void {
+  if (editorFontsRegistered || typeof FontFace === "undefined") return;
+  editorFontsRegistered = true;
+  for (const font of Object.keys(EDITOR_FONT_FAMILIES) as ResumeFont[]) {
+    const urls = fontUrls(font);
+    for (const style of STYLES) {
+      const face = new FontFace(EDITOR_FONT_FAMILIES[font], `url("${urls[style].href}")`, {
+        weight: style === "bold" || style === "boldItalic" ? "700" : "400",
+        style: style === "italic" || style === "boldItalic" ? "italic" : "normal",
+      });
+      document.fonts.add(face);
+    }
+  }
 }
 
 /** "JANE Q. DOE" → "Jane-Q-Doe-Resume". */
@@ -73,15 +104,16 @@ function download(bytes: ArrayBuffer, filename: string, type: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-/** How many pages the PDF would have. */
+/** How many pages the PDF would have. Fetches only the font styles the resume uses. */
 export async function countPages(doc: ResumeDoc, settings: ExportSettings): Promise<number> {
-  const [{ countPdfPages }, fonts] = await Promise.all([import("@penntools/tool-resume-customizer/pdf"), loadFonts(settings.font)]);
-  return countPdfPages(doc, settings, fonts);
+  const { countPdfPages, usedStyles } = await import("@penntools/tool-resume-customizer/pdf");
+  return countPdfPages(doc, settings, await loadFonts(settings.font, usedStyles(doc)));
 }
 
 export async function downloadPdf(doc: ResumeDoc, settings: ExportSettings): Promise<void> {
-  const [{ toPdf }, fonts] = await Promise.all([import("@penntools/tool-resume-customizer/pdf"), loadFonts(settings.font)]);
-  download(toPdf(doc, settings, fonts).bytes, `${baseName(doc)}.pdf`, "application/pdf");
+  const { toPdf, usedStyles } = await import("@penntools/tool-resume-customizer/pdf");
+  const fonts = await loadFonts(settings.font, usedStyles(doc));
+  download(toPdf(doc, settings, fonts), `${baseName(doc)}.pdf`, "application/pdf");
 }
 
 export async function downloadDocx(doc: ResumeDoc, settings: ExportSettings): Promise<void> {

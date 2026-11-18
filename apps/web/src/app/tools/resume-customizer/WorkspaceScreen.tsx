@@ -35,7 +35,10 @@ export function WorkspaceScreen({ files, baseFile, onSetBase, onAdd, onTag, onDe
   hasResume: boolean;
 }) {
   const [uploadTag, setUploadTag] = useState<FileTag>("Resume");
-  const [parsing, setParsing] = useState(false);
+  // How many uploads are being read: a count, so a second drop finishing first
+  // doesn't re-enable the buttons while the first is still being read.
+  const [reading, setReading] = useState(0);
+  const parsing = reading > 0;
   const [copied, setCopied] = useState(false);
   const [previewId, setPreviewId] = useState(baseFile?.id ?? files[0]?.id ?? "");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -44,11 +47,11 @@ export function WorkspaceScreen({ files, baseFile, onSetBase, onAdd, onTag, onDe
 
   const add = async (list: FileList | null) => {
     if (!list?.length) return;
-    setParsing(true);
+    setReading((n) => n + 1);
     try {
       await onAdd(list, uploadTag);
     } finally {
-      setParsing(false);
+      setReading((n) => n - 1);
     }
   };
 

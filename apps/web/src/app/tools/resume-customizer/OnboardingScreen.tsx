@@ -43,7 +43,10 @@ export function OnboardingScreen({ files, onAdd, onTag, onDelete, onNext }: {
   onDelete: (id: string) => void;
   onNext: () => void;
 }) {
-  const [parsing, setParsing] = useState(false);
+  // How many uploads are being read: a count, so a second drop finishing first
+  // doesn't re-enable the buttons while the first is still being read.
+  const [reading, setReading] = useState(0);
+  const parsing = reading > 0;
   const [contextExpanded, setContextExpanded] = useState(false);
   const [contextTag, setContextTag] = useState<FileTag>("Cover Letter");
   const resumeRef = useRef<HTMLInputElement>(null);
@@ -51,11 +54,11 @@ export function OnboardingScreen({ files, onAdd, onTag, onDelete, onNext }: {
 
   const add = async (list: FileList | null, tag: FileTag) => {
     if (!list?.length) return;
-    setParsing(true);
+    setReading((n) => n + 1);
     try {
       await onAdd(list, tag);
     } finally {
-      setParsing(false);
+      setReading((n) => n - 1);
     }
   };
 

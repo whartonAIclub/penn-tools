@@ -14,7 +14,7 @@ import {
   type ResumeFont,
 } from "@penntools/tool-resume-customizer/resume";
 import { AiChatPanel, type Chat } from "./AiChatPanel";
-import { editorToDoc, tidyHeader } from "./editor";
+import { editorToDoc, insertPlainLine, tidyHeader } from "./editor";
 import { usePageCount, useResizable } from "./hooks";
 import { DragHandle, PAGE_HEIGHT, PageCard, PageCountNote, ScaledPage, cx, docStyle, resumeClass, type ProviderChoice } from "./shared";
 import shared from "./shared.module.css";
@@ -24,6 +24,33 @@ function exec(command: string, value?: string) {
   // execCommand is deprecated but still the only way to format a contentEditable selection.
   const legacyExecCommand = Document.prototype.execCommand as (commandId: string, showUI?: boolean, value?: string) => boolean;
   legacyExecCommand.call(document, command, false, value);
+}
+
+/**
+ * Plain text inserted at the caret, a new line for each line break. Another
+ * page's formatting and markup don't belong in the resume, and the exports
+ * couldn't show them. In a heading or row, the new lines are plain lines
+ * after it (insertPlainLine), as with Enter, not copies of it.
+ */
+function insertPlainText(root: HTMLElement, text: string) {
+  text
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .forEach((line, i) => {
+      if (i > 0 && !insertPlainLine(root)) exec("insertParagraph");
+      if (line) exec("insertText", line);
+    });
+}
+
+/** Where a drop at (x, y) lands in the text: Chrome and Safari name it one way, Firefox another. */
+function caretAt(x: number, y: number): Range | null {
+  if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+  const position = (document as Document & { caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null })
+    .caretPositionFromPoint?.(x, y);
+  if (!position) return null;
+  const range = document.createRange();
+  range.setStart(position.offsetNode, position.offset);
+  return range;
 }
 
 function Tool({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
@@ -57,6 +84,8 @@ export function EditScreen({ doc, setDoc, settings, setSettings, chat, setChat, 
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Whether a drag started in the editor, so dropping it moves the editor's own text. */
+  const draggingWithin = useRef(false);
   const [zoom, setZoom] = useState(0.9);
   const chatCol = useResizable(320, 240, 520, true);
   const pages = usePageCount(doc, settings);
@@ -171,20 +200,42 @@ export function EditScreen({ doc, setDoc, settings, setSettings, chat, setChat, 
                   saveSoon();
                 }}
                 onPaste={(e) => {
-                  // Paste plain text, line by line: another page's formatting
-                  // and markup don't belong in the resume, and the exports
-                  // couldn't show them.
                   e.preventDefault();
-                  const lines = e.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n").split("\n");
-                  lines.forEach((line, i) => {
-                    if (i > 0) exec("insertParagraph");
-                    if (line) exec("insertText", line);
-                  });
+                  if (editorRef.current) insertPlainText(editorRef.current, e.clipboardData.getData("text/plain"));
+                }}
+                // Text dragged in from elsewhere is dropped as plain text, like a
+                // paste. Text dragged within the editor moves as the browser
+                // moves it: it's the resume's own markup already.
+                onDragStart={() => {
+                  draggingWithin.current = true;
+                }}
+                onDragEnd={() => {
+                  draggingWithin.current = false;
+                }}
+                onDrop={(e) => {
+                  if (draggingWithin.current) return;
+                  e.preventDefault();
+                  const text = e.dataTransfer.getData("text/plain");
+                  const at = caretAt(e.clientX, e.clientY);
+                  const editor = editorRef.current;
+                  // Only into the text: a drop on the page's margin has no place in it.
+                  if (!text || !at || !editor?.contains(at.startContainer)) return;
+                  const selection = getSelection();
+                  selection?.removeAllRanges();
+                  selection?.addRange(at);
+                  insertPlainText(editor, text);
                 }}
                 onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  // In a heading or row, a plain new line rather than a copy of it.
+                  if (editorRef.current && insertPlainLine(editorRef.current)) {
+                    e.preventDefault();
+                    saveSoon();
+                    return;
+                  }
                   // Shift+Enter would put a line break inside a line, which the
                   // exports can't show the same way; make it a new line instead.
-                  if (e.key === "Enter" && e.shiftKey) {
+                  if (e.shiftKey) {
                     e.preventDefault();
                     exec("insertParagraph");
                   }

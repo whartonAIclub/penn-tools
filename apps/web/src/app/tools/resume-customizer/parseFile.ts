@@ -4,6 +4,7 @@
  * page previews. Parsers load only when needed.
  */
 
+import type JSZip from "jszip";
 import { LIMITS, type ContextFile, type FileTag } from "@penntools/tool-resume-customizer/resume";
 
 export interface UploadedFile {
@@ -155,6 +156,54 @@ export function cleanResumeText(rawText: string): string {
 
 // ── PDF (pdfjs-dist v3) ───────────────────────────────────────────────────────
 
+/** A piece of a PDF page's text, as pdf.js gives it. transform is [scaleX, skewX, skewY, scaleY, x, y]. */
+export interface PdfTextItem {
+  str?: string;
+  transform: number[];
+  /** Its width on the page, in points. */
+  width?: number;
+}
+
+/**
+ * A page's text, one line per row of items. Items are sorted top to bottom
+ * (PDF y grows upwards), then left to right, and those within 3 points of each
+ * other's y are one line. A gap of more than two characters' width between
+ * items is a right-aligned column, such as dates or a location: it's kept as
+ * a run of spaces, which cleanResumeText turns into " | ".
+ */
+export function pageText(allItems: PdfTextItem[]): string {
+  const items = allItems.filter((item) => item.str);
+  const sorted = [...items].sort((a, b) => {
+    const dy = (b.transform[5] ?? 0) - (a.transform[5] ?? 0);
+    return Math.abs(dy) > 2 ? dy : (a.transform[4] ?? 0) - (b.transform[4] ?? 0);
+  });
+  const lines: string[] = [];
+  let line = "";
+  let lastY = sorted[0]?.transform[5] ?? 0;
+  let lastEnd: number | null = null;
+  for (const item of sorted) {
+    const y = item.transform[5] ?? lastY;
+    const x = item.transform[4] ?? 0;
+    if (Math.abs(y - lastY) > 3 && line) {
+      lines.push(line.trim());
+      line = "";
+      lastY = y;
+      lastEnd = null;
+    }
+    // A whitespace item only separates: the gap is measured from the last
+    // word's end, since pdf.js may fill a right-aligned column's gap with one.
+    if (!item.str!.trim()) continue;
+    if (line) {
+      const fontSize = Math.abs(item.transform[0] ?? 10) || 10;
+      line += lastEnd !== null && x - lastEnd > fontSize * 2 ? "     " : " ";
+    }
+    line += item.str!.trim();
+    lastEnd = item.width !== undefined ? x + item.width : null;
+  }
+  if (line) lines.push(line.trim());
+  return lines.filter(Boolean).join("\n");
+}
+
 async function parsePdf(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
   // The worker that matches the installed pdfjs-dist, bundled with the app.
@@ -170,25 +219,7 @@ async function parsePdf(file: File): Promise<string> {
       // Each item's transform is [scaleX, skewX, skewY, scaleY, x, y]. Sort
       // top to bottom (PDF y grows upwards), then left to right, and join
       // items within 3 points of each other's y into one line.
-      const items = (content.items as Array<{ str?: string; transform: number[] }>).filter((item) => item.str);
-      const sorted = [...items].sort((a, b) => {
-        const dy = (b.transform[5] ?? 0) - (a.transform[5] ?? 0);
-        return Math.abs(dy) > 2 ? dy : (a.transform[4] ?? 0) - (b.transform[4] ?? 0);
-      });
-      const lines: string[] = [];
-      let tokens: string[] = [];
-      let lastY = sorted[0]?.transform[5] ?? 0;
-      for (const item of sorted) {
-        const y = item.transform[5] ?? lastY;
-        if (Math.abs(y - lastY) > 3 && tokens.length) {
-          lines.push(tokens.join(" ").trim());
-          tokens = [];
-          lastY = y;
-        }
-        tokens.push(item.str!);
-      }
-      if (tokens.length) lines.push(tokens.join(" ").trim());
-      const text = lines.filter(Boolean).join("\n");
+      const text = pageText(content.items as PdfTextItem[]);
       pages.push(text);
       length += text.length;
     }
@@ -216,6 +247,37 @@ function decodeXmlEntities(text: string): string {
   });
 }
 
+/**
+ * The most slide XML read from one PowerPoint file, in characters: far more
+ * than a real deck's text needs, so a small file that unzips to gigabytes (a
+ * zip bomb) can't freeze the page.
+ */
+const MAX_PPTX_XML = 20_000_000;
+
+/**
+ * A zipped file's text, up to `max` characters: unzipped as a stream that's
+ * paused once there's enough, rather than all at once. JSZip's types leave
+ * out internalStream, which its documentation describes.
+ */
+function readCapped(entry: JSZip.JSZipObject, max: number): Promise<string> {
+  const streamable = entry as JSZip.JSZipObject & { internalStream(type: "string"): JSZip.JSZipStreamHelper<string> };
+  return new Promise((resolve, reject) => {
+    let text = "";
+    const stream = streamable.internalStream("string");
+    stream
+      .on("data", (chunk) => {
+        text += chunk;
+        if (text.length >= max) {
+          stream.pause();
+          resolve(text.slice(0, max));
+        }
+      })
+      .on("error", reject)
+      .on("end", () => resolve(text))
+      .resume();
+  });
+}
+
 async function parsePptx(file: File): Promise<string> {
   const JSZip = (await import("jszip")).default;
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -225,8 +287,11 @@ async function parsePptx(file: File): Promise<string> {
     .sort((a, b) => slideNumber(a) - slideNumber(b));
 
   const slides: string[] = [];
+  let budget = MAX_PPTX_XML;
   for (const name of slideNames) {
-    const xml = await zip.files[name]!.async("text");
+    if (budget <= 0) break;
+    const xml = await readCapped(zip.files[name]!, budget);
+    budget -= xml.length;
     const text = Array.from(xml.matchAll(/<a:t[^>]*>([^<]*)<\/a:t>/g))
       .map((m) => decodeXmlEntities(m[1]!))
       .join(" ")

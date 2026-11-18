@@ -92,10 +92,23 @@ export const FONT_NAMES: Record<ResumeFont, string> = {
   sans: "Arial",
 };
 
-/** CSS for the editor, so it breaks lines where the exports do. */
+/**
+ * The names the page registers this package's Liberation fonts under (with
+ * the FontFace API), so the editor shows the PDF's own fonts on any computer.
+ */
+export const EDITOR_FONT_FAMILIES: Record<ResumeFont, string> = {
+  serif: "Resume Customizer Serif",
+  sans: "Resume Customizer Sans",
+};
+
+/**
+ * CSS for the editor, so it breaks lines where the exports do: the PDF's own
+ * fonts first, then the system fonts with the same letter widths while they
+ * load.
+ */
 export const FONT_CSS: Record<ResumeFont, string> = {
-  serif: "'Times New Roman', 'Liberation Serif', Tinos, Times, serif",
-  sans: "Arial, 'Liberation Sans', Arimo, Helvetica, sans-serif",
+  serif: `'${EDITOR_FONT_FAMILIES.serif}', 'Times New Roman', 'Liberation Serif', Tinos, Times, serif`,
+  sans: `'${EDITOR_FONT_FAMILIES.sans}', Arial, 'Liberation Sans', Arimo, Helvetica, sans-serif`,
 };
 
 export const FONT_SIZES = [10, 10.5, 11, 11.5, 12] as const;
@@ -228,7 +241,8 @@ export function carryFormatting(previous: ResumeDoc, next: ResumeDoc): ResumeDoc
       ...section,
       lines: section.lines.map((line) => {
         const old = byText.get(`${line.kind}:${lineText(line)}`);
-        if (!old || old.kind !== line.kind) return line;
+        // The key includes the kind, so `old` is the same kind of line.
+        if (!old) return line;
         return line.kind === "row" && old.kind === "row" ? { ...old, startsEntry: line.startsEntry } : old;
       }),
     })),

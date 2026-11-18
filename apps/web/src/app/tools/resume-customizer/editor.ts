@@ -101,6 +101,44 @@ export function tidyHeader(root: HTMLElement): void {
   }
 }
 
+/**
+ * Enter in a heading or a row (organization and location, role and dates):
+ * adds an empty plain line after it, or before it with the caret at its
+ * start, and returns true. The browser's own Enter would copy the heading's or
+ * row's attributes and style onto the new line, making whatever's typed there
+ * look like a heading or row on screen but export as something else. Returns
+ * false, changing nothing, when the caret isn't in one, or text is selected
+ * (the browser's own Enter replaces the selection). The new line isn't on
+ * the browser's undo stack, so the toolbar's Undo can't undo it.
+ */
+export function insertPlainLine(root: HTMLElement): boolean {
+  const selection = getSelection();
+  if (!selection?.rangeCount || !selection.isCollapsed) return false;
+  const range = selection.getRangeAt(0);
+  const at = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
+  const block = at?.closest<HTMLElement>('[data-rc="heading"], [data-rc="row"]');
+  if (!block || !root.contains(block)) return false;
+
+  const before = document.createRange();
+  before.selectNodeContents(block);
+  before.setEnd(range.startContainer, range.startOffset);
+  const atStart = !before.toString().trim();
+
+  const line = document.createElement("div");
+  line.dataset.rc = "text";
+  line.appendChild(document.createElement("br")); // an empty line still takes a line's height
+  block.parentNode!.insertBefore(line, atStart ? block : block.nextSibling);
+  // At the start, the caret stays where it is: the line moves down, as with Enter.
+  if (!atStart) {
+    const caret = document.createRange();
+    caret.setStart(line, 0);
+    caret.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(caret);
+  }
+  return true;
+}
+
 /** The resume in the editor. */
 export function editorToDoc(root: HTMLElement): ResumeDoc {
   const doc: ResumeDoc = { name: "", contact: "", sections: [] };

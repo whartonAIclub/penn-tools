@@ -251,3 +251,24 @@
   font-kerning: none;
   font-variant-ligatures: none;
 }
+
+/*
+ * Bullets where the exports put them (LAYOUT in the tool package's resume.ts):
+ * the dot 0.35em from the margin and the text at 1.3em, rather than the
+ * browser's own marker. Lists made with the toolbar get the same.
+ */
+.resume ul {
+  margin: 0;
+  padding-left: 1.3em;
+  list-style: none;
+}
+
+.resume li {
+  position: relative;
+}
+
+.resume li::before {
+  content: "•";
+  position: absolute;
+  left: -0.95em;
+}

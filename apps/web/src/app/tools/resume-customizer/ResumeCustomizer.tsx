@@ -17,6 +17,7 @@ import { ExportScreen } from "./ExportScreen";
 import { GeneratingScreen } from "./GeneratingScreen";
 import { LandingScreen } from "./LandingScreen";
 import { OnboardingScreen } from "./OnboardingScreen";
+import { registerEditorFonts } from "./exportResume";
 import { contextFiles, parseFiles, type UploadedFile } from "./parseFile";
 import { UNREACHABLE, cx, type ProviderChoice } from "./shared";
 import { StepBar, type Screen } from "./StepBar";
@@ -71,6 +72,8 @@ export function ResumeCustomizer({ providers, labels }: {
   // Leaving the page mid-generation cancels it, rather than paying for a
   // resume no one will see.
   useEffect(() => () => generation.current?.abort(), []);
+  // The PDF's fonts, for the editor and Compare: downloaded only once text uses them.
+  useEffect(registerEditorFonts, []);
 
   const providerChoice: ProviderChoice = { providers, labels, provider, setProvider };
   const resumes = files.filter((f) => f.tag === "Resume" && !f.error);
