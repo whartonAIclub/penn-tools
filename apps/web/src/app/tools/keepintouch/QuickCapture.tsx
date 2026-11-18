@@ -8,12 +8,10 @@ import { useState } from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type { ContactDraft } from "@penntools/tool-keepintouch";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { draftFromNote } from "./actions";
 import { localToday } from "./helpers";
 import styles from "./KeepInTouch.module.css";
-
-/** AI errors the user fixes in Settings. */
-const KEY_PROBLEMS = new Set(["missing_key", "invalid_key", "no_credit", "credit_used"]);
 
 const EXAMPLE =
   "e.g. Met Sarah Chen at the Goldman TMT coffee chat. VP, Wharton '15, into climate tech. Offered to intro me to her team, follow up in 2 weeks.";
@@ -59,7 +57,7 @@ export function QuickCapture({
         onDraft(result.data);
         setFilled(true);
       } else {
-        setError({ message: result.error, settings: result.kind !== undefined && KEY_PROBLEMS.has(result.kind) });
+        setError({ message: result.error, settings: isSettingsError(result.kind) });
       }
     } catch {
       setError({ message: "Something went wrong. Try again.", settings: false });

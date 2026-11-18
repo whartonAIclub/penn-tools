@@ -161,6 +161,13 @@ section 4; this section covers the design.
   has no key for that provider). If the platform's key itself is rejected or
   out of credit, users see `unavailable` and the error is logged, since the
   fix is ours, not theirs.
+- **Errors fixed in Settings.** `missing_key`, `invalid_key`, `no_credit` and
+  `credit_used` are fixed by saving or changing a key, so tool pages link to
+  Settings for them. `isSettingsError(kind)` (`packages/core/src/ai/errors.ts`)
+  decides which kinds those are, from a table listing every kind, so a new kind
+  doesn't compile until it's classified. Pages import it from
+  `@penntools/core/ai/errors`, which keeps Zod and the price tables out of the
+  browser, and `pnpm check:tools` fails a tool that lists the kinds itself.
 - **Reserve, then settle.** Before a call on the platform's key, the
   provider's token counting endpoint counts its input (Anthropic's
   `count_tokens`, OpenAI's `responses/input_tokens`; a local estimate stands in

@@ -22,6 +22,8 @@
     "@penntools/tool-keepintouch": "workspace:*",
     "@penntools/tool-non-wharton-course-manager": "workspace:*",
     "@penntools/tool-pass-it-on": "workspace:*",
+    "@penntools/tool-penn-pals": "workspace:*",
+    "@penntools/tool-paper-tldr": "workspace:*",
     "@penntools/tool-pitch-coach": "workspace:*",
     "@penntools/tool-platform-playground": "workspace:*",
     "@penntools/tool-recruiting-helper": "workspace:*",

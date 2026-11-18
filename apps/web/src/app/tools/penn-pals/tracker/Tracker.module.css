@@ -1,0 +1,535 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.intro,
+.note {
+  color: var(--section-label);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* ── Form ──────────────────────────────────────────────────────────────────── */
+
+/* Styled like the AI card above it (.ai), so the two read as a pair */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 12px;
+  background: var(--penn-blue-bg, transparent);
+  font-size: 0.875rem;
+}
+
+.formTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--section-label);
+  font-weight: 500;
+}
+
+.field input,
+.field select,
+.field textarea,
+.step input,
+.step select {
+  padding: 7px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.steps legend { padding: 0 6px; color: var(--section-label); font-weight: 500; }
+
+/* The follow-ups are the point of the form, so their box stands out */
+.steps {
+  border-color: var(--penn-blue);
+  background: var(--penn-blue-bg, transparent);
+}
+.steps legend { color: var(--penn-blue); font-weight: 700; }
+
+.step {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.step input:first-child { flex: 1; min-width: 180px; }
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--section-label);
+}
+
+.errors {
+  margin: 0;
+  padding: 10px 14px 10px 30px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.button {
+  align-self: flex-start;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--penn-blue);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.button:hover { background: #163983; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.link {
+  align-self: flex-start;
+  color: var(--penn-blue);
+  text-decoration: underline;
+  font-size: 0.875rem;
+}
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+/* Example text reads as a hint, not as a filled-in value */
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--section-label);
+  opacity: 0.55;
+  font-style: italic;
+}
+
+/* The two follow-ups, one per row: checkbox, then its due date */
+.stepRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  min-height: 36px;
+}
+.stepRow .check {
+  min-width: 190px;
+  font-weight: 500;
+}
+.stepDue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.stepDue input {
+  padding: 5px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* The check-in's optional repeat: a checkbox, then "every [number] [weeks, months or years]" */
+.repeat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  flex-basis: 100%;
+  margin: 2px 0 4px 26px;
+}
+.repeat .check {
+  font-weight: 400;
+}
+.repeatBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.repeatBox input,
+.repeatBox select {
+  padding: 5px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+}
+.repeatBox input {
+  width: 72px;
+}
+
+/* ── Cards that open and close (the AI chat and the form) ──────────────────── */
+.cardHeading {
+  margin: 0;
+  font: inherit;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cardHead:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.cardHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cardSubtitle {
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--section-label);
+}
+.chevron {
+  flex-shrink: 0;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--penn-blue);
+  transition: transform 0.15s ease;
+}
+.cardHead[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cardBody[hidden] {
+  display: none;
+}
+
+/* ── AI intake ─────────────────────────────────────────────────────────────── */
+.ai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 12px;
+  background: var(--penn-blue-bg, transparent);
+}
+.aiTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+.aiNote {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+.aiStory {
+  padding: 10px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  resize: vertical;
+}
+.aiStory::placeholder {
+  color: var(--section-label);
+  opacity: 0.55;
+  font-style: italic;
+}
+.aiDone {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.aiMeta {
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+.aiError {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.85rem;
+}
+.aiBanner {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--penn-blue-bg, transparent);
+  color: var(--penn-blue);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* The AI's three steps, the current one highlighted */
+.aiSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.8rem;
+  color: var(--section-label);
+}
+.aiSteps li::marker {
+  font-weight: 700;
+}
+.aiStepNow {
+  color: var(--penn-blue);
+  font-weight: 700;
+}
+
+/* AI intake: screenshots as removable thumbnails, and the drop highlight */
+.aiShots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.aiShot {
+  position: relative;
+  width: 96px;
+  height: 72px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.aiShot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.aiShotRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.aiShotRemove:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Form fields the AI couldn't find, until the user fills them in */
+.needsReview input,
+.needsReview select,
+.needsReview textarea {
+  border-color: #dc6803;
+  box-shadow: 0 0 0 2px rgb(220 104 3 / 0.18);
+}
+.reviewHint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #b54708;
+}
+
+/* The upload area under the notes box: dashed, full width, lights up on hover and drag */
+.aiDrop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 2px dashed color-mix(in srgb, var(--penn-blue) 35%, transparent);
+  border-radius: 10px;
+  background: var(--bg);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.aiDrop:hover,
+.aiDragging .aiDrop {
+  border-color: var(--penn-blue);
+  background: color-mix(in srgb, var(--penn-blue) 6%, var(--bg));
+}
+.aiDropButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.aiDropButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.aiDropButton:focus-visible {
+  outline: 2px solid var(--penn-blue);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.aiDropIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--penn-blue) 10%, transparent);
+  font-size: 1.2rem;
+}
+.aiDropText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.aiDropText strong {
+  color: var(--penn-blue);
+  font-size: 0.95rem;
+}
+.aiDropText span {
+  color: var(--section-label);
+  font-size: 0.8rem;
+}
+.aiHint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--section-label);
+}
+
+/* A new chat that looks like someone already saved */
+/* The note under the name when it matches someone saved: soft, with the merge right there */
+.sameWarn {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #fecdca;
+  border-left: 4px solid #f04438;
+  border-radius: 8px;
+  background: #fef3f2;
+}
+.sameWarnText {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.sameWarnText strong {
+  color: #b42318;
+}
+.sameAsk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--penn-blue);
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--penn-blue) 5%, var(--bg));
+}
+.sameAskTitle {
+  margin: 0;
+  font-weight: 700;
+  color: var(--penn-blue);
+}
+.sameAskDetail {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--section-label);
+}
+.buttonSecondary {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--penn-blue);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--penn-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.buttonSecondary:hover {
+  background: color-mix(in srgb, var(--penn-blue) 8%, var(--bg));
+}

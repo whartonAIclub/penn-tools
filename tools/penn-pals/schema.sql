@@ -1,0 +1,71 @@
+-- Penn Pals database schema, applied on every `db:deploy` as the pennpals role
+-- (see packages/platform/scripts/setup-tools.mjs). Every statement must be
+-- safe to re-run against a database that already has it.
+
+-- One row per chat a signed-in user saves: the usage numbers (users, chats,
+-- people) are counted from these. Counts only: no names, notes, companies or
+-- contact details are stored here (contacts are in `contacts`, below). A tool's
+-- schema can't reference platform tables, so user_id is the platform user's id
+-- with no foreign key.
+--
+--   person_key  the opaque random id the browser gave the contact, so a person
+--               counts once however many chats there are with them
+--   chat_key    that id plus the chat's number (`<person_key>:2`), so saving
+--               the same chat twice is counted once
+CREATE TABLE IF NOT EXISTS chat_events (
+  id         BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id    TEXT        NOT NULL,
+  person_key TEXT        NOT NULL,
+  chat_key   TEXT        NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, chat_key)
+);
+
+CREATE INDEX IF NOT EXISTS chat_events_user_idx ON chat_events (user_id);
+
+-- One row per follow-up a signed-in user marks done (a thank-you or a check-in):
+-- the follow-through numbers are counted from these. Counts only, like
+-- chat_events: no names or notes, just opaque keys, the kind of follow-up and
+-- how many days after the chat it was done.
+--
+--   follow_up_key    the step's own id, which stays with it however the list
+--                    is reordered, so the same follow-up is counted once even
+--                    if it's un-done and done again
+--   kind             'thankYou' or 'followUp' (a check-in)
+--   days_after_chat  whole days from the chat to completion, never negative
+CREATE TABLE IF NOT EXISTS follow_up_events (
+  id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id         TEXT        NOT NULL,
+  follow_up_key   TEXT        NOT NULL,
+  kind            TEXT        NOT NULL CHECK (kind IN ('thankYou', 'followUp')),
+  days_after_chat INTEGER     NOT NULL CHECK (days_after_chat >= 0),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, follow_up_key)
+);
+
+CREATE INDEX IF NOT EXISTS follow_up_events_user_idx ON follow_up_events (user_id);
+
+-- A signed-in user's network, so it's there on every device they sign in on:
+-- one row per contact, `data` holding the whole contact (details, chats,
+-- follow-ups) as tools/penn-pals/src/contacts.ts defines it and checks it on
+-- every read and write. Each user reads and writes only their own rows (see
+-- src/storage.ts). Signed-out users' contacts stay in their browser.
+--
+--   id          the contact's id, made by the browser; unique per user
+--   updated_at  when it was last saved
+--   version     counts saves of this contact; a save names the version it was
+--               based on and is refused if another device has saved since
+--   bytes       the size of `data` as text, set on every write, so a user's
+--               total can be checked without re-reading every contact
+CREATE TABLE IF NOT EXISTS contacts (
+  user_id    TEXT        NOT NULL,
+  id         TEXT        NOT NULL,
+  data       JSONB       NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id)
+);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bytes INTEGER;
+-- Rows saved before `bytes` existed get their size once; every write sets it after that.
+UPDATE contacts SET bytes = octet_length(data::text) WHERE bytes IS NULL;

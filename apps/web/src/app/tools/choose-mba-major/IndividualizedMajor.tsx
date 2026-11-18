@@ -43,6 +43,7 @@ import {
   type Taken,
   type ThemeSuggestion,
 } from "@penntools/tool-choose-mba-major";
+import { isSettingsError } from "@penntools/core/ai/errors";
 import { suggestAlignmentsAction, suggestThemesAction, type SuggestionError } from "./actions";
 import styles from "./CourseRanker.module.css";
 
@@ -50,7 +51,6 @@ import styles from "./CourseRanker.module.css";
 export type SuggestionAccess = "ready" | "signed_out" | "no_key";
 
 const STORAGE_KEY = "choose-mba-major:individualized";
-const KEY_ERRORS = new Set(["missing_key", "invalid_key", "no_credit"]);
 
 interface Saved {
   draft: IndividualizedDraft;
@@ -115,7 +115,7 @@ function ErrorNote({ error }: { error: SuggestionError }) {
   return (
     <p className={styles.error} role="alert">
       {error.message}
-      {error.kind && KEY_ERRORS.has(error.kind) && (
+      {isSettingsError(error.kind) && (
         <>
           {" "}
           <Link href="/settings" className={styles.link}>

@@ -53,9 +53,15 @@ importers:
       '@penntools/tool-non-wharton-course-manager':
         specifier: workspace:*
         version: link:../../tools/non-wharton-course-manager
+      '@penntools/tool-paper-tldr':
+        specifier: workspace:*
+        version: link:../../tools/paper-tldr
       '@penntools/tool-pass-it-on':
         specifier: workspace:*
         version: link:../../tools/pass-it-on
+      '@penntools/tool-penn-pals':
+        specifier: workspace:*
+        version: link:../../tools/penn-pals
       '@penntools/tool-pitch-coach':
         specifier: workspace:*
         version: link:../../tools/pitch-coach
@@ -124,6 +130,9 @@ importers:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
 
   packages/platform:
     dependencies:
@@ -285,6 +294,19 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@22.20.5)
 
+  tools/paper-tldr:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
   tools/pass-it-on:
     dependencies:
       '@penntools/core':
@@ -302,6 +324,22 @@ importers:
       unpdf:
         specifier: ^2.1.0
         version: 2.1.0
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/penn-pals:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
     devDependencies:
       postgres:
         specifier: ^3.4.5

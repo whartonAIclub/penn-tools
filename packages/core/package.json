@@ -24,6 +24,10 @@
       "types": "./dist/ai/attachments.d.ts",
       "import": "./dist/ai/attachments.js"
     },
+    "./ai/errors": {
+      "types": "./dist/ai/errors.d.ts",
+      "import": "./dist/ai/errors.js"
+    },
     "./repositories": {
       "types": "./dist/repositories/index.d.ts",
       "import": "./dist/repositories/index.js"
@@ -43,10 +47,12 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
   },
   "dependencies": {
     "zod": "^4.6.7"
