@@ -1,12 +1,18 @@
 // Helpers for writing fixture weeks as readable data. Every fixture is the
 // week of Monday, November 16, 2026, a normal (non-holiday) week of a
-// first-year Wharton MBA's fall.
+// first-year Wharton MBA's fall. Fixtures are written as stored data
+// (preferences, schedule, places) and go through buildPlanInput, as the app's
+// will, so they test that translation too.
 
-import { FACILITIES } from "../../../facilities.js";
-import { OUTTAKE_PREFS, type OuttakePrefs } from "../../../prefs.js";
+import { NO_ATTRIBUTES } from "../../../../attributes.js";
+import type { Zone } from "../../../../location.js";
+import type { BlockSource, BusyBlock } from "../../../../schedule.js";
 import { SHARED_PREFS, type SharedPrefs } from "../../../../sharedPrefs.js";
 import { WEEKDAYS, type LocalDate, type TimeOfDay, type Weekday } from "../../../../time.js";
-import type { BlockSource, BusyBlock, DismissedTime, Zone } from "../../../types.js";
+import { FACILITIES } from "../../../facilities.js";
+import { buildPlanInput } from "../../../planInput.js";
+import { OUTTAKE_PREFS, type OuttakePrefs } from "../../../prefs.js";
+import type { DismissedTime } from "../../../types.js";
 import type { PlanInput } from "../../types.js";
 
 export const WEEK_START: LocalDate = "2026-11-16";
@@ -27,6 +33,7 @@ function busy(source: BlockSource, day: Weekday, start: TimeOfDay, end: TimeOfDa
     confidence: source === "SCREENSHOT" ? 0.95 : null,
     confirmed: true,
     zone,
+    attributes: NO_ATTRIBUTES,
   };
 }
 
@@ -67,14 +74,14 @@ export interface FixtureOptions {
 }
 
 export function planInput(options: FixtureOptions): PlanInput {
-  return {
+  return buildPlanInput({
     weekStart: WEEK_START,
-    busyBlocks: options.busyBlocks,
-    awayDays: (options.awayDays ?? []).map(dateOf),
     shared: { ...SHARED_PREFS.defaults, ...options.shared },
     outtake: { ...OUTTAKE_PREFS.defaults, ...options.outtake },
-    facilities: FACILITIES,
+    blocks: options.busyBlocks,
+    awayDays: (options.awayDays ?? []).map((day) => ({ date: dateOf(day), attributes: NO_ATTRIBUTES })),
+    places: FACILITIES,
     crunchMode: options.crunchMode ?? false,
     dismissed: options.dismissed ?? [],
-  };
+  });
 }

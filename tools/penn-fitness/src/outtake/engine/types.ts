@@ -1,22 +1,50 @@
-// The slot engine's input and output (section 8.3 of docs/outtake.md). The
-// engine is pure: everything it needs comes in through PlanInput, and it
-// returns a WeekPlan without reading or writing anything.
+// The slot engine's input and output (section 8.3 of docs/outtake.md).
+//
+// The engine is pure, and knows nothing about how preferences, the schedule or
+// places are stored: PlanInput is its own small, fixed shape, built by
+// buildPlanInput (../planInput.ts). When either half adds or renames an
+// attribute, only that translator changes, never the engine.
 
-import type { LocalDate, LocalDateTime } from "../../time.js";
-import type { SharedPrefs } from "../../sharedPrefs.js";
-import type { OuttakePrefs } from "../prefs.js";
-import type { BusyBlock, DismissedTime, Facility } from "../types.js";
+import type { Location } from "../../location.js";
+import type { OpeningHours } from "../../places.js";
+import type { LocalDate, LocalDateTime, TimeOfDay } from "../../time.js";
+import type { DismissedTime } from "../types.js";
+
+export interface TimeWindow {
+  start: TimeOfDay;
+  end: TimeOfDay;
+}
+
+/** A busy stretch, and where the user is during it. */
+export interface EngineBlock {
+  start: LocalDateTime;
+  end: LocalDateTime;
+  location: Location;
+}
+
+/** A place a workout can happen, already filtered to the ones this user can use. */
+export interface EnginePlace {
+  id: string;
+  location: Location;
+  hours: OpeningHours;
+}
 
 export interface PlanInput {
   /** The Monday the week starts on; the plan covers Monday to Sunday. */
   weekStart: LocalDate;
-  /** The user's confirmed busy blocks for the week. */
-  busyBlocks: readonly BusyBlock[];
-  /** Whole days away (treks, travel): nothing is planned on them. */
+  /** Confirmed busy stretches. */
+  busyBlocks: readonly EngineBlock[];
+  /** Whole days away: nothing is planned on them. */
   awayDays: readonly LocalDate[];
-  shared: SharedPrefs;
-  outtake: OuttakePrefs;
-  facilities: readonly Facility[];
+  /** Where the user starts and ends each day, and is when a block doesn't say. */
+  home: Location;
+  wakingStart: TimeOfDay;
+  wakingEnd: TimeOfDay;
+  weeklyTargetSessions: number;
+  sessionMinutes: number;
+  /** Times of day the user would rather work out; empty means no preference. */
+  preferredWindows: readonly TimeWindow[];
+  places: readonly EnginePlace[];
   /** Heavy week: aim for 2 short sessions instead of the usual target. */
   crunchMode: boolean;
   /** Times the user dismissed before, to avoid. */
@@ -26,7 +54,7 @@ export interface PlanInput {
 export interface PlannedSlot {
   start: LocalDateTime;
   end: LocalDateTime;
-  facilityId: string;
+  placeId: string;
   /** Walking there and back, in minutes. */
   travelMinutes: number;
   score: number;

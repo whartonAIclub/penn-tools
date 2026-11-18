@@ -1,13 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { areaOfCorner, isCorner } from "../../location.js";
 import { WEEKDAYS, isTimeOfDay, minutesOfDay } from "../../time.js";
-import { BUILDING_GYM_ID, FACILITIES, findFacility } from "../facilities.js";
+import { BUILDING_GYM_ID, FACILITIES, WORKOUT_PLACE_KINDS, findFacility } from "../facilities.js";
 
 describe("facility list", () => {
   it("has unique, kebab-case ids", () => {
     const ids = FACILITIES.map((facility) => facility.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+  });
+
+  it("only has places of workout kinds", () => {
+    for (const facility of FACILITIES) expect(WORKOUT_PLACE_KINDS, facility.id).toContain(facility.kind);
   });
 
   it("gives every facility valid hours for every weekday", () => {
@@ -33,7 +37,7 @@ describe("facility list", () => {
 
   it("has a building gym at home, with no corner of its own, that is always open", () => {
     const gym = findFacility(BUILDING_GYM_ID);
-    expect(gym).toMatchObject({ zone: "HOME", type: "BUILDING_GYM", corner: null });
+    expect(gym).toMatchObject({ zone: "HOME", kind: "building-gym", corner: null });
     for (const day of WEEKDAYS) expect(gym?.hours[day]).toEqual({ open: "00:00", close: "24:00" });
   });
 

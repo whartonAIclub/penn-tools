@@ -1,8 +1,10 @@
-// Where things are, on Philadelphia's street grid, shared by both halves. A
-// place is its nearest corner: a numbered street (running north-south) and a
-// named cross street (running east-west), e.g. 23rd & Chestnut. That's precise
-// enough to estimate walking time without a map service, and less personal
-// than a street address, so no house numbers are ever stored.
+// Where things are, shared by both halves.
+//
+// The precise answer is a corner on Philadelphia's street grid: a numbered
+// street (running north-south) and a named cross street (running east-west),
+// e.g. 23rd & Chestnut. That's precise enough to estimate walking time without
+// a map service, and less personal than a street address, so no house numbers
+// are ever stored. The rough answer, when there's no corner, is an area.
 //
 // The grid is an approximation: blocks aren't all the same length, and the
 // Schuylkill can only be crossed on its bridges. The engine turns blocks into
@@ -21,9 +23,22 @@ export interface Corner {
   crossStreet: CrossStreet;
 }
 
-/** The broad areas the travel model falls back to when there's no corner. */
-export const HOME_BASES = ["CAMPUS", "CENTER_CITY"] as const;
-export type HomeBase = (typeof HOME_BASES)[number];
+/** The broad areas, for when there's no corner; CENTER_CITY includes Rittenhouse. */
+export const AREAS = ["CAMPUS", "CENTER_CITY"] as const;
+export type Area = (typeof AREAS)[number];
+
+/**
+ * Where a stored record says something happens, when it has no corner: an
+ * area, or HOME, meaning wherever the user lives (see SharedPrefs).
+ */
+export const ZONES = [...AREAS, "HOME"] as const;
+export type Zone = (typeof ZONES)[number];
+
+/** A resolved place: always an area, and a corner when known. */
+export interface Location {
+  area: Area;
+  corner: Corner | null;
+}
 
 export function isCorner(value: Corner): boolean {
   return (
@@ -37,8 +52,13 @@ export function isCorner(value: Corner): boolean {
 }
 
 /** Streets up to the Schuylkill (26th) are Center City; past it is University City, around campus. */
-export function areaOfCorner(corner: Corner): HomeBase {
+export function areaOfCorner(corner: Corner): Area {
   return corner.street <= 26 ? "CENTER_CITY" : "CAMPUS";
+}
+
+/** A location at a corner, in the corner's area. */
+export function atCorner(corner: Corner): Location {
+  return { area: areaOfCorner(corner), corner };
 }
 
 /** Blocks walked between two corners: across numbered streets plus across cross streets. */

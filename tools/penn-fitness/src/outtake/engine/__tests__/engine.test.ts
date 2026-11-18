@@ -5,7 +5,6 @@
 
 import { describe, it, expect } from "vitest";
 import { minutesOfDay, weekdayOf, WEEKDAYS, type LocalDateTime } from "../../../time.js";
-import { BUILDING_GYM_ID } from "../../facilities.js";
 import { planWeek } from "../index.js";
 import type { PlanInput, PlannedSlot, WeekPlan } from "../types.js";
 import { centerCityWeek } from "./fixtures/centerCityWeek.js";
@@ -26,12 +25,11 @@ const duration = (slot: PlannedSlot) => at(slot.end) - at(slot.start);
 
 /** Rules every plan must follow, whatever the week. */
 function expectSoundPlan(input: PlanInput, plan: WeekPlan) {
-  const { shared, outtake } = input;
-  const wakingStart = minutesOfDay(shared.wakingStart);
-  const wakingEnd = minutesOfDay(shared.wakingEnd);
+  const wakingStart = minutesOfDay(input.wakingStart);
+  const wakingEnd = minutesOfDay(input.wakingEnd);
 
   expect(plan.slots.length).toBeLessThanOrEqual(plan.targetSessions);
-  expect(plan.targetSessions).toBe(input.crunchMode ? 2 : outtake.weeklyTargetSessions);
+  expect(plan.targetSessions).toBe(input.crunchMode ? 2 : input.weeklyTargetSessions);
   expect(plan.targetMet).toBe(plan.slots.length === plan.targetSessions);
   expect(plan.reason === null).toBe(plan.targetMet);
   expect(plan.busyness).toBeGreaterThanOrEqual(0);
@@ -43,7 +41,7 @@ function expectSoundPlan(input: PlanInput, plan: WeekPlan) {
   expect([...days].sort(), "slots in time order").toEqual(days);
 
   for (const slot of plan.slots) {
-    const label = `${slot.start} at ${slot.facilityId}`;
+    const label = `${slot.start} at ${slot.placeId}`;
     const date = dateOf(slot.start);
     expect(dateOf(slot.end), `${label} ends the same day`).toBe(date);
     expect(date >= input.weekStart && dayIndex(slot.start) >= 0, `${label} is in the week`).toBe(true);
@@ -53,7 +51,7 @@ function expectSoundPlan(input: PlanInput, plan: WeekPlan) {
       expect(duration(slot), `${label} lasts 20-30 minutes`).toBeGreaterThanOrEqual(20);
       expect(duration(slot), `${label} lasts 20-30 minutes`).toBeLessThanOrEqual(30);
     } else {
-      expect(duration(slot), `${label} lasts the session length`).toBe(outtake.sessionMinutes);
+      expect(duration(slot), `${label} lasts the session length`).toBe(input.sessionMinutes);
     }
 
     const start = minutesOfDay(timeOf(slot.start));
@@ -61,17 +59,17 @@ function expectSoundPlan(input: PlanInput, plan: WeekPlan) {
     expect(start, `${label} starts after waking`).toBeGreaterThanOrEqual(wakingStart);
     expect(end, `${label} ends before bed`).toBeLessThanOrEqual(wakingEnd);
 
-    const facility = input.facilities.find((f) => f.id === slot.facilityId);
-    expect(facility, `${label} is a known facility`).toBeDefined();
-    const hours = facility!.hours[weekdayOf(date)];
+    // Only places the user can use are in the input (no building gym unless they have one).
+    const place = input.places.find((p) => p.id === slot.placeId);
+    expect(place, `${label} is one of the user's places`).toBeDefined();
+    const hours = place!.hours[weekdayOf(date)];
     expect(hours !== null && minutesOfDay(hours.open) <= start && end <= minutesOfDay(hours.close), `${label} is open`).toBe(true);
-    if (slot.facilityId === BUILDING_GYM_ID) expect(shared.hasBuildingGym, `${label}: user has a building gym`).toBe(true);
 
     // The slot overlaps no busy block, and the time around it leaves room to walk there and back.
     const sameDay = input.busyBlocks.filter((block) => dateOf(block.start) === date);
     for (const block of sameDay) {
       const overlaps = at(block.start) < at(slot.end) && at(slot.start) < at(block.end);
-      expect(overlaps, `${label} overlaps ${block.label}`).toBe(false);
+      expect(overlaps, `${label} overlaps the block at ${block.start}`).toBe(false);
     }
     const before = Math.max(wakingStart, ...sameDay.filter((b) => at(b.end) <= at(slot.start)).map((b) => minutesOfDay(timeOf(b.end))));
     const after = Math.min(wakingEnd, ...sameDay.filter((b) => at(b.start) >= at(slot.end)).map((b) => minutesOfDay(timeOf(b.start))));
@@ -110,7 +108,7 @@ describe("slot engine: light week", () => {
   });
 
   it("uses campus facilities", () => {
-    for (const slot of plan().slots) expect(lightWeek.facilities.find((f) => f.id === slot.facilityId)?.zone).toBe("CAMPUS");
+    for (const slot of plan().slots) expect(lightWeek.places.find((p) => p.id === slot.placeId)?.location.area).toBe("CAMPUS");
   });
 
   it("measures the week as not busy", () => {
@@ -185,7 +183,7 @@ describe("slot engine: Center City user", () => {
   });
 
   it("never makes a special trip across the river: each slot is 10 minutes' walk or less", () => {
-    for (const slot of plan().slots) expect(slot.travelMinutes, `${slot.start} at ${slot.facilityId}`).toBeLessThanOrEqual(10);
+    for (const slot of plan().slots) expect(slot.travelMinutes, `${slot.start} at ${slot.placeId}`).toBeLessThanOrEqual(10);
   });
 });
 

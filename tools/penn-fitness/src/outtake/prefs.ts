@@ -2,9 +2,17 @@
 // it. Stored as the "outtake" section of the preferences table (see ../preferences.ts).
 
 import type { PreferenceSection } from "../preferences.js";
+import type { TimeOfDay } from "../time.js";
 
 export const PREFERRED_TIMES = ["MORNING", "MIDDAY", "EVENING"] as const;
 export type PreferredTime = (typeof PREFERRED_TIMES)[number];
+
+/** What each preferred time means, as a window of the day; the engine only ever sees windows. */
+export const PREFERRED_TIME_WINDOWS: Record<PreferredTime, { start: TimeOfDay; end: TimeOfDay }> = {
+  MORNING: { start: "00:00", end: "12:00" },
+  MIDDAY: { start: "12:00", end: "16:00" },
+  EVENING: { start: "16:00", end: "24:00" },
+};
 
 export interface OuttakePrefs {
   weeklyTargetSessions: number;

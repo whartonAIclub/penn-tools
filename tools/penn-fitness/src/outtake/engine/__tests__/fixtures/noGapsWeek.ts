@@ -10,8 +10,8 @@
 // - doesn't crash or suggest anything that overlaps a commitment;
 // - the week counts as busy.
 
+import type { BusyBlock } from "../../../../schedule.js";
 import { WEEKDAYS } from "../../../../time.js";
-import type { BusyBlock } from "../../../types.js";
 import { event, planInput } from "./build.js";
 
 const finalsDay = (day: (typeof WEEKDAYS)[number], exam: string): BusyBlock[] => [
