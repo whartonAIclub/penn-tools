@@ -4,7 +4,7 @@
 
 import { minutesOfDay, weekdayOf, type LocalDate } from "../../time.js";
 import type { ScoringConfig } from "./config.js";
-import type { PlanInput } from "./types.js";
+import type { WorkoutPlanInput } from "./types.js";
 
 export interface SlotToScore {
   date: LocalDate;
@@ -26,7 +26,7 @@ export interface ScoreParts {
   total: number;
 }
 
-export type ScoringInput = Pick<PlanInput, "preferredWindows" | "dismissed" | "crunchMode">;
+export type ScoringInput = Pick<WorkoutPlanInput, "preferredWindows" | "dismissed" | "crunchMode">;
 
 export function scoreSlot(slot: SlotToScore, input: ScoringInput, config: ScoringConfig): ScoreParts {
   const length = slot.end - slot.start;

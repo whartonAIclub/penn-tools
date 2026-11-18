@@ -3,7 +3,7 @@
 // behavior is set out by the fixture weeks in __tests__/. Its input comes from
 // buildPlanInput (../planInput.ts).
 
-export type { EngineBlock, EnginePlace, PlanInput, PlannedSlot, TimeWindow, WeekPlan } from "./types.js";
+export type { EngineBlock, EnginePlace, WorkoutPlanInput, PlannedSlot, PreferredWindow, WeekPlan } from "./types.js";
 export { ENGINE_CONFIG, type EngineConfig, type PlanConfig, type ScoringConfig, type TravelConfig } from "./config.js";
 export { walkingMinutes } from "./travel.js";
 export { findGaps, placeOptions, type Gap, type GapInput, type PlaceOption } from "./gaps.js";

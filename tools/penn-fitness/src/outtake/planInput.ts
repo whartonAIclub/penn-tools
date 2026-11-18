@@ -8,7 +8,7 @@ import type { Place } from "../places.js";
 import type { AwayDay, BusyBlock } from "../schedule.js";
 import type { SharedPrefs } from "../sharedPrefs.js";
 import type { LocalDate, LocalDateTime } from "../time.js";
-import type { EngineBlock, EnginePlace, PlanInput, PlannedSlot } from "./engine/types.js";
+import type { EngineBlock, EnginePlace, WorkoutPlanInput, PlannedSlot } from "./engine/types.js";
 import { WORKOUT_PLACE_KINDS } from "./facilities.js";
 import { PREFERRED_TIME_WINDOWS, type OuttakePrefs } from "./prefs.js";
 import type { DismissedTime, WorkoutSlot } from "./types.js";
@@ -37,7 +37,7 @@ export interface PlanSources {
  */
 export const CAMPUS_BLOCK_CORNER: Corner = { street: 38, crossStreet: "Walnut" };
 
-export function buildPlanInput(sources: PlanSources): PlanInput {
+export function buildPlanInput(sources: PlanSources): WorkoutPlanInput {
   const { shared, outtake } = sources;
   const home: Location = shared.homeCorner ? atCorner(shared.homeCorner) : { area: shared.homeBase, corner: null };
 

@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { minutesOfDay, weekdayOf, WEEKDAYS, type LocalDateTime } from "../../../time.js";
 import { planWeek } from "../index.js";
-import type { PlanInput, PlannedSlot, WeekPlan } from "../types.js";
+import type { WorkoutPlanInput, PlannedSlot, WeekPlan } from "../types.js";
 import { centerCityWeek } from "./fixtures/centerCityWeek.js";
 import { lightWeek } from "./fixtures/lightWeek.js";
 import { noGapsWeek, noGapsWeekCrunch } from "./fixtures/noGapsWeek.js";
@@ -24,7 +24,7 @@ const at = (time: LocalDateTime) => dayIndex(time) * 1440 + minutesOfDay(timeOf(
 const duration = (slot: PlannedSlot) => at(slot.end) - at(slot.start);
 
 /** Rules every plan must follow, whatever the week. */
-function expectSoundPlan(input: PlanInput, plan: WeekPlan) {
+function expectSoundPlan(input: WorkoutPlanInput, plan: WeekPlan) {
   const wakingStart = minutesOfDay(input.wakingStart);
   const wakingEnd = minutesOfDay(input.wakingEnd);
 

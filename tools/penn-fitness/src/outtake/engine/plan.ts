@@ -10,14 +10,14 @@ import { measureBusyness } from "./busyness.js";
 import { ENGINE_CONFIG, type EngineConfig } from "./config.js";
 import { findGaps, formatTimeOfDay, placeOptions, type Gap, type PlaceOption } from "./gaps.js";
 import { scoreSlot } from "./scoring.js";
-import type { PlanInput, PlannedSlot, WeekPlan } from "./types.js";
+import type { WorkoutPlanInput, PlannedSlot, WeekPlan } from "./types.js";
 
 const dateOf = (time: LocalDateTime): LocalDate => time.slice(0, 10);
 const dayIndex = (time: LocalDateTime) => WEEKDAYS.indexOf(weekdayOf(dateOf(time)));
 const byStart = (a: PlannedSlot, b: PlannedSlot) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
 
 /** Session lengths to try, longest first: the user's usual one, or crunch mode's 30 then 20 minutes. */
-function sessionLengths(input: PlanInput, config: EngineConfig): number[] {
+function sessionLengths(input: WorkoutPlanInput, config: EngineConfig): number[] {
   if (!input.crunchMode) return [input.sessionMinutes];
   const { longestMinutes, shortestMinutes } = config.plan.crunch;
   const longest = Math.max(shortestMinutes, Math.min(longestMinutes, input.sessionMinutes));
@@ -36,7 +36,7 @@ function startTimes(option: PlaceOption, step: number): number[] {
 }
 
 /** The highest-scoring slot in a gap, at the longest session length that fits; null when none does. */
-function bestInGap(gap: Gap, input: PlanInput, config: EngineConfig): PlannedSlot | null {
+function bestInGap(gap: Gap, input: WorkoutPlanInput, config: EngineConfig): PlannedSlot | null {
   for (const length of sessionLengths(input, config)) {
     let best: PlannedSlot | null = null;
     for (const option of placeOptions(gap, input.places, length, config.travel)) {
@@ -85,7 +85,7 @@ function shortfallReason(found: number): string {
   return `Only ${found} ${found === 1 ? "day has" : "days have"} a gap long enough for a workout this week.`;
 }
 
-export function planWeek(input: PlanInput, config: EngineConfig = ENGINE_CONFIG): WeekPlan {
+export function planWeek(input: WorkoutPlanInput, config: EngineConfig = ENGINE_CONFIG): WeekPlan {
   const targetSessions = input.crunchMode ? config.plan.crunch.sessions : input.weeklyTargetSessions;
   const busyness = measureBusyness(input);
 

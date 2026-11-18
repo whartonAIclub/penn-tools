@@ -13,7 +13,7 @@ import { FACILITIES } from "../../../facilities.js";
 import { buildPlanInput } from "../../../planInput.js";
 import { OUTTAKE_PREFS, type OuttakePrefs } from "../../../prefs.js";
 import type { DismissedTime } from "../../../types.js";
-import type { PlanInput } from "../../types.js";
+import type { WorkoutPlanInput } from "../../types.js";
 
 export const WEEK_START: LocalDate = "2026-11-16";
 
@@ -73,7 +73,7 @@ export interface FixtureOptions {
   crunchMode?: boolean;
 }
 
-export function planInput(options: FixtureOptions): PlanInput {
+export function planInput(options: FixtureOptions): WorkoutPlanInput {
   return buildPlanInput({
     weekStart: WEEK_START,
     shared: { ...SHARED_PREFS.defaults, ...options.shared },

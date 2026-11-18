@@ -7,7 +7,7 @@ import type { OpeningHours } from "../../../places.js";
 import { measureBusyness } from "../busyness.js";
 import { ENGINE_CONFIG } from "../config.js";
 import { planWeek } from "../plan.js";
-import type { EngineBlock, PlanInput, PlannedSlot } from "../types.js";
+import type { EngineBlock, WorkoutPlanInput, PlannedSlot } from "../types.js";
 
 const home = atCorner({ street: 38, crossStreet: "Spruce" });
 const open: OpeningHours = {
@@ -22,7 +22,7 @@ const open: OpeningHours = {
 const DATES = ["2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-21", "2026-11-22"];
 
 // An empty week with one gym at 37th & Walnut, 5 minutes' walk from home.
-const week = (changes: Partial<PlanInput> = {}): PlanInput => ({
+const week = (changes: Partial<WorkoutPlanInput> = {}): WorkoutPlanInput => ({
   weekStart: "2026-11-16",
   busyBlocks: [],
   awayDays: [],

@@ -9,7 +9,7 @@ import type { Location } from "../../location.js";
 import { minutesOfDay, weekdayOf, type LocalDate, type LocalDateTime, type TimeOfDay } from "../../time.js";
 import { ENGINE_CONFIG, type TravelConfig } from "./config.js";
 import { walkingMinutes } from "./travel.js";
-import type { EnginePlace, PlanInput } from "./types.js";
+import type { EnginePlace, WorkoutPlanInput } from "./types.js";
 
 const MINUTES_PER_DAY = 1440;
 const MS_PER_DAY = 86_400_000;
@@ -40,7 +40,7 @@ export interface PlaceOption {
   latestStart: TimeOfDay;
 }
 
-export type GapInput = Pick<PlanInput, "weekStart" | "busyBlocks" | "awayDays" | "home" | "wakingStart" | "wakingEnd">;
+export type GapInput = Pick<WorkoutPlanInput, "weekStart" | "busyBlocks" | "awayDays" | "home" | "wakingStart" | "wakingEnd">;
 
 function utcDay(date: LocalDate): number {
   const [year, month, day] = date.split("-").map(Number) as [number, number, number];

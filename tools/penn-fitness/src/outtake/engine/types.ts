@@ -1,7 +1,7 @@
 // The slot engine's input and output (section 8.3 of docs/outtake.md).
 //
 // The engine is pure, and knows nothing about how preferences, the schedule or
-// places are stored: PlanInput is its own small, fixed shape, built by
+// places are stored: WorkoutPlanInput is its own small, fixed shape, built by
 // buildPlanInput (../planInput.ts). When either half adds or renames an
 // attribute, only that translator changes, never the engine.
 
@@ -10,7 +10,7 @@ import type { OpeningHours } from "../../places.js";
 import type { LocalDate, LocalDateTime, TimeOfDay } from "../../time.js";
 import type { DismissedTime } from "../types.js";
 
-export interface TimeWindow {
+export interface PreferredWindow {
   start: TimeOfDay;
   end: TimeOfDay;
 }
@@ -29,7 +29,7 @@ export interface EnginePlace {
   hours: OpeningHours;
 }
 
-export interface PlanInput {
+export interface WorkoutPlanInput {
   /** The Monday the week starts on; the plan covers Monday to Sunday. */
   weekStart: LocalDate;
   /** Confirmed busy stretches. */
@@ -43,7 +43,7 @@ export interface PlanInput {
   weeklyTargetSessions: number;
   sessionMinutes: number;
   /** Times of day the user would rather work out; empty means no preference. */
-  preferredWindows: readonly TimeWindow[];
+  preferredWindows: readonly PreferredWindow[];
   places: readonly EnginePlace[];
   /** Heavy week: aim for 2 short sessions instead of the usual target. */
   crunchMode: boolean;
