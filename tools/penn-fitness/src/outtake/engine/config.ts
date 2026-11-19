@@ -86,7 +86,7 @@ export const ENGINE_CONFIG: EngineConfig = {
     startStepMinutes: 15,
     busyThreshold: 0.5,
     wakeBufferMinutes: 30,
-    bedBufferMinutes: 0,
+    bedBufferMinutes: 30,
     afterBlockMinutes: 10,
     crunch: { sessions: 2, longestMinutes: 30, shortestMinutes: 20 },
   },

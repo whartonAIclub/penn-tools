@@ -293,6 +293,21 @@ p.warn {
   font-weight: 600;
 }
 
+.subTitle {
+  margin: 14px 0 2px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.errorText {
+  font-size: 0.85rem;
+  color: #9b1c1c;
+}
+
+details.card > summary {
+  cursor: pointer;
+}
+
 /* ── Homepage card ─────────────────────────────────────────────────────── */
 
 .homeCard {

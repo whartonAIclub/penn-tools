@@ -12,6 +12,7 @@ import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { loadExerciseWeek } from "./data";
+import { ExercisePreferences } from "./ExercisePreferences";
 import { ExerciseReview, type ReviewEntry } from "./ExerciseReview";
 import styles from "./Exercise.module.css";
 
@@ -52,6 +53,19 @@ export default async function ExercisePage(props: PageProps<"/tools/penn-fitness
           ← Penn Fitness home
         </Link>
       </div>
+      <ExercisePreferences
+        current={{
+          homeCorner: loaded.shared.homeCorner,
+          homeBase: loaded.shared.homeBase,
+          hasBuildingGym: loaded.shared.hasBuildingGym,
+          wakingStart: loaded.shared.wakingStart,
+          wakingEnd: loaded.shared.wakingEnd,
+          weeklyTargetSessions: loaded.outtake.weeklyTargetSessions,
+          sessionMinutes: loaded.outtake.sessionMinutes,
+          preferredTimes: loaded.outtake.preferredTimes,
+          spreadOut: loaded.outtake.spreadOut,
+        }}
+      />
       <ExerciseReview
         weekStart={loaded.timeline.weekStart}
         now={loaded.now}

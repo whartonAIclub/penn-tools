@@ -16,6 +16,7 @@ import {
   SHARED_PREFS,
   type ExerciseWeek,
   type LocalDate,
+  type OuttakePrefs,
   type SharedPrefs,
 } from "@penntools/tool-penn-fitness";
 
@@ -28,6 +29,7 @@ export function db() {
 
 export interface LoadedWeek extends ExerciseWeek {
   shared: SharedPrefs;
+  outtake: OuttakePrefs;
   now: string;
 }
 
@@ -42,5 +44,5 @@ export async function loadExerciseWeek(userId: string, weekStart?: LocalDate): P
     listBlocksForWeek(sql, userId, week),
     listAwayDays(sql, userId, week),
   ]);
-  return { ...assembleWeek({ weekStart: week, shared, outtake, blocks, awayDays, places: FACILITIES, now }), shared, now };
+  return { ...assembleWeek({ weekStart: week, shared, outtake, blocks, awayDays, places: FACILITIES, now }), shared, outtake, now };
 }

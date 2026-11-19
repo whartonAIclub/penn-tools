@@ -36,7 +36,8 @@ describe("outtake preferences", () => {
     const wrong = "Your weekly check-in settings look wrong; they'll be reset.";
     expect(check({ adjustments: { ...NO_ADJUSTMENTS, travelFactor: 4, bufferMinutes: 60, bedBufferMinutes: 180 } })).toEqual([]);
     expect(check({ adjustments: { ...NO_ADJUSTMENTS, travelFactor: 5 } })).toEqual([wrong]);
-    expect(check({ adjustments: { ...NO_ADJUSTMENTS, bedBufferMinutes: -1 } })).toEqual([wrong]);
+    expect(check({ adjustments: { ...NO_ADJUSTMENTS, bedBufferMinutes: -30 } })).toEqual([]);
+    expect(check({ adjustments: { ...NO_ADJUSTMENTS, bedBufferMinutes: -31 } })).toEqual([wrong]);
     expect(check({ adjustments: { ...NO_ADJUSTMENTS, wakeBufferMinutes: Number.NaN } })).toEqual([wrong]);
     expect(check({ adjustments: { travelFactor: 1 } as unknown as typeof NO_ADJUSTMENTS })).toEqual([wrong]);
   });

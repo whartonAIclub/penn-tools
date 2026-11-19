@@ -10,6 +10,12 @@
 import {
   addBlocks,
   addDays,
+  areaOfCorner,
+  isCorner,
+  OUTTAKE_PREFS,
+  type Corner,
+  type OuttakePrefs,
+  type SharedPrefs,
   checkAwayDay,
   checkQuickAdd,
   confirmBlocks,
@@ -114,6 +120,54 @@ export async function saveCalendarImport(weekStart: string, blocks: BusyBlock[])
     const imported = blocks.map((block) => ({ ...block, source: "ICS" as const, confirmed: false, recurringWeekly: false, confidence: null }));
     const saved = await replaceImportedBlocks(db(), userId, "ICS", weekStart, imported);
     return { ok: true, message: `Added ${saved.length} ${saved.length === 1 ? "event" : "events"} from your calendar. Check them, then confirm.` };
+  });
+}
+
+export interface ExercisePreferencesInput {
+  /** Nearest corner, or null to give only the area. */
+  homeCorner: { street: number; crossStreet: string } | null;
+  homeBase: string;
+  hasBuildingGym: boolean;
+  wakingStart: string;
+  wakingEnd: string;
+  weeklyTargetSessions: number;
+  sessionMinutes: number;
+  preferredTimes: string[];
+  spreadOut: boolean;
+}
+
+/**
+ * Saves what planning needs to know: home and waking hours (shared with
+ * Nutrition) and workout preferences. Semester dates and check-in adjustments
+ * are kept as they are. A corner decides the area it's in.
+ */
+export async function saveExercisePreferences(input: ExercisePreferencesInput): Promise<ActionResult> {
+  return forUser(async (userId) => {
+    const sql = db();
+    const [shared, outtake] = await Promise.all([getPreferences(sql, userId, SHARED_PREFS), getPreferences(sql, userId, OUTTAKE_PREFS)]);
+    const corner = input.homeCorner && isCorner(input.homeCorner as Corner) ? (input.homeCorner as Corner) : null;
+    if (input.homeCorner && !corner) return { ok: false, error: "Pick your nearest corner from the lists." };
+    const nextShared: SharedPrefs = {
+      ...shared,
+      homeCorner: corner,
+      homeBase: corner ? areaOfCorner(corner) : (input.homeBase as SharedPrefs["homeBase"]),
+      hasBuildingGym: input.hasBuildingGym,
+      wakingStart: input.wakingStart,
+      wakingEnd: input.wakingEnd,
+    };
+    const nextOuttake: OuttakePrefs = {
+      ...outtake,
+      weeklyTargetSessions: Number(input.weeklyTargetSessions),
+      sessionMinutes: Number(input.sessionMinutes),
+      preferredTimes: input.preferredTimes as OuttakePrefs["preferredTimes"],
+      spreadOut: input.spreadOut,
+    };
+    // Check both before saving either, so a mistake in one doesn't half-save.
+    const problems = [...SHARED_PREFS.check(nextShared), ...OUTTAKE_PREFS.check(nextOuttake)];
+    if (problems.length > 0) return { ok: false, error: problems.join(" ") };
+    await savePreferences(sql, userId, SHARED_PREFS, nextShared);
+    await savePreferences(sql, userId, OUTTAKE_PREFS, nextOuttake);
+    return { ok: true, message: "Saved your preferences. Your suggestions now use them." };
   });
 }
 

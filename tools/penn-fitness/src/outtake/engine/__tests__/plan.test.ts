@@ -78,11 +78,15 @@ describe("planWeek", () => {
     expect(planWeek(monday, noBuffer).slots[0]!.start).toBe("2026-11-16T09:30");
   });
 
-  it("ends sessions before bed when a bed buffer is set", () => {
-    // Free only from 21:00: 21:10 + 5 minutes' walk fits a 45-minute session by 22:30, but not by 21:30.
+  it("ends sessions, and the walk home, 30 minutes before bed", () => {
+    // Free only from 21:00: 21:10, then 5 minutes' walk, then 45 minutes, then 5 back is 22:05.
+    // That fits by 22:30 (no bed buffer), but not by 22:00 (the default 30 minutes).
     const evenings = week({ busyBlocks: DATES.map((date) => block(date, "07:00", "21:00")) });
-    expect(planWeek(evenings).slots).toHaveLength(3);
-    expect(planWeek(evenings, { ...ENGINE_CONFIG, plan: { ...plan, bedBufferMinutes: 60 } }).slots).toEqual([]);
+    expect(plan.bedBufferMinutes).toBe(30);
+    expect(planWeek(evenings).slots).toEqual([]);
+    expect(planWeek(evenings, { ...ENGINE_CONFIG, plan: { ...plan, bedBufferMinutes: 0 } }).slots).toHaveLength(3);
+    // A shorter session fits before 22:00.
+    expect(planWeek({ ...evenings, sessionMinutes: 30 }).slots).toHaveLength(3);
   });
 
   it("uses back-to-back days when those are the only ones free", () => {

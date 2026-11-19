@@ -34,7 +34,7 @@ describe("applyCheckIn", () => {
 
   it("moves sessions later after 'too early', and earlier after 'too late'", () => {
     const later = applyCheckIn(start, { timing: "too_early" }).adjustments;
-    expect(later).toMatchObject({ wakeBufferMinutes: 15, bedBufferMinutes: 0 });
+    expect(later).toMatchObject({ wakeBufferMinutes: 15, bedBufferMinutes: -30 });
     const earlier = applyCheckIn(start, { timing: "too_late" }).adjustments;
     expect(earlier).toMatchObject({ bedBufferMinutes: 30, wakeBufferMinutes: -15 });
     // And back again.
@@ -53,7 +53,7 @@ describe("applyCheckIn", () => {
   it("stops at each adjustment's limits however many weeks say the same", () => {
     let prefs = start;
     for (let week = 0; week < 20; week++) prefs = applyCheckIn(prefs, { walk: "too_far", rushed: "rushed", timing: "too_early" });
-    expect(prefs.adjustments).toEqual({ travelFactor: 4, bufferMinutes: 60, wakeBufferMinutes: 120, bedBufferMinutes: 0 });
+    expect(prefs.adjustments).toEqual({ travelFactor: 4, bufferMinutes: 60, wakeBufferMinutes: 120, bedBufferMinutes: -30 });
     expect(OUTTAKE_PREFS.check(prefs)).toEqual([]);
   });
 
@@ -75,7 +75,9 @@ describe("tunedConfig", () => {
     expect(config.scoring.crunchTravelPerMinute).toBeCloseTo(0.3);
     expect(config.scoring.bufferMinutes).toBe(40);
     expect(config.plan.wakeBufferMinutes).toBe(0);
-    expect(config.plan.bedBufferMinutes).toBe(30);
+    // The base's 30 minutes before bed, plus 30.
+    expect(config.plan.bedBufferMinutes).toBe(60);
+    expect(tunedConfig(ENGINE_CONFIG, { ...NO_ADJUSTMENTS, bedBufferMinutes: -30 }).plan.bedBufferMinutes).toBe(0);
     expect(config.travel).toEqual(ENGINE_CONFIG.travel);
   });
 

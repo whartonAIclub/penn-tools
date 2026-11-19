@@ -5,12 +5,12 @@
 
 import type { Metadata } from "next";
 import { PROVIDER_LABELS } from "@penntools/core/ai";
-import { MAX_MEAL_TEXT_LENGTH, SAMPLE_MEAL_LOG, SAMPLE_MEAL_TEXT } from "@penntools/tool-penn-fitness";
+import { MAX_MEAL_TEXT_LENGTH, newYorkNow, SAMPLE_MEAL_LOG, SAMPLE_MEAL_TEXT } from "@penntools/tool-penn-fitness";
 import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { loadExerciseWeek } from "./exercise/data";
-import { ExerciseCard } from "./exercise/ExerciseCard";
+import { ExerciseHome } from "./exercise/ExerciseHome";
 import { Nutrition } from "./nutrition/Nutrition";
 import styles from "./page.module.css";
 
@@ -23,22 +23,19 @@ export default async function PennFitnessPage() {
   if (!user) return <SignInPrompt title="Penn Fitness" />;
 
   const providers = await (await getAI("penn-fitness"))!.providers();
-  // The exercise card's week; a problem loading it shows on the card, never breaks the page.
-  const exercise = await loadExerciseWeek(user.id).then(
-    (week) => week.summary,
-    (error: unknown) => {
-      console.error("[penn-fitness] exercise summary failed", error instanceof Error ? error.message : error);
-      return null;
-    },
-  );
+  // The exercise section's week; a problem loading it shows in the section, never breaks the page.
+  const exercise = await loadExerciseWeek(user.id).catch((error: unknown) => {
+    console.error("[penn-fitness] exercise summary failed", error instanceof Error ? error.message : error);
+    return null;
+  });
 
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>
         Penn Fitness <span className={styles.section}>· Nutrition</span>
       </h1>
-      <ExerciseCard summary={exercise} />
       <Nutrition
+        afterGreeting={<ExerciseHome summary={exercise?.summary ?? null} today={(exercise?.now ?? newYorkNow()).slice(0, 10)} />}
         userId={user.id}
         userName={user.name ?? null}
         providers={providers}

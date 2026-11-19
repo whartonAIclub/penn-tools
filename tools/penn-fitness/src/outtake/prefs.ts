@@ -37,7 +37,8 @@ export const ADJUSTMENT_RANGES: Record<keyof Adjustments, { min: number; max: nu
   travelFactor: { min: 0.25, max: 4 },
   bufferMinutes: { min: -20, max: 60 },
   wakeBufferMinutes: { min: -30, max: 120 },
-  bedBufferMinutes: { min: 0, max: 180 },
+  // The base is 30 minutes before bed; -30 lets "too early" answers take it to none.
+  bedBufferMinutes: { min: -30, max: 180 },
 };
 
 export interface OuttakePrefs {

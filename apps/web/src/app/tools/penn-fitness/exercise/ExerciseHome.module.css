@@ -1,0 +1,240 @@
+/* The homepage's exercise section, in the same visual language as the
+   Nutrition dashboard around it (nutrition/Nutrition.module.css): rounded
+   white cards, small caps labels, a week strip with today highlighted. Green
+   accents tell exercise apart from nutrition at a glance. */
+
+.section {
+  --exercise: #0f766e;
+  --exercise-soft: #ecfdf5;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--exercise-soft), #fff 120px);
+  animation: rise 0.45s ease both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--exercise);
+}
+
+.link {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--penn-blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.link:hover { text-decoration: underline; }
+
+.note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+/* One-line rows: "needs you" and the next workout */
+
+.needsYou,
+.nextUp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+}
+
+.needsYou {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--exercise-soft);
+  font-size: 1.3rem;
+}
+
+.rowText {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rowLabel {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--section-label);
+}
+
+.rowTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rowMeta {
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+/* Tiles */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.tileTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.bigNumber {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.of {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--section-label);
+}
+
+.meter {
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #eef0f6;
+  overflow: hidden;
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.meterFill { background: var(--exercise); }
+.meterBusy { background: #f59e0b; }
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+/* Week strip */
+
+.weekStrip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.stripDay,
+.stripPast,
+.stripToday {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  text-align: center;
+}
+
+.stripPast { opacity: 0.55; }
+
+.stripToday {
+  border-color: transparent;
+  background: linear-gradient(160deg, var(--exercise), #115e59);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.25);
+}
+
+.stripName { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+.stripIcon { font-size: 1rem; }
+.stripTime { font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.stripBusy { font-size: 0.65rem; opacity: 0.8; white-space: nowrap; }
+
+/* Tips */
+
+.tips {
+  padding: 14px 18px;
+  border-left: 4px solid var(--exercise);
+  border-radius: 8px;
+  background: var(--exercise-soft);
+}
+
+.tipsTitle {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #134e4a;
+}
+
+.tips ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: #134e4a;
+}

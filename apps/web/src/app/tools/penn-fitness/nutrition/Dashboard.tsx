@@ -4,7 +4,7 @@
 // is built from) with the plan's actions; the next meal in one line; today's
 // macros, this week's eating-out money and groceries; then the week and tips.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   DAY_KEYS,
   DAYS,
@@ -80,6 +80,7 @@ export function Dashboard({
   onSetup,
   onStartOver,
   onAte,
+  afterGreeting,
 }: {
   name: string | null;
   preview: boolean;
@@ -103,6 +104,8 @@ export function Dashboard({
   onSetup: () => void;
   onStartOver: () => void;
   onAte: (meal: PlannedMeal) => void;
+  /** Shown right after the greeting: the homepage's exercise section (exercise/ExerciseHome.tsx). */
+  afterGreeting?: ReactNode;
 }) {
   const today = todayKey();
   const upcoming = plan ? nextMeal(plan, today, now) : null;
@@ -132,6 +135,8 @@ export function Dashboard({
           {preview && <span className={styles.badge}>👀 Preview mode</span>}
         </div>
       </header>
+
+      {afterGreeting}
 
       <SetupBar
         preview={preview}
