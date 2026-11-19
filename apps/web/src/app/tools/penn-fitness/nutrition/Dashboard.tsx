@@ -141,40 +141,6 @@ export function Dashboard({
         </div>
       </header>
 
-      {/* ── This week: workouts day by day, and the meal plan's status ───── */}
-      {(exercise?.weekStrip || planning || !upcoming) && (
-        <section className={home.week} aria-label="This week">
-          <h3 className={home.weekHeading}>This week</h3>
-          {exercise?.weekStrip}
-      {planning ? (
-        <section className={styles.nextUp}>
-          <span className={`${styles.nextUpEmoji} ${styles.spinner}`} aria-hidden="true">
-            🍳
-          </span>
-          <div className={styles.nextUpText}>
-            <p className={styles.nextUpName}>Making your plan…</p>
-            <p className={styles.nextUpMeta}>This can take up to a minute.</p>
-          </div>
-        </section>
-      ) : !upcoming ? (
-        <section className={styles.nextUp}>
-          <span className={styles.nextUpEmoji} aria-hidden="true">
-            {planError ? "⚠️" : "🗓️"}
-          </span>
-          <div className={styles.nextUpText}>
-            <p className={styles.nextUpName}>{planError ? "That didn't work" : "No meal plan yet"}</p>
-            <p className={styles.nextUpMeta}>{planError ? planError.message : "Plan a week of meals around your classes."}</p>
-          </div>
-          <div className={styles.nextUpActions}>
-            <button className={styles.smallPrimary} onClick={onSetup}>
-              {planError ? "Try again" : profile ? "Make my plan" : "Get started"}
-            </button>
-          </div>
-        </section>
-      ) : null}
-        </section>
-      )}
-
       {/* ── Nutrition: today's macros closed, the full dashboard open ─────── */}
       <details className={`${home.fold} ${home.nutrition}`}>
         <summary className={home.summary}>
@@ -196,17 +162,35 @@ export function Dashboard({
             label="eaten today"
             note={eaten.estimated < eaten.logged ? `estimate · ${eaten.estimated} of ${eaten.logged} meals` : "estimate"}
           />
-          <button
-            className={styles.smallPrimary}
-            onClick={(e) => {
-              // A button inside the summary would also open or close the section.
-              e.preventDefault();
-              e.stopPropagation();
-              onOpen("log");
-            }}
-          >
-            ✏️ Log a meal
-          </button>
+          {/* Buttons inside the summary would also open or close the section, so they stop that. */}
+          <span className={home.actions}>
+            <button
+              className={styles.smallPrimary}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpen("log");
+              }}
+            >
+              ✏️ Log a meal
+            </button>
+            <button
+              className={styles.smallPrimary}
+              disabled={planning}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSetup();
+              }}
+            >
+              {planning ? "🍳 Making your plan…" : "🗓️ Make my weekly mealplan"}
+            </button>
+            {planError && !planning && (
+              <span className={home.actionError} role="alert">
+                ⚠️ {planError.message}
+              </span>
+            )}
+          </span>
           <span className={home.chevron}>
             <span className={home.closed}>Open ▾</span>
             <span className={home.open}>Close ▴</span>

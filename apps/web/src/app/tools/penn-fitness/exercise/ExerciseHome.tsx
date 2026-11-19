@@ -1,6 +1,5 @@
 // The homepage's exercise parts, for Nutrition's dashboard to lay out (see
-// ../home.ts): the week's workouts day by day (in "This week", above both
-// sections); the closed Exercise section, drawing the next workout and where
+// ../home.ts): the closed Exercise section, drawing the next workout and where
 // it fits in that day; the opened section (what needs the user, free time
 // today, the nearest places, tips); and Exercise's item in "Your setup". All
 // from the week loadExerciseWeek assembles. Talks about time and getting
@@ -109,24 +108,6 @@ function label(summary: ExerciseSummary, today: string): string {
   return `Next workout ${date === today ? "today" : dayName(date)} ${formatRange(summary.nextUp.start, summary.nextUp.end)} at ${summary.nextUp.placeName}`;
 }
 
-/** The week's workouts day by day, for "This week" above both sections. */
-function WeekStrip({ summary, today }: { summary: ExerciseSummary; today: string }) {
-  return (
-    <div className={styles.weekStrip} aria-label="Workouts this week">
-      {summary.days.map((day) => (
-        <Link key={day.date} href={EXERCISE_PAGE} className={day.date === today ? styles.stripToday : day.past ? styles.stripPast : styles.stripDay}>
-          <span className={styles.stripName}>{formatWeekday(day.date)}</span>
-          <span className={styles.stripIcon} aria-hidden="true">
-            {day.away ? "✈️" : day.workout ? "🏃" : "·"}
-          </span>
-          <span className={styles.stripTime}>{day.away ? "away" : day.workout ? formatTime(day.workout.start) : "rest"}</span>
-          <span className={styles.stripBusy}>{day.busyMinutes > 0 ? `${Math.round(day.busyMinutes / 60)}h booked` : "free"}</span>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
 function ExerciseDetails({ summary, today }: { summary: ExerciseSummary; today: string }) {
   const fresh = summary.commitments === 0;
   const tips = summary.tips.map((tip) => tipText(tip, today));
@@ -227,7 +208,6 @@ export function homeExercise(loaded: LoadedWeek | null, today: string): HomeExer
       summary: unavailable,
       label: "Exercise couldn't be loaded",
       details: unavailable,
-      weekStrip: null,
       plannedMinutes: 0,
       setup: { emoji: "🏃", title: "Workouts", summary: "Open Exercise to set up", href: PREFERENCES },
     };
@@ -239,7 +219,6 @@ export function homeExercise(loaded: LoadedWeek | null, today: string): HomeExer
     summary: <NextWorkout summary={summary} today={today} />,
     label: label(summary, today),
     details: <ExerciseDetails summary={summary} today={today} />,
-    weekStrip: <WeekStrip summary={summary} today={today} />,
     plannedMinutes: summary.days.reduce(
       (sum, day) => sum + (day.workout ? minutesOfDay(day.workout.end.slice(11)) - minutesOfDay(day.workout.start.slice(11)) : 0),
       0,
