@@ -6,7 +6,17 @@
 // paste its text, and let AI fill it in (on the platform's free AI credit,
 // then their own key), then check it and save.
 
-import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import type { AIProvider } from "@penntools/core/ai";
 import type {
@@ -20,7 +30,7 @@ import type {
   Screenshot,
 } from "@penntools/tool-student-discount-maximizer";
 import { isSettingsError } from "@penntools/core/ai/errors";
-import { isSameDeal } from "@penntools/tool-student-discount-maximizer/discounts";
+import { isSameSaving, readAmount, type SimilarDeal } from "@penntools/tool-student-discount-maximizer/discounts";
 import { addDeal, fillForm, similarDeals, type ActionResult } from "./actions";
 import { callAction } from "./callAction";
 import type { Option } from "./DiscountBoard";
@@ -149,7 +159,7 @@ export function AddDiscountForm({
   categories: Option<DiscountCategory>[];
   neighborhoods: Option<Neighborhood>[];
   limits: FormLimits;
-  /** The signed-in student's name, to start the Added by field with. */
+  /** The signed-in student's first name, to start the Added by field with. */
   defaultAddedBy: string;
   onAdded: (deal: Discount) => void;
   onClose: () => void;
@@ -180,7 +190,7 @@ export function AddDiscountForm({
 
   // Deals already listed at this store, looked up as the student types its
   // name, so they can see them before adding a duplicate.
-  const [similar, setSimilar] = useState<Discount[]>([]);
+  const [similar, setSimilar] = useState<SimilarDeal[]>([]);
   const [notDuplicate, setNotDuplicate] = useState(false);
   const similarRequest = useRef(0);
   useEffect(() => {
@@ -197,24 +207,23 @@ export function AddDiscountForm({
     return () => clearTimeout(timer);
   }, [form.business]);
 
-  // The one already listed that this deal would duplicate: the same store,
-  // type of discount and deal (see isSameDeal). The server refuses it too.
-  const amountDigits = form.amount.replace(/[$%,\s]/g, "");
-  const amount = type?.amount === "none" || !amountDigits || !Number.isFinite(Number(amountDigits))
-    ? null
-    : Math.round(Number(amountDigits) * 100) / 100;
+  // The one already listed that this deal would duplicate: the same store and
+  // saving (see isSameSaving). The server refuses it too.
+  const typedAmount = type?.amount === "none" ? null : readAmount(form.amount);
+  const amount = typedAmount !== null && Number.isFinite(typedAmount) ? typedAmount : null;
   const duplicate = form.dealType
-    ? similar.find((d) =>
-        isSameDeal(
-          {
-            business: form.business,
-            scope: form.scope,
-            dealType: form.dealType as DealType,
-            amount,
-            appliesTo: form.specificItems && form.dealType !== "other" ? form.appliesTo || null : null,
-          },
-          d,
-        ),
+    ? similar.find(
+        (d) =>
+          d.sameStore &&
+          isSameSaving(
+            {
+              scope: form.scope,
+              dealType: form.dealType as DealType,
+              amount,
+              appliesTo: form.specificItems && form.dealType !== "other" ? form.appliesTo || null : null,
+            },
+            d,
+          ),
       )
     : undefined;
 
@@ -226,8 +235,12 @@ export function AddDiscountForm({
     });
   }
 
-  /** Fills in what the AI found, keeping what the student already typed where it found nothing. */
-  function applyDraft(draft: DealDraft) {
+  /**
+   * Fills in what the AI found, keeping what the student already typed where
+   * it found nothing. Kept the same between renders, so FillWithAI (memo)
+   * doesn't re-render on every keystroke in the form.
+   */
+  const applyDraft = useCallback((draft: DealDraft) => {
     setForm((f) => ({
       scope: draft.scope ?? f.scope,
       business: draft.business ?? f.business,
@@ -255,7 +268,7 @@ export function AddDiscountForm({
     if (draft.location || draft.url || draft.title || draft.howToClaim || draft.category || draft.expiresOn || draft.sourcedFrom) {
       setMoreOpen(true);
     }
-  }
+  }, []);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -295,6 +308,11 @@ export function AddDiscountForm({
       onAdded(result.data);
     } else {
       setError(result.error.message);
+      // A possible duplicate: show the deals at the store, and the checkbox when it's allowed.
+      if (result.error.similar) {
+        setSimilar(result.error.similar);
+        setNotDuplicate(false);
+      }
     }
   }
 
@@ -580,15 +598,16 @@ export function AddDiscountForm({
           </details>
 
           <label className={styles.field}>
-            Added by
+            Added by (shown publicly on the deal)
             <input
               className={styles.input}
               required
               maxLength={limits.addedBy}
-              placeholder="Your name"
+              placeholder="Your first name or a nickname"
               value={form.addedBy}
               onChange={(e) => set("addedBy", e.target.value)}
             />
+            <span className={styles.meta}>Anyone can see this, even signed out. A first name or nickname is fine.</span>
           </label>
 
           {similar.length > 0 && !duplicate && (
@@ -609,7 +628,8 @@ export function AddDiscountForm({
   );
 }
 
-function FillWithAI({
+/** Memoized: the form re-renders on every keystroke, and this holds the image. */
+const FillWithAI = memo(function FillWithAI({
   providers,
   providerLabels,
   maxLength,
@@ -631,6 +651,17 @@ function FillWithAI({
   const [filling, setFilling] = useState(false);
   const [error, setError] = useState<{ message: string; keyProblem: boolean } | null>(null);
 
+  // The preview is an object URL made once per image, not a data: URL rebuilt
+  // from megabytes of base64 on every render; freed when the image goes.
+  const preview = useMemo(
+    () =>
+      shot ? URL.createObjectURL(new Blob([Uint8Array.from(atob(shot.data), (c) => c.charCodeAt(0))], { type: shot.mediaType })) : null,
+    [shot],
+  );
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+  }, [preview]);
+
   if (!provider) {
     return (
       <p className={styles.hint}>
@@ -651,6 +682,8 @@ function FillWithAI({
     if (result.ok) {
       onDraft(result.data);
       setError(null);
+      // The form has what the image showed; don't keep megabytes of it around.
+      setShot(null);
     } else {
       setError({ message: result.error.message, keyProblem: isSettingsError(result.error.kind) });
     }
@@ -687,9 +720,10 @@ function FillWithAI({
   return (
     <div className={styles.aiBox} onPaste={onPaste}>
       <span className={styles.legend}>Fill it in with AI (optional)</span>
-      {shot ? (
+      {shot && preview ? (
         <div className={styles.shot}>
-          <img className={styles.shotImg} src={`data:${shot.mediaType};base64,${shot.data}`} alt="Your screenshot or photo" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.shotImg} src={preview} alt="Your screenshot or photo" />
           <button type="button" className={styles.linkButton} onClick={() => setShot(null)}>
             Remove image
           </button>
@@ -774,4 +808,4 @@ function FillWithAI({
       <p className={styles.meta}>Check what it fills in before you save: AI can get details wrong.</p>
     </div>
   );
-}
+});

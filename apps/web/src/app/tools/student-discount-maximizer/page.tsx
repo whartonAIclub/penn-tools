@@ -71,7 +71,8 @@ export default async function StudentDiscountCentralPage() {
         amount: DEAL_TYPES_NEEDING_AMOUNT.includes(t) ? "required" : t === "student_price" ? "optional" : "none",
       }))}
       limits={{ ...LIMITS, pastedText: MAX_PASTED_TEXT_LENGTH, screenshot: MAX_SCREENSHOT_BYTES }}
-      defaultAddedBy={user?.name ?? user?.email ?? ""}
+      // First name only, never the email: Added by is shown publicly on the deal.
+      defaultAddedBy={user?.name?.trim().split(/\s+/)[0] ?? ""}
     />
   );
 }

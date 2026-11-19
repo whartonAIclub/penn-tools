@@ -17,10 +17,11 @@ import {
   checkNewDiscount,
   compareDeals,
   dealSummary,
+  DuplicateDealError,
   findSimilarDeals,
-  isSameDeal,
-  sameStore,
-  storeKey,
+  isSameSaving,
+  phillyToday,
+  readAmount,
   type DealType,
   type Discount,
   listDiscountPage,
@@ -260,31 +261,46 @@ describe("checkNewDiscount", () => {
 });
 
 describe("duplicate deals", () => {
-  it("matches a store however a post writes it", () => {
-    expect(storeKey("The Aerie Store!")).toBe("aeriestore");
-    expect(sameStore("Aerie", "aerie")).toBe(true);
-    expect(sameStore("Aerie", "AERIE.")).toBe(true);
-    expect(sameStore("Aerie", "American Eagle Aerie")).toBe(true);
-    expect(sameStore("The Mütter Museum", "Mütter Museum")).toBe(true);
-    expect(sameStore("Aerie", "Madewell")).toBe(false);
-    // Very short names only match exactly, so "J" isn't every store with a j in it.
-    expect(sameStore("J.Crew", "J")).toBe(false);
-    expect(sameStore("", "Aerie")).toBe(false);
+  it("calls two savings the same when type of discount, deal, amount and what it's for match", () => {
+    const aerie = { scope: "general" as const, dealType: "percent" as const, amount: 20, appliesTo: null };
+    expect(isSameSaving(aerie, aerie)).toBe(true);
+    expect(isSameSaving(aerie, { ...aerie, amount: 15 })).toBe(false);
+    expect(isSameSaving(aerie, { ...aerie, dealType: "amount" })).toBe(false);
+    // A Wharton-only 20% off is a different deal from the general one.
+    expect(isSameSaving(aerie, { ...aerie, scope: "wharton" })).toBe(false);
+    // "20% off bowls" isn't "20% off drinks", or 20% off everything.
+    const bowls = { ...aerie, appliesTo: "Bowls" };
+    expect(isSameSaving(bowls, { ...bowls, appliesTo: "bowls!" })).toBe(true);
+    expect(isSameSaving(bowls, { ...bowls, appliesTo: "drinks" })).toBe(false);
+    expect(isSameSaving(bowls, aerie)).toBe(false);
+    // Deals without an amount match only when they say what they're for.
+    const free = { scope: "local" as const, dealType: "free_item" as const, amount: null, appliesTo: "Admission" };
+    expect(isSameSaving(free, { ...free, appliesTo: "admission" })).toBe(true);
+    expect(isSameSaving(free, { ...free, appliesTo: "coffee" })).toBe(false);
   });
 
-  it("calls two deals the same when the store, type of discount, deal and amount match, whatever the wording", () => {
-    const aerie = { business: "Aerie", scope: "general" as const, dealType: "percent" as const, amount: 20, appliesTo: null };
-    expect(isSameDeal(aerie, { ...aerie, business: "AERIE (UNiDAYS)" })).toBe(true);
-    expect(isSameDeal(aerie, { ...aerie, appliesTo: "everything" })).toBe(true);
-    expect(isSameDeal(aerie, { ...aerie, amount: 15 })).toBe(false);
-    expect(isSameDeal(aerie, { ...aerie, dealType: "amount" })).toBe(false);
-    expect(isSameDeal(aerie, { ...aerie, business: "Madewell" })).toBe(false);
-    // A Wharton-only 20% off is a different deal from the general one.
-    expect(isSameDeal(aerie, { ...aerie, scope: "wharton" })).toBe(false);
-    // Deals without an amount are the same when they're for the same thing.
-    const free = { business: "Penn Museum", scope: "local" as const, dealType: "free_item" as const, amount: null, appliesTo: "Admission" };
-    expect(isSameDeal(free, { ...free, appliesTo: "admission!" })).toBe(true);
-    expect(isSameDeal(free, { ...free, appliesTo: "coffee" })).toBe(false);
+  it("never blocks a deal that doesn't say exactly what it is", () => {
+    const other = { scope: "general" as const, dealType: "other" as const, amount: null, appliesTo: null };
+    expect(isSameSaving(other, other)).toBe(false);
+    const bogoEverything = { scope: "general" as const, dealType: "bogo" as const, amount: null, appliesTo: null };
+    expect(isSameSaving(bogoEverything, bogoEverything)).toBe(false);
+    const studentPrice = { scope: "general" as const, dealType: "student_price" as const, amount: null, appliesTo: null };
+    expect(isSameSaving(studentPrice, studentPrice)).toBe(false);
+  });
+
+  it("reads amounts the way the form does", () => {
+    expect(readAmount("20%")).toBe(20);
+    expect(readAmount(" $4.50 ")).toBe(4.5);
+    expect(readAmount("1,000")).toBe(1000);
+    expect(readAmount("")).toBeNull();
+    expect(readAmount("$")).toBeNull();
+    expect(readAmount("2e1")).toBeNaN();
+  });
+
+  it("dates deals in Philadelphia, not UTC", () => {
+    // 11:30pm Eastern on Nov 18 is already Nov 19 in UTC.
+    expect(phillyToday(new Date("2026-11-19T04:30:00Z"))).toBe("2026-11-18");
+    expect(phillyToday(new Date("2026-11-19T05:30:00Z"))).toBe("2026-11-19");
   });
 });
 
@@ -582,11 +598,11 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
     const deal = await addDeal(sql, "lou", { ...DEAL, title: "Dated", expiresOn: "2999-12-31" });
     expect(deal).toMatchObject({ status: "active", expiresOn: "2999-12-31", expiredReason: null });
 
-    await sql`UPDATE discounts SET expires_on = CURRENT_DATE WHERE id = ${deal.id}`;
+    await sql`UPDATE discounts SET expires_on = philly_today() WHERE id = ${deal.id}`;
     const [lastDay] = await listDiscounts(sql, { userId: null, status: "active", search: "Dated" });
     expect(lastDay?.status).toBe("active"); // still works on its last day
 
-    await sql`UPDATE discounts SET expires_on = CURRENT_DATE - 1 WHERE id = ${deal.id}`;
+    await sql`UPDATE discounts SET expires_on = philly_today() - 1 WHERE id = ${deal.id}`;
     expect(await listDiscounts(sql, { userId: null, status: "active", search: "Dated" })).toEqual([]);
     const [ended] = await listDiscounts(sql, { userId: null, status: "expired", search: "Dated" });
     expect(ended).toMatchObject({ id: deal.id, status: "expired", expiredReason: "date" });
@@ -601,16 +617,20 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
 
     // Similar deals: the same store, however it's written, and no other.
     const similar = await findSimilarDeals(sql, "the dupe bakery!", "ana");
-    expect(similar.map((d) => d.id)).toEqual([first.id]);
+    expect(similar.map((d) => [d.id, d.sameStore])).toEqual([[first.id, true]]);
     expect(await findSimilarDeals(sql, "x", null)).toEqual([]);
 
     // The same store and saving, worded differently, is refused, even when confirmed.
     for (const repost of [
       { ...DEAL, business: "DUPE BAKERY", dealType: "percent", amount: "15%", discount: "Show student ID" },
-      { ...DEAL, business: "Dupe Bakery", dealType: "percent", amount: "15", notDuplicate: true },
+      { ...DEAL, business: "The Dupe Bakery", dealType: "percent", amount: "15", notDuplicate: true },
     ]) {
       await expect(addDiscount(sql, "ben", repost)).rejects.toThrow("is already listed");
     }
+    // The refusal carries the deals at the store, for the form to show.
+    const refusal = await addDiscount(sql, "ben", { ...DEAL, business: "Dupe Bakery", dealType: "percent", amount: "15" }).catch((e: unknown) => e);
+    expect(refusal).toBeInstanceOf(DuplicateDealError);
+    expect((refusal as DuplicateDealError).similar.map((d) => d.id)).toEqual([first.id]);
 
     // The same saving as a Wharton discount is a different deal, once confirmed.
     const wharton = { ...DEAL, business: "Dupe Bakery", scope: "wharton", dealType: "percent", amount: "15" };
@@ -629,6 +649,75 @@ describe.skipIf(!databaseUrl)("Student Discount Central storage (Postgres)", () 
     // An expired deal doesn't block adding it again.
     await markExpired(sql, "ana", first.id);
     await expect(addDiscount(sql, "cal", { ...DEAL, business: "Dupe Bakery", dealType: "percent", amount: "15", notDuplicate: true })).resolves.toBeDefined();
+  });
+
+  it("matches a store name starting with \"The\" in the database too", async () => {
+    const gap = await addDiscount(sql, "ana", { ...DEAL, business: "The Gap", amount: "30" });
+    expect((await findSimilarDeals(sql, "Gap", null)).map((d) => [d.id, d.sameStore])).toEqual([[gap.id, true]]);
+    await expect(addDiscount(sql, "ben", { ...DEAL, business: "GAP", amount: "30", notDuplicate: true })).rejects.toThrow("is already listed");
+    // "Thesis" keeps its "thes".
+    const thesis = await addDiscount(sql, "ana", { ...DEAL, business: "Thesis Café", amount: "30" });
+    expect((await findSimilarDeals(sql, "Thesis Cafe", null)).map((d) => d.id)).not.toContain(gap.id);
+    expect((await findSimilarDeals(sql, "Thesis Café", null)).map((d) => d.id)).toEqual([thesis.id]);
+  });
+
+  it("only warns for similar store names, and never matches inside a name", async () => {
+    const apple = await addDiscount(sql, "ana", { ...DEAL, business: "Applz Store", amount: "10" });
+    // A store that only contains the name isn't matched at all.
+    expect((await findSimilarDeals(sql, "Snapplz Store", null)).map((d) => d.id)).not.toContain(apple.id);
+    await expect(addDiscount(sql, "ben", { ...DEAL, business: "Snapplz Store", amount: "10" })).resolves.toBeDefined();
+    // A name that starts the other is similar: a warning, never a block.
+    expect((await findSimilarDeals(sql, "Applz", null)).map((d) => [d.id, d.sameStore])).toEqual([[apple.id, false]]);
+    await expect(addDiscount(sql, "ben", { ...DEAL, business: "Applz", amount: "10" })).rejects.toThrow("already a deal at Applz");
+    await expect(addDiscount(sql, "ben", { ...DEAL, business: "Applz", amount: "10", notDuplicate: true })).resolves.toBeDefined();
+  });
+
+  it("lets different deals at the same store through once confirmed, and other deals are never blocked", async () => {
+    const bowls = { ...DEAL, business: "Zgreen Bowls", dealType: "percent", amount: "20", appliesTo: "bowls" };
+    await addDiscount(sql, "ana", bowls);
+    await expect(addDiscount(sql, "ben", { ...bowls, appliesTo: "drinks", notDuplicate: true })).resolves.toBeDefined();
+    const airpods = { ...DEAL, business: "Zpple", dealType: "other", amount: "", discount: "Free AirPods with a Mac" };
+    await addDiscount(sql, "ana", airpods);
+    await expect(addDiscount(sql, "ben", { ...airpods, discount: "Free engraving", notDuplicate: true })).resolves.toBeDefined();
+  });
+
+  it("compares every deal at a store, not just the newest 20", async () => {
+    const oldest = await addDiscount(sql, "old", { ...DEAL, business: "Zmany Shop", amount: "1" });
+    for (let i = 2; i <= 22; i++) {
+      await addDiscount(sql, `filler${i}`, { ...DEAL, business: "Zmany Shop", amount: String(i), notDuplicate: true });
+    }
+    expect(await findSimilarDeals(sql, "Zmany Shop", null)).toHaveLength(20); // the form's list stops at 20
+    expect(await findSimilarDeals(sql, "Zmany Shop", null, null)).toHaveLength(22);
+    const refusal = await addDiscount(sql, "late", { ...DEAL, business: "Zmany Shop", amount: "1", notDuplicate: true }).catch((e: unknown) => e);
+    expect((refusal as DuplicateDealError).message).toContain("is already listed");
+    expect((refusal as DuplicateDealError).similar[0]?.id).toBe(oldest.id);
+  });
+
+  it("lets only one of two students adding the same deal at once through", async () => {
+    const parallel = postgres(databaseUrl!, { max: 4, onnotice: () => {}, connection: { search_path: schema } });
+    try {
+      const results = await Promise.allSettled(
+        ["sam", "tia"].map((who) => addDiscount(parallel, who, { ...DEAL, business: "Zsame Moment", amount: "12" })),
+      );
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(String((results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toContain("is already listed");
+    } finally {
+      await parallel.end();
+    }
+  });
+
+  it("doesn't count marking a deal already past its end date, and sorts Expired by when deals expired", async () => {
+    const ended = await addDeal(sql, "lou", { ...DEAL, title: "Ended", expiresOn: "2999-12-31" });
+    await sql`UPDATE discounts SET expires_on = philly_today() - 1 WHERE id = ${ended.id}`;
+    expect(await markExpired(sql, "lou", ended.id)).toMatchObject({ status: "expired", expiredReason: "date" });
+    const [counted] = await sql<{ marks: string }[]>`SELECT COUNT(*) AS marks FROM status_changes WHERE discount_id = ${ended.id}`;
+    expect(Number(counted!.marks)).toBe(0);
+
+    // Voted or marked dead today, though it would have run for months: listed first.
+    const longRunning = await addDeal(sql, "lou", { ...DEAL, title: "Long running", expiresOn: "2999-06-30" });
+    await markExpired(sql, "lou", longRunning.id);
+    const expired = await listDiscounts(sql, { userId: null, status: "expired", search: "Test Bagels" });
+    expect(expired.findIndex((d) => d.id === longRunning.id)).toBeLessThan(expired.findIndex((d) => d.id === ended.id));
   });
 
   it("reports deals that don't exist", async () => {

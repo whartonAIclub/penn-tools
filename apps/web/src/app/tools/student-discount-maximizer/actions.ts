@@ -13,6 +13,7 @@ import type { AIProvider } from "@penntools/core/ai";
 import {
   CATEGORIES,
   DiscountError,
+  DuplicateDealError,
   KINDS,
   NEIGHBORHOODS,
   SCOPES,
@@ -25,6 +26,7 @@ import {
   restore,
   vote,
   type Discount,
+  type SimilarDeal,
   type DiscountAudience,
   type DiscountPage,
   type DiscountCategory,
@@ -42,6 +44,8 @@ export interface ActionError {
   /** The AIError kind, when the AI API failed. */
   kind?: string;
   message: string;
+  /** The deals at the store, when adding a deal was refused as a possible duplicate. */
+  similar?: SimilarDeal[];
 }
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: ActionError };
@@ -70,6 +74,7 @@ async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   try {
     return { ok: true, data: await fn() };
   } catch (error) {
+    if (error instanceof DuplicateDealError) return { ok: false, error: { message: error.message, similar: error.similar } };
     if (error instanceof DiscountError) return fail(error.message);
     if (isAIError(error)) return { ok: false, error: error.toJSON() };
     const problem = setupProblem(error);
@@ -115,7 +120,7 @@ export async function addDeal(input: unknown): Promise<ActionResult<Discount>> {
 }
 
 /** Active deals at the same store, for the Add a deal form's duplicate warning. Works signed out too. */
-export async function similarDeals(business: string): Promise<ActionResult<Discount[]>> {
+export async function similarDeals(business: string): Promise<ActionResult<SimilarDeal[]>> {
   if (typeof business !== "string") return fail("Enter a store name.");
   const user = await getCurrentUser();
   return run(() => findSimilarDeals(database(), business, user?.id ?? null));
