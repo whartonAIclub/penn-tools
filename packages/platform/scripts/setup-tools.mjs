@@ -69,6 +69,7 @@ const TOOLS = [
   { name: "passiton", dir: "tools/pass-it-on", connectionLimit: 30 },
   { name: "studentdiscountmaximizer", dir: "tools/student-discount-maximizer", connectionLimit: 30 },
   { name: "pennpals", dir: "tools/penn-pals", connectionLimit: 30 },
+  { name: "pennfitness", dir: "tools/penn-fitness", connectionLimit: 30 },
 ];
 
 // Tools that have been removed (see "Removing a tool" in the README), as

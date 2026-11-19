@@ -24,7 +24,7 @@ _Last updated: November 18, 2026._
   - Screenshot parsing uses the AI API's `standard` tier, with the user picking OpenAI or Anthropic (as WEMBA Sync does). It runs on the user's $0.50 free credit, then their own key. `.ics` upload and quick-add use no AI.
   - Plans cover one Monday-to-Sunday week.
   - Commit messages use the repo's style (plain sentences), not conventional commits.
-  - The `pennfitness` database still has to be registered by the Platform team; build continues without it.
+  - The `pennfitness` database still has to be registered by the Platform team; build continues without it. Update (November 18, 2026): registered on our branch with the one `TOOLS` line in `packages/platform/scripts/setup-tools.mjs`, as Penn Pals, Student Discount Central and WEMBA Sync did in their own PRs; the PR must call it out for the Platform team. Locally, `node packages/platform/scripts/setup-tools.mjs` creates the role and schema and applies `schema.sql`.
 
 ---
 
