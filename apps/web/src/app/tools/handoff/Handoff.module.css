@@ -1,0 +1,1102 @@
+/* Imported from the Handoff HTML prototype. All app styling stays inside this tool. */
+.frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  container-name: handoff;
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+}
+.root {
+  height: 100%;
+  overflow: auto;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+  color-scheme: light;
+  box-sizing: border-box;
+}
+.root :global(img) { max-width: 100%; }
+.root :global([hidden]:not([hidden=until-found i])) { display: none !important; }
+/* Layout: two-tone app shell. White header over a cool-gray page; white event cards in an auto-fill grid; event pages are a compact header, content column and sticky booking card. */
+.root{
+  --bg:#F2F5F9; --surface:#FFFFFF; --surface-2:#EEF2F7; --ink:#14213A; --muted:#5E6878; --line:#DFE5ED;
+  --accent:#004785; --accent-ink:#FFFFFF; --accent-soft:#E8EFF7;
+  --btn:#011F5B; --btn-ink:#FFFFFF;
+  --brand-ink:#011F5B; --brand-red:#990000;
+  --good:#0A7A55; --good-soft:#E7F5EE; --warn:#965700; --warn-soft:#FFF3DF; --bad:#C1272D; --bad-soft:#FDECEC;
+  --c-wine:#9B2C55; --c-food:#C2561F; --c-social:#6D42B0; --c-sports:#1F6FB2; --c-travel:#0E7C86; --c-culture:#A8780E; --c-train:#4A5A78;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.08);
+  --shadow-lg:0 6px 16px rgba(0,0,0,.12);
+  --font-display:"Plus Jakarta Sans","Segoe UI",system-ui,sans-serif;
+  --font-body:"Plus Jakarta Sans","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){.root:not([data-theme="light"]){
+  --bg:#0D1420; --surface:#141C2A; --surface-2:#1B2535; --ink:#EEF2F8; --muted:#A3AEC0; --line:#2A3446;
+  --accent:#8FB3E8; --accent-ink:#0A1428; --accent-soft:#16284A;
+  --btn:#E8EEF7; --btn-ink:#011F5B;
+  --brand-ink:#E8EEF7; --brand-red:#E0676B;
+  --good:#52C99F; --good-soft:#12302A; --warn:#F0B35B; --warn-soft:#33260F; --bad:#F4877C; --bad-soft:#3A1B1B;
+  --c-wine:#E07AA0; --c-food:#E89A6E; --c-social:#B79AE8; --c-sports:#7DB5EA; --c-travel:#5CC6CF; --c-culture:#E2BE5F; --c-train:#A3B3D1;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.4); --shadow-lg:0 6px 16px rgba(0,0,0,.5); color-scheme:dark;
+}}
+.root[data-theme="dark"]{
+  --bg:#0D1420; --surface:#141C2A; --surface-2:#1B2535; --ink:#EEF2F8; --muted:#A3AEC0; --line:#2A3446;
+  --accent:#8FB3E8; --accent-ink:#0A1428; --accent-soft:#16284A;
+  --btn:#E8EEF7; --btn-ink:#011F5B;
+  --brand-ink:#E8EEF7; --brand-red:#E0676B;
+  --good:#52C99F; --good-soft:#12302A; --warn:#F0B35B; --warn-soft:#33260F; --bad:#F4877C; --bad-soft:#3A1B1B;
+  --c-wine:#E07AA0; --c-food:#E89A6E; --c-social:#B79AE8; --c-sports:#7DB5EA; --c-travel:#5CC6CF; --c-culture:#E2BE5F; --c-train:#A3B3D1;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.4); --shadow-lg:0 6px 16px rgba(0,0,0,.5); color-scheme:dark;
+}
+.root :global(*){box-sizing:border-box}
+.root{max-width:100%;overflow-x:clip}
+.root{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.root :global(h1), .root :global(h2), .root :global(h3), .root :global(h4){font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-.02em;font-weight:700}
+.root :global(p){margin:0}
+.root :global(button){font:inherit;color:inherit}
+.root :global(a){color:var(--accent)}
+.root :global(:focus-visible){outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+/* Headings the app focuses itself (a page's h1 after navigating, a dialog's title, a section's heading after a change: tabindex="-1",
+   never a Tab stop) are where a screen reader picks up, not controls, so they draw no ring, whether the move began with the keyboard, a
+   pointer or a script (browsers differ on which of those count as :focus-visible). Every control keeps its keyboard ring above. */
+.root :global(h1[tabindex="-1"]:focus), .root :global(h2[tabindex="-1"]:focus), .root :global(h3[tabindex="-1"]:focus), .root :global(h4[tabindex="-1"]:focus){outline:none}
+.root :global(.wrap){max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.root :global(.num){font-variant-numeric:tabular-nums}
+.root :global(.muted){color:var(--muted)}
+.root :global(.eyebrow){font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.root :global(.sr){position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* header */
+.root :global(header.top){position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
+/* Anything scrolled into view stops below the sticky header (about 130px): keyboard focus (WCAG 2.4.11), a link's target, a failed Post's first problem. */
+.root{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 140px)}
+.root :global(.top-row){display:flex;align-items:center;gap:10px;padding-block:12px;min-width:0}
+.root :global(.brand){display:flex;align-items:center;gap:9px;background:none;border:0;padding:0;cursor:pointer;min-width:0;min-height:36px} /* still a comfortable tap when only the name shows */
+.root :global(.brand-mark){width:32px;height:32px;border-radius:9px;background:var(--brand-ink);color:var(--bg);display:grid;place-items:center;box-shadow:inset 0 -4px 0 var(--brand-red);flex:none}
+.root :global(.brand-name){font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.03em;color:var(--brand-ink)}
+/* The subtitle beneath the wordmark ("Student-to-student exchange"), in both modes, in the header's understated style: muted, on one
+   line. It's the Handoff home button's sibling, never inside it, so the button's visible name stays "Handoff". The button and the
+   subtitle share one grid cell, inside the brand area's own height, so the header doesn't grow; the name keeps room under it, and a tap
+   on the subtitle still reaches the button. (No community badge: USER-INSTRUCTIONS §4.2.) */
+.root :global(.brand-area){display:flex;align-items:center;gap:8px;min-width:0}
+.root :global(.brand-tag){color:var(--muted);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.root :global(.brand-area.under){display:grid;grid-template-columns:minmax(0,max-content);align-items:center;gap:0}
+.root :global(.brand-area.under > *){grid-area:1 / 1}
+.root :global(.brand-area.under .brand-name){line-height:1.05;margin-bottom:13px}
+.root :global(.brand-area.under .brand-tag){align-self:end;justify-self:stretch;margin-left:41px;border:0;border-radius:0;padding:0;font-size:11.5px;font-weight:500;line-height:1.1;pointer-events:none}
+@container handoff (max-width:420px){ .root :global(.brand-area.under .brand-tag){font-size:10.5px} }
+@container handoff (max-width:410px){ .root :global(.brand-area.under .brand-tag){margin-left:0} } /* the mark is hidden here, so the name starts at the left */
+/* Where the header row leaves too little room to show it whole, it's left out rather than cut short (as the earlier subtitle was):
+   always on phones, and wherever App measures that it would be cut (nosub). */
+@container handoff (max-width:400px){ .root :global(.brand-area.under .brand-tag){display:none} .root :global(.brand-area.under .brand-name){margin-bottom:0} }
+.root :global(.brand-area.under.nosub .brand-tag){display:none}
+.root :global(.brand-area.under.nosub .brand-name){margin-bottom:0}
+.root :global(.sticky-cta){display:none}
+.root :global(.next-steps){margin:6px 0 0;padding-left:20px;display:grid;gap:4px}
+.root :global(.spacer){flex:1;min-width:0}
+/* Available / Wanted: the main nav, one switch between the listings and the ISO board, under the header's top row. */
+.root :global(.mode-switch){display:inline-flex;gap:4px;padding:4px;margin-bottom:10px;border-radius:12px;background:var(--surface-2)}
+.root :global(.mode-switch button){display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;background:none;padding:7px 18px;font-size:14.5px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}
+.root :global(.mode-switch button svg){flex:none}
+.root :global(.mode-switch button:not(.on):hover){color:var(--ink)}
+.root :global(.mode-switch button.on){background:var(--btn);color:var(--btn-ink)}
+@media (forced-colors:active){ .root :global(.mode-switch button.on){text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px} } /* system colors drop the fill, so the current side is underlined */
+/* The switch's row: Available / Wanted, the header's last line. */
+.root :global(.mode-row){display:flex;align-items:center;gap:4px 16px;margin-bottom:10px;min-width:0}
+.root :global(.mode-row .mode-switch){margin-bottom:0;min-width:0}
+/* Activity (My activity, with its action-needed count) and Help (the FAQ), beside the notifications and profile controls. */
+.root :global(.activity-btn){position:relative;flex:none}
+.root :global(.action-count){background:var(--accent);color:var(--accent-ink);border-radius:999px;font-size:11px;font-weight:700;padding:1px 6px;line-height:1.4}
+.root :global(.activity-btn.on), .root :global(.icon-btn.on){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.root :global(.av){width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;color:#fff}
+.root :global(.icon-btn){position:relative;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;flex:none}
+.root :global(.icon-btn:hover){box-shadow:var(--shadow)}
+.root :global(.icon-btn .dot){position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;border:2px solid var(--surface)}
+.root :global(.persona-btn){display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 10px 4px 4px;cursor:pointer;font-size:13px;font-weight:600;flex:none}
+.root :global(.persona-btn:hover){box-shadow:var(--shadow)}
+.root :global(.pop){position:absolute;right:0;top:48px;width:min(360px,calc(100cqw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;z-index:50;max-height:min(75vh,640px);overflow-y:auto}
+.root :global(.pop-sec){padding:12px 14px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.root :global(.pop-sec:last-child){border-bottom:0}
+.root :global(.pop-item){display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:8px;border-radius:9px;cursor:pointer;font-size:14px}
+.root :global(.pop-item:hover){background:var(--surface-2)}
+.root :global(.pop-item.on){background:var(--accent-soft)}
+.root :global(.pop-item small){display:block;color:var(--muted);font-size:12px}
+/* buttons */
+.root :global(.btn){display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;text-decoration:none;color:var(--ink);transition:background .15s,border-color .15s,box-shadow .15s}
+.root :global(.btn:hover){border-color:var(--brand-ink)}
+.root :global(.btn-primary){background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+.root :global(.btn-primary:hover){border-color:var(--btn);box-shadow:var(--shadow)}
+.root :global(.btn-ghost){background:none;border-color:transparent}
+.root :global(.btn-ghost:hover){background:var(--surface-2);border-color:transparent}
+.root :global(.btn-sm){padding:6px 11px;font-size:13px;border-radius:8px}
+.root :global(.btn-demo){border-style:dashed;border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.root :global(.btn-danger){color:var(--bad)}
+.root :global(.btn[disabled]){opacity:.45;cursor:not-allowed;filter:none}
+.root :global(.btn[aria-disabled=true]){opacity:.45;cursor:not-allowed} /* nothing to do, but still focusable */
+/* Live: the control whose change is being saved (useLiveLink marks it data-pending, aria-disabled): a small spinner after its label, and
+   further presses are ignored. Without motion, a still ring. */
+.root :global(.btn[data-pending]){opacity:.7;cursor:progress}
+.root :global(.btn[data-pending])::after{content:"";flex:none;width:12px;height:12px;box-sizing:border-box;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:pending .7s linear infinite}
+@keyframes pending{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.root :global(.btn[data-pending])::after{animation:none;border-right-color:currentColor;opacity:.5}}
+/* chips + state */
+.root :global(.chip){display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:6px;background:var(--surface-2);color:var(--muted);max-width:100%;white-space:normal}
+.root :global(.tone-good){color:var(--good);background:var(--good-soft)}
+.root :global(.tone-warn){color:var(--warn);background:var(--warn-soft)}
+.root :global(.tone-bad){color:var(--bad);background:var(--bad-soft)}
+.root :global(.tone-accent){color:var(--accent);background:var(--accent-soft)}
+.root :global(.tone-muted){color:var(--muted);background:var(--surface-2)}
+.root :global(.chips){display:flex;flex-wrap:wrap;gap:6px}
+.root :global(.state){display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.root :global(.state i){width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.root :global(.state.good){color:var(--good)}
+.root :global(.state.good i){background:var(--good)}
+.root :global(.state.warn){color:var(--warn)}
+.root :global(.state.warn i){background:var(--warn)}
+.root :global(.state.bad){color:var(--bad)}
+.root :global(.state.bad i){background:var(--bad)}
+/* hero (compact) */
+.root :global(.hero-actions){display:flex;flex-wrap:wrap;gap:8px}
+.root :global(.hero-actions .btn){white-space:normal;text-align:left}
+/* Discovery (Available, Wanted): one header under the view's intro, in the same place on both. The category row puts a small
+   icon beside each always-visible label and underlines the current one in the brand red; it wraps rather than scrolls. Then a toolbar:
+   search, By club, Featured, goods category, Filters and sort, wrapping onto more lines on narrow screens (never sideways). */
+.root :global(.disc){padding-top:2px}
+.root :global(.disc-cats){display:flex;flex-wrap:wrap;column-gap:24px;row-gap:0;border-bottom:1px solid var(--line);margin-bottom:14px}
+.root :global(.disc-cats button){display:inline-flex;align-items:center;gap:6px;background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 2px 9px;cursor:pointer;color:var(--muted);font-size:14px;font-weight:600;white-space:nowrap}
+.root :global(.disc-cats button:hover){color:var(--ink);border-bottom-color:var(--line)}
+.root :global(.disc-cats button.on){color:var(--brand-ink);border-bottom-color:var(--brand-red)}
+@media (forced-colors:active){ .root :global(.disc-cats button.on){text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px} }
+.root :global(.disc-tools){display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-bottom:18px}
+.root :global(.disc-tools .btn), .root :global(.disc-tools select), .root :global(.rail-menu){min-height:36px}
+.root :global(.disc-panel-h){flex-basis:100%;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)} /* the panel names its side */
+.root :global(.disc-panel-note){flex-basis:100%;font-size:12.5px;color:var(--muted)}
+.root :global(.disc-lbl){font-size:13.5px;font-weight:600}
+/* By club ▾ is a toolbar button naming the chosen club; a long name shortens with an ellipsis (the full name is its tooltip). Its popover
+   hangs below it in the header menus' style: a search field over a list that scrolls on its own. A chosen club, Featured turned on and
+   applied filters read alike: an accent outline and tint. */
+.root :global(.rail-menu){display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;color:var(--ink);font-size:13px;font-weight:600;white-space:nowrap;flex:none}
+.root :global(.rail-menu:hover){border-color:var(--brand-ink)}
+.root :global(.rail-menu.on), .root :global(.disc-toggle.on){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.root :global(.disc-toggle.on:hover){border-color:var(--brand-ink)}
+.root :global(.club-menu){position:relative;display:flex;min-width:0;max-width:min(100%,300px)}
+.root :global(.club-menu .rail-menu){flex:0 1 auto;min-width:0;max-width:100%}
+.root :global(.rail-menu .rail-label){overflow:hidden;text-overflow:ellipsis}
+.root :global(.rail-menu > svg:last-child){transition:transform .15s}
+.root :global(.club-pop){position:absolute;top:calc(100% + 6px);left:0;z-index:25;width:min(340px,calc(100cqw - 32px));display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.root :global(.club-pop:focus){outline:none} /* focused itself only when opened by touch, so the on-screen keyboard stays down */
+.root :global(.club-find){padding:10px;border-bottom:1px solid var(--line)}
+.root :global(.club-find .search){max-width:none}
+.root :global(.club-list){position:relative;max-height:min(320px,50vh);overflow-y:auto;overscroll-behavior:contain;padding:6px}
+.root :global(.club-list:focus){outline:none} /* never tabbed to: the arrow keys move through it from the search */
+.root :global(.club-opt > svg){flex:none;color:var(--accent);visibility:hidden}
+.root :global(.club-opt.on){font-weight:600}
+.root :global(.club-opt.on > svg){visibility:visible}
+.root :global(.club-opt.active){box-shadow:inset 0 0 0 2px var(--accent)}
+@media (forced-colors:active){ .root :global(.club-opt.active){outline:2px solid Highlight;outline-offset:-2px} }
+.root :global(.club-group){border-top:1px solid var(--line);margin-top:6px;padding-top:2px}
+.root :global(.club-group .eyebrow){padding:8px 8px 4px}
+.root :global(.club-none){padding:2px 16px 14px;color:var(--muted);font-size:13.5px}
+.root :global(.club-none:empty){padding:0}
+.root :global(.disc-tools select), .root :global(.ev-filters select){border-radius:999px;padding:7px 30px 7px 13px;font-weight:600;font-size:13.5px;max-width:100%}
+/* Filters: one "Filters" button per side, showing how many are on; its panel opens inline below the toolbar, and closing it keeps the choices. */
+/* Search: a standard field in the same row, always visible; its icon only marks it. Clear keeps focus in the field. */
+.root :global(.search){position:relative;display:flex;align-items:center;flex:1 1 240px;max-width:400px;min-width:0}
+.root :global(.search > svg){position:absolute;left:11px;color:var(--muted);pointer-events:none}
+.root :global(.search input[type=text]){width:100%;padding:6px 12px 6px 34px}
+@media (hover:none) and (pointer:coarse){ .root :global(.search input[type=text]){font-size:16px} } /* touch screens: 16px, so iOS doesn't zoom in on focus */
+.root :global(.search.has-text input[type=text]){padding-right:38px}
+.root :global(.search-clear){position:absolute;right:3px;display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:none;color:var(--muted);cursor:pointer}
+.root :global(.search-clear:hover){background:var(--surface-2);color:var(--ink)}
+.root :global(.filter-btn.applied){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.root :global(.filter-btn.applied:hover){border-color:var(--brand-ink);box-shadow:var(--shadow)}
+.root :global(.filter-btn > svg:last-child){transition:transform .15s}
+.root :global(.filter-panel){flex-basis:100%;min-width:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.root :global(.ev-filters){display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* Simplification batch (live): the type shown, as a chip before Filters that removes it (an applied filter's accent), and an empty state's
+   "Filtered by …" line. */
+.root :global(.disc-chip){display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:1px solid var(--accent);border-radius:999px;background:var(--accent-soft);color:var(--accent);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.root :global(.disc-chip:hover){border-color:var(--brand-ink)}
+.root :global(.empty-filters){font-size:13.5px;color:var(--ink);font-weight:600;overflow-wrap:anywhere}
+/* §9s item 1 (the shared market): the search on a line of its own; directly below it, All · Events · Trains · Treks · Goods as a row of
+   pills (a radio group: the chosen one is filled, outlined and bold); then By club, the Goods category and the sort, beside the row
+   where there's room and on the next line on a phone, where the five pills share the width equally and are 44px tall. */
+.root :global(.disc-live){display:grid;gap:10px;padding-bottom:18px}
+.root :global(.disc-live > .search){max-width:520px}
+.root :global(.disc-row){display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;min-width:0}
+.root :global(.disc-live .disc-tools){padding-bottom:0;min-width:0}
+/* §9v item 1 (SELL5-M4): each pill has its icon (grid, ticket, train, mountain, bag) before its label, and the chosen one is filled
+   with the accent (white words and icon), against the outlined others: a change of fill and weight, not of colour alone. */
+.root :global(.cat-row){display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.root :global(.cat-row button){display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;min-width:60px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;font-weight:600;line-height:1.2;white-space:nowrap;cursor:pointer}
+.root :global(.cat-row button > svg){flex:none;color:var(--muted)}
+.root :global(.cat-row button:hover){border-color:var(--brand-ink)}
+.root :global(.cat-row button.on){border-color:var(--accent);background:var(--accent);color:var(--accent-ink);font-weight:700}
+.root :global(.cat-row button.on > svg){color:currentColor}
+.root :global(.cat-row button:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+@media (forced-colors:active){ .root :global(.cat-row button.on){border-color:Highlight;background:Highlight;color:HighlightText;forced-color-adjust:none} }
+/* §9s item 2 (the shared market): an empty board's actions, one line of full-height buttons. */
+.root :global(.empty .empty-acts){display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.root :global(.empty .empty-acts .btn){min-height:44px}
+/* Available / Waitlist: its dots match the card badges. */
+.root :global(.avail-seg button){display:inline-flex;align-items:center;gap:6px}
+.root :global(.avail-seg .dot){width:8px;height:8px;border-radius:50%;display:inline-block}
+.root :global(select), .root :global(input[type=number]), .root :global(input[type=text]), .root :global(input[type=date]), .root :global(input[type=email]), .root :global(textarea){font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;max-width:100%;min-width:0}
+.root :global(select:hover), .root :global(input:hover), .root :global(textarea:hover){border-color:color-mix(in srgb,var(--ink) 35%,var(--line))}
+.root :global(select){padding-right:28px;text-overflow:ellipsis}
+.root :global(textarea){width:100%;resize:vertical;min-height:72px}
+.root :global(.section-head){display:flex;align-items:baseline;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin-bottom:12px}
+.root :global(.section-head h2){font-size:21px}
+.root :global(.legend){display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin-bottom:14px}
+.root :global(.legend span){display:inline-flex;align-items:center;gap:6px}
+.root :global(.legend i){width:8px;height:8px;border-radius:50%;background:var(--muted)}
+/* event cards */
+.root :global(.grid){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr));gap:18px;padding-bottom:28px}
+.root :global(.ecard){position:relative;display:grid;grid-template-rows:auto 1fr;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:0;cursor:pointer;text-align:left;width:100%;min-width:0;color:inherit;box-shadow:0 1px 2px rgba(20,33,58,.04);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.root :global(.ecard:hover), .root :global(.ecard:focus-within){transform:translateY(-2px);box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--brand-ink) 18%,var(--line))}
+.root :global(.stretch){background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.root :global(.stretch::after){content:"";position:absolute;inset:0}
+.root :global(.stretch:focus-visible){outline:none}
+.root :global(.ecard:has(.stretch:focus-visible)){outline:2px solid var(--accent);outline-offset:2px}
+.root :global(.cover){position:relative;max-width:100%;overflow:hidden;display:grid;place-items:center;
+  background:radial-gradient(120% 90% at 85% 10%,color-mix(in srgb,var(--c) 26%,var(--surface)) 0%,transparent 60%),linear-gradient(160deg,color-mix(in srgb,var(--c) 10%,var(--surface)),color-mix(in srgb,var(--c) 22%,var(--surface)));color:var(--c)}
+.root :global(.ecard .cover){aspect-ratio:16 / 7}
+.root :global(.cover.photo){display:block;background:var(--surface-2)}
+.root :global(.ecard .cover.photo){aspect-ratio:3 / 2}
+.root :global(.cover.photo .item-img){display:block;width:100%;height:100%;object-fit:cover;opacity:1}
+.root :global(.cover.photo .tag2){z-index:1}
+.root :global(.photo-pick){display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.root :global(.file-pick:focus-visible + label), .root :global(.file-pick:focus-visible + .photo-pick label){outline:2px solid var(--accent);outline-offset:2px}
+.root :global(.photo-pick img){width:120px;height:80px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.root :global(.item-hero){border-radius:14px;overflow:hidden;aspect-ratio:3 / 2;max-width:520px;background:var(--surface-2);position:relative}
+.root :global(.item-hero .item-img){display:block;width:100%;height:100%;object-fit:cover}
+/* §9s item 6 (live): an item's one photo. Its card shows it as a 16:9 thumbnail; its page shows the whole picture in its own shape
+   (set inline, between 3:4 and 2:1), never taller than most of the screen. Sell an item puts "Add photo (optional)" beside the price:
+   a dashed tile, then the chosen picture with Replace and Remove under it; the line under both says what's happening or what went wrong.
+   The seller's own item page has Change photo and Remove photo (or Add a photo) under the picture. */
+.root :global(.ecard .cover.photo.pic){aspect-ratio:16 / 9}
+.root :global(.item-hero.fit){max-height:min(70vh,560px)}
+.root :global(.item-hero.fit .item-img){object-fit:contain}
+.root :global(.g-main-row){display:grid;grid-template-columns:minmax(0,300px) 112px;gap:0 14px;align-items:start;justify-content:start}
+.root :global(.g-main-row > .field){min-width:0}
+.root :global(.g-photo-field){display:grid;gap:4px;justify-items:start}
+.root :global(.g-photo-add){display:grid;place-items:center;align-content:center;gap:4px;width:112px;height:84px;padding:6px;border:1.5px dashed color-mix(in srgb,var(--ink) 30%,var(--line));border-radius:12px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;font-weight:600;line-height:1.25;text-align:center;cursor:pointer}
+.root :global(.g-photo-add .opt){display:block;font-weight:400;color:var(--muted)}
+.root :global(.g-photo-add:hover){border-color:var(--accent)}
+.root :global(.g-photo-add:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.root :global(.g-photo-tile){display:grid;gap:2px;justify-items:start}
+.root :global(.g-photo-tile img){display:block;width:112px;height:84px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:var(--surface-2)}
+.root :global(.g-photo-acts){display:flex;gap:12px;font-size:13px}
+.root :global(.g-photo-acts .linkish){min-height:28px}
+.root :global(.g-photo-field[data-busy] .g-photo-add), .root :global(.g-photo-field[data-busy] .g-photo-tile img){opacity:.55}
+.root :global(.g-photo-msg){grid-column:1 / -1;font-size:12.5px}
+.root :global(.g-photo-msg:not(:empty)){margin-top:6px}
+@media (max-width:340px){ .root :global(.g-main-row){grid-template-columns:minmax(0,1fr)} .root :global(.g-photo-field){margin-top:10px} }
+.root :global(.gi-photo){display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:10px;font-size:13.5px}
+.root :global(.gi-photo > .err), .root :global(.gi-photo > .help){flex-basis:100%}
+.root :global(.alert-optin){border:0;padding:0;margin:0;display:grid;gap:6px;min-width:0}
+.root :global(.alert-optin legend){font-weight:700;font-size:15px;padding:0;margin-bottom:4px}
+.root :global(.alert-optin.compact legend){font-weight:600;font-size:13px;color:var(--muted)}
+.root :global(.alert-optin.compact .check){font-size:13.5px}
+.root :global(.item-gallery){display:grid;gap:8px;max-width:520px}
+.root :global(.item-thumbs){display:flex;gap:8px;flex-wrap:wrap}
+.root :global(.item-thumbs button){padding:0;border:2px solid transparent;border-radius:10px;background:none;cursor:pointer;line-height:0}
+.root :global(.item-thumbs button.on){border-color:var(--accent)}
+.root :global(.item-thumbs img){width:72px;height:54px;object-fit:cover;border-radius:8px;display:block}
+.root :global(.photo-pick .thumb-wrap){position:relative;line-height:0}
+.root :global(.photo-pick .thumb-wrap .x){position:absolute;top:4px;right:4px;padding:2px;min-height:0;background:var(--surface);border-radius:999px;line-height:0}
+.root :global(.photo-pick .thumb-wrap .x::after){content:"";position:absolute;inset:-12px;border-radius:999px}
+.root :global(.photo-pick .thumb-wrap .cover-tag){position:absolute;left:6px;bottom:6px;font-size:11px;font-weight:700;line-height:1.4;background:color-mix(in srgb,var(--ink) 78%,transparent);color:var(--bg);padding:1px 7px;border-radius:999px}
+.root :global(.item-hero .cap){position:absolute;left:10px;bottom:10px;font-size:11.5px;font-weight:700;background:color-mix(in srgb,var(--ink) 78%,transparent);color:var(--bg);padding:2px 8px;border-radius:999px}
+.root :global(.cover > svg){opacity:.9;transition:transform .25s ease}
+.root :global(.ecard:hover .cover > svg){transform:scale(1.06)}
+.root :global(.cover .state){position:absolute;top:10px;left:10px;max-width:calc(100% - 20px)}
+.root :global(.cover .tag2){position:absolute;bottom:10px;right:10px;background:color-mix(in srgb,var(--ink) 82%,transparent);color:var(--bg);font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+.root :global(.ebody){display:flex;flex-direction:column;gap:2px;min-width:0;padding:12px 16px 14px}
+.root :global(.ebody h3){font-size:16px;line-height:1.3;font-weight:700;letter-spacing:-.01em;color:var(--brand-ink);overflow-wrap:anywhere}
+.root :global(.ebody .meta){font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}
+.root :global(.ebody .price-line){font-size:14.5px;margin-top:auto;padding-top:10px;border-top:1px solid var(--line);display:grid;gap:2px}
+.root :global(.ebody .price-line .sub){font-size:12.5px;color:var(--muted)}
+.root :global(.ebody .meta:last-of-type){margin-bottom:10px}
+.root :global(.thumb){width:84px;height:84px;border-radius:16px;flex:none}
+.root :global(.empty){border:1px dashed var(--line);background:var(--surface);border-radius:14px;padding:28px;text-align:center;color:var(--muted);display:grid;gap:12px;justify-items:center}
+.root :global(.empty .btn), .root :global(.panel > .btn), .root :global(.callout .btn){white-space:normal;text-align:center;max-width:100%}
+/* event page */
+.root :global(.back){margin-block:16px 6px;max-width:100%;white-space:normal;text-align:left} /* it can name an event (a request opened from its page), so a long name wraps */
+.root :global(.back > svg){flex:none}
+.root :global(.ev-top){display:flex;gap:16px;align-items:flex-start;margin-bottom:22px;min-width:0}
+.root :global(.ev-top .titleblock){flex:1;min-width:0;display:grid;gap:6px}
+.root :global(.ev-top h1){font-size:clamp(24px,3.4vw,36px);line-height:1.1;letter-spacing:-.03em;overflow-wrap:anywhere}
+.root :global(.ev-facts){display:flex;flex-wrap:wrap;gap:4px 16px}
+.root :global(.ev-facts .tline){font-size:14px;color:var(--ink)}
+.root :global(.ev-layout){display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:28px;align-items:start;padding-bottom:60px}
+.root :global(.ev-layout > *){min-width:0}
+.root :global(.ev-body){max-width:64ch;color:var(--muted);font-size:15px}
+.root :global(.panel){background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;min-width:0}
+.root :global(.panel.booking){box-shadow:var(--shadow-lg);border-radius:16px;padding:22px}
+.root :global(.rail){position:sticky;top:calc(env(safe-area-inset-top,0px) + 134px);display:grid;gap:14px;min-width:0} /* just below the sticky header and its switch */
+.root :global(.tclub){display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--muted);flex-wrap:wrap}
+.root :global(.cdot){width:8px;height:8px;border-radius:50%;flex:none}
+.root :global(.tline){display:flex;align-items:center;gap:7px;font-size:14px;color:var(--muted);min-width:0}
+.root :global(.tline svg){flex:none}
+.root :global(.policy){border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;font-size:13.5px}
+.root :global(.policy b){display:block;font-size:14px;margin-bottom:2px}
+.root :global(.policy.good){background:var(--good-soft)}
+.root :global(.policy.good svg){color:var(--good)}
+.root :global(.policy.warn){background:var(--warn-soft)}
+.root :global(.policy.warn svg){color:var(--warn)}
+.root :global(.policy.bad){background:var(--bad-soft)}
+.root :global(.policy.bad svg){color:var(--bad)}
+.root :global(.policy.muted){background:var(--surface-2)}
+.root :global(.policy.muted svg){color:var(--muted)}
+.root :global(.srcs){border-top:1px solid var(--line);padding-top:10px;font-size:13px}
+.root :global(.srcs > summary){cursor:pointer;font-weight:600;color:var(--accent);width:max-content;max-width:100%}
+.root :global(.srcs-body){display:grid;gap:8px;margin-top:8px;overflow-wrap:anywhere}
+.root :global(.srcs-body ul){margin:0;padding-left:18px;display:grid;gap:4px}
+.root :global(.facts){display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;font-size:13.5px;margin:0}
+.root :global(.facts dt){color:var(--muted)}
+.root :global(.facts dd){margin:0;overflow-wrap:anywhere}
+.root :global(.big){font-family:var(--font-display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.root :global(.listing){display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.root :global(.listing:first-child){border-top:0}
+.root :global(.listing .who){font-weight:600}
+.root :global(.listing .note){font-size:13.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.root :global(.listing .ask){font-family:var(--font-display);font-weight:700;font-size:20px;text-align:right;font-variant-numeric:tabular-nums}
+.root :global(.listing .ask small){display:block;font-family:var(--font-body);font-size:11.5px;color:var(--muted);font-weight:500}
+.root :global(.reason){font-size:12.5px;color:var(--muted);margin-top:6px}
+.root :global(.callout){border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 12px;border-radius:0 10px 10px 0;font-size:13.5px;overflow-wrap:anywhere}
+.root :global(.callout.warn){border-left-color:var(--warn);background:var(--warn-soft)}
+.root :global(.callout.good){border-left-color:var(--good);background:var(--good-soft)}
+.root :global(.callout.bad){border-left-color:var(--bad);background:var(--bad-soft)}
+.root :global(.breakdown-wrap){overflow-x:auto}
+.root :global(.breakdown){width:100%;border-collapse:collapse;font-size:13.5px}
+.root :global(.breakdown td){padding:6px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.root :global(.breakdown td:last-child){text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:12px}
+.root :global(.breakdown tr.total td){font-weight:700;border-bottom:0;padding-top:9px}
+.root :global(.breakdown .sub){display:block;color:var(--muted);font-size:12px;font-weight:400}
+/* forms */
+.root :global(.form-layout){display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start;padding-block:8px 60px}
+.root :global(.form-layout > *){min-width:0}
+.root :global(.field){display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0;align-content:start} /* beside a taller field, controls keep their height */
+.root :global(.field select), .root :global(.field input[type=text]), .root :global(.field input[type=date]), .root :global(.field input[type=email]), .root :global(.field input[type=number]){width:100%}
+.root :global(.field label), .root :global(.field .label){font-weight:600;font-size:14px}
+.root :global(.field .help){font-size:12.5px;color:var(--muted)}
+.root :global(.field .err), .root :global(.err){font-size:12.5px;color:var(--bad);font-weight:600}
+.root :global(.row2){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.root :global(.form-stack){display:grid;gap:18px;min-width:0}
+.root :global(.check){display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;font-size:14px;cursor:pointer}
+.root :global(.check input){width:18px;height:18px;margin:2px 0 0;accent-color:var(--accent)}
+.root :global(.money){position:relative}
+.root :global(.money span){position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.root :global(.money input){width:100%;padding-left:24px}
+/* Sell a ticket: the known event as a compact summary, short context lines under it, and the "Additional details" section. */
+.root :global(.sell-ev){display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.root :global(.sell-ev b){display:block;overflow-wrap:anywhere}
+.root :global(.sell-ev .muted){font-size:13px}
+.root :global(.sell-context){display:grid;gap:6px;font-size:13.5px;min-width:0}
+.root :global(.sell-note){margin:0;font-size:13.5px}
+.root :global(.sell-static){font-size:14px;padding:9px 0}
+.root :global(.sell-needs){color:var(--warn);font-weight:600}
+.root :global(.sell-more){font-size:14px}
+.root :global(.sell-more > summary){font-size:14px;width:fit-content} /* wraps on phones instead of widening the form */
+/* Sell and Post a request: the Tickets & trips | Goods choice at the top of each form (TypeSwitch), in the main switch's look (a soft track,
+   the chosen side filled). Compact on wide screens; on phones it spans the form, and the narrowest drop its icons so both labels fit. */
+.root :global(.type-switch){display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--surface-2);justify-self:start;max-width:100%;min-width:0}
+.root :global(.type-switch button){display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:1 1 auto;min-height:40px;border:0;border-radius:9px;background:none;padding:7px 18px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}
+.root :global(.type-switch button svg){flex:none}
+.root :global(.type-switch button:not(.on):hover){color:var(--ink)}
+.root :global(.type-switch button.on){background:var(--btn);color:var(--btn-ink)}
+@media (forced-colors:active){ .root :global(.type-switch button.on){text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px} } /* system colors drop the fill, so the chosen type is underlined */
+@container handoff (max-width:540px){ .root :global(.type-switch){justify-self:stretch} .root :global(.type-switch button){padding:7px 10px} }
+@container handoff (max-width:360px){ .root :global(.type-switch button > svg){display:none} }
+.root :global(.seg){display:inline-flex;background:var(--surface-2);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap;max-width:100%}
+.root :global(.seg button){border:0;background:none;border-radius:8px;padding:7px 12px;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--muted)}
+.root :global(.seg button.on){background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.root :global(.sub-h){font-family:var(--font-body);font-size:12.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 -4px}
+.root :global(.holding){display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.root :global(.holding.on){border-color:var(--accent);background:var(--accent-soft)}
+/* activity */
+.root :global(.page-head){padding-block:24px 14px}
+.root :global(.page-head h1){font-size:clamp(24px,3.4vw,34px);letter-spacing:-.03em}
+.root :global(.tabs){display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto;scrollbar-width:none}
+.root :global(.tabs button){border:0;background:none;padding:10px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;display:flex;gap:7px;align-items:center}
+.root :global(.tabs button.on){color:var(--ink);border-bottom-color:var(--brand-red)}
+.root :global(.tabs button.todo .count){background:var(--accent);color:var(--accent-ink)}
+.root :global(.count){font-size:11.5px;background:var(--surface-2);border-radius:999px;padding:1px 7px;color:var(--muted)}
+.root :global(.stack){display:grid;gap:14px;padding-bottom:60px}
+/* My activity: a focused list about 880px wide, the overview and a card alike. The heading has the sample-data note beside it (under it
+   on phones). "Needs your attention" stands out (a navy count, an accent edge, primary actions, soonest deadline first); Active and Past
+   are quieter, and Past is a collapsed toggle. Each section is one bordered list with light separators. A row reads: the item and its
+   context; its status and deadline; one action named for where it leads (it opens the card); then any critical note and match link.
+   Phones put the status and the action on a line of their own under the item. */
+.root :global(.act-page){max-width:912px} /* 880px of content */
+.root :global(.act-head){display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:4px 16px}
+.root :global(.act-head .preview-note){font-size:12px;color:var(--muted);padding-bottom:5px}
+.root :global(.act-sec){display:grid;gap:10px;margin-bottom:28px}
+.root :global(.act-sec-head){display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px}
+.root :global(.act-h){font-family:var(--font-body);font-size:17px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.root :global(.act-h .count.todo){background:var(--btn);color:var(--btn-ink)}
+.root :global(.act-hint){font-size:12.5px;color:var(--muted)}
+.root :global(.act-list){list-style:none;margin:0;padding:0;display:grid;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.root :global(.act-sec.attn .act-list){border-left:3px solid var(--accent)}
+.root :global(.act-row){display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,180px) 172px;grid-template-areas:"main stage act" "extra stage act";column-gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.root :global(.act-row:last-child){border-bottom:0}
+.root :global(.act-main){grid-area:main;display:grid;gap:3px;min-width:0}
+.root :global(.act-title b){font-size:15px;overflow-wrap:anywhere}
+.root :global(.act-sub){font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.root :global(.act-kind:not(:last-child)::after){content:" · "}
+.root :global(.act-stage){grid-area:stage;display:grid;justify-items:start;gap:5px;min-width:0}
+.root :global(.act-stage .act-status){background:none;padding:0;font-size:13.5px;font-weight:600;color:var(--ink)}
+.root :global(.act-sec:not(.attn) .act-status){font-weight:500;color:var(--muted)}
+.root :global(.act-sec:not(.attn) .act-status.tone-warn){color:var(--warn)}
+.root :global(.act-sec:not(.attn) .act-status.tone-bad){color:var(--bad)}
+.root :global(.act-stage .act-due){background:none;padding:0;color:var(--warn)}
+.root :global(.act-stage .act-due.tone-warn){background:var(--warn-soft);padding:2px 7px} /* under a day: an amber pill */
+.root :global(.act-row > .btn){grid-area:act;width:100%;white-space:normal;text-align:center}
+.root :global(.act-row > .btn svg){flex:none}
+.root :global(.act-extra){grid-area:extra;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:8px;min-width:0}
+.root :global(.act-extra .act-match){display:inline-flex;align-items:center;gap:5px;min-height:28px;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer}
+.root :global(.act-extra .act-match:hover){text-decoration:underline;text-underline-offset:3px}
+.root :global(.act-extra .chip.act-match){border:0;min-height:26px;font-size:12px;color:var(--good)}
+.root :global(.act-row :focus-visible), .root :global(.act-toggle:focus-visible){outline-width:3px;outline-offset:3px}
+.root :global(.act-empty){margin:0;padding:14px 16px;border:1px dashed var(--line);border-radius:12px;background:var(--surface);color:var(--muted);font-size:14px}
+.root :global(.act-sec.past .act-h){border-top:1px solid var(--line);padding-top:12px}
+.root :global(.act-toggle){display:inline-flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:4px 0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.root :global(.act-toggle > svg){color:var(--muted);transition:transform .15s}
+.root :global(.act-back){margin:-2px 0 14px}
+@container handoff (max-width:600px){
+  .root :global(.act-head){flex-direction:column;align-items:flex-start}
+  .root :global(.act-row){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main main" "stage act" "extra extra";padding:14px}
+  .root :global(.act-stage), .root :global(.act-row > .btn){margin-top:10px}
+  .root :global(.act-row > .btn){min-width:120px;max-width:160px;min-height:40px}
+  .root :global(.act-title b){font-size:14.5px}
+  .root :global(.act-hint){display:none}
+}
+@media (pointer:coarse){ .root :global(.act-row > .btn){min-height:44px} }
+.root :global(.lhead){display:flex;justify-content:space-between;gap:8px 12px;align-items:flex-start;flex-wrap:wrap}
+.root :global(.lhead h3){font-size:18px;overflow-wrap:anywhere}
+.root :global(.linkish){background:none;border:0;padding:0;cursor:pointer;text-align:left;min-width:0;font:inherit;color:inherit}
+.root :global(.linkish:hover h3), .root :global(.linkish:hover){text-decoration:underline;text-underline-offset:3px}
+.root :global(.req){border-top:1px solid var(--line);padding-top:14px;margin-top:14px;display:grid;gap:12px;min-width:0}
+.root :global(.req-top){display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.root :global(.quote){font-size:14px;color:var(--muted);border-left:2px solid var(--line);padding-left:10px;overflow-wrap:anywhere}
+.root :global(.timeline){display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:2px}
+.root :global(.tl-step){flex:1;min-width:80px;display:grid;justify-items:center;gap:6px;position:relative;font-size:11.5px;text-align:center;color:var(--muted);font-weight:600}
+.root :global(.tl-step::before){content:"";position:absolute;top:10px;left:-50%;width:100%;height:2px;background:var(--line);z-index:0}
+.root :global(.tl-step:first-child::before){display:none}
+.root :global(.tl-step.done::before), .root :global(.tl-step.now::before){background:var(--accent)}
+.root :global(.tl-dot){width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;z-index:1}
+.root :global(.tl-step.done .tl-dot){background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.root :global(.tl-step.now .tl-dot){border-color:var(--warn);box-shadow:0 0 0 4px var(--warn-soft)}
+.root :global(.tl-step.now), .root :global(.tl-step.done){color:var(--ink)}
+.root :global(.next){background:var(--surface-2);border-radius:12px;padding:12px 14px;font-size:13.5px;display:grid;gap:8px;min-width:0}
+.root :global(.actions){display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+/* Payment methods (follow-on B1, live): the editor (Profile, and Sell a ticket or "I have this" when none are saved), its one-line summary
+   with Change, and an exchange's payment block (the amount, who and by when, each method with Copy, "Paid with", "I've sent payment"). */
+.root :global(.pay-edit){display:grid;gap:14px;min-width:0}
+.root :global(.pay-row){display:grid;gap:10px;min-width:0}
+.root :global(.pay-kind){display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.root :global(.pay-value){max-width:340px}
+.root :global(.pay-pref), .root :global(.pay-via){border:0;margin:0;padding:0;min-width:0;display:grid;gap:6px}
+.root :global(.pay-pref legend), .root :global(.pay-via legend){font-weight:600;font-size:14px;padding:0;margin-bottom:6px}
+.root :global(.pay-via legend){font-size:13.5px}
+.root :global(.pay-add){display:inline-flex;align-items:center;gap:6px;min-height:32px;font-weight:600;color:var(--accent)}
+.root :global(.pay-add:hover), .root :global(.pay-change:hover), .root :global(.pay-keep:hover){text-decoration:underline;text-underline-offset:3px}
+.root :global(.pay-sum){margin:0;font-size:13.5px;overflow-wrap:anywhere}
+.root :global(.pay-sum b){color:var(--ink)}
+.root :global(.pay-change), .root :global(.pay-keep){text-decoration:underline;text-underline-offset:3px;color:var(--accent);font-weight:600;min-height:24px}
+.root :global(.pay-block){display:grid;gap:10px;min-width:0;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.root :global(.pay-lead){margin:0;font-size:14px;overflow-wrap:anywhere}
+.root :global(.pay-rows){align-items:center}
+.root :global(.pay-rows dd){display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.root :global(.pay-dest){font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.root :global(.pay-kinds){font-size:13.5px}
+.root :global(.demo-ctl){border:1.5px dashed var(--warn);border-radius:12px;padding:10px 12px;display:grid;gap:8px}
+.root :global(.demo-ctl .eyebrow){color:var(--warn)}
+.root :global(.confirm){border:1px solid var(--bad);background:var(--bad-soft);border-radius:10px;padding:10px 12px;display:grid;gap:8px;font-size:13.5px}
+/* Closing a listing or item (follow-on B2, live): the inline step's optional reason (radios, none chosen at first). */
+.root :global(.close-why){border:0;margin:0;padding:0;min-width:0;display:grid;gap:6px}
+.root :global(.close-why legend){font-weight:600;font-size:13.5px;padding:0;margin-bottom:6px}
+.root :global(.close-why .actions){gap:6px 18px}
+.root :global(.record){border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px;background:var(--surface-2);font-size:13.5px}
+.root :global(.history){margin:0;padding-left:18px;font-size:12.5px;color:var(--muted);display:grid;gap:2px}
+/* notifications */
+.root :global(.notif-head){display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.root :global(.notif-list){max-height:380px;overflow:auto}
+.root :global(.notif){display:grid;grid-template-columns:8px 1fr;gap:10px;padding:12px 14px;border:0;border-bottom:1px solid var(--line);cursor:pointer;background:none;width:100%;text-align:left;font-size:13.5px}
+.root :global(.notif:hover){background:var(--surface-2)}
+.root :global(.notif .ud){width:8px;height:8px;border-radius:50%;margin-top:6px}
+.root :global(.notif.unread .ud){background:var(--accent)}
+.root :global(.notif time){display:block;font-size:12px;color:var(--muted);margin-top:2px}
+/* ISO cards */
+.root :global(.iso-grid){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;padding-bottom:28px}
+.root :global(.iso){background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:8px;align-content:start;min-width:0}
+.root :global(.iso .tag){font-size:11.5px;color:var(--accent);letter-spacing:.04em;font-weight:700}
+.root :global(.iso h3){font-size:16.5px;line-height:1.25;overflow-wrap:anywhere}
+.root :global(.iso.dim){background:var(--surface-2)}
+.root :global(.iso > .chip){justify-self:start} /* a "possible match" chip is as wide as its words */
+/* A request or alert card's match cue ("Possible match", "Matches now") that opens the match: the same chip, as a button */
+.root :global(.iso-match){border:0;min-height:28px;cursor:pointer;text-align:left}
+.root :global(.iso-match:hover){text-decoration:underline;text-underline-offset:3px}
+/* Available and Wanted open with one compact action heading (the page's h1) right above the category row and search, with no separate
+   view name or description; the development preview adds its sample-data note with the demo date (right of the heading on wide screens,
+   below it on narrow ones), which the normal route never shows. Wanted adds its own Post a request (.post-cta) wherever the header's has
+   no words (860px and below: an icon there, hidden on phones), so one with words shows at any width. */
+.root :global(.disc-intro){display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 16px;padding-block:18px 12px}
+.root :global(.disc-intro h1){grid-column:1;grid-row:1;font-size:22px;line-height:1.25;letter-spacing:-.02em;text-wrap:balance;max-width:44ch}
+.root :global(.preview-note){font-size:12px;color:var(--muted)}
+.root :global(.disc-intro .preview-note){grid-column:2;grid-row:1;text-align:right}
+.root :global(.disc-intro .post-cta){display:none}
+/* Available's empty state has its own Post a request (from the search) the same way: only where the header's has no words, where the
+   header's then does what it would (App's postHere). Its action row hides with it when it's the only action. */
+.root :global(.empty .empty-post), .root :global(.empty .actions.only-post){display:none}
+/* Wanted cards: compact text cards in Available's card style (.ecard's surface, border, radius and shadow; no images, no hover lift), two
+   columns where they fit and one at <=760px. Top to bottom: the title, who and the category, the dates or item, the note, then a footer
+   (.price-line's divider) with the need on the left and the action area on the right: a real match's link, then .req-side with the one
+   action. Long titles and notes show in full: a row of cards is as tall as its tallest card, and each footer sits at the bottom. */
+.root :global(.req-list){list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}
+@container handoff (max-width:760px){ .root :global(.req-list){grid-template-columns:minmax(0,1fr)} }
+.root :global(.req-row){display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:0 1px 2px rgba(20,33,58,.04)}
+.root :global(.req-main){display:grid;gap:4px;min-width:0;justify-items:start}
+.root :global(.req-by){display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:13px;color:var(--muted)}
+.root :global(.req-who){color:var(--ink);font-weight:600}
+.root :global(.req-by .chip){font-size:11.5px;padding:1px 8px}
+.root :global(.req-cat > svg){flex:none} /* the category's icon in its color (inline), as on Available's cards; the words stay muted */
+.root :global(.req-row h3){font-size:16px;line-height:1.3;font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere;color:var(--brand-ink)}
+.root :global(.req-meta), .root :global(.req-note){font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}
+.root :global(.req-flag){display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--warn)}
+.root :global(.req-foot){margin-top:auto;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-width:0}
+.root :global(.req-acts){display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 12px;margin-left:auto;min-width:0}
+.root :global(.req-match){display:inline-flex;align-items:center;gap:5px;border:0;background:none;padding:4px 0;font-size:13px;font-weight:600;color:var(--good);cursor:pointer;text-align:left}
+.root :global(.req-match:hover){text-decoration:underline;text-underline-offset:3px}
+.root :global(.req-side){display:flex;align-items:center}
+.root :global(.req-budget){font-size:13px;color:var(--muted);text-align:left}
+.root :global(.req-budget b){font-family:var(--font-display);font-size:18px;color:var(--ink);font-variant-numeric:tabular-nums}
+.root :global(.req-sub){display:block;font-size:12.5px;margin-top:2px}
+/* Available's lookup rows: events with nothing listed, below the grid when you search or pick a club. Compact rows, never cards. */
+.root :global(.lookup){display:grid;gap:10px;margin:4px 0 28px}
+.root :global(.lookup h2){font-family:var(--font-body);font-size:17px;letter-spacing:-.01em}
+.root :global(.lookup > div > p){font-size:13.5px;margin-top:2px}
+.root :global(.lookup-list){list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.root :global(.lookup-row){display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:8px 14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.root :global(.lookup-ic){width:40px;height:40px;border-radius:10px}
+.root :global(.lookup-main){display:grid;gap:1px;min-width:0}
+.root :global(.lookup-main b){overflow-wrap:anywhere;color:var(--brand-ink)}
+.root :global(.lookup-main .muted){font-size:13px;overflow-wrap:anywhere}
+.root :global(.lookup-act){display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+/* Event page, beside the offers: "Looking for a ticket?" (Get notified, a private alert in a dialog; Post a request, public) and
+   "Classmates looking" (live public requests only: never private alerts or a simulated count). With nothing to take, the first sits in
+   the listings section's one empty state (.ev-empty) under "No tickets listed right now", or in the booking panel when there's no listings
+   section (not on sale yet) or only add-ons are left. A listing a link points at is briefly tinted. */
+.root :global(.panel.intent), .root :global(.panel.demand), .root :global(.intent){display:grid;gap:10px;min-width:0}
+.root :global(.booking .intent){border-block:1px solid var(--line);padding-block:14px}
+.root :global(.intent-h){font-size:17px}
+.root :global(.intent-p){font-size:13.5px}
+.root :global(.intent-alert){display:flex;gap:8px;align-items:flex-start;font-size:13.5px;background:var(--accent-soft);border-radius:10px;padding:9px 11px;overflow-wrap:anywhere}
+.root :global(.intent-alert > svg){flex:none;margin-top:2px;color:var(--accent)}
+.root :global(.intent-alert .linkish), .root :global(.shared-you .linkish), .root :global(.act-empty .linkish){color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.root :global(.booking-none){display:grid;gap:2px;font-size:14.5px}
+.root :global(.booking-none .muted){font-size:13px}
+.root :global(.ev-empty){display:grid;gap:12px}
+.root :global(.demand-count){font-size:13.5px;color:var(--muted)}
+.root :global(.demand-count b){color:var(--ink)}
+.root :global(.mini-reqs){list-style:none;margin:0;padding:0;display:grid}
+.root :global(.mini-req){display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.root :global(.mini-main){display:grid;gap:1px;min-width:0;font-size:13.5px}
+.root :global(.mini-main b){font-weight:600;overflow-wrap:anywhere}
+.root :global(.mini-main .muted){font-size:12.5px;overflow-wrap:anywhere}
+.root :global(.see-all){display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--accent);justify-self:start}
+.root :global(.see-all:hover){text-decoration:underline;text-underline-offset:3px}
+.root :global(.shared-you){display:grid;gap:4px}
+.root :global(.shared-you ul){margin:0;padding-left:18px;display:grid;gap:2px}
+.root :global(.listing:focus){outline:none}
+.root :global(.listing:focus-visible){outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.root :global(.listing.hl){animation:hl 2.4s ease}
+@keyframes hl{0%,45%{background:var(--accent-soft)}100%{background:transparent}}
+/* Get notified: a small dialog (the shared overlay and modal) that says up front what's private. */
+.root :global(.alert-modal){max-width:560px}
+.root :global(.alert-modal h2){font-size:21px}
+.root :global(.al-ev){font-size:13.5px;margin-top:4px;overflow-wrap:anywhere}
+.root :global(.al-desc){display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:14px;background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.root :global(.al-desc > svg){flex:none;margin-top:3px;color:var(--accent)}
+.root :global(.al-qty){max-width:200px}
+.root :global(.al-max){max-width:360px}
+/* "I have this" on a request: your listings (or items) with what each would do for the request, then Create a listing for this request,
+   then (student tickets) holding one at their budget. Your own request's card lists what sellers shared with it. */
+.root :global(.respond){display:grid;gap:12px}
+.root :global(.rsp-h){display:flex;align-items:center;gap:8px;font-size:19px}
+.root :global(.rsp-h > svg){color:var(--accent);flex:none}
+.root :global(.rsp-p), .root :global(.rsp-none){font-size:13.5px}
+.root :global(.rsp-none){color:var(--muted)}
+.root :global(.rsp-list){list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.root :global(.rsp-item){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.root :global(.rsp-main){display:grid;gap:2px;min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+.root :global(.rsp-main > .muted){font-size:12.5px}
+.root :global(.rsp-ok){display:inline-flex;align-items:flex-start;gap:5px;color:var(--good);font-weight:600;font-size:13px}
+.root :global(.rsp-ok > svg){flex:none;margin-top:2px}
+.root :global(.rsp-why){margin:4px 0 0;padding-left:16px;color:var(--muted);font-size:12.5px;display:grid;gap:2px}
+.root :global(.rsp-act){display:grid;gap:4px;justify-items:end}
+.root :global(.rsp-create){display:grid;gap:6px;justify-items:start}
+.root :global(.rsp-create .btn){white-space:normal;text-align:left}
+.root :global(.rsp-create .help){font-size:12.5px;color:var(--muted)}
+/* §9v item 2 (SELL5-M3): "List and invite <first name>", the one prominent action when no listing of yours fits: full width on a phone,
+   at least 44 px tall. And on the Sell form for a request, above its button: who is invited to pay what, for how many. */
+.root :global(.rsp-list-invite .btn){min-height:44px}
+@media (max-width:600px){.root :global(.rsp-list-invite){justify-items:stretch}.root :global(.rsp-list-invite .btn){justify-content:center}}
+.root :global(.iso-sum){display:grid;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);font-size:14px;overflow-wrap:anywhere}
+.root :global(.iso-sum p){margin:0}
+.root :global(.iso-sum-lead b){color:var(--ink)}
+.root :global(.iso-sum-note){font-size:13.5px}
+.root :global(.iso-sum-hold){font-size:12.5px;color:var(--muted)}
+.root :global(.rsp-hold){display:grid;gap:6px;border-top:1px solid var(--line);padding-top:12px;min-width:0}
+.root :global(.rsp-hold-btn){display:inline-flex;align-items:flex-start;gap:6px;font-weight:600;font-size:13.5px;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.root :global(.rsp-hold-btn > svg){flex:none;margin-top:3px}
+.root :global(.rsp-sub){font-size:16px}
+.root :global(.shared-list){display:grid;gap:6px;border-top:1px solid var(--line);padding-top:10px;min-width:0}
+.root :global(.shared-list ul){list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.root :global(.shared-row){display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:13.5px}
+.root :global(.shared-main){min-width:0;overflow-wrap:anywhere}
+@container handoff (max-width:520px){
+  .root :global(.shared-row){grid-template-columns:24px minmax(0,1fr)}
+  .root :global(.shared-row > .btn){grid-column:2;justify-self:start}
+}
+@container handoff (max-width:400px){
+  .root :global(.mini-req){grid-template-columns:26px minmax(0,1fr)}
+  .root :global(.mini-req > .btn){grid-column:2;justify-self:start}
+  .root :global(.rsp-item){grid-template-columns:minmax(0,1fr)}
+  .root :global(.rsp-item > .btn){justify-self:start}
+  .root :global(.rsp-act){justify-items:start;grid-auto-flow:column;justify-content:start;align-items:center}
+}
+@container handoff (max-width:560px){
+  .root :global(.lookup-row){grid-template-columns:40px minmax(0,1fr)}
+  .root :global(.lookup-row > .chips), .root :global(.lookup-row > .btn){grid-column:2;justify-self:start}
+  .root :global(.lookup-row > .lookup-act){grid-column:2;justify-content:flex-start}
+}
+/* four kinds of interest */
+.root :global(.isteps){list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.root :global(.isteps.wide){grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+.root :global(.isteps li){display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;align-items:start;font-size:13.5px;min-width:0}
+.root :global(.isteps.wide li){background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.root :global(.isteps .n){width:24px;height:24px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:12px}
+.root :global(.isteps b){display:block;font-size:14px}
+/* goods concept */
+/* toast */
+.root :global(.toast){position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:12px;font-size:14px;font-weight:500;z-index:95;box-shadow:var(--shadow);width:max-content;max-width:calc(100cqw - 32px);display:flex;gap:10px;align-items:center;animation:pop .25s ease}
+.root :global(.toast.error){background:var(--bad);color:#fff}
+/* At the top of the page area instead, while the bottom spot would cover the payment block's "I've sent payment" (W1 fix, MY-1). */
+.root :global(.toast.toast-top){bottom:auto;top:12px}
+@keyframes pop{from{transform:translate(-50%,10px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+/* content pages */
+.root :global(.prose){max-width:70ch;display:grid;gap:12px;font-size:15px}
+.root :global(.prose ul), .root :global(.prose ol){margin:0;padding-left:20px;display:grid;gap:6px}
+.root :global(.steps3){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-block:8px 32px}
+.root :global(.step-card){background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:8px;align-content:start}
+.root :global(.step-card .n){font-size:13px;color:var(--accent);font-weight:700}
+.root :global(.step-card h3){font-size:18px}
+.root :global(.step-card p){color:var(--muted);font-size:14.5px}
+.root :global(.tbl-wrap){overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface);max-width:100%}
+.root :global(table.data){border-collapse:collapse;width:100%;font-size:14px;min-width:600px}
+.root :global(table.data th), .root :global(table.data td){text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.root :global(table.data th){font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--surface-2)}
+.root :global(table.data tr:last-child td){border-bottom:0}
+.root :global(.scroll-hint){font-size:12px;color:var(--muted);margin-top:6px}
+.root :global(.yes){color:var(--good);font-weight:600}
+.root :global(.no){color:var(--bad);font-weight:600}
+.root :global(.sec){margin-bottom:36px}
+.root :global(.sec > h2){font-size:22px;margin-bottom:12px}
+.root :global(.policy-grid){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.root :global(.cards2){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.root :global(.route){display:grid;gap:10px;counter-reset:route}
+.root :global(.route li){list-style:none;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.root :global(.route .k){width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:13px}
+.root :global(.brief){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:12px}
+.root :global(.brief .panel){display:grid;gap:6px;align-content:start;font-size:14.5px}
+.root :global(.brief .panel h3){font-size:16px}
+.root :global(.brief ul){margin:0;padding-left:18px;display:grid;gap:4px}
+.root :global(.xsec){background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;min-width:0}
+.root :global(.xsec > summary){cursor:pointer;list-style:none;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.root :global(.xsec > summary::-webkit-details-marker){display:none}
+.root :global(.xsec > summary::after){content:"+";font-size:20px;line-height:1;color:var(--muted);flex:none}
+.root :global(.xsec[open] > summary::after){content:"–"}
+.root :global(.xsec > summary b){font-family:var(--font-display);font-size:16px;display:block}
+.root :global(.xsec > summary small){display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.root :global(.xsec-body){padding:0 16px 16px;display:grid;gap:14px;min-width:0}
+/* Handoff settings (§9v item 6, SELL5-M5): "Who can see my details?" collapsed under the public-name line (its summary a 44 px target),
+   and "Tickets you've added" collapsed with its count, a card like Help's questions (.xsec). */
+.root :global(.pf-who > summary){font-size:14px;padding:12px 0;width:fit-content;max-width:100%}
+.root :global(.pf-who-list){margin:2px 0 0;padding-left:18px;display:grid;gap:8px;font-size:13.5px;color:var(--ink)}
+.root :global(.pf-added > summary){min-height:44px}
+.root :global(.pf-added-h){font-size:17px;margin:0;flex:1 1 auto;min-width:0}
+.root :global(.pf-count){flex:none;min-width:26px;height:24px;padding:0 8px;border-radius:12px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px;display:inline-grid;place-items:center}
+.root :global(.pf-added-list){margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.root :global(.pf-added-list .linkish){font-size:14px;min-height:28px}
+/* modals, feedback, results, organizer view */
+.root :global(.overlay){position:fixed;inset:0;z-index:90;background:rgba(10,17,30,.5);display:grid;place-items:center;padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.root :global(.modal){background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);width:100%;max-width:600px;max-height:calc(100% - 8px);overflow:auto;padding:22px}
+.root :global(.modal h2){font-size:23px}
+.root :global(.pills){display:flex;flex-wrap:wrap;gap:6px}
+.root :global(.pills button){border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink)}
+.root :global(.pills button.on){background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.root :global(.scale){display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.root :global(.scale button){border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 4px;cursor:pointer;display:grid;gap:2px;justify-items:center;font-size:11px;color:var(--muted)}
+.root :global(.scale button b){font-family:var(--font-display);font-size:18px;color:var(--ink)}
+.root :global(.scale button.on){background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.root :global(.scale button.on b){color:var(--accent-ink)}
+.root :global(.q-label){font-weight:600;font-size:14.5px}
+.root :global(.q-group){border-top:1px solid var(--line);padding-top:14px;display:grid;gap:14px}
+.root :global(.bars){display:grid;gap:8px}
+.root :global(.bar){display:grid;grid-template-columns:110px minmax(0,1fr) 52px;gap:10px;align-items:center;font-size:13.5px}
+.root :global(.bar .track){height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.root :global(.bar .fill){height:100%;background:var(--accent);border-radius:5px;display:block}
+.root :global(.bar .v){text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.root :global(.stat){background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.root :global(.stat b){font-family:var(--font-display);font-size:26px;display:block;line-height:1.1;font-variant-numeric:tabular-nums}
+.root :global(.stat span){font-size:12.5px;color:var(--muted)}
+.root :global(.stat-grid){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:12px;margin-bottom:22px}
+.root :global(.org-note){display:flex;gap:10px;align-items:flex-start;background:var(--warn-soft);border-radius:12px;padding:12px 14px;font-size:13.5px;margin-bottom:18px}
+.root :global(.org-note svg){color:var(--warn);flex:none;margin-top:1px}
+.root :global(.two-col){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.root :global(.share-preview){background:var(--surface-2);border-radius:12px;padding:12px 14px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.root :global(.pass){color:var(--good);font-weight:700}
+.root :global(.fail){color:var(--bad);font-weight:700}
+/* The header's top row compacts in steps as it narrows, so Activity and Help fit beside the posting buttons and profile: the first name
+   (960px), then Post a request's words (860px). Sell always reads "Sell" (its + icon alone at 350px and below); the subtitle sits
+   beneath the name, left out wherever it would be cut short. */
+@container handoff (max-width:960px){
+  .root :global(.hide-md){display:none !important}
+  .root :global(.activity-btn > svg){display:none} /* "My activity 2" in words: the words matter more than the icon */
+}
+@container handoff (max-width:860px){ .root :global(.post-label){display:none} } /* Post a request as its icon, with a tooltip */
+/* ...so Wanted's intro shows its own, with words, beside the heading (the preview's sample-data note moves below the heading, as on phones) */
+@container handoff (max-width:860px){
+  .root :global(.disc-intro .post-cta){display:inline-flex;grid-column:2;grid-row:1}
+  .root :global(.empty .empty-post){display:inline-flex}
+  .root :global(.empty .actions.only-post){display:flex}
+  .root :global(.disc-intro.has-post .preview-note){grid-column:1 / -1;grid-row:2;text-align:left;line-height:1.35}
+}
+@container handoff (max-width:900px){
+  .root :global(.ev-layout), .root :global(.form-layout){grid-template-columns:minmax(0,1fr)}
+  .root :global(.rail){position:static}
+  .root :global(.steps3){grid-template-columns:minmax(0,1fr)}
+}
+@container handoff (max-width:760px){.root :global(.two-col){grid-template-columns:minmax(0,1fr)}}
+@container handoff (max-width:720px){ .root :global(.top-row){gap:6px} }
+@container handoff (max-width:640px){
+  .root :global(.hide-sm){display:none !important}
+  .root :global(.disc-cats){column-gap:20px}
+  .root :global(.row2), .root :global(.policy-grid){grid-template-columns:minmax(0,1fr)}
+  .root :global(.listing){grid-template-columns:auto minmax(0,1fr)}
+  .root :global(.listing .l-act){grid-column:1 / -1;justify-items:start !important}
+  .root :global(.listing .ask){text-align:left}
+  .root :global(.top-row){gap:6px}
+  .root :global(.top-row .btn){padding:9px 10px}
+  .root :global(.icon-btn){width:38px;height:38px}
+  .root :global(.persona-btn){padding:3px 6px 3px 3px;gap:4px}
+  .root :global(.pop){position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 100px);width:auto;max-height:calc((100dvh - var(--header-height, 56px)) - 120px)}
+  .root :global(.mode-switch){display:flex} /* two equal halves across the width */
+  .root :global(.mode-switch button){flex:1}
+  .root :global(.mode-row){gap:4px 12px}
+  .root :global(.mode-row .mode-switch){flex:1 1 auto}
+  .root :global(.tabs){flex-wrap:wrap;row-gap:0}
+  .root :global(.tabs button){padding:10px 10px}
+  .root :global(.thumb){width:60px;height:60px;border-radius:12px}
+  .root :global(.route li){grid-template-columns:28px minmax(0,1fr)}
+  .root :global(.route li .btn){grid-column:2}
+  .root :global(select), .root :global(input[type=text]), .root :global(input[type=date]), .root :global(input[type=email]), .root :global(input[type=number]), .root :global(textarea){font-size:16px}
+  .root :global(.disc-tools){padding-bottom:14px}
+  .root :global(.search){flex-basis:100%;max-width:none} /* the full width, with the other tools below, so the placeholder never crowds */
+  .root :global(.ev-filters select){font-size:16px}
+  /* cards: a slim color band instead of a tall illustration, so name, date and price show sooner */
+  .root :global(.ecard .cover){aspect-ratio:auto;min-height:48px;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px}
+  .root :global(.ecard .cover > svg){display:none}
+  .root :global(.ecard .cover .state), .root :global(.ecard .cover .tag2){position:static}
+  .root :global(.ecard .cover .tag2){flex:none}
+  /* goods pictures stay pictures on phones */
+  .root :global(.ecard .cover.photo){aspect-ratio:3 / 2;display:block;padding:0;min-height:0}
+  .root :global(.ecard .cover.photo > .item-img){display:block}
+  .root :global(.ecard .cover.photo .state), .root :global(.ecard .cover.photo .tag2){position:absolute}
+  .root :global(.sticky-cta){display:block;position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:55}
+  .root :global(.sticky-cta .btn){box-shadow:var(--shadow);border-radius:999px}
+  .root :global(.timeline){display:grid;gap:6px;overflow:visible}
+  .root :global(.tl-step){display:grid;grid-template-columns:22px minmax(0,1fr);justify-items:start;align-items:center;text-align:left;min-width:0;gap:8px}
+  .root :global(.tl-step::before){display:none}
+}
+/* Phones: the header keeps the Handoff name, Sell, My activity, Help, notifications (unchanged) and the avatar. At 540px and below,
+   Post a request is left to the Wanted page; where "My activity" can't fit beside the name it becomes a round button with its count
+   as a badge; the smallest screens drop the logo mark, then shorten Sell to its + icon (still named "Sell"). */
+@container handoff (max-width:580px){ .root :global(.brand-name){font-size:19px} .root :global(.top-row){gap:4px} .root :global(.persona-btn > svg:last-child){display:none} .root :global(.persona-btn){padding-right:5px} }
+@container handoff (max-width:540px){ .root :global(.hide-xs){display:none !important} }
+/* Phones: the view intro stays short (the heading, wrapping naturally, with Wanted's Post a request beside it; in the preview, then the
+   sample-data note), and the category row and search sit a little tighter, so the first results show sooner. */
+@container handoff (max-width:640px){ .root :global(.disc-intro h1){font-size:18.5px} }
+@container handoff (max-width:540px){
+  .root :global(.disc-intro){padding-block:12px 6px}
+  .root :global(.disc-intro .preview-note){grid-column:1 / -1;grid-row:2;text-align:left;line-height:1.35}
+  .root :global(.disc-cats){margin-bottom:10px}
+  .root :global(.disc-tools){padding-bottom:12px}
+}
+@container handoff (max-width:490px){
+  .root :global(.activity-label){display:none}
+  .root :global(.activity-btn > svg){display:inline}
+  .root :global(.top-row .btn.activity-btn){width:38px;height:38px;padding:0;border-radius:50%}
+  .root :global(.top-row .activity-btn:not(.on):hover){border-color:var(--line);box-shadow:var(--shadow)}
+  .root :global(.activity-btn .action-count){position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;padding:0 5px;display:grid;place-items:center;border:2px solid var(--surface)}
+}
+@container handoff (max-width:410px){ .root :global(.brand-mark){display:none} }
+@container handoff (max-width:380px){ .root :global(.top-row .btn){padding:9px 8px} .root :global(.top-row){gap:3px} }
+@container handoff (max-width:350px){ .root :global(.brand-name){font-size:17px} .root :global(.top-row .sell-label){display:none} }
+/* The switch on phones: tighter padding, then (narrowest) no icons, so both keep their words on one line. The category row drops its
+   icons where five labels and icons wouldn't fit on one line; the labels always stay. */
+@container handoff (max-width:480px){ .root :global(.mode-switch button){padding:7px 10px} }
+@container handoff (max-width:400px){ .root :global(.disc-cats svg){display:none} .root :global(.disc-cats){column-gap:18px} }
+/* §9s item 1, phones: the five categories share the full width as tall touch targets; By club and the sort go on the next line.
+   §9v item 1 (SELL5-M4): on a phone each one's icon sits above its label, in equal columns at least 52 px wide (so "Events" never
+   shrinks) and 52 px tall; where five can't fit side by side, the row wraps onto a second line of the same columns rather than cut a
+   label short. */
+@container handoff (max-width:640px){
+  .root :global(.disc-live){gap:8px;padding-bottom:14px}
+  .root :global(.disc-live > .search){max-width:none}
+  .root :global(.cat-row){flex:1 1 100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(52px,1fr));gap:4px}
+  .root :global(.cat-row button){min-width:0;min-height:52px;flex-direction:column;gap:3px;padding:5px 2px;border-radius:14px;font-size:12.5px}
+}
+@container handoff (max-width:350px){ .root :global(.cat-row){gap:3px} .root :global(.cat-row button){padding:5px 1px} }
+@container handoff (max-width:360px){ .root :global(.mode-switch button > svg){display:none} .root :global(.mode-row){gap:4px 8px} }
+/* Live mode (the normal route, C7). A change waiting for the server dims the primary buttons (one change at a time). */
+.root[data-busy] :global(.btn-primary){opacity:.6;cursor:progress}
+/* "Not listed? Add it" and the event form. */
+.root :global(.add-event){margin:2px 0 0;font-size:13.5px}
+.root :global(.add-event .linkish){color:var(--accent);font-weight:600;display:inline-flex;gap:6px;align-items:center;text-decoration:underline;text-underline-offset:3px}
+.root :global(.ev-form){max-width:640px}
+.root :global(.ev-form h2){font-size:21px}
+.root :global(.ef-desc){font-size:13.5px;margin-top:6px}
+.root :global(.ev-form input[type=datetime-local]){font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:14px;width:100%;min-width:0;max-width:100%}
+.root :global(.ef-tiers){border:0;margin:0;padding:0;display:grid;gap:10px;min-width:0}
+.root :global(.ef-tiers legend){font-weight:600;font-size:14px;padding:0;margin-bottom:6px}
+.root :global(.ef-tiers .help){font-size:12.5px;color:var(--muted)}
+.root :global(.ev-form .seg button){display:inline-flex;align-items:center;gap:6px}
+.root :global(.tier-row){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,150px) auto;gap:10px;align-items:end}
+.root :global(.tier-row.one){grid-template-columns:minmax(0,220px)}
+.root :global(.add-tier){color:var(--accent);font-weight:600;font-size:13.5px;display:inline-flex;gap:6px;align-items:center;justify-self:start}
+/* Simplification batch: the event form's one collapsed "Add details" (a button with aria-expanded) and what it holds. */
+.root :global(.ef-more-head){display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;border-top:1px solid var(--line);padding-top:12px;min-width:0}
+.root :global(.ef-more){color:var(--accent);font-weight:600;font-size:14px;display:inline-flex;gap:6px;align-items:center}
+.root :global(.ef-more-hint){font-size:13px;min-width:0}
+.root :global(.ef-more-body){gap:14px}
+.root :global(.sell-face){justify-self:start;color:var(--accent);font-weight:600;font-size:13px;text-decoration:underline;text-underline-offset:2px}
+.root :global(.ef-dupes ul){list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.root :global(.ef-dupes li){display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+/* Forms round 2 (9j item 2): a suggested event: its name, then its date (and time when known) and organizer, beside "Use this one". */
+.root :global(.ef-dupe){display:grid;gap:1px;min-width:0;flex:1 1 140px}
+.root :global(.ef-dupe b){overflow-wrap:anywhere}
+.root :global(.ef-dupe .muted){font-size:13px;overflow-wrap:anywhere}
+/* 9s items 3 and 5 (SELL4-L2). "Ticket listed." in the seller's "Your listing" panel, where a post lands (the Share dialog no longer
+   opens by itself, so its own styles are gone). A new ordinary event's date beside the asking price: two columns that share their
+   rows (label, control, message), so both controls sit on one line whatever the labels wrap to (evenly: never a lone asterisk on a
+   line). They sit side by side from a 375px phone up; from 370px down the date field's text would touch its calendar icon, so there
+   they stack, each the full width. */
+.root :global(.lp-listed){display:flex;align-items:center;gap:6px;margin:6px 0 0;font-size:14px;font-weight:700;color:var(--good)}
+.root :global(.lp-listed svg){flex:none}
+/* 9v item 3 (SELL5-M1): where a post lands, with no Share. An item's or a request's page opens with one short line ("Item posted.",
+   "Request posted.") and the one prominent next action, Done (44px tall); a ticket's "Your listing" leads its actions with Done. */
+.root :global(.posted-note){display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 14px;margin:0 0 16px;padding:10px 12px 10px 14px;font-size:14px}
+.root :global(.posted-note p){display:flex;align-items:center;gap:6px;margin:0;font-weight:700;color:var(--good)}
+.root :global(.posted-note p svg){flex:none}
+.root :global(.posted-note .btn){min-height:44px;min-width:96px}
+.root :global(.lp-done){min-width:88px}
+.root :global(.date-ask){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto;gap:6px 12px;min-width:0}
+.root :global(.date-ask > .field){grid-row:span 3;grid-template-rows:subgrid;gap:6px}
+.root :global(.date-ask > .field > label){align-self:end;text-wrap:balance}
+.root :global(.date-ask input){min-width:0}
+@container handoff (min-width:371px){ .root :global(.date-ask input[type=date]){padding-inline:10px} }
+@container handoff (max-width:370px){ .root :global(.date-ask){grid-template-columns:minmax(0,1fr);grid-template-rows:none;row-gap:14px} .root :global(.date-ask > .field){grid-row:auto;grid-template-rows:none} }
+@container handoff (max-width:540px){ .root :global(.tier-row){grid-template-columns:minmax(0,1fr) minmax(0,110px) auto} .root :global(.ev-form input[type=datetime-local]){font-size:16px} }
+/* One-form Sell (9l), live only.
+   The header: Sell first, Request second, each with its word at every width. On wide pages they sit in the top row, before My activity
+   (.main-acts takes no box of its own); Request drops its icon at 860px and below, where "Post a request" used to become an icon. At
+   600px and below both words can't fit beside the name and the four round buttons, so the pair is a row of its own under them, each
+   half the width. */
+.root :global(.main-acts){display:contents}
+@container handoff (max-width:860px){ .root :global(.req-btn > svg){display:none} }
+@container handoff (max-width:600px){
+  .root :global(.top-row.live-row){flex-wrap:wrap;row-gap:8px;padding-block:10px}
+  .root :global(.live-row .main-acts){display:flex;order:9;flex:1 0 100%;gap:8px;min-width:0}
+  .root :global(.live-row .main-acts .btn){flex:1 1 0;min-width:0;min-height:40px;padding:9px 10px}
+  .root :global(.live-row .main-acts .req-btn > svg){display:inline}
+  .root :global(.live-row .main-acts .sell-label){display:inline}
+}
+/* The empty marketplace: "Sell a ticket" and "Request a ticket" are its two main choices, at every width; on a phone each is the full
+   width. "Add an event" is a link under them. */
+.root :global(.empty .empty-main){display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.root :global(.empty .empty-main .btn){min-height:44px}
+.root :global(.empty-sell-hint){color:var(--ink);font-weight:600}
+.root :global(.empty-add){margin:0;font-size:13.5px}
+.root :global(.what-link){color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:6px 0}
+@container handoff (max-width:540px){ .root :global(.empty .empty-main){flex-direction:column;align-items:stretch;justify-self:stretch} .root :global(.empty .empty-main .btn){white-space:normal} }
+/* Sell a ticket: the search field "What ticket are you selling?", its matches (each event a row: its name, then its date, venue and
+   organizer), the explicit "isn't one of these" row, and a new event's date under it. */
+.root :global(.what-list){list-style:none;margin:0;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--surface);display:grid;gap:2px;min-width:0}
+.root :global(.what-opt){display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;min-height:44px;min-width:0}
+.root :global(.what-opt:hover), .root :global(.what-opt.active){background:var(--surface-2)}
+.root :global(.what-opt.active){outline:2px solid var(--accent);outline-offset:-2px}
+.root :global(.what-opt-main){display:grid;gap:1px;min-width:0;flex:1}
+.root :global(.what-opt-main b){overflow-wrap:anywhere}
+.root :global(.what-opt-main .muted){font-size:13px;overflow-wrap:anywhere}
+.root :global(.what-opt-new){color:var(--accent)}
+.root :global(.what-opt-new > svg){flex:none}
+.root :global(.what-head){font-size:12.5px;color:var(--muted);padding:6px 10px 2px}
+.root :global(.what-new){display:grid;gap:8px;margin-top:8px;min-width:0}
+.root :global(.what-kind){margin:0;font-size:13.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:0 16px}
+.root :global(.one-form input[type=datetime-local]){font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:14px;width:100%;min-width:0;max-width:100%}
+@container handoff (max-width:640px){ .root :global(.one-form input[type=datetime-local]){font-size:16px} }
+/* The one-line confirmation by "Post ticket", and Optional details' hint of what it holds. */
+.root :global(.sell-confirm){margin:0;font-size:13.5px;color:var(--muted)}
+.root :global(.sell-more-hint){font-weight:400}
+.root :global(.more-h){font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+/* Sell and Request follow-up (9m, 9n). The count beside "Optional details" from two up ("2 tickets"), which stays visible with the
+   details closed; Sell's compact payment row (the saved methods' names with Change, or "Add payment method"); the quantity inside
+   Optional details; a listing with no promised method's rule. */
+.root :global(.more-count){color:var(--ink);font-weight:700;font-size:14px;white-space:nowrap}
+/* §9q items 4 and 5 (SELL3-K2). The required marker: an asterisk people see (screen readers get "(required)" from the label
+   instead). The club field's suggestions reuse the search field's list. "Members-only ticket" with the club named right under it.
+   The email line before "Reserve and pay" on an invitation. The request form's closed "Optional details" line may wrap. */
+.root :global(.req-star){color:var(--bad);font-weight:700}
+.root :global(.club-field .club-list){margin-top:2px}
+.root :global(.member-field){gap:8px}
+.root :global(.member-field .club-field){margin:2px 0 0 28px;max-width:420px}
+.root :global(.email-note){font-size:13px;color:var(--muted)}
+.root :global(#iso-more-hint){overflow-wrap:anywhere}
+.root :global(.pay-row-line){font-size:14px;padding:2px 0;line-height:1.5}
+.root :global(.pay-row-add){display:inline-flex;gap:6px;align-items:center;min-height:32px}
+.root :global(.sell-qty){max-width:300px}
+.root :global(.transfer-rule){overflow-wrap:anywhere}
+/* Manage listing for ordinary tickets (9q item 1, live). The short status in place of the row of counters ("1 ticket available · $25");
+   the cards that wait for the seller, first, under "Needs your response" (an accent rule down their side instead of the line above a
+   card); and "Your listing" on its event's page, where a seller's own shared link opens. */
+.root :global(.lp-status){margin:6px 0 0;font-size:16px;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+.root :global(.lp-meta){font-size:13.5px;margin-top:2px;overflow-wrap:anywhere}
+.root :global(.lp-needs-h){margin:16px 0 0;color:var(--accent)}
+.root :global(.lp-need){border-left:3px solid var(--accent);padding-left:12px;margin-top:10px}
+.root :global(.lp-need > .req){border-top:0;margin-top:0;padding-top:0}
+.root :global(.lp-need + .lp-need){margin-top:18px}
+.root :global(.own-listing){display:grid;gap:14px;margin-top:18px;min-width:0}
+.root :global(.iso-add:only-child){align-content:start} /* "Add max budget" alone in its row, now that how many sits in Optional details */
+/* Small live notes: an event's creator, Post a request's reminder, Help's footer, and the bare page shown while it reloads. */
+.root :global(.remove-note){font-size:12.5px;margin:0}
+.root :global(.post-note){margin:0;font-size:13px;color:var(--muted)}
+/* Forms round 2 (9j), Request a ticket (ISO): "Add max budget" beside how many (under it on phones), and "Looking until … · Change". */
+.root :global(.iso-add){align-content:end}
+.root :global(.iso-add .add-event){margin:0;padding:10px 0;font-size:14px}
+.root :global(.iso-until){gap:8px}
+.root :global(.iso-until-line){margin:0;font-size:14.5px;overflow-wrap:anywhere}
+.root :global(.iso-until-act){white-space:nowrap} /* "· Change" stays together when the line wraps on a phone */
+.root :global(.iso-until-line .linkish){color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:6px 0}
+.root :global(.profile-form){gap:12px;align-content:start} /* SELL5-M5: its rows stay at the top when the card beside it is taller (Who can see my details? open) */
+.root :global(.help-foot){font-size:13px;margin-top:22px;max-width:75ch}
+.root :global(.reloading){padding-block:48px;text-align:center;color:var(--muted);font-size:15px}
+/* Live, signed in (conceal-fix): the content's box (Keep), which lays out as if its children were the root's own and leaves the page while
+   the account is being confirmed; and the status shown meanwhile, like the bare page shown while it reloads, with Try again under it. */
+.root :global(.keep){display:contents}
+.root :global(.confirming){padding-block:48px;display:grid;justify-items:center;gap:14px;text-align:center;color:var(--muted);font-size:15px}
+.root :global(.confirming p){max-width:52ch}
+/* Guest mode (signed-out visitors): listing rows with no seller to show, a quiet line about what signing in adds, and the sign-in
+   prompt at an action (a dialog) or on a page that's all about you. */
+.root :global(.listing.guest){grid-template-columns:minmax(0,1fr) auto}
+@container handoff (max-width:640px){ .root :global(.listing.guest){grid-template-columns:minmax(0,1fr)} }
+.root :global(.guest-note){margin:10px 0 0;font-size:13px;color:var(--muted)}
+.root :global(.signin-modal){max-width:480px}
+.root :global(.signin-modal h2){font-size:21px}
+.root :global(.signin-why){margin:10px 0 0;font-size:14.5px}
+.root :global(.signin-back){margin:8px 0 0;font-size:13.5px;color:var(--muted)}
+.root :global(.signin-note){display:flex;gap:6px;align-items:flex-start;margin:12px 0 0;font-size:12.5px;color:var(--muted)}
+.root :global(.signin-note.warn){color:var(--warn)}
+.root :global(.signin-note svg){flex:none;margin-top:2px}
+.root :global(.signin-off){margin:12px 0 0}
+.root :global(.signin-acts){margin-top:16px}
+.root :global(.signin-panel){display:grid;max-width:560px}
+.root :global(.signin-panel .signin-why){margin-top:0}
+/* §9v item 1 and §9w (live, SELL5-M4; it supersedes §9s item 7's tiles). One card layout on Available and Wanted (.bcard), signed in or
+   signed out. Every card leads with the same compact coloured header (.cover.band, BoardBand): a 32 px tile with its row category's icon
+   (ticket, train, mountain or bag, in that category's colour; a Goods request's tile may be the seller's photo) and one line, a state
+   pill: "1 ticket available" on Available, "2 tickets wanted · Up to $30 each" on Wanted; a real restriction ("GCC members only") at its
+   end. An item with a photo keeps the photo as its picture. Then the name, the date once, and on Available the price, large. Wanted's
+   footer has who asked, quietly, and "I have this", outlined and at least 44 px tall. The whole card opens its page (its name is the
+   card's link, .stretch), and its other buttons stay their own. Wanted's cards sit in the same grid as Available's. An event page's
+   picture and a lookup row's are the same icon (.cover.look .look-mark). */
+.root :global(.cover.look .look-mark){display:grid;place-items:center;color:var(--c)}
+.root :global(.cover.look .look-mark > svg){opacity:.9}
+/* §9x items 2 and 3 (live, SELL6-N2): the cards' visual presence, and status made secondary.
+   - On a wide screen the header is taller again: 5:2, the 16:7 Available's cards had before §9v made a little lower, so about 127 px on
+     a 317 px card (it was 139 px before §9v and 52 px after it). The picture sits large in it (60 px; it was 48 px) with nothing
+     behind it, a little below the middle so the pill at the top left never crosses it. The body's padding is unchanged: the height is
+     the picture's, not empty space.
+   - On a phone (the 640 px container query below) the header stays the compact band: the picture in a 36 px white tile, the pill
+     beside it.
+   - The picture's icon and colour are the look's (look.js: a stated category, a cue in the title, or the neutral ticket; an item's
+     category), the same on Available, Wanted and the event's page.
+   - .own-tag: the owner's small "Your listing" label, where the others have their pill, on a ticket's card and an item's (on a
+     photo, at its top left too). */
+.root :global(.ecard .cover.band), .root :global(.wcard .cover.band){aspect-ratio:5 / 2;min-height:120px;display:grid;place-items:center;padding:34px 12px 12px}
+.root :global(.cover.band .state), .root :global(.cover.band .tag2){position:absolute;top:10px;left:10px;right:auto;bottom:auto;max-width:calc(100% - 20px)}
+.root :global(.cover.photo .own-tag){top:10px;left:10px;right:auto;bottom:auto}
+.root :global(.cover .tag2.own-tag){background:color-mix(in srgb,var(--surface) 90%,transparent);color:var(--ink);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);font-weight:600;padding:2px 8px}
+.root :global(.look-tile){flex:none;display:grid;place-items:center;color:var(--c)}
+.root :global(.look-tile > svg){width:60px;height:60px;opacity:.92;transition:transform .25s ease}
+.root :global(.bcard:hover .look-tile > svg){transform:scale(1.06)}
+.root :global(.look-tile.photo){width:68px;height:68px;border-radius:14px;overflow:hidden;background:var(--surface-2);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.root :global(.look-tile.photo img){display:block;width:100%;height:100%;object-fit:cover}
+@container handoff (max-width:640px){
+  .root :global(.ecard .cover.band), .root :global(.wcard .cover.band){aspect-ratio:auto;min-height:52px;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px 8px;padding:8px 12px}
+  .root :global(.cover.band .state), .root :global(.cover.band .tag2){position:static;max-width:100%}
+  .root :global(.look-tile){width:36px;height:36px;border-radius:10px;overflow:hidden;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .root :global(.look-tile > svg){width:20px;height:20px;opacity:1}
+  .root :global(.look-tile.photo){width:36px;height:36px;border-radius:10px;background:var(--surface-2)}
+  .root :global(.bcard:hover .look-tile > svg){transform:none}
+}
+/* §9y (SELL7-O1): a card's club on its own quiet line under the date, with By club's people icon, in the date's muted colour. Each club
+   is a button (.club-tap) that applies it in By club: no box, at least 24 px tall, underlined on hover, above the card's own link
+   (.stretch); a long name wraps rather than widen the card. */
+.root :global(.bcard .card-club){display:flex;flex-wrap:wrap;align-items:center;column-gap:4px;min-width:0;max-width:100%;font-size:13.5px;line-height:1.3;color:var(--muted);overflow-wrap:anywhere}
+.root :global(.bcard .card-club > svg){flex:none;margin-right:2px;opacity:.8}
+.root :global(.club-tap){position:relative;z-index:1;display:inline-flex;align-items:center;min-height:24px;max-width:100%;padding:0 4px;margin:0 -4px;border:0;border-radius:6px;background:none;font:inherit;font-weight:600;color:inherit;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.root :global(.club-tap:hover){color:var(--brand-ink);text-decoration:underline;text-underline-offset:3px}
+.root :global(.club-tap:focus-visible){outline:2px solid var(--accent);outline-offset:0}
+.root :global(.bcard .card-club .club-name){font-weight:600}
+.root :global(.bcard .restrict-line){display:inline-flex;align-items:center;gap:5px;color:var(--ink);font-weight:600}
+.root :global(.bcard .restrict-line > svg){flex:none;color:var(--warn)}
+.root :global(.bcard .price-line .price){color:var(--ink)}
+.root :global(.bcard .price-line .price b){font-family:var(--font-display);font-size:20px;line-height:1.15;font-variant-numeric:tabular-nums}
+.root :global(.req-list.board-grid){grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr))}
+.root :global(.wcard){position:relative;padding:0;gap:0;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.root :global(.wcard:hover), .root :global(.wcard:focus-within){transform:translateY(-2px);box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--brand-ink) 18%,var(--line))}
+.root :global(.wcard:has(.stretch:focus-visible)){outline:2px solid var(--accent);outline-offset:2px}
+.root :global(.wc-body){display:grid;gap:2px;min-width:0;justify-items:start;padding:12px 16px 0}
+.root :global(.wc-body p){margin:0}
+.root :global(.wc-when){font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}
+.root :global(.wc-need){font-size:13.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.root :global(.wc-body .req-note){margin-top:4px}
+.root :global(.state.want i){background:var(--accent)}
+.root :global(.wcard .req-match), .root :global(.wcard .req-foot){position:relative;z-index:1}
+.root :global(.wcard .req-foot){margin:auto 16px 0;padding:10px 0 14px}
+.root :global(.wcard .wc-body){margin-bottom:12px}
+.root :global(.wc-by){display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;min-width:0;font-size:12.5px;color:var(--muted)}
+.root :global(.wc-by .req-who){color:var(--muted);font-weight:600}
+.root :global(.wcard .req-side .btn){min-height:44px;padding:8px 16px;font-size:14px}
+.root :global(.btn-quiet){background:var(--surface);border-color:color-mix(in srgb,var(--accent) 50%,var(--line));color:var(--accent)}
+.root :global(.btn-quiet:hover){background:var(--accent-soft);border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.root :global(*){transition:none !important;animation:none !important}}
+
+/* §9v items 4 and 5 (SELL5-M2): Sell's "This ticket has restrictions" (its choices indented under it), and a listing's terms as buyers
+   read them: the club named on a listing (plain text, never a warning) and each restriction in plain words. */
+.root :global(.restrict-field){gap:8px}
+.root :global(.restrict-opts){display:grid;gap:10px;padding:2px 0 2px 28px}
+.root :global(.restrict-opts .field){margin-top:2px}
+.root :global(.terms){display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.root :global(.listing-club){font-size:12.5px;font-weight:600;color:var(--muted)}
+.root :global(.chip.restrict-chip){background:var(--surface-2);color:var(--ink);border:1px solid var(--line)}
+.root :global(.callout.restrictions ul){margin:4px 0 0;padding-left:18px}
+.root :global(.callout.restrictions li){margin:2px 0}
