@@ -138,25 +138,11 @@ export function Dashboard({
         </div>
       </header>
 
-      {/* ── Nutrition: today's macros closed, the full dashboard open ─────── */}
-      <details className={`${home.fold} ${home.nutrition}`}>
-        <summary className={home.summary}>
-          <span className={home.icon} aria-hidden="true">
-            🥗
-          </span>
-          <span className={home.text}>
-            <span className={home.label}>Nutrition</span>
-            <span className={home.title}>Today&apos;s macros</span>
-            <span className={home.meta}>{macrosLine(totals, targets)}</span>
-          </span>
-          <span className={home.chevron}>
-            <span className={home.closed}>Open ▾</span>
-            <span className={home.open}>Close ▴</span>
-          </span>
-        </summary>
-        <div className={home.body}>
-
-      {/* ── Next meal, in one line ─────────────────────────────────────────── */}
+      {/* ── This week: workouts day by day, and the meal plan's status ───── */}
+      {(exercise?.weekStrip || planning || !upcoming) && (
+        <section className={home.week} aria-label="This week">
+          <h3 className={home.weekHeading}>This week</h3>
+          {exercise?.weekStrip}
       {planning ? (
         <section className={styles.nextUp}>
           <span className={`${styles.nextUpEmoji} ${styles.spinner}`} aria-hidden="true">
@@ -167,7 +153,61 @@ export function Dashboard({
             <p className={styles.nextUpMeta}>This can take up to a minute.</p>
           </div>
         </section>
-      ) : upcoming ? (
+      ) : !upcoming ? (
+        <section className={styles.nextUp}>
+          <span className={styles.nextUpEmoji} aria-hidden="true">
+            {planError ? "⚠️" : "🗓️"}
+          </span>
+          <div className={styles.nextUpText}>
+            <p className={styles.nextUpName}>{planError ? "That didn't work" : "No meal plan yet"}</p>
+            <p className={styles.nextUpMeta}>{planError ? planError.message : "Plan a week of meals around your classes."}</p>
+          </div>
+          <div className={styles.nextUpActions}>
+            <button className={styles.smallPrimary} onClick={onSetup}>
+              {planError ? "Try again" : profile ? "Make my plan" : "Get started"}
+            </button>
+          </div>
+        </section>
+      ) : null}
+        </section>
+      )}
+
+      {/* ── Nutrition: today's macros closed, the full dashboard open ─────── */}
+      <details className={`${home.fold} ${home.nutrition}`}>
+        <summary className={home.summary}>
+          <span className={home.icon} aria-hidden="true">
+            🥗
+          </span>
+          <span className={home.text}>
+            <span className={home.label}>Nutrition</span>
+            <span className={home.title}>Today&apos;s macros</span>
+            {!targets && <span className={home.meta}>Add your weight in &quot;About you&quot; for daily targets.</span>}
+          </span>
+          <span className={home.rings} aria-label={macrosLine(totals, targets)}>
+            <Ring label="Protein" grams={totals.proteinG} range={targets?.protein ?? null} color="var(--ring-protein)" />
+            <Ring label="Carbs" grams={totals.carbsG} range={targets?.carbs ?? null} color="var(--ring-carbs)" />
+            <Ring label="Fat" grams={totals.fatG} range={targets?.fat ?? null} color="var(--ring-fat)" />
+          </span>
+          <button
+            className={styles.smallPrimary}
+            onClick={(e) => {
+              // A button inside the summary would also open or close the section.
+              e.preventDefault();
+              e.stopPropagation();
+              onOpen("log");
+            }}
+          >
+            ✏️ Log a meal
+          </button>
+          <span className={home.chevron}>
+            <span className={home.closed}>Open ▾</span>
+            <span className={home.open}>Close ▴</span>
+          </span>
+        </summary>
+        <div className={home.body}>
+
+      {/* ── Next meal, in one line ─────────────────────────────────────────── */}
+      {upcoming && !planning && (
         <section className={styles.nextUp} aria-label="Next meal">
           <span className={styles.nextUpEmoji} aria-hidden="true">
             {MEAL_EMOJI[upcoming.meal.type]}
@@ -193,21 +233,6 @@ export function Dashboard({
             </button>
             <button className={styles.linkButton} onClick={() => onOpen("plan", upcoming.day)}>
               See the day →
-            </button>
-          </div>
-        </section>
-      ) : (
-        <section className={styles.nextUp}>
-          <span className={styles.nextUpEmoji} aria-hidden="true">
-            {planError ? "⚠️" : "🗓️"}
-          </span>
-          <div className={styles.nextUpText}>
-            <p className={styles.nextUpName}>{planError ? "That didn't work" : "No plan yet"}</p>
-            <p className={styles.nextUpMeta}>{planError ? planError.message : "Plan a week of meals around your classes."}</p>
-          </div>
-          <div className={styles.nextUpActions}>
-            <button className={styles.smallPrimary} onClick={onSetup}>
-              {planError ? "Try again" : profile ? "Make my plan" : "Get started"}
             </button>
           </div>
         </section>
@@ -268,15 +293,15 @@ export function Dashboard({
       {/* ── Exercise: the next workout closed, its section open ───────────── */}
       {exercise && (
         <details className={`${home.fold} ${home.exercise}`}>
-          <summary className={home.summary}>
+          <summary className={home.summary} aria-label={exercise.label}>
             <span className={home.icon} aria-hidden="true">
               🏃
             </span>
-            <span className={home.text}>
+            <span className={home.labelColumn}>
               <span className={home.label}>Exercise</span>
-              <span className={home.title}>{exercise.title}</span>
-              <span className={home.meta}>{exercise.meta}</span>
+              <span className={home.title}>Next workout</span>
             </span>
+            {exercise.summary}
             <span className={home.chevron}>
               <span className={home.closed}>Open ▾</span>
               <span className={home.open}>Close ▴</span>

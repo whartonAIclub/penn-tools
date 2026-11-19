@@ -1,12 +1,13 @@
-// The homepage's exercise section, for Nutrition's dashboard to lay out (see
-// ../home.ts): closed, one line with the next workout; open, what needs the
-// user, this week at a glance, today's free time, the nearest places, the
-// week day by day and tips; and Exercise's item in "Your setup". All from
-// the week loadExerciseWeek assembles. Talks about time and getting there,
-// never health or guilt (section 3 of tools/penn-fitness/docs/outtake.md).
+// The homepage's exercise parts, for Nutrition's dashboard to lay out (see
+// ../home.ts): the week's workouts day by day (in "This week", above both
+// sections); the closed Exercise section, drawing the next workout and where
+// it fits in that day; the opened section (what needs the user, free time
+// today, the nearest places, tips); and Exercise's item in "Your setup". All
+// from the week loadExerciseWeek assembles. Talks about time and getting
+// there, never health or guilt (section 3 of tools/penn-fitness/docs/outtake.md).
 
 import Link from "next/link";
-import { formatCorner, type ExerciseSummary, type PreferredTime, type WeekTip } from "@penntools/tool-penn-fitness";
+import { formatCorner, minutesOfDay, type ExerciseDay, type ExerciseSummary, type PreferredTime, type WeekTip } from "@penntools/tool-penn-fitness";
 import type { HomeExercise } from "../home";
 import type { LoadedWeek } from "./data";
 import { formatMinutes, formatRange, formatTime, formatWeekday } from "./format";
@@ -38,29 +39,104 @@ function tipText(tip: WeekTip, today: string): { text: string; link?: boolean } 
   }
 }
 
-/** The closed section's line: the next workout, or what's needed before there is one. */
-function closedLine(summary: ExerciseSummary, today: string): { title: string; meta: string } {
-  const toConfirm = summary.toConfirm > 0 ? `${plural(summary.toConfirm, "commitment", "commitments")} to confirm` : null;
-  if (summary.nextUp) {
-    const { start, placeName, travelMinutes } = summary.nextUp;
-    const when = start.slice(0, 10) === today ? "today" : formatWeekday(start.slice(0, 10));
-    const walk = travelMinutes > 0 ? `${formatMinutes(travelMinutes)} walking, there and back` : "no walk";
-    return { title: `Next workout · ${when} ${formatTime(start)}`, meta: [placeName, walk, toConfirm].filter(Boolean).join(" · ") };
+/** A day drawn across waking hours: commitments in grey, a workout in green. */
+function DayBar({ day, waking, workout }: { day: ExerciseDay; waking: ExerciseSummary["waking"]; workout: { start: string; end: string } | null }) {
+  const from = minutesOfDay(waking.start);
+  const span = minutesOfDay(waking.end) - from;
+  const at = (time: string) => `${(Math.max(0, Math.min(span, minutesOfDay(time) - from)) / span) * 100}%`;
+  const width = (start: string, end: string) => `${((minutesOfDay(end) - minutesOfDay(start)) / span) * 100}%`;
+  return (
+    <span className={styles.dayBar} aria-hidden="true">
+      <span className={styles.dayTrack}>
+        {day.busyStretches.map((busy) => (
+          <span key={busy.start} className={styles.dayBusy} style={{ left: at(busy.start), width: width(busy.start, busy.end) }} />
+        ))}
+        {workout && (
+          <span
+            className={styles.dayWorkout}
+            style={{ left: at(workout.start.slice(11)), width: width(workout.start.slice(11), workout.end.slice(11)) }}
+          />
+        )}
+      </span>
+      <span className={styles.dayEnds}>
+        <span>{formatTime(waking.start)}</span>
+        <span>{formatTime(waking.end)}</span>
+      </span>
+    </span>
+  );
+}
+
+/** The closed section: the next workout as a ticket, with where it fits in its day. */
+function NextWorkout({ summary, today }: { summary: ExerciseSummary; today: string }) {
+  const toConfirm = summary.toConfirm > 0 ? `${summary.toConfirm} to confirm` : null;
+  if (!summary.nextUp) {
+    const fresh = summary.commitments === 0;
+    return (
+      <span className={styles.closedEmpty}>
+        <span className={styles.closedTitle}>{fresh ? "Add your week to get workouts" : "No workout fits yet"}</span>
+        <span className={styles.closedMeta}>{fresh ? "Import your calendar or a timetable screenshot." : [summary.reason, toConfirm].filter(Boolean).join(" · ")}</span>
+      </span>
+    );
   }
-  if (summary.commitments === 0) return { title: "Add your week to get workouts", meta: "Import your calendar or a timetable screenshot." };
-  return { title: "No workout fits yet", meta: [summary.reason, toConfirm].filter(Boolean).join(" · ") };
+  const { start, end, placeName, travelMinutes } = summary.nextUp;
+  const date = start.slice(0, 10);
+  const [clock, meridiem] = formatTime(start).split(" ");
+  const day = summary.days.find((d) => d.date === date);
+  const length = minutesOfDay(end.slice(11)) - minutesOfDay(start.slice(11));
+  return (
+    <span className={styles.ticket}>
+      <span className={styles.when}>
+        <span className={styles.whenDay}>{date === today ? "Today" : formatWeekday(date)}</span>
+        <span className={styles.whenTime}>{clock}</span>
+        <span className={styles.whenMeridiem}>{meridiem}</span>
+      </span>
+      <span className={styles.ticketBody}>
+        <span className={styles.ticketPlace}>📍 {placeName}</span>
+        <span className={styles.chips}>
+          <span className={styles.chip}>⏱ {formatMinutes(length)}</span>
+          <span className={styles.chip}>🚶 {travelMinutes > 0 ? `${formatMinutes(travelMinutes)} walking` : "no walk"}</span>
+          {toConfirm && <span className={styles.chipWarn}>✅ {toConfirm}</span>}
+        </span>
+        {day && <DayBar day={day} waking={summary.waking} workout={{ start, end }} />}
+      </span>
+    </span>
+  );
+}
+
+function label(summary: ExerciseSummary, today: string): string {
+  if (!summary.nextUp) return summary.commitments === 0 ? "Add your week to get workouts" : "No workout fits yet";
+  const date = summary.nextUp.start.slice(0, 10);
+  return `Next workout ${date === today ? "today" : dayName(date)} ${formatRange(summary.nextUp.start, summary.nextUp.end)} at ${summary.nextUp.placeName}`;
+}
+
+/** The week's workouts day by day, for "This week" above both sections. */
+function WeekStrip({ summary, today }: { summary: ExerciseSummary; today: string }) {
+  return (
+    <div className={styles.weekStrip} aria-label="Workouts this week">
+      {summary.days.map((day) => (
+        <Link key={day.date} href={EXERCISE_PAGE} className={day.date === today ? styles.stripToday : day.past ? styles.stripPast : styles.stripDay}>
+          <span className={styles.stripName}>{formatWeekday(day.date)}</span>
+          <span className={styles.stripIcon} aria-hidden="true">
+            {day.away ? "✈️" : day.workout ? "🏃" : "·"}
+          </span>
+          <span className={styles.stripTime}>{day.away ? "away" : day.workout ? formatTime(day.workout.start) : "rest"}</span>
+          <span className={styles.stripBusy}>{day.busyMinutes > 0 ? `${Math.round(day.busyMinutes / 60)}h booked` : "free"}</span>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 function ExerciseDetails({ summary, today }: { summary: ExerciseSummary; today: string }) {
   const fresh = summary.commitments === 0;
   const tips = summary.tips.map((tip) => tipText(tip, today));
-  const bookedPercent = Math.round(summary.busyness * 100);
 
   return (
     <>
       <div className={styles.headerRow}>
         <span className={styles.note}>
-          {summary.nextUp ? `Next: ${summary.nextUp.placeName}, ${formatRange(summary.nextUp.start, summary.nextUp.end)}` : "Your week of workouts"}
+          {summary.sessions} of {summary.target} workouts fit around your week
+          {summary.isBusy ? ` · a busy week, ${Math.round(summary.busyness * 100)}% of waking hours booked` : ""}
         </span>
         <Link href={EXERCISE_PAGE} className={styles.link}>
           Open Exercise →
@@ -83,21 +159,6 @@ function ExerciseDetails({ summary, today }: { summary: ExerciseSummary; today: 
       )}
 
       <div className={styles.tiles}>
-        <div className={styles.tile}>
-          <h4 className={styles.tileTitle}>📊 This week</h4>
-          <p className={styles.bigNumber}>
-            {summary.sessions}
-            <span className={styles.of}>/{summary.target}</span>
-          </p>
-          <p className={styles.note}>workouts fit around your week</p>
-          <div className={styles.meter} aria-label={`${bookedPercent}% of waking hours booked`}>
-            <span style={{ width: `${Math.min(100, bookedPercent)}%` }} className={summary.isBusy ? styles.meterBusy : styles.meterFill} />
-          </div>
-          <p className={styles.note}>
-            {bookedPercent}% of your waking hours booked{summary.isBusy ? ": a busy week" : ""}
-          </p>
-        </div>
-
         <div className={styles.tile}>
           <h4 className={styles.tileTitle}>⏱️ Free today</h4>
           {summary.todaysGaps.length === 0 ? (
@@ -134,19 +195,6 @@ function ExerciseDetails({ summary, today }: { summary: ExerciseSummary; today: 
         </div>
       </div>
 
-      <div className={styles.weekStrip} aria-label="Workouts this week">
-        {summary.days.map((day) => (
-          <div key={day.date} className={day.date === today ? styles.stripToday : day.past ? styles.stripPast : styles.stripDay}>
-            <span className={styles.stripName}>{formatWeekday(day.date)}</span>
-            <span className={styles.stripIcon} aria-hidden="true">
-              {day.away ? "✈️" : day.workout ? "🏃" : "·"}
-            </span>
-            <span className={styles.stripTime}>{day.away ? "away" : day.workout ? formatTime(day.workout.start) : "rest"}</span>
-            <span className={styles.stripBusy}>{day.busyMinutes > 0 ? `${Math.round(day.busyMinutes / 60)}h booked` : "free"}</span>
-          </div>
-        ))}
-      </div>
-
       {tips.length > 0 && (
         <div className={styles.tips}>
           <h4 className={styles.tipsTitle}>💡 For your week</h4>
@@ -174,10 +222,12 @@ function ExerciseDetails({ summary, today }: { summary: ExerciseSummary; today: 
 /** What the homepage shows for exercise; `loaded` is null when the week couldn't be loaded. */
 export function homeExercise(loaded: LoadedWeek | null, today: string): HomeExercise {
   if (loaded === null) {
+    const unavailable = <span className={styles.closedMeta}>Your exercise week couldn&apos;t be loaded just now. Try again in a moment.</span>;
     return {
-      title: "Couldn't load your exercise week",
-      meta: "Try again in a moment.",
-      details: <p className={styles.note}>Your exercise week couldn&apos;t be loaded just now. Try again in a moment.</p>,
+      summary: unavailable,
+      label: "Exercise couldn't be loaded",
+      details: unavailable,
+      weekStrip: null,
       setup: { emoji: "🏃", title: "Workouts", summary: "Open Exercise to set up", href: PREFERENCES },
     };
   }
@@ -185,8 +235,10 @@ export function homeExercise(loaded: LoadedWeek | null, today: string): HomeExer
   const times = outtake.preferredTimes.length > 0 ? list(outtake.preferredTimes.map((t) => TIME_WORDS[t])) : "any time";
   const home = shared.homeCorner ? `near ${formatCorner(shared.homeCorner)}` : "no corner yet";
   return {
-    ...closedLine(summary, today),
+    summary: <NextWorkout summary={summary} today={today} />,
+    label: label(summary, today),
     details: <ExerciseDetails summary={summary} today={today} />,
+    weekStrip: <WeekStrip summary={summary} today={today} />,
     setup: {
       emoji: "🏃",
       title: "Workouts",

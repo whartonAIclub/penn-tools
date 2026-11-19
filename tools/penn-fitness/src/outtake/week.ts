@@ -39,11 +39,13 @@ export interface ExerciseSummary {
   /** Every free stretch left today worth showing, in order. */
   todaysGaps: FreeStretch[];
   /** Each day of the week, Monday first. */
-  days: DaySummary[];
+  days: ExerciseDay[];
   /** The closest places to work out, from home, nearest first (up to 3). */
   nearby: { placeName: string; walkMinutes: number }[];
   /** The user has given their nearest corner, so walking times are real rather than by area. */
   homeCornerSet: boolean;
+  /** The user's waking hours, the span a day is drawn over. */
+  waking: { start: TimeOfDay; end: TimeOfDay };
   /** Things worth knowing about the week, most useful first (up to 4); the page words them. */
   tips: WeekTip[];
 }
@@ -55,7 +57,7 @@ export interface FreeStretch {
   minutes: number;
 }
 
-export interface DaySummary {
+export interface ExerciseDay {
   date: LocalDate;
   away: boolean;
   /** Before today. */
@@ -65,6 +67,8 @@ export interface DaySummary {
   freeMinutes: number;
   /** When the day's first confirmed commitment starts; null when there's none. */
   firstCommitment: TimeOfDay | null;
+  /** The day's busy stretches within waking hours, in order: for drawing the day. */
+  busyStretches: { start: TimeOfDay; end: TimeOfDay }[];
   /** The suggested workout that day, if any. */
   workout: { start: LocalDateTime; end: LocalDateTime; placeName: string; travelMinutes: number } | null;
 }
@@ -175,13 +179,21 @@ export function assembleWeek(sources: WeekSources): ExerciseWeek {
   // Each day's free time ignores away days, so an away day still shows its commitments as busy.
   const wakingMinutes = minutesOfDay(input.wakingEnd) - minutesOfDay(input.wakingStart);
   const allGaps = findGaps({ ...input, awayDays: [] });
-  const days: DaySummary[] = Array.from({ length: 7 }, (_, i) => {
+  const days: ExerciseDay[] = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
     const gaps = allGaps.filter((gap) => gap.date === date);
     const freeMinutes = gaps.reduce((sum, gap) => sum + minutesOfDay(gap.end) - minutesOfDay(gap.start), 0);
     const first = gaps[0];
     const firstCommitment = first === undefined || first.afterBlock ? input.wakingStart : first.beforeBlock ? first.end : null;
     const slot = plan.slots.find((s) => s.start.startsWith(date));
+    // Busy is whatever of waking hours isn't a gap.
+    const busyStretches: ExerciseDay["busyStretches"] = [];
+    let cursor = input.wakingStart;
+    for (const gap of gaps) {
+      if (gap.start > cursor) busyStretches.push({ start: cursor, end: gap.start });
+      cursor = gap.end;
+    }
+    if (cursor < input.wakingEnd) busyStretches.push({ start: cursor, end: input.wakingEnd });
     return {
       date,
       away: input.awayDays.includes(date),
@@ -189,6 +201,7 @@ export function assembleWeek(sources: WeekSources): ExerciseWeek {
       busyMinutes: wakingMinutes - freeMinutes,
       freeMinutes,
       firstCommitment,
+      busyStretches,
       workout: slot ? { start: slot.start, end: slot.end, placeName: placeName(slot.placeId), travelMinutes: slot.travelMinutes } : null,
     };
   });
@@ -219,6 +232,7 @@ export function assembleWeek(sources: WeekSources): ExerciseWeek {
     days,
     nearby,
     homeCornerSet: shared.homeCorner !== null,
+    waking: { start: input.wakingStart, end: input.wakingEnd },
   };
 
   return { timeline, input, plan, summary: { ...summary, tips: weekTips(summary, stretches, today) } };

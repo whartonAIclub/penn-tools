@@ -12,7 +12,7 @@
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: 20px;
-  background: linear-gradient(180deg, var(--exercise-soft), #fff 120px);
+  background: linear-gradient(180deg, #ecfdf5, #fff 120px);
   animation: rise 0.45s ease both;
 }
 
@@ -34,7 +34,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--exercise);
+  color: #0f766e;
 }
 
 .link {
@@ -80,7 +80,7 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: var(--exercise-soft);
+  background: #ecfdf5;
   font-size: 1.3rem;
 }
 
@@ -164,7 +164,7 @@
   border-radius: 999px;
 }
 
-.meterFill { background: var(--exercise); }
+.meterFill { background: #0f766e; }
 .meterBusy { background: #f59e0b; }
 
 .list {
@@ -177,6 +177,96 @@
   font-size: 0.9rem;
 }
 
+/* The closed section: the next workout as a ticket */
+
+.ticket {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.when {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #0f766e, #115e59);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(15, 118, 110, 0.25);
+}
+
+.whenDay { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.9; }
+.whenTime { font-size: 1.5rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+.whenMeridiem { font-size: 0.7rem; font-weight: 700; opacity: 0.9; }
+
+.ticketBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ticketPlace { font-size: 1rem; font-weight: 700; color: #0f172a; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.chip,
+.chipWarn {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip { background: #ecfdf5; color: #115e59; }
+.chipWarn { background: #fef3c7; color: #78350f; }
+
+.dayBar { display: flex; flex-direction: column; gap: 2px; max-width: 420px; }
+
+.dayTrack {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: #eef0f6;
+  overflow: hidden;
+}
+
+.dayBusy {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #cbd5e1;
+}
+
+.dayWorkout {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 4px;
+  border-radius: 999px;
+  background: #10b981;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.dayEnds {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--section-label);
+}
+
+.closedEmpty { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.closedTitle { font-size: 1rem; font-weight: 700; color: #0f172a; }
+.closedMeta { font-size: 0.82rem; color: #475569; }
+
 /* Week strip */
 
 .weekStrip {
@@ -188,6 +278,8 @@
 .stripDay,
 .stripPast,
 .stripToday {
+  color: inherit;
+  text-decoration: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -203,7 +295,7 @@
 
 .stripToday {
   border-color: transparent;
-  background: linear-gradient(160deg, var(--exercise), #115e59);
+  background: linear-gradient(160deg, #0f766e, #115e59);
   color: #fff;
   box-shadow: 0 6px 16px rgba(15, 118, 110, 0.25);
 }
@@ -217,9 +309,9 @@
 
 .tips {
   padding: 14px 18px;
-  border-left: 4px solid var(--exercise);
+  border-left: 4px solid #0f766e;
   border-radius: 8px;
-  background: var(--exercise-soft);
+  background: #ecfdf5;
 }
 
 .tipsTitle {

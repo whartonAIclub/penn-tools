@@ -103,7 +103,14 @@ describe("assembleWeek", () => {
     expect(mon).toMatchObject({ busyMinutes: 80, freeMinutes: 930 - 80, firstCommitment: "10:15", away: false, past: false });
     // Busy from before waking: the day starts committed.
     expect(tue).toMatchObject({ busyMinutes: 60, firstCommitment: "07:00" });
-    expect(wed).toMatchObject({ busyMinutes: 0, firstCommitment: null });
+    expect(wed).toMatchObject({ busyMinutes: 0, firstCommitment: null, busyStretches: [] });
+    expect(mon!.busyStretches).toEqual([{ start: "10:15", end: "11:35" }]);
+    // Busy from before waking: drawn from waking time.
+    expect(tue!.busyStretches).toEqual([{ start: "07:00", end: "08:00" }]);
+    expect(summary.waking).toEqual({ start: "07:00", end: "22:30" });
+    // A day fully booked is one stretch across waking hours.
+    const full = assembleWeek(sources({ blocks: [block("2026-11-18T06:00", "2026-11-18T23:00")] })).summary.days[2]!;
+    expect(full.busyStretches).toEqual([{ start: "07:00", end: "22:30" }]);
     expect(summary.days[5]).toMatchObject({ away: true, workout: null });
     expect(summary.days.filter((d) => d.workout).length).toBe(summary.sessions);
   });
