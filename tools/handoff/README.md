@@ -77,7 +77,7 @@ Pull requests that change anything else won't be merged (section 2 of [CLAUDE.md
 - The `pnpm-lock.yaml` change from Handoff's `postgres` dev dependency in `tools/handoff/package.json`, which types the database client (`import type { Sql } from "postgres"`). CLAUDE.md lets tools add dependencies other than vendor AI SDKs.
 - Handoff's line in `TOOLS` in `packages/platform/scripts/setup-tools.mjs`, added with the Platform team's one-time approval in the review of PR #88 (see [Database setup](#database-setup)).
 
-The manifest in `tools/handoff/src/HandoffTool.ts` holds the title, description, contributors, sidebar category, `beta: true`, and `fullWidth: true`. [How it's built](#how-its-built) maps the rest. When you join the team, add your name to `contributors` in the manifest; the info button in the site header and Handoff's dashboard tile list contributors.
+The manifest in `tools/handoff/src/HandoffTool.ts` holds the title, description, contributors, sidebar category and `fullWidth: true`. [How it's built](#how-its-built) maps the rest. When you join the team, add your name to `contributors` in the manifest; the info button in the site header and Handoff's dashboard tile list contributors.
 
 ### Setting up a computer
 
