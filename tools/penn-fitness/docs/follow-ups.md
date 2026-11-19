@@ -31,7 +31,18 @@ Both halves' tests pass together (169 tests). Nutrition was written against the 
 - [ ] **Places.** Nutrition's food outlets (`src/nutrition/foodData.ts`) and outtake's gyms (`src/outtake/facilities.ts`) are both places with locations and hours. The shared `Place` type (`src/places.ts`) can hold both, so walking times can be worked out the same way for each.
 - [ ] **Intake spec.** `docs/intake.md` is still empty. A short spec, like `docs/outtake.md`, would make the decisions above easier to agree on.
 
-## 4. A common view
+## 4. Found by testing Nutrition in the browser
+
+Tested November 18, 2026, signed in as the local development user, in preview mode (no AI key: the platform's `.env.local` keys are empty and the user had saved none). Working well: setup saves and comes back; daily macro targets (170 lb, moderate: protein 95–125 g, carbs 385–540 g, fat 60–95 g); `.ics` import (7 items from weekly repeats, a one-off and New York times, all correct); drag-to-add on the week grid; place search (campus and Rittenhouse branches); the Grad Plan panel; the weekly eating-out budget ($15 × 9 meals out = $135); the grocery list and ticking items off. No console errors anywhere.
+
+- [ ] **Bug: "I ate this" logs the same meal again on every click.** The next-meal card doesn't move on or show the meal as done, so each click adds another copy to today's log and to the macros (four clicks: four salmon dinners, 144 g protein shown as target met). Mark the planned meal eaten once, and move the card to the next meal.
+- [ ] **The preview plan ignores the user's setup.** With no AI key, "Make my plan" shows the fixed `SAMPLE_MEAL_PLAN`. Its grocery list has peanut butter for a user who entered a peanut allergy, and the only sign it's a sample is the small "Preview mode" badge. Quick Log already says "Preview mode: you'll see a sample. To log your own meals, add an OpenAI or Anthropic key in Settings."; the plan should say the same.
+- [ ] **"Log what you spent" opens the meal log**, the same page as "Log a meal". Check that's intended, and that a meal logged there can carry a price.
+- [ ] **Home is a free-text street address** ("Where do you live?", placeholder "e.g. 2040 Market St"). The shared decision is a nearest corner, never a street address (`src/location.ts`), for privacy and for walking times. Fold this into the shared home preference (section 3).
+- [ ] **Streaks.** Nutrition shows a "1-day streak". Outtake's spec says crunch mode must not break streaks. Agree on what a streak is for both halves before either builds more on it.
+- [ ] **Not tested yet: the real AI planner and Quick Log**, which need an AI key (a platform key in `apps/web/.env.local`, or the user's own in Settings). Check that the real plan respects allergies, dislikes, the dining plan and favourite places.
+
+## 5. A common view
 
 - [ ] There's no common view yet. `page.tsx` shows only Nutrition, and the outtake half has no screens until steps 10 and 11 of `docs/outtake.md`. The shared plan is a **This week** home screen with cards from both halves, plus a way to switch between Nutrition and Exercise. Design it together.
 - [ ] `fullWidth: true` is now set for the whole tool (Nutrition's dashboard needs it). Outtake's screens should be built for the full-width page area too.
