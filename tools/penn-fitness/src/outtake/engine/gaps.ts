@@ -26,6 +26,8 @@ export interface Gap {
   to: Location;
   /** True when a commitment starts as it ends; false when it runs to the end of the day. */
   beforeBlock: boolean;
+  /** True when it starts as a commitment ends; false when it starts the day. */
+  afterBlock: boolean;
 }
 
 /** A place a session fits in a gap. */
@@ -93,16 +95,19 @@ export function findGaps(input: GapInput): Gap[] {
       from,
       to: to ?? input.home,
       beforeBlock: to !== null,
+      afterBlock,
     });
 
     // Walk the day's blocks in order; cursor is when the user is next free.
     let cursor = dayStart;
     let from = input.home;
+    let afterBlock = false;
     for (const block of blocks.filter((b) => b.start < dayEnd && b.end > dayStart)) {
       if (block.start > cursor) gaps.push(gap(cursor, block.start, from, block.location));
       if (block.end >= cursor) {
         cursor = block.end;
         from = block.location;
+        afterBlock = true;
       }
     }
     if (cursor < dayEnd) gaps.push(gap(cursor, dayEnd, from, null));

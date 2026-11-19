@@ -91,6 +91,11 @@ describe("buildPlanInput", () => {
     ]);
   });
 
+  it("passes on whether the user wants sessions spread out", () => {
+    expect(buildPlanInput(sources()).spreadOut).toBe(true);
+    expect(buildPlanInput(sources({ outtake: { ...OUTTAKE_PREFS.defaults, spreadOut: false } })).spreadOut).toBe(false);
+  });
+
   it("plans the whole week, keeping nothing, unless told otherwise", () => {
     expect(buildPlanInput(sources())).toMatchObject({ planFrom: null, keptSlots: [] });
   });

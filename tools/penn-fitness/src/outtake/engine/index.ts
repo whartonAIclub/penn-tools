@@ -9,4 +9,4 @@ export { walkingMinutes } from "./travel.js";
 export { findGaps, placeOptions, type Gap, type GapInput, type PlaceOption } from "./gaps.js";
 export { scoreSlot, type ScoreParts, type ScoringInput, type SlotToScore } from "./scoring.js";
 export { measureBusyness } from "./busyness.js";
-export { planWeek } from "./plan.js";
+export { bestSlotPerDay, explainSlot, planWeek, spreadPoints } from "./plan.js";

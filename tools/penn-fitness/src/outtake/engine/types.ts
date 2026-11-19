@@ -44,6 +44,8 @@ export interface WorkoutPlanInput {
   sessionMinutes: number;
   /** Times of day the user would rather work out; empty means no preference. */
   preferredWindows: readonly PreferredWindow[];
+  /** Spread sessions across the week (avoiding days in a row), or don't mind days in a row. */
+  spreadOut: boolean;
   places: readonly EnginePlace[];
   /** Heavy week: aim for 2 short sessions instead of the usual target. */
   crunchMode: boolean;

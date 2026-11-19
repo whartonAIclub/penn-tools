@@ -1,13 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { OUTTAKE_PREFS, type OuttakePrefs } from "../prefs.js";
+import { NO_ADJUSTMENTS, OUTTAKE_PREFS, type OuttakePrefs } from "../prefs.js";
 
 const check = (changes: Partial<OuttakePrefs>) => OUTTAKE_PREFS.check({ ...OUTTAKE_PREFS.defaults, ...changes });
 
 describe("outtake preferences", () => {
-  it("defaults to the spec's 3 sessions of 45 minutes, any time", () => {
-    expect(OUTTAKE_PREFS.defaults).toEqual({ weeklyTargetSessions: 3, sessionMinutes: 45, preferredTimes: [] });
+  it("defaults to the spec's 3 sessions of 45 minutes, any time, spread out, with no check-in adjustments", () => {
+    expect(OUTTAKE_PREFS.defaults).toEqual({
+      weeklyTargetSessions: 3,
+      sessionMinutes: 45,
+      preferredTimes: [],
+      spreadOut: true,
+      adjustments: { travelFactor: 1, bufferMinutes: 0, wakeBufferMinutes: 0, bedBufferMinutes: 0 },
+    });
     expect(OUTTAKE_PREFS.check(OUTTAKE_PREFS.defaults)).toEqual([]);
-    expect(check({ preferredTimes: ["MORNING", "EVENING"] })).toEqual([]);
+    expect(check({ preferredTimes: ["MORNING", "EVENING"], spreadOut: false })).toEqual([]);
   });
 
   it("keeps the weekly target and session length in range, as whole numbers", () => {
@@ -20,5 +26,18 @@ describe("outtake preferences", () => {
   it("only takes known preferred times, each once", () => {
     expect(check({ preferredTimes: ["NIGHT" as "MORNING"] })).toEqual(["Pick preferred times from morning, midday and evening."]);
     expect(check({ preferredTimes: ["MORNING", "MORNING"] })).toEqual(["Pick each preferred time only once."]);
+  });
+
+  it("needs a yes or no for spreading sessions out", () => {
+    expect(check({ spreadOut: "yes" as unknown as boolean })).toEqual(["Say whether you'd like your workouts spread across the week."]);
+  });
+
+  it("only takes check-in adjustments within their ranges", () => {
+    const wrong = "Your weekly check-in settings look wrong; they'll be reset.";
+    expect(check({ adjustments: { ...NO_ADJUSTMENTS, travelFactor: 4, bufferMinutes: 60, bedBufferMinutes: 180 } })).toEqual([]);
+    expect(check({ adjustments: { ...NO_ADJUSTMENTS, travelFactor: 5 } })).toEqual([wrong]);
+    expect(check({ adjustments: { ...NO_ADJUSTMENTS, bedBufferMinutes: -1 } })).toEqual([wrong]);
+    expect(check({ adjustments: { ...NO_ADJUSTMENTS, wakeBufferMinutes: Number.NaN } })).toEqual([wrong]);
+    expect(check({ adjustments: { travelFactor: 1 } as unknown as typeof NO_ADJUSTMENTS })).toEqual([wrong]);
   });
 });

@@ -40,8 +40,9 @@ describe.skipIf(!databaseUrl)("Penn Fitness preference storage (Postgres)", () =
   });
 
   it("keeps sections and users separate", async () => {
-    await savePreferences(db.sql, "alice", OUTTAKE_PREFS, { weeklyTargetSessions: 2, sessionMinutes: 60, preferredTimes: ["MIDDAY"] });
-    expect(await getPreferences(db.sql, "alice", OUTTAKE_PREFS)).toEqual({ weeklyTargetSessions: 2, sessionMinutes: 60, preferredTimes: ["MIDDAY"] });
+    const outtake = { ...OUTTAKE_PREFS.defaults, weeklyTargetSessions: 2, sessionMinutes: 60, preferredTimes: ["MIDDAY" as const] };
+    await savePreferences(db.sql, "alice", OUTTAKE_PREFS, outtake);
+    expect(await getPreferences(db.sql, "alice", OUTTAKE_PREFS)).toEqual(outtake);
     expect((await getPreferences(db.sql, "alice", SHARED_PREFS)).homeBase).toBe("CENTER_CITY");
     expect(await getPreferences(db.sql, "bob", OUTTAKE_PREFS)).toEqual(OUTTAKE_PREFS.defaults);
   });

@@ -9,7 +9,9 @@
 //
 // A GOOD PLAN (normal mode):
 // - still finds all 3 sessions of 45 minutes, in those early mornings and
-//   weekend gaps;
+//   weekend gaps, or in an afternoon gap between class and the evening's
+//   events (decided at the engine review: a short walk from class, ending well
+//   before the next thing, is as good as an early start);
 // - none on Mon-Thu evenings (presentations and case practice fill them);
 // - none ending less than 30 minutes before the next commitment, so nobody
 //   rushes into a coffee chat or presentation sweaty;

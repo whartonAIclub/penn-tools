@@ -41,9 +41,9 @@ describe("findGaps", () => {
     // Light week Monday: classes 08:30-09:50, 10:15-11:35 and 13:45-15:05.
     const monday = on(findGaps(lightWeek), "2026-11-16");
     expect(times(monday)).toEqual(["07:00-08:30", "09:50-10:15", "11:35-13:45", "15:05-22:30"]);
-    expect(monday[0]).toMatchObject({ from: lightWeek.home, to: huntsman, beforeBlock: true });
-    expect(monday[1]).toMatchObject({ from: huntsman, to: huntsman, beforeBlock: true });
-    expect(monday[3]).toMatchObject({ from: huntsman, to: lightWeek.home, beforeBlock: false });
+    expect(monday[0]).toMatchObject({ from: lightWeek.home, to: huntsman, beforeBlock: true, afterBlock: false });
+    expect(monday[1]).toMatchObject({ from: huntsman, to: huntsman, beforeBlock: true, afterBlock: true });
+    expect(monday[3]).toMatchObject({ from: huntsman, to: lightWeek.home, beforeBlock: false, afterBlock: true });
   });
 
   it("treats overlapping and back-to-back blocks as one busy stretch, leaving from the last one", () => {
@@ -73,7 +73,7 @@ describe("findGaps", () => {
     const gaps = findGaps({ ...week, busyBlocks: [block("2026-11-16T21:00", "2026-11-17T08:00", centerCity)] });
     expect(times(on(gaps, "2026-11-16"))).toEqual(["07:00-21:00"]);
     expect(on(gaps, "2026-11-17")).toEqual([
-      { date: "2026-11-17", start: "08:00", end: "22:30", from: centerCity, to: home, beforeBlock: false },
+      { date: "2026-11-17", start: "08:00", end: "22:30", from: centerCity, to: home, beforeBlock: false, afterBlock: true },
     ]);
   });
 
@@ -137,6 +137,7 @@ describe("placeOptions", () => {
     from,
     to,
     beforeBlock: false,
+    afterBlock: false,
   });
 
   it("lists the places a session fits, least walking first, with when it can start", () => {

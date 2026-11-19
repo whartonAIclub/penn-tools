@@ -75,6 +75,7 @@ export function buildPlanInput(sources: PlanSources): WorkoutPlanInput {
     weeklyTargetSessions: outtake.weeklyTargetSessions,
     sessionMinutes: outtake.sessionMinutes,
     preferredWindows: outtake.preferredTimes.map((time) => PREFERRED_TIME_WINDOWS[time]),
+    spreadOut: outtake.spreadOut,
     places,
     crunchMode: sources.crunchMode,
     dismissed: sources.dismissed,
