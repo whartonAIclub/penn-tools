@@ -1,0 +1,51 @@
+/* Handoff's "can't use its data" state (HandoffUnavailable): the same narrow card page as the sign-in prompt. */
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--penn-blue);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.message {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.message code {
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  align-self: flex-start;
+  color: var(--penn-blue);
+  text-decoration: underline;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 32px 16px;
+  }
+}

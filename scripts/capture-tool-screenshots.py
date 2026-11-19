@@ -85,6 +85,7 @@ TARGETS = {
     "chatprep": local("/tools/chatprep"),  # needs sign-in: its image was taken signed in
     "penn-pals": local("/tools/penn-pals"),  # its image was taken signed in, with sample contacts and the "how it works" box hidden
     "paper-tldr": local("/tools/paper-tldr"),
+    "handoff": local("/tools/handoff"),  # its image was taken with sample listings posted to a local market
     "industry-connector": local("/tools/industry-connector"),  # needs sign-in and a loaded directory: its image was taken signed in, with fictional sample people and the admins' upload link hidden
     "feedback-insights": local("/tools/feedback-insights"),  # its image was taken with "Try sample data" loaded and its notice dismissed
     "due": local("/tools/due"),  # needs sign-in: its image was taken signed in, on the review step with "Try a sample" loaded
