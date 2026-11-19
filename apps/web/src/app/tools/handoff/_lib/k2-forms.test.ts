@@ -1,12 +1,12 @@
 // The WhatsApp-short ISO and the Sell polish (USER-INSTRUCTIONS §9q items 4 and 5), the page's rules with no page in them
 // (_lib/sell.js): what "Post request" sends for a new event (its name and date, nothing else), the one collapsed "Optional details"
-// line, the success message (email only while it's on and available), the club field's suggestions and when it's required, and the
+// line, the club field's suggestions and when it's required, and the
 // Members-only ticket's club.
 // Pure functions over the engine's catalog: a small live market installed with a set clock; no DOM, no server, no sign-in.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as E from "@penntools/tool-handoff/engine";
 import {
-  NEW0, NEW_MORE, WHAT, clubOptions, isoMoreHint, memberClubError, memberTicketOffer, newEventIssues, newMoreIds, newMoreUsed, requestAction, requestNew, requestPostedWords, whatHelp,
+  NEW0, NEW_MORE, WHAT, clubOptions, isoMoreHint, memberClubError, memberTicketOffer, newEventIssues, newMoreIds, newMoreUsed, requestAction, requestNew, whatHelp,
 } from "./sell";
 
 const T0 = Date.UTC(2026, 10, 15, 20, 0); // Sun Nov 15, 2026, 3:00 PM in Philadelphia
@@ -78,25 +78,6 @@ describe("one collapsed Optional details on the request form: what it says while
     expect(isoMoreHint({ qty: 1, unit: "ticket", budget: 30, until: "Fri, Nov 20, 11:59 PM" })).toBe("1 ticket · up to $30 · until Fri, Nov 20, 11:59 PM");
     expect(isoMoreHint({ qty: 2, unit: "ticket", budget: null, until: "Fri, Nov 27, 11:59 PM" })).toBe("any price · until Fri, Nov 27, 11:59 PM");
     expect(isoMoreHint({ qty: 3, unit: "ticket", budget: 0, until: "" })).toBe("up to $0"); // an explicit $0 is a budget, never "any price"
-  });
-});
-
-describe("the success message says where matches appear; email only while it's on and available (9q item 4)", () => {
-  const POSTED = `Request posted. ${E.MATCHES_WHERE}`;
-  it("with no email available, or email off, the server's words stand", () => {
-    expect(requestPostedWords(POSTED, null)).toBe(POSTED);
-    expect(requestPostedWords(POSTED, { address: "dana@upenn.edu", matches: false })).toBe(POSTED);
-    expect(requestPostedWords(POSTED, { address: "", matches: true })).toBe(POSTED);
-    expect(requestPostedWords(POSTED, undefined)).toBe(POSTED);
-  });
-  it("with email available and matches on, it says so, with the address", () => {
-    expect(requestPostedWords(POSTED, { address: "dana@upenn.edu", matches: true })).toBe(`${POSTED} Matches are also emailed to dana@upenn.edu.`);
-    const fresh = `Request posted. ${E.MATCHES_WHERE} Its event is new on Handoff and shows as added by you.`;
-    expect(requestPostedWords(fresh, { address: "dana@upenn.edu", matches: true })).toBe(`${fresh} Matches are also emailed to dana@upenn.edu.`);
-  });
-  it("an updated request, or a missing toast, gets nothing added", () => {
-    expect(requestPostedWords("Request updated. You have one request for this event.", { address: "dana@upenn.edu", matches: true })).toBe("Request updated. You have one request for this event.");
-    expect(requestPostedWords(null, { address: "dana@upenn.edu", matches: true })).toBe("");
   });
 });
 

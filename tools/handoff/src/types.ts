@@ -7,7 +7,6 @@
 // a field the server never sends. Fields marked optional are absent when unset, as in the
 // prototype's records, so the UI's existing checks keep working.
 
-import type { ViewEmail } from "./email/types.js";
 import type { PhotoRef } from "./photo.js";
 
 /** "live" is the shared market; "test-…" worlds exist only for development checks and tests. */
@@ -52,7 +51,7 @@ export type CloseReason = "soldElsewhere" | "noLongerSelling";
 
 // ── Rows the store reads ─────────────────────────────────────────────────────────────────
 
-/** A row of handoff.people: the account's name and email (refreshed on each visit) and how they're paid. */
+/** A row of handoff.people: the account's name and email (saved by its first change, refreshed by each one after) and how they're paid. */
 export interface PersonRow {
   userId: string;
   /** The account's full name ("Classmate" when the account has none). */
@@ -516,12 +515,6 @@ export interface View {
   unreadCount: number;
   /** The owner only. `payMethods` (follow-on B1): their 0-2 methods, the first preferred, a handle saved before B1 as one "other". */
   viewer: { id: string; name: string; email: string | null; payMethods: PayMethod[] };
-  /**
-   * Follow-on B4, the owner only: their own email updates (email/prefs.ts readEmailState: whether email can be turned on, their sign-in
-   * address and their two choices), which the store's buildView attaches to the view it builds for them. Nobody's view holds another
-   * person's, and the guest view never has one (C-CONTRACT §2, §7).
-   */
-  email?: ViewEmail;
   v: 11;
   events: ViewEvent[];
   people: Record<string, ViewPerson>;

@@ -2,7 +2,6 @@
 // other party from that step on), and the closure rule (every event and person a record refers to is in the view).
 // contractViolations(view, viewerId) lists what breaks it; the projection and seam tests run it on every view they build.
 // guestContractViolations(view) does the same for the guest view a signed-out visitor gets (C-CONTRACT §7).
-import { cleanAddress, sameAddress } from "../../email/gates.js";
 import type { GuestView, View } from "../../types.js";
 
 export const VIEW_KEYS = [
@@ -13,10 +12,8 @@ export const VIEW_KEYS = [
 ] as const;
 /** §9x item 1: a closed public request as a view names it. Never userId, qty, budget, note, expires, status, closedAt or closedReason. */
 export const CLOSED_REQUEST_KEYS = ["id", "eventId"] as const;
-/** Keys a view may carry beside VIEW_KEYS: `email` (follow-on B4), the owner's own email updates, which the store attaches to their view. */
-export const VIEW_OPTIONAL_KEYS = ["email"] as const;
-/** View.email's keys (email/types.ts ViewEmail), each checked by emailViolations. */
-export const VIEW_EMAIL_KEYS = ["available", "mode", "address", "exchange", "matches", "reconfirm", "paused"] as const;
+/** Keys a view may carry beside VIEW_KEYS: none since outbound email was removed (review of PR #88); the owner's email envelope is gone. */
+export const VIEW_OPTIONAL_KEYS = [] as const;
 /** normalizeEvent's fields (C-DESIGN §7.3), addedBy, and the creator's canRemove. Never createdBy. */
 export const EVENT_KEYS = [
   "id", "kind", "title", "club", "cat", "start", "end", "openUntil", "rangePrefix", "venue", "attend", "tiers", "perPerson", "deadline",
@@ -66,7 +63,7 @@ export function contractViolations(view: View, viewerId: string): string[] {
   const bad = (what: string): void => { out.push(what); };
   const keys = Object.keys(view);
   if (VIEW_KEYS.some((k) => !keys.includes(k)) || extra(view, [...VIEW_KEYS, ...VIEW_OPTIONAL_KEYS]).length) bad(`view keys: ${keys.join(",")}`);
-  if ("email" in view) out.push(...emailViolations(view.email, view.viewer.email));
+  if ("email" in view) bad("view: an email envelope (outbound email was removed)");
   if (view.viewer.id !== viewerId) bad("viewer.id");
   if (extra(view.viewer, VIEWER_KEYS).length) bad(`viewer keys: ${Object.keys(view.viewer).join(",")}`);
   if (view.mode !== "live" || view.v !== 11 || view.feedbackGiven !== false || view.clockOffset !== 0 || view.tick !== 0) bad("envelope constants");
@@ -175,31 +172,6 @@ export function contractViolations(view: View, viewerId: string): string[] {
   return out;
 }
 
-/**
- * What's wrong with a view's email envelope (follow-on B4; email/types.ts ViewEmail, email/prefs.ts readEmailState), given the
- * viewer's own sign-in address: exactly its keys and types; a mode only while email is available; the viewer's own current address
- * (never anyone else's, never one typed elsewhere); neither category on without an address, or while a changed address waits to
- * be turned on again; and paused only while email isn't available and a category is on.
- */
-export function emailViolations(email: unknown, viewerEmail: string | null): string[] {
-  if (typeof email !== "object" || email === null || Array.isArray(email)) return ["email: not an object"];
-  const out: string[] = [];
-  const e = email as Record<string, unknown>;
-  const keys = Object.keys(e);
-  if (keys.length !== VIEW_EMAIL_KEYS.length || VIEW_EMAIL_KEYS.some((k) => !keys.includes(k))) out.push(`email keys: ${keys.join(",")}`);
-  for (const k of ["available", "exchange", "matches", "reconfirm", "paused"] as const) if (typeof e[k] !== "boolean") out.push(`email.${k}: not a boolean`);
-  if (e["mode"] !== null && e["mode"] !== "capture" && e["mode"] !== "provider") out.push("email.mode: not capture, provider or null");
-  else if ((e["mode"] !== null) !== (e["available"] === true)) out.push("email.mode: set exactly while email is available");
-  const address = e["address"];
-  if (address !== null && typeof address !== "string") out.push("email.address: not a string or null");
-  else if (address === null ? cleanAddress(viewerEmail) !== null : !sameAddress(address, viewerEmail)) out.push("email.address: not the viewer's own sign-in address");
-  const on = e["exchange"] === true || e["matches"] === true;
-  if (on && address === null) out.push("email: a category on without an address");
-  if (on && e["reconfirm"] === true) out.push("email: a category on while it waits to be turned on again for a new address");
-  if (e["paused"] === true && (e["available"] === true || !on)) out.push("email.paused: only while email isn't available and a category is on");
-  return out;
-}
-
 // ── The guest view (C-CONTRACT §7) ───────────────────────────────────────────────────────
 
 export const GUEST_VIEW_KEYS = ["protocol", "mode", "guest", "viewer", "worldId", "version", "serverNow", "nextRefreshAt", "events", "listings", "goods", "wanted",
@@ -222,7 +194,7 @@ export function guestContractViolations(view: GuestView): string[] {
   const bad = (what: string): void => { out.push(what); };
   const keys = Object.keys(view);
   if (keys.length !== GUEST_VIEW_KEYS.length || GUEST_VIEW_KEYS.some((k) => !keys.includes(k))) bad(`guest view keys: ${keys.join(",")}`);
-  if ("email" in view) bad("guest view: email (follow-on B4: a signed-in owner's only)");
+  if ("email" in view) bad("guest view: an email envelope");
   if (view.guest !== true || view.viewer !== null || view.mode !== "live") bad("guest envelope");
   const eventIds = new Set(view.events.map((e) => e.id));
   const needEvent = (id: string, where: string): void => { if (!eventIds.has(id)) bad(`${where}: event ${id} not in the guest view`); };

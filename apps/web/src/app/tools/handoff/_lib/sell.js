@@ -274,17 +274,6 @@ export const requestNew = nd => { const train = !!nd && nd.kind === "train"; ret
 export function isoMoreHint({ qty, unit, budget, until }) {
   return [qty >= 2 ? null : plural(1, unit), budget == null ? "any price" : `up to ${money(budget)}`, until ? `until ${until}` : null].filter(Boolean).join(" · ");
 }
-/**
- * §9q item 4. What the buyer reads once a request is posted: the server's words, which say where matches show (the engine's
- * MATCHES_WHERE: the bell and My activity), plus email only while it's available and the buyer has matches on (email: the view's
- * envelope, emailOffer, with what this post just turned on). An updated request gets nothing added.
- * @param {string | null | undefined} toast
- * @param {{ address?: string, matches?: boolean } | null | undefined} email
- */
-export function requestPostedWords(toast, email) {
-  const t = typeof toast === "string" ? toast : "";
-  return /^Request posted\./.test(t) && email && email.matches === true && typeof email.address === "string" && email.address ? `${t} Matches are also emailed to ${email.address}.` : t;
-}
 
 /* §9q item 5. "Club or organizer": the clubs already on Handoff that hold what's typed (letters and digits, any case), each once, as
    it's most often spelled; the ones starting with it first, then the club with more events, then by name. Nothing before a letter

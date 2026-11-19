@@ -17,7 +17,7 @@ export const PHOTO_MAX_BYTES = 300 * 1024;
 /** The most pixels a side. The page aims for 1280; this leaves room for a browser that rounds up. */
 export const PHOTO_MAX_SIDE = 1600;
 
-export const PHOTO_TYPE_ERROR = "That file isn't a photo Handoff can use. Choose a JPEG, PNG or WebP image.";
+export const PHOTO_TYPE_ERROR = "That file isn't a photo Handoff can use. Choose a JPEG or WebP image.";
 export const PHOTO_SIZE_ERROR = "That photo is too large. Choose a smaller one.";
 /** A photo sent with a change that takes none (anything but posting an item or setting its photo). */
 export const PHOTO_NOT_HERE_ERROR = "A photo can only be added to an item you're selling.";
@@ -93,20 +93,30 @@ interface Read {
 const KEPT_APP = new Set([0xe0, 0xe2, 0xee]);
 
 /**
- * A JPEG without its metadata, and its size from the frame header; null when it isn't a whole JPEG (no frame header before the scan,
- * a segment that runs past the end, no end marker). Every APPn but the three in KEPT_APP and every comment is left out; the bytes
- * from the first scan to the end marker are kept as they are, and anything after it is dropped.
+ * A JPEG without its metadata, and its size from the frame header; null when it isn't a whole JPEG (a scan before the frame header, a
+ * segment that runs past the end, no end marker). The whole file is walked, segment by segment and scan by scan, so a progressive or
+ * crafted JPEG can't keep metadata by placing it between scans (review of PR #88): every comment and every APPn is left out wherever it
+ * is, except the three in KEPT_APP before the first scan, which a decoder needs. Each scan's coded data runs to the next marker that
+ * isn't a stuffed byte or a restart marker, and is kept as it is; the file ends at the first end marker after a scan, and anything after
+ * it is dropped.
  */
 function cleanJpeg(b: Buffer): Read | null {
   const parts: Buffer[] = [b.subarray(0, 2)];
   let at = 2;
   let width = 0;
   let height = 0;
+  let scans = 0;
   for (;;) {
-    if (at + 4 > b.length || b[at] !== 0xff) return null;
+    if (at + 2 > b.length || b[at] !== 0xff) return null;
     const marker = b[at + 1]!;
     if (marker === 0xff) { at += 1; continue; } // fill bytes before a marker
-    if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01 || marker === 0x00) return null; // none belongs here
+    if (marker === 0xd9) { // the end of the image
+      if (width === 0 || scans === 0) return null;
+      parts.push(b.subarray(at, at + 2));
+      return { bytes: Buffer.concat(parts), width, height };
+    }
+    if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01 || marker === 0x00) return null; // none belongs here
+    if (at + 4 > b.length) return null;
     const length = b.readUInt16BE(at + 2);
     if (length < 2 || at + 2 + length > b.length) return null;
     const isFrame = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
@@ -116,16 +126,28 @@ function cleanJpeg(b: Buffer): Read | null {
       width = b.readUInt16BE(at + 7);
       if (width === 0 || height === 0) return null;
     }
-    if (marker === 0xda) break; // the scan: the picture's data follows
     const isApp = marker >= 0xe0 && marker <= 0xef;
-    if (!(marker === 0xfe || (isApp && !KEPT_APP.has(marker)))) parts.push(b.subarray(at, at + 2 + length));
+    const metadata = marker === 0xfe || (isApp && (scans > 0 || !KEPT_APP.has(marker)));
+    if (!metadata) parts.push(b.subarray(at, at + 2 + length));
     at += 2 + length;
+    if (marker === 0xda) {
+      // A scan: its coded data follows, up to the next marker (0xFF then anything but a stuffed 0x00 or a restart marker).
+      if (width === 0) return null;
+      scans += 1;
+      let i = at;
+      for (;;) {
+        if (i + 1 >= b.length) return null;
+        if (b[i] === 0xff) {
+          const next = b[i + 1]!;
+          if (next === 0x00 || (next >= 0xd0 && next <= 0xd7)) { i += 2; continue; }
+          break;
+        }
+        i += 1;
+      }
+      parts.push(b.subarray(at, i));
+      at = i;
+    }
   }
-  if (width === 0) return null;
-  const end = b.lastIndexOf(Buffer.from([0xff, 0xd9]));
-  if (end < at) return null;
-  parts.push(b.subarray(at, end + 2));
-  return { bytes: Buffer.concat(parts), width, height };
 }
 
 /**

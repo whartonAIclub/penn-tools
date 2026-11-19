@@ -163,6 +163,19 @@ export function project(doc: WorldDoc, viewerId: string, ctx: ProjectContext): V
 }
 
 /**
+ * The user ids a viewer's view names (Projection.personIds), so the store loads only their profiles (review of PR #88). Call it inside
+ * withEngine at the view's time, as project.
+ */
+export function viewPersonIds(doc: WorldDoc, viewerId: string): string[] {
+  const dropped: string[] = [];
+  const w = readWorld(doc, dropped);
+  applyWorld(w.doc);
+  const ctx: ProjectContext = { worldId: "live", version: 0, now: CLOCK, people: new Map(), notifications: [], unreadCount: 0 };
+  const me: PersonRow = { userId: viewerId, name: CLASSMATE, email: null, payHandle: "", payMethods: [] };
+  return new Projection(w, viewerId, me, ctx, dropped).personIds();
+}
+
+/**
  * What a signed-out visitor sees of a live world (C-CONTRACT §7), built from the guest allowlists (GuestProjection). Call it
  * inside withEngine at ctx.now. It takes no viewer and reads no profile row: the store runs it with none installed, and nothing
  * it sends comes from one. Throws outside withEngine.
@@ -350,7 +363,81 @@ class Projection extends Records {
     super(w, ctx.now, dropped);
   }
 
+  /**
+   * The user ids this viewer's view names: the viewer, and everyone a record in it refers to (sellers, buyers, requesters, who added
+   * an event, who reported a problem). Review of PR #88: the store loads only these people's profiles, never every profile, and the view
+   * names no one else. Computed from the same selection as build.
+   */
+  personIds(): string[] {
+    const s = this.select();
+    const ids = new Set<string>([this.viewerId]);
+    for (const e of s.events) {
+      const by = EV[e.id]?.addedBy; // what eventView sends as addedBy, which people() names
+      if (by) ids.add(by);
+    }
+    for (const l of s.listings) ids.add(l.sellerId);
+    for (const r of s.requests) {
+      ids.add(r.buyerId);
+      if (r.problem) ids.add(r.problem.by);
+    }
+    for (const i of s.interests) ids.add(i.userId);
+    for (const x of s.shares) ids.add(x.sellerId);
+    for (const it of s.goods) ids.add(it.sellerId);
+    for (const g of s.goodsReqs) {
+      ids.add(g.buyerId);
+      if (g.problem) ids.add(g.problem.by);
+    }
+    return [...ids];
+  }
+
   build(): View {
+    const me = this.viewerId;
+    const { requests, goodsReqs, shares, listings, goods, interests, holdings, closed, events } = this.select();
+
+    const viewListings = listings.map((l) => this.listingView(l));
+    const viewItems = goods.map((it) => this.itemView(it));
+    const viewRequests = requests.map((r) => requestView(r, this.rEval(r)));
+    const viewGoodsReqs = goodsReqs.map((g) => goodsRequestView(g));
+    const viewEvents = events.map((e) => this.eventView(e));
+    const viewInterests = interests.map((i) => interestView(i, i.userId === me));
+    const people = this.people({ events: viewEvents, listings, requests, interests, shares, goods, goodsReqs });
+
+    return {
+      protocol: HANDOFF_PROTOCOL,
+      mode: "live",
+      worldId: this.ctx.worldId,
+      version: this.ctx.version,
+      serverNow: this.now,
+      nextRefreshAt: this.nextRefreshAt(viewListings, viewItems, requests, goodsReqs),
+      unreadCount: this.ctx.unreadCount,
+      // payMethods: the viewer's own methods (follow-on B1; a handle saved before B1 as one "other"), never anyone else's.
+      viewer: { id: me, name: this.me.name, email: this.me.email, payMethods: payMethodsView(this.me.payMethods) },
+      v: 11,
+      events: viewEvents,
+      people,
+      holdings: holdings.map(holdingView),
+      listings: viewListings,
+      requests: viewRequests,
+      interests: viewInterests,
+      closedRequests: closed,
+      responses: shares.map(shareView),
+      goods: viewItems,
+      goodsReqs: viewGoodsReqs,
+      notifications: this.ctx.notifications.filter((n) => n.userId === me).slice(0, VIEW_NOTIFICATIONS).map(notificationView),
+      strikes: {},
+      policies: {},
+      alertPrefs: {},
+      seen: {},
+      feedSeen: {},
+      suggestions: [],
+      feedbackGiven: false,
+      clockOffset: 0,
+      tick: 0,
+    };
+  }
+
+  /** Which stored records this viewer's view holds (C-CONTRACT §3.1), before any is put into its view's words. */
+  private select() {
     const me = this.viewerId;
 
     // Ticket requests, goods requests and shares: their two parties only (§3.1). Open ones always; finished ones the newest 200.
@@ -399,47 +486,7 @@ class Projection extends Records {
       const ev = EV[e.id];
       return ev !== undefined && (referenced.has(e.id) || (!ev.removedAt && keepUntil(ev)));
     });
-
-    const viewListings = listings.map((l) => this.listingView(l));
-    const viewItems = goods.map((it) => this.itemView(it));
-    const viewRequests = requests.map((r) => requestView(r, this.rEval(r)));
-    const viewGoodsReqs = goodsReqs.map((g) => goodsRequestView(g));
-    const viewEvents = events.map((e) => this.eventView(e));
-    const viewInterests = interests.map((i) => interestView(i, i.userId === me));
-    const people = this.people({ events: viewEvents, listings, requests, interests, shares, goods, goodsReqs });
-
-    return {
-      protocol: HANDOFF_PROTOCOL,
-      mode: "live",
-      worldId: this.ctx.worldId,
-      version: this.ctx.version,
-      serverNow: this.now,
-      nextRefreshAt: this.nextRefreshAt(viewListings, viewItems, requests, goodsReqs),
-      unreadCount: this.ctx.unreadCount,
-      // payMethods: the viewer's own methods (follow-on B1; a handle saved before B1 as one "other"), never anyone else's.
-      viewer: { id: me, name: this.me.name, email: this.me.email, payMethods: payMethodsView(this.me.payMethods) },
-      v: 11,
-      events: viewEvents,
-      people,
-      holdings: holdings.map(holdingView),
-      listings: viewListings,
-      requests: viewRequests,
-      interests: viewInterests,
-      closedRequests: closed,
-      responses: shares.map(shareView),
-      goods: viewItems,
-      goodsReqs: viewGoodsReqs,
-      notifications: this.ctx.notifications.filter((n) => n.userId === me).slice(0, VIEW_NOTIFICATIONS).map(notificationView),
-      strikes: {},
-      policies: {},
-      alertPrefs: {},
-      seen: {},
-      feedSeen: {},
-      suggestions: [],
-      feedbackGiven: false,
-      clockOffset: 0,
-      tick: 0,
-    };
+    return { requests, goodsReqs, shares, listings, goods, interests, holdings, closed, events };
   }
 
   // ── When records end, and which are finished ─────────────────────────────────────────
@@ -475,6 +522,18 @@ class Projection extends Records {
   }
   private goodsFinal(g: StoredGoodsRequest): boolean {
     return GFINAL.includes(this.gEval(g).st) && !openProblem(g.problem);
+  }
+  /** When a finished exchange ended (it completed, or its last step's time), or null while it's open or disputed. */
+  private requestEndedAt(r: StoredRequest): number | null {
+    if (!this.requestFinal(r)) return null;
+    const last = Array.isArray(r.history) && r.history.length > 0 ? r.history[r.history.length - 1]!.at : r.createdAt;
+    return typeof r.completedAt === "number" ? r.completedAt : last;
+  }
+  /** The same for a goods request. */
+  private goodsEndedAt(g: StoredGoodsRequest): number | null {
+    if (!this.goodsFinal(g)) return null;
+    const last = Array.isArray(g.history) && g.history.length > 0 ? g.history[g.history.length - 1]!.at : g.createdAt;
+    return typeof g.completedAt === "number" ? g.completedAt : last;
   }
   /** Finished for its seller: ended, and nothing on it is still in progress or disputed. */
   private listingFinalForOwner(l: StoredListing): boolean {
@@ -719,24 +778,27 @@ class Projection extends Records {
       if (g.problem) ids.add(g.problem.by);
     }
 
-    // Links and contact, from every record (not only those in the view): a relationship doesn't depend on the view's bounds.
+    // Links and contact, from every record (not only those in the view): a relationship doesn't depend on the view's bounds. Review of
+    // PR #88: a full name comes only from a trade that is open or ended within the last 14 days (`recent`), so it doesn't stay visible
+    // for good once the two stopped trading; after that the other person reads as "First L." like anyone else.
     const linked = new Set<string>();
     const contact = new Set<string>();
     for (const r of this.requests) {
       const sellerId = this.listing(r.listingId).sellerId;
       const other = r.buyerId === me ? sellerId : sellerId === me ? r.buyerId : null;
-      if (other === null || other === me) continue;
+      if (other === null || other === me || !this.recent(this.requestEndedAt(r))) continue;
       linked.add(other);
       if (CONTACT_REVEAL.has(baseSt(this.rEval(r)))) contact.add(other);
     }
     for (const g of this.goodsReqs) {
       const sellerId = this.item(g.itemId).sellerId;
       const other = g.buyerId === me ? sellerId : sellerId === me ? g.buyerId : null;
-      if (other === null || other === me) continue;
+      if (other === null || other === me || !this.recent(this.goodsEndedAt(g))) continue;
       linked.add(other);
       if (GOODS_CONTACT.has(this.gEval(g).st) && g.consent?.buyer === true && g.consent?.seller === true) contact.add(other);
     }
     for (const x of this.shares) {
+      if (this.shareFinal(x)) continue;
       const requesterId = this.interest(x.isoId).userId;
       const other = x.sellerId === me ? requesterId : requesterId === me ? x.sellerId : null;
       if (other !== null && other !== me) linked.add(other);

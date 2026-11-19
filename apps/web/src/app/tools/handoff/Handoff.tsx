@@ -3,9 +3,9 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { signIn } from "next-auth/react";
-import type { GuestView, View } from "@penntools/tool-handoff";
+import type { ActAnswer, ActInput, GuestView, View } from "@penntools/tool-handoff";
 import type { SignInProvider } from "@/lib/auth";
-import { act, markRead, refresh, saveEmailPrefs, saveMyProfile } from "./actions";
+import { act, deleteMyData, markRead, refresh, saveMyProfile } from "./actions";
 import type { LiveApi } from "./_lib/live-link";
 import { isSessionMessage, renders, startsConcealed } from "./_lib/confirm";
 
@@ -23,10 +23,27 @@ const HandoffPreview = dynamic(() => import("./_preview/HandoffPreview"), {
 });
 
 /**
+ * A change that carries a photo goes to the tool's act route (act/route.ts), which reads its body with a size cap; every other change
+ * is the act server action (review of PR #88: no photo through a server action). The route answers what the server action would.
+ */
+async function actWithPhoto(input: ActInput): Promise<ActAnswer> {
+  if (!input.photo) return act(input);
+  const res = await fetch("/tools/handoff/act", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(input),
+  });
+  const answer: unknown = await res.json().catch(() => null);
+  if (answer && typeof answer === "object" && "ok" in answer) return answer as ActAnswer;
+  throw new Error(`Handoff: the act route answered ${res.status}.`); // like a lost server action: the link offers to try again
+}
+
+/**
  * The page's server actions, as the live app calls them (C-CONTRACT.md §1). A guest's page only refreshes (§7). Typed as the live link's
  * LiveApi (_lib/live-link.ts), so an action whose input or answer changes shape fails pnpm typecheck until the link follows it.
  */
-const API: LiveApi = { act, refresh, markRead, saveMyProfile, saveEmailPrefs };
+const API: LiveApi = { act: actWithPhoto, refresh, markRead, saveMyProfile, deleteMyData };
 
 type Props =
   /**

@@ -43,7 +43,11 @@ async function dbState(): Promise<unknown> {
   const counts = await db.sql`
     SELECT (SELECT count(*)::int FROM actions) AS actions, (SELECT count(*)::int FROM notifications) AS notifications,
            (SELECT count(*)::int FROM notifications WHERE read_at IS NOT NULL) AS read, (SELECT count(*)::int FROM world_snapshots) AS snapshots`;
-  return JSON.parse(JSON.stringify({ worlds, people, counts }));
+  // The market's rows (review of PR #88): every one, with its revision and contents.
+  const records = await db.sql`
+    SELECT count(*)::int AS n, md5(coalesce(string_agg(world_id || ':' || kind || ':' || id || ':' || rev || ':' || md5(data::text), ',' ORDER BY world_id, kind, id), '')) AS sum
+    FROM records`;
+  return JSON.parse(JSON.stringify({ worlds, people, counts, records }));
 }
 
 /** A guest view, checked against C-CONTRACT §7. */
@@ -143,7 +147,8 @@ describe.skipIf(!databaseUrl)("guest access through the store (real engine, Post
     const spy: EnginePort = { ...enginePort, run: (ctx, fn) => { runs.push(ctx.people.length); return enginePort.run(ctx, fn); } };
     const g = await getGuestView(db.sql, { worldId: w.worldId, now: w.now }, spy);
     await refreshGuestView(db.sql, { worldId: w.worldId, version: -1, nextRefreshAt: null, now: w.now }, spy);
-    expect(runs).toEqual([0, 0]);
+    expect(runs.length).toBeGreaterThanOrEqual(2); // the views, and working out the market's next deadline
+    expect(runs.filter((n) => n !== 0)).toEqual([]); // every one with no profile row
     const text = JSON.stringify(g);
     for (const v of [A.id, A.name!, "Handoff A.", A.email!, "@handoff-test-a", "CANARY-EVENT-NOTE"]) expect(text, v).not.toContain(v);
     // The signed-in view of the same world names A (the canaries are real).

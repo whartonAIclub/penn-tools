@@ -10,7 +10,6 @@ import {
   gState, itemState, goodsMatches, unitOf, aUnit, listingPaused, itemPaused, inviteFlowOn, dotJoin, faceName, FaceName, itemPrice, MATCHES_WHERE
 } from "@penntools/tool-handoff/engine";
 import { LIVE } from "../_lib/mode";
-import { emailOffer, CAPTURE_NOTE } from "../_lib/email";
 import { demoElement } from "../_lib/dom";
 import { useDraftSource } from "../_lib/session";
 import { deadlineText } from "../_lib/format";
@@ -19,14 +18,9 @@ import { Icon, Avatar, useDialog, Confirm } from "./ui";
 
 /* Get notified: a private alert for one event, how many and an optional private max per unit (blank: any price). Only its owner sees it:
    it posts nothing publicly, holds nothing and never counts as demand. Save creates or updates it (joinAlert); Pause or Resume and Turn off
-   change the open one (setAlert, closeInterest). A dialog: focus moves in, Tab stays inside, Escape or Close dismisses it.
-   Live (follow-on B4): while the view offers email (emailOffer) and "Matches for your requests and alerts" is off, one unchecked "Also email me
-   matches (to <address>)"; saved (saveEmail) only once the alert itself is saved, quietly, so the alert's own toast stays; a refusal is
-   flashed and the alert stands. Nothing is typed for it: the address is the account's sign-in address. */
-export function AlertDialog({ ev, s, me, dispatch, onClose, onDone, draft, saveEmail, flash }) { // draft: its values when a session ended in it (keepDraft), back after sign-in
+   change the open one (setAlert, closeInterest). A dialog: focus moves in, Tab stays inside, Escape or Close dismisses it. */
+export function AlertDialog({ ev, s, me, dispatch, onClose, onDone, draft }) { // draft: its values when a session ended in it (keepDraft), back after sign-in
   const al = myAlertFor(s, me, ev.id); const u = unitOf(ev); const lim = personCap(ev); const top = demandCap(ev);
-  const emailBox = saveEmail ? (e => e && !e.matches ? e : null)(emailOffer(s)) : null; // the offer, while matches are not emailed yet (and this dialog can save it)
-  const [alsoEmail, setAlsoEmail] = useState(false);
   const k = draft && draft.eventId === ev.id ? draft : null;
   const [qty, setQty] = useState(() => Math.min(k && Number.isInteger(k.qty) && k.qty >= 1 ? k.qty : (al && al.qty) || 1, lim));
   const [max, setMax] = useState(() => k && typeof k.max === "string" ? k.max : al && al.max != null ? String(al.max) : "");
@@ -41,8 +35,6 @@ export function AlertDialog({ ev, s, me, dispatch, onClose, onDone, draft, saveE
     e.preventDefault(); if (err) return;
     const r = await dispatch({ type: "joinAlert", eventId: ev.id, qty, max: max.trim() });
     if (r.error) return;
-    // Only once the alert is saved: email matches too (quiet: the alert's toast stays); if that's refused, the alert stands and the refusal shows.
-    if (alsoEmail && emailBox && saveEmail) { const e2 = await saveEmail({ matches: true }, true); if (e2.error && flash) flash("Email updates weren't turned on: " + e2.error, "error"); }
     done(r);
   };
   return (
@@ -60,8 +52,6 @@ export function AlertDialog({ ev, s, me, dispatch, onClose, onDone, draft, saveE
             <div className="money"><span>$</span><input id="al-max" type="text" inputMode="decimal" value={max} onChange={e => setMax(e.target.value)} aria-invalid={!!err} aria-describedby="al-max-msg" /></div>
             <span id="al-max-msg" className={err ? "err" : "help"}>{err || (LIVE && !Number.isFinite(top) ? "Blank means any price. Never shown to anyone." : top > 0 ? `Blank means any price. Never shown to anyone; up to ${money(top)}${ev.premium ? ", what sellers have paid so far" : LIVE ? `, ${faceName(ev)}` : ", the top ticket price"}.` : "Leave it blank for now: sellers can't ask more than they've paid so far ($0).")}</span></div>
           {al && al.paused && <div className="callout warn">Paused: it won't alert you until you resume it.</div>}
-          {emailBox && <label className="check al-email" htmlFor="al-email"><input id="al-email" type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} aria-describedby="al-email-help" />
-            <span>Also email me matches (to {emailBox.address})<span id="al-email-help" className="muted" style={{ display: "block", fontSize: 12.5 }}>{emailBox.mode === "capture" ? CAPTURE_NOTE : "For all your requests and alerts. Turn it off anytime in Handoff settings."}</span></span></label>}
           {!LIVE && <AlertOptIn s={s} me={me} dispatch={dispatch} idp="al-via" compact />}
           <div className="actions">
             <button type="submit" className="btn btn-primary" disabled={!!err}><Icon name="bell" size={15} />{al ? "Save" : "Turn on alert"}</button>
@@ -158,8 +148,8 @@ export function RequestManage({ i, s, go, dispatch, openShare, from }) {
             </li>); })}</ul>
           : <p className="muted" style={{ fontSize: 13.5 }}>{open && liveRequest(s, i) ? (LIVE && !gd
             // §9q item 4 (live, a ticket request): where a match shows, kept on the request's own card: the bell and My activity (the
-            // engine's MATCHES_WHERE), and email only while it's available and on for matches (emailOffer).
-            ? <span data-matches-where="">Nothing yet. A classmate with {aUnit(u)} can share a listing with your request. {MATCHES_WHERE.replace(/\.$/, "")}{(e => !!e && e.matches === true)(emailOffer(s)) ? ", and by email" : ""}.</span>
+            // engine's MATCHES_WHERE).
+            ? <span data-matches-where="">Nothing yet. A classmate with {aUnit(u)} can share a listing with your request. {MATCHES_WHERE}</span>
             : `Nothing yet. A classmate with ${gd ? "one" : aUnit(u)} can share ${gd ? "it" : "a listing"} with your request, and you'll get an alert.`) : "Nothing was shared with this request."}</p>}
         {shares.length > 0 && open && <p className="muted" style={{ fontSize: 13 }}>Nothing is held for you: {gd ? "request it or make an offer" : ev && isQuick(ev) ? (LIVE && inviteFlowOn() ? "ask to buy it" : "take it or make an offer") : "send a request"} like anyone else.</p>}
       </div>

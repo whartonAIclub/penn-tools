@@ -3357,7 +3357,7 @@ const FIXTURES = Object.freeze({ events: Object.freeze(EVENTS.slice()), clubs: O
 /** The preview's sample people, whatever catalog is installed: seed() names them from here, so the sample data is the same
     after a live world was installed, or between withEngine runs (when PEOPLE is empty). */
 export const SAMPLE_PEOPLE = FIXTURES.people;
-/* Anyone a live world refers to who has no profile (rare: a profile is saved on every visit). demo: no simulate branches. */
+/* Anyone a live world refers to who has no profile (someone who deleted their Handoff data: a profile is saved by an account's first change). demo: no simulate branches. */
 const CLASSMATE = Object.freeze({ name: "A classmate", first: "A classmate", color: "#64748B", demo: true, pay: "", payMethods: Object.freeze([]), memberships: Object.freeze([]) });
 const LIVE_PEOPLE_FALLBACK = new Proxy(Object.create(null), { get: (target, key) => typeof key === "string" ? CLASSMATE : undefined });
 const PALETTE = ["#2563A8", "#0E7C66", "#7C4DBA", "#B4532A", "#A23B63", "#3E6B2F", "#1F6FB2", "#8A6A10", "#0E7C86"]; // the sample people's avatar colors

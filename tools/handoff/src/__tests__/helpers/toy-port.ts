@@ -15,6 +15,7 @@ import type {
   EnginePort,
   GuestContext,
   LiveAction,
+  MarketRecord,
   ParseResult,
   ProjectContext,
   ReduceResult,
@@ -36,6 +37,8 @@ export interface ToyItem {
   listed: number;
   holds: ToyHold[];
   withdrawnAt: number | null;
+  /** The seller's note (the memo lever: one record grown large). */
+  memo?: string;
 }
 
 /** Listing-like records, to grow the document the way real data does (many small objects, not one string). */
@@ -74,7 +77,14 @@ export const TOY_TEXT = {
  * run, and a count of engine runs that were given someone's email (the store must never do that: only the
  * projection's context carries emails).
  */
-export const toyControls = { failProject: 0, failSweep: 0, sweepRuns: 0, runsWithEmail: 0 };
+export const toyControls = {
+  failProject: 0,
+  failSweep: 0,
+  sweepRuns: 0,
+  runsWithEmail: 0,
+  /** A deadline nextDue reports though nothing in the document acts on it (a sweep then finds nothing to store), or null. */
+  phantomDue: null as number | null,
+};
 
 const ITEM = /^i-[a-z0-9-]{1,24}$/;
 const HOLD = /^h[0-9a-f]{16}$/;
@@ -87,6 +97,32 @@ let running = false;
 export const toyPort: EnginePort = {
   empty(): ToyDoc {
     return { mode: "live", lastStamp: 0, stock: {}, pad: [], notifications: [] };
+  },
+  // Review of PR #88, the toy way: each stock item (its holds inside it) and each pad record is its own row, both oldest first.
+  split(doc: WorldDoc): { meta: WorldDoc; records: MarketRecord[] } {
+    const d = doc as ToyDoc;
+    const records: MarketRecord[] = [];
+    for (const [id, it] of Object.entries(d.stock ?? {})) {
+      records.push({ kind: "item", id, data: it as unknown as Record<string, unknown>, owner: it.seller, open: it.withdrawnAt === null, parent: null, guards: [] });
+    }
+    for (const p of d.pad ?? []) {
+      records.push({ kind: "pad", id: p.id, data: p as unknown as Record<string, unknown>, owner: p.sellerId, open: false, parent: null, guards: [] });
+    }
+    return { meta: { ...d, stock: {}, pad: [] } as ToyDoc, records };
+  },
+  join(meta: WorldDoc, records: readonly { kind: string; id: string; data: Record<string, unknown> }[]): WorldDoc {
+    const doc = { ...meta, stock: {}, pad: [] } as unknown as ToyDoc;
+    for (const r of records) {
+      if (r.kind === "item") doc.stock[r.id] = r.data as unknown as ToyItem;
+      else if (r.kind === "pad") doc.pad.push(r.data as unknown as ToyPad);
+      else throw new Error(`toy engine: no record kind "${r.kind}".`);
+    }
+    return doc;
+  },
+  orders: () => ({ item: "oldestFirst", pad: "oldestFirst" }),
+  viewPeople(doc: WorldDoc, viewerId: string): string[] {
+    requireRun();
+    return [viewerId, ...Object.values((doc as ToyDoc).stock).map((it) => it.seller)];
   },
   parse,
   actionIds(action: LiveAction): Record<string, string> {
@@ -185,6 +221,10 @@ function parse(raw: unknown): ParseResult {
     case "withdraw":
     case "corrupt":
       return item ? { ok: true, action: { type, item } } : bad;
+    case "memo": {
+      const bytes = int("bytes", 0, 2_000_000);
+      return item && bytes !== null ? { ok: true, action: { type, item, bytes } } : bad;
+    }
     case "note": {
       const to = raw["to"];
       const text = raw["text"];
@@ -295,6 +335,15 @@ function reduce(prev: ToyDoc, actorId: string | null, a: LiveAction): ReduceResu
     case "trim":
       n.pad = [];
       return { state: n, toast: "Trimmed." };
+    case "memo": {
+      // One record grown to `bytes` (or emptied with 0): the seller's long note, as a listing's history grows.
+      if (!it) return fail(TOY_TEXT.noItem);
+      if (it.seller !== actorId) return fail(TOY_TEXT.notSeller);
+      const bytes = a["bytes"] as number;
+      if (bytes > 0) it.memo = "m".repeat(bytes);
+      else delete it.memo;
+      return { state: n, toast: "Noted." };
+    }
     case "boom":
       throw new Error("toy engine exploded");
     case "corrupt": {
@@ -318,7 +367,8 @@ function sweepExpired(n: ToyDoc): void {
 
 function nextDue(d: ToyDoc): number | null {
   requireRun();
-  let due: number | null = null;
+  const phantom = toyControls.phantomDue;
+  let due: number | null = phantom !== null && phantom > CLOCK ? phantom : null;
   for (const it of Object.values(d.stock)) {
     for (const h of it.holds) if (h.until !== null && h.until > CLOCK && (due === null || h.until < due)) due = h.until;
   }

@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import type { Sql } from "postgres";
 import * as E from "../../../engine/index.js";
 import type { LiveWorld } from "../../../engine/index.js";
-import { applyAction, ensurePerson, getView, type ApplyInput } from "../../store.js";
+import { applyAction, ensurePerson, getView, readStoredWorld, type ApplyInput } from "../../store.js";
 import type { ActOutcome, Actor, View, WorldId } from "../../types.js";
 import { contractViolations } from "./contract.js";
 
@@ -23,6 +23,9 @@ export const T0 = E.wallToMs("2026-11-10T12:00");
 export const TEST_A: Actor = { id: "handoff-test-a", name: "Handoff Test A", email: "handoff-test-a@example.invalid" };
 export const TEST_B: Actor = { id: "handoff-test-b", name: "Handoff Test B", email: "handoff-test-b@example.invalid" };
 export const TEST_C: Actor = { id: "handoff-test-c", name: "Handoff Test C", email: "handoff-test-c@example.invalid" };
+
+/** No per-account limits (review of PR #88): what StoreWorld sends unless a test passes its own. */
+export const NO_LIMITS = Object.freeze({ openRecords: null, perMinute: null });
 
 export type Ok = Extract<ActOutcome, { ok: true }>;
 export type Refused = Extract<ActOutcome, { code: "refused" }>;
@@ -97,8 +100,12 @@ export class StoreWorld {
     this.now = now;
   }
 
+  /**
+   * Runs an action at the world's time. The per-account limits (review of PR #88) are off unless a test passes its own: these tests
+   * send many changes from one account within a minute of the world's clock, which the limit tests check on purpose.
+   */
   act(actor: Actor, action: unknown, extra: Partial<ApplyInput> = {}): Promise<ActOutcome> {
-    return applyAction(this.sql, { worldId: this.worldId, actor, requestId: randomUUID(), action, now: this.now, ...extra });
+    return applyAction(this.sql, { worldId: this.worldId, actor, requestId: randomUUID(), action, now: this.now, limits: NO_LIMITS, ...extra });
   }
 
   async ok(actor: Actor, action: SentAction, extra: Partial<ApplyInput> = {}): Promise<Ok> {
@@ -122,11 +129,14 @@ export class StoreWorld {
     this.now += ms;
   }
 
-  /** The stored row, read straight from the table. */
+  /**
+   * The world as stored, read straight from its rows (no cache): its version, the whole document joined from them, and the next
+   * deadline still to sweep (next_due: what the first read after it sweeps; the store works it out from the rows since PR #88's
+   * review, where it used to store it).
+   */
   async row(): Promise<{ version: number; doc: LiveWorld; next_due: Date | null } | undefined> {
-    const [row] = await this.sql<{ version: number; doc: LiveWorld; next_due: Date | null }[]>`
-      SELECT version, doc, next_due FROM worlds WHERE id = ${this.worldId}`;
-    return row;
+    const w = await readStoredWorld(this.sql, this.worldId);
+    return w && { version: w.version, doc: w.doc as unknown as LiveWorld, next_due: w.nextDue === null ? null : new Date(w.nextDue) };
   }
 
   async createEvent(actor: Actor, over: Record<string, unknown> = {}): Promise<string> {
@@ -146,6 +156,24 @@ export class StoreWorld {
     if (!done.resultId) throw new Error("addThen returned no id");
     return done.resultId;
   }
+}
+
+/**
+ * Puts a whole document in place of a world's market, as a world from before the rows, or a manual fix to its document, would leave
+ * it: one document in worlds.doc, not yet split into rows (the store splits it at its next write and keeps its version, as on the
+ * first deploy of the rows: review of PR #88). The version stays what it was. For tests of damage already stored.
+ */
+export async function storeDocument(sql: Sql, worldId: WorldId, doc: unknown, opts: { nextDue?: number | null } = {}): Promise<void> {
+  await sql.begin(async (raw) => {
+    const tx = raw as unknown as Sql;
+    const [row] = await tx<{ version: number }[]>`
+      SELECT (w.version + coalesce((SELECT sum(r.tally) FROM records r WHERE r.world_id = w.id), 0))::int AS version
+      FROM worlds w WHERE w.id = ${worldId} FOR UPDATE`;
+    if (!row) throw new Error(`storeDocument: no world ${worldId}.`);
+    await tx`DELETE FROM records WHERE world_id = ${worldId}`;
+    const due = opts.nextDue === undefined || opts.nextDue === null ? null : new Date(opts.nextDue);
+    await tx`UPDATE worlds SET doc = ${JSON.stringify(doc)}::text::jsonb, version = ${row.version}, split_at = NULL, next_due = ${due} WHERE id = ${worldId}`;
+  });
 }
 
 /** A TEST seller's profile with the handle `@<id>` (one saved before B1, read as one "other" method), unless it has a way to be paid. */

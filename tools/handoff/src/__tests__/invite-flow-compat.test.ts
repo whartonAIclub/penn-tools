@@ -16,10 +16,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as E from "../../engine/index.js";
 import type { Action, EngineNotification, LiveWorld } from "../../engine/index.js";
 import { runSelfTests, seed } from "../../engine/preview.js";
-import type { WorldDoc } from "../engine-port.js";
-import { emailRelevance } from "../email/relevance.js";
-import { renderEmail } from "../email/templates.js";
-import type { EmailKind, Relevance } from "../email/types.js";
 import {
   OPEN_UNTIL, ask, copyOf, invite, inviteAction, invited, lastHistory, listWithoutHandle, listingOf, market, must, noteRows, numbers, on,
   reqOf, reserve, reserveAction, reserved, resetEngine, statusOf, textsFor, violationsOf,
@@ -381,29 +377,21 @@ describe("once it's switched on, a new exchange starts only the new way (B5.7d)"
     expect(sinceOf(fresh)).toBe(0);
   });
 
-  it("tells a requester to ask to buy a shared listing, where it used to say reserve it or make an offer: in the app and in its email", () => {
+  it("tells a requester to ask to buy a shared listing, where it used to say reserve it or make an offer", () => {
     const share = (switchOn: boolean) => {
       E.setInviteSwitch(switchOn);
       const { w, ev, l } = market();
       const iso = must(w.ok(BOB.userId, publicRequest(w, ev)).id, "Bob's public request");
       const done = w.ok(ANN.userId, { type: "shareListing", isoId: iso, listingId: l });
-      // The email for the same share, as the dispatcher builds it at send time (the B5 fix round, F1): the same step, the same words.
-      const rel = w.run(() => emailRelevance(w.doc as unknown as WorldDoc, { notificationId: "n0000000000000001", userId: BOB.userId, kind: "share.listing", ref: must(done.id, "the share"), link: null }));
-      if (!rel.ok) throw new Error(`the share's email isn't worth sending: ${rel.why}`);
-      const mail = must(renderEmail("share.listing", rel.facts, "http://localhost:3000"), "the share's email");
-      return { toast: done.toast, note: must(textsFor(done.notes, BOB)[0], "Bob's note"), how: rel.facts.how, email: mail.text.split("\n")[0] };
+      return { toast: done.toast, note: must(textsFor(done.notes, BOB)[0], "Bob's note") };
     };
     expect(share(false)).toEqual({
       toast: "Shared with Bob. Nothing is held: they reserve it or make an offer like anyone else.",
       note: "Ann L. shared a listing for Spring Formal with your request: 1 ticket at $35. It isn't held for you: reserve it or make an offer on the event page.",
-      how: "reserve",
-      email: "It isn't held for you: reserve it or make an offer on its page.",
     });
     expect(share(true)).toEqual({
       toast: "Shared with Bob. Nothing is held: they ask to buy it like anyone else.",
       note: "Ann L. shared a listing for Spring Formal with your request: 1 ticket at $35. It isn't held for you: ask to buy it on the event page.",
-      how: "ask",
-      email: "It isn't held for you: ask to buy it on its page.",
     });
   });
 });
@@ -737,84 +725,5 @@ describe("who still needs a way to be paid (the last-method guard's rule, FOLLOW
     w.advance(7 * HOUR);
     expect(needed(w, ANN)).toBe(0);
     expect(needed(w, BOB)).toBe(0);
-  });
-});
-
-describe("emails about the new steps are worth sending only while they wait (B5.9)", () => {
-  const check = (w: LiveTestWorld, kind: EmailKind, to: TestPerson, ref: string): Relevance =>
-    w.run(() => emailRelevance(w.doc as unknown as WorldDoc, { notificationId: "n0000000000000001", userId: to.userId, kind, ref, link: null }));
-  const why = (r: Relevance): string => (r.ok ? "ok" : r.why);
-
-  it("a request to buy until the seller answers; an invitation until it's reserved, paused, closed or ended", () => {
-    const { w, ev, l } = market({ qty: 3 });
-    const r = ask(w, BOB, l);
-    expect(check(w, "buy.requested", ANN, r)).toEqual({
-      ok: true,
-      facts: { title: "Spring Formal", who: "Bob", unit: "ticket", qty: null, due: DUE, price: null, obo: false, via: null, eventId: ev, listingId: l, itemId: null },
-    });
-    expect(why(check(w, "buy.requested", BOB, r))).toBe("missing"); // the seller's to answer, nobody else's
-    expect(why(check(w, "buy.requested", FAY, r))).toBe("missing");
-
-    invite(w, ANN, r);
-    expect(why(check(w, "buy.requested", ANN, r))).toBe("answered");
-    expect(check(w, "buy.invited", BOB, r)).toMatchObject({ ok: true, facts: { title: "Spring Formal", who: "Ann", due: DUE, price: null, eventId: ev, listingId: l } });
-    expect(why(check(w, "buy.invited", ANN, r))).toBe("missing"); // the buyer's to reserve
-
-    // Paused: nothing can be reserved, so the email waits; resumed: worth sending again.
-    w.ok(ANN.userId, { type: "pauseListing", listingId: l });
-    expect(why(check(w, "buy.invited", BOB, r))).toBe("paused");
-    w.ok(ANN.userId, { type: "resumeListing", listingId: l });
-    expect(why(check(w, "buy.invited", BOB, r))).toBe("ok");
-    reserve(w, BOB, r);
-    expect(why(check(w, "buy.invited", BOB, r))).toBe("answered");
-
-    // Ended invitations are skipped: declined by the buyer, withdrawn by the seller, run out, or the listing closed.
-    const declined = invited(w, ANN, CAT, l);
-    w.ok(CAT.userId, on("cancel", declined));
-    expect(why(check(w, "buy.invited", CAT, declined))).toBe("closed");
-    const withdrawn = invited(w, ANN, DAN, l);
-    w.ok(ANN.userId, on("decline", withdrawn));
-    expect(why(check(w, "buy.invited", DAN, withdrawn))).toBe("closed");
-    const lapsed = invited(w, ANN, EVE, l);
-    const waiting = ask(w, FAY, l);
-    w.advance(6 * HOUR + MIN);
-    expect(why(check(w, "buy.invited", EVE, lapsed))).toBe("expired");
-    expect(why(check(w, "buy.requested", ANN, waiting))).toBe("expired");
-  });
-
-  it("an invitation on a listing its seller closed is skipped", () => {
-    const { w, l } = market({ qty: 2 });
-    const r = invited(w, ANN, BOB, l);
-    const asked = ask(w, CAT, l);
-    w.ok(ANN.userId, { type: "withdraw", listingId: l });
-    expect(why(check(w, "buy.invited", BOB, r))).toBe("closed");
-    expect(why(check(w, "buy.requested", ANN, asked))).toBe("closed");
-  });
-
-  it("never for a record from before invitations", () => {
-    E.setInviteSwitch(false); // before the switch: the listing and an offer on it
-    const { w, l } = market({ qty: 2, obo: true });
-    const older = must(w.ok(BOB.userId, offer(l, "30")).id, "the older offer");
-    E.setInviteSwitch(null);
-    expect(why(check(w, "buy.requested", ANN, older))).toBe("missing");
-    w.ok(ANN.userId, on("accept", older));
-    expect(why(check(w, "buy.invited", BOB, older))).toBe("missing");
-    expect(why(check(w, "payment.late", ANN, older))).toBe("missing");
-  });
-
-  it("a late payment report while it's open", () => {
-    const { w, ev, l } = market();
-    const r = reserved(w, ANN, BOB, l);
-    expect(why(check(w, "payment.late", ANN, r))).toBe("missing"); // nothing reported
-    w.advance(16 * MIN);
-    w.sweep();
-    w.ok(BOB.userId, { type: "reportProblem", kind: "ticket", id: r, reason: E.LATE_PAYMENT });
-    expect(check(w, "payment.late", ANN, r)).toEqual({
-      ok: true,
-      facts: { title: "Spring Formal", who: "Bob", unit: "ticket", qty: null, due: null, price: null, obo: false, via: null, eventId: ev, listingId: l, itemId: null },
-    });
-    expect(why(check(w, "payment.late", BOB, r))).toBe("missing"); // the seller's to read
-    w.ok(BOB.userId, { type: "resolveProblem", kind: "ticket", id: r });
-    expect(why(check(w, "payment.late", ANN, r))).toBe("answered");
   });
 });

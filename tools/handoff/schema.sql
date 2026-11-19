@@ -3,10 +3,11 @@
 -- database, see "Database setup" in tools/handoff/README.md).
 -- Every statement must be safe to re-run. There is no seed: the live market starts empty.
 -- User ids are platform users.id values; there are no foreign keys because this role can't read public.users.
--- Times are TIMESTAMPTZ; quantities, money and ids inside the market live in worlds.doc (JSON, as the
+-- Times are TIMESTAMPTZ; quantities, money and ids inside the market live in records.data (JSON, as the
 -- prototype's state). Changing an inline CHECK later needs ALTER TABLE ... DROP CONSTRAINT IF EXISTS / ADD.
 
--- The marketplace: one JSON document per world, written only under SELECT ... FOR UPDATE (one writer at a time).
+-- The marketplace: one row per world. Its records are rows of their own (`records`, below); doc holds the rest of the market's
+-- document, or, for a world written before the rows, the whole document until its first write splits it.
 -- "live" is the shared market; "test-..." worlds exist only for development checks and tests.
 -- The doc CHECK uses containment, so a document whose mode is missing or null is refused too
 -- (doc->>'mode' = 'live' would be NULL for those, and a CHECK accepts NULL).
@@ -19,7 +20,8 @@ CREATE TABLE IF NOT EXISTS worlds (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Profiles: the account's name and email (refreshed on every visit) and what the user chose to share.
+-- Profiles: the account's name and email and what the user chose to share. Made by the account's first change (opening Handoff saves
+-- nothing: review of PR #88), refreshed by each change after, and deleted by "Delete my Handoff data" (store.ts deleteMyData).
 -- One row per user, shared by all worlds. Other users see only what the projection allows.
 CREATE TABLE IF NOT EXISTS people (
   user_id    TEXT        PRIMARY KEY CHECK (char_length(user_id) BETWEEN 1 AND 64),
@@ -88,63 +90,47 @@ ALTER TABLE people ADD COLUMN IF NOT EXISTS pay_methods JSONB NOT NULL DEFAULT '
               THEN jsonb_array_length(pay_methods) <= 2 AND octet_length(pay_methods::text) <= 1200
               ELSE false END);
 
--- Follow-on B4: email updates. Jobs hold ids and fixed codes only; addresses live in email_prefs and the local capture.
--- Deletes cascade from worlds to notifications to jobs to captures, and from people to preferences (src/email/*.ts).
-CREATE TABLE IF NOT EXISTS email_prefs (            -- one row per account; the address is its PennTools sign-in email at opt-in
-  user_id         TEXT        PRIMARY KEY REFERENCES people (user_id) ON DELETE CASCADE,
-  address         TEXT        NOT NULL CHECK (char_length(address) BETWEEN 3 AND 254 AND address ~ '^[^@[:space:]]+@[^@[:space:]]+$'),
-  sign_in         TEXT        NOT NULL CHECK (sign_in IN ('google', 'dev')),
-  exchange_on     BOOLEAN     NOT NULL DEFAULT FALSE,
-  matches_on      BOOLEAN     NOT NULL DEFAULT FALSE,
-  consent_version TEXT        NOT NULL CHECK (consent_version ~ '^v[0-9]{1,3}$'),
-  consented_at    TIMESTAMPTZ NOT NULL,              -- the last time a category was turned on
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- Review of PR #88: the market as rows. Every event, holding, listing, exchange (a request on a listing), public request or alert,
+-- share, item and goods request is its own row here, so a change writes only the rows it touches, locks only those (and the rows
+-- they depend on, such as an exchange's listing) and the profiles of the people whose records change, and unrelated trades go
+-- through at the same time. worlds.doc keeps only the rest of the document (its settings), with "format": "rows"; split_at is when
+-- a world written before this was split into rows (store.ts ensureSplit, at its first write, after a before-upgrade snapshot).
+-- A world's version is worlds.version plus every row's tally: each change adds one, on one of the rows it writes (or on the world's
+-- row when it changes that anyway), so the version counts changes and no row is written by every change. rev is the row's own
+-- revision, which app instances compare to read only the rows that changed since their copy. `ord` keeps each list's order (the
+-- engine adds some at the front, some at the end); `data` is the record exactly as the engine keeps it. owner_id, open and parent_id
+-- repeat what the record says (store.ts writes them from it): parent_id for the photo route, which reads an item's own rows only;
+-- owner_id and open (open by the record's own fields; the per-account limit asks the engine, which also knows the time) for
+-- diagnostics. A manual fix to a row must raise its rev and its tally, or app instances keep their copy.
+ALTER TABLE worlds ADD COLUMN IF NOT EXISTS split_at TIMESTAMPTZ;
+CREATE SEQUENCE IF NOT EXISTS record_ord;
+CREATE TABLE IF NOT EXISTS records (
+  world_id   TEXT        NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
+  kind       TEXT        NOT NULL CHECK (kind ~ '^[A-Za-z]{1,24}$'),
+  id         TEXT        NOT NULL CHECK (char_length(id) BETWEEN 1 AND 80),
+  ord        BIGINT      NOT NULL,
+  rev        INTEGER     NOT NULL DEFAULT 1 CHECK (rev >= 1),
+  tally      INTEGER     NOT NULL DEFAULT 0 CHECK (tally >= 0),
+  stamp      BIGINT      NOT NULL DEFAULT 0,    -- the engine's stamp clock (lastStamp) as the write that stored it left it
+  owner_id   TEXT        CHECK (owner_id IS NULL OR char_length(owner_id) BETWEEN 1 AND 64),
+  open       BOOLEAN     NOT NULL DEFAULT false,
+  parent_id  TEXT        CHECK (parent_id IS NULL OR char_length(parent_id) BETWEEN 1 AND 80),
+  data       JSONB       NOT NULL CHECK (jsonb_typeof(data) = 'object'),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),   -- the time of the write that stored it (the engine's clock)
+  PRIMARY KEY (world_id, kind, id)
 );
-CREATE TABLE IF NOT EXISTS email_dispatch (         -- heartbeat: jobs are made, and opt-in offered, only while last_ok_at < 10 min old
-  sender      TEXT        PRIMARY KEY CHECK (sender IN ('capture', 'provider')),
-  last_run_at TIMESTAMPTZ NOT NULL,
-  last_ok_at  TIMESTAMPTZ
-);
-CREATE TABLE IF NOT EXISTS email_jobs (             -- one email per notification of an emailed kind, written in its transaction
-  world_id        TEXT        NOT NULL,
-  notification_id TEXT        NOT NULL,
-  user_id         TEXT        NOT NULL,
-  kind            TEXT        NOT NULL CHECK (kind ~ '^[a-z]+(\.[a-z]+){1,2}$' AND char_length(kind) <= 40),
-  category        TEXT        NOT NULL CHECK (category IN ('exchange', 'match')),
-  ref             TEXT        NOT NULL CHECK (ref ~ '^[0-9a-z-]{1,48}$'),
-  link            JSONB       NOT NULL CHECK (jsonb_typeof(link) = 'object'),
-  event_key       TEXT        NOT NULL CHECK (char_length(event_key) <= 160),   -- <change request id>:<kind>:<ref>
-  status          TEXT        NOT NULL DEFAULT 'pending'
-                  CHECK (status IN ('pending', 'sending', 'sent', 'failed', 'skipped', 'dead')),
-  reason          TEXT        CHECK (reason IS NULL OR reason ~ '^[a-z0-9_:]{1,60}$'),
-  attempts        SMALLINT    NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 20),
-  retry_at        TIMESTAMPTZ NOT NULL,
-  lease_until     TIMESTAMPTZ,
-  expires_at      TIMESTAMPTZ NOT NULL,
-  sent_at         TIMESTAMPTZ,
-  provider_id     TEXT        CHECK (provider_id IS NULL OR char_length(provider_id) <= 200),
-  created_at      TIMESTAMPTZ NOT NULL,
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (world_id, notification_id),
-  FOREIGN KEY (world_id, notification_id) REFERENCES notifications (world_id, id) ON DELETE CASCADE,
-  UNIQUE (world_id, user_id, event_key),
-  CHECK ((status = 'sending') = (lease_until IS NOT NULL)),
-  CHECK ((status = 'sent') = (sent_at IS NOT NULL)),
-  CHECK (expires_at > created_at)
-);
-CREATE INDEX IF NOT EXISTS email_jobs_due  ON email_jobs (retry_at) WHERE status IN ('pending', 'failed', 'sending');
-CREATE INDEX IF NOT EXISTS email_jobs_user ON email_jobs (user_id, category) WHERE status IN ('pending', 'failed');
-CREATE TABLE IF NOT EXISTS email_capture (          -- the capture sender's outbox (development, test worlds); kept 7 days
-  idempotency_key TEXT        PRIMARY KEY CHECK (char_length(idempotency_key) <= 120),
-  world_id        TEXT        NOT NULL,
-  notification_id TEXT        NOT NULL,
-  to_address      TEXT        NOT NULL CHECK (char_length(to_address) <= 254),
-  subject         TEXT        NOT NULL CHECK (char_length(subject) <= 200),
-  body_text       TEXT        NOT NULL CHECK (char_length(body_text) <= 4000),
-  action_url      TEXT        NOT NULL CHECK (char_length(action_url) <= 600),
-  captured_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  FOREIGN KEY (world_id, notification_id) REFERENCES email_jobs (world_id, notification_id) ON DELETE CASCADE
-);
+CREATE INDEX IF NOT EXISTS records_tally_idx ON records (world_id) INCLUDE (tally, rev);
+CREATE INDEX IF NOT EXISTS records_id_idx ON records (world_id, id);
+CREATE INDEX IF NOT EXISTS records_parent_idx ON records (world_id, parent_id) WHERE parent_id IS NOT NULL;
+-- The per-account limit on changes per minute counts one account's recent actions.
+CREATE INDEX IF NOT EXISTS actions_actor_at_idx ON actions (world_id, actor_id, at);
+
+-- Outbound email was removed from this tool (review of PR #88: a tool may not send its own email). Its four tables, made by earlier
+-- versions of this file, go with it; in-app notifications (above) are unchanged.
+DROP TABLE IF EXISTS email_capture;
+DROP TABLE IF EXISTS email_jobs;
+DROP TABLE IF EXISTS email_dispatch;
+DROP TABLE IF EXISTS email_prefs;
 
 -- §9s item 6: a Goods item's one optional photo. The image is here and nowhere else: worlds.doc holds only a reference on the item
 -- (pic: its version and size), so snapshots and the actions log never carry bytes. One row per item (the primary key); a replaced

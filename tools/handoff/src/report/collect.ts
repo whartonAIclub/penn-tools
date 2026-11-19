@@ -1,15 +1,14 @@
 // The pilot report's only database access: every read in one REPEATABLE READ, READ ONLY transaction, so the figures come from
-// one snapshot and nothing can be written (Postgres refuses any write in it). It reads the live world's row, counts of the other
-// tables, and the actions log's last 7 days (type, ok, actor and time: never its stored toasts or refusals). It never calls the
-// store: no profile row is made, no deadline is swept, no notification is marked read.
+// one snapshot and nothing can be written (Postgres refuses any write in it). It reads the live world (its rows joined into the
+// document by the store's readStoredWorld, a pure read), counts of the other tables, and the actions log's last 7 days (type, ok,
+// actor and time: never its stored toasts or refusals). No profile row is made, no deadline is swept, no notification is marked read.
 //
 // The caller passes the pool, with search_path set to Handoff's schema (the owner's runner, scripts/pilot-report.mjs) or to a
 // test's throwaway schema. Table names are unqualified for that reason; the one platform table, public.users, is read only when
 // asked to identify known TEST and Local Developer accounts, and only when this connection may read it.
 
 import type { Sql, TransactionSql } from "postgres";
-import type { WorldDoc } from "../engine-port.js";
-import { ACTIONS_KEEP_DAYS } from "../store.js";
+import { ACTIONS_KEEP_DAYS, readStoredWorld } from "../store.js";
 import { REPORT_WORLD } from "./types.js";
 import type { ActionRow, KnownTestAccounts, PilotData } from "./types.js";
 
@@ -31,14 +30,6 @@ export interface CollectOptions {
   /** Tests only: the time to report at (ms). Otherwise the database clock, read inside the transaction. */
   now?: number;
   hooks?: CollectHooks;
-}
-
-interface WorldRow {
-  version: number;
-  created_at: Date;
-  updated_at: Date;
-  next_due: Date | null;
-  doc: WorldDoc;
 }
 
 interface CountsRow {
@@ -71,8 +62,8 @@ export async function collectPilotData(sql: Sql, opts: CollectOptions = {}): Pro
     if (mode.read_only !== "on") throw new Error("Handoff report: the transaction isn't read-only, so nothing was read.");
     const now = opts.now ?? mode.ms;
 
-    const [world] = await tx<WorldRow[]>`
-      SELECT version, created_at, updated_at, next_due, doc FROM worlds WHERE id = ${REPORT_WORLD}`;
+    // The market as stored: its rows joined into the whole document (review of PR #88), in this transaction's one snapshot.
+    const world = await readStoredWorld(tx, REPORT_WORLD);
     const counts = first(
       await tx<CountsRow[]>`
         SELECT (SELECT count(*)::int FROM worlds WHERE id <> ${REPORT_WORLD}) AS test_worlds,
@@ -98,9 +89,9 @@ export async function collectPilotData(sql: Sql, opts: CollectOptions = {}): Pro
       live: world
         ? {
             version: world.version,
-            createdAt: world.created_at.getTime(),
-            updatedAt: world.updated_at.getTime(),
-            nextDue: world.next_due ? world.next_due.getTime() : null,
+            createdAt: world.createdAt,
+            updatedAt: world.updatedAt,
+            nextDue: world.nextDue,
             doc: world.doc,
           }
         : null,

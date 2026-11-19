@@ -2,7 +2,7 @@
 //
 // Next.js 14 patches history.replaceState: an address the page writes with it reaches the site's router as a navigation ("restore"), and a
 // navigation drops every server action still waiting in the router's queue behind the one that's out (never sent; its promise never
-// settles). Handoff's calls (act, refresh, markRead, saveMyProfile, saveEmailPrefs) go one at a time through that queue, and since §9v
+// settles). Handoff's calls (act, refresh, markRead, saveMyProfile) go one at a time through that queue, and since §9v
 // (SELL5-M2) the page writes its address after each move inside Handoff. So a notification opened from the bell while a refresh was out
 // showed as read but was never stored, and a change pressed just before a tap that moved the page was never sent, leaving the page busy.
 // useLiveLink counts each call from when it's sent until it answers (start, end), and App writes the address through whenIdle: at once

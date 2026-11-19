@@ -9,12 +9,24 @@
 // the people and the catalog in module state (C-DESIGN §1.1). Never await inside `run`.
 
 import {
+  EV,
+  FINAL,
+  GFINAL,
+  access,
+  demandAllowed,
+  departed,
   emptyWorld,
+  gState,
   invariantViolations,
+  isLive,
+  itemOf,
+  listingNumbers,
   nextDue as engineNextDue,
   payNeededBy,
   payNeededRule,
   photoRefs,
+  pickupOver,
+  rState,
   reduce as engineReduce,
   withEngine,
 } from "../engine/index.js";
@@ -22,7 +34,7 @@ import type { Action, EngineNotification, LiveWorld } from "../engine/index.js";
 import { actionIds as liveActionIds, parseAction } from "./live.js";
 import type { LiveAction as ParsedAction } from "./live.js";
 import type { PhotoRef } from "./photo.js";
-import { itemPhotoFor, project, projectGuest } from "./project.js";
+import { itemPhotoFor, project, projectGuest, viewPersonIds } from "./project.js";
 import type { GuestView, NotificationLink, PersonRow, SeqStep, View, ViewNotification, WorldId } from "./types.js";
 
 /** The world document as stored in worlds.doc (format 1, C-DESIGN §2.6). Engine-owned: the store reads only `mode`. */
@@ -56,20 +68,8 @@ export interface EngineNote {
   link?: NotificationLink | null | undefined;
   /** The engine's stamp (ms since the epoch). */
   at: number;
-  /**
-   * Follow-on B4: the note's email tag (the engine's noteTo meta), on a note that may also go by email: its kind, such as
-   * "offer.received" (NOTE_KIND), and `ref`, the id of the record it's about (NOTE_REF). Both or neither. The store makes an email job
-   * from it only after email/kinds.ts emailJobRows checks it again; the notifications table and every view leave it out.
-   */
-  kind?: string | undefined;
-  ref?: string | undefined;
 }
 
-/** email_jobs' CHECK on a job's kind (schema.sql, follow-on B4): two or three lowercase words joined by dots, at most NOTE_KIND_MAX long. */
-export const NOTE_KIND = /^[a-z]+(\.[a-z]+){1,2}$/;
-export const NOTE_KIND_MAX = 40;
-/** email_jobs' CHECK on a job's ref: a record id of lowercase letters, digits and hyphens, 1 to 48 characters. */
-export const NOTE_REF = /^[0-9a-z-]{1,48}$/;
 
 /** What the engine runs with: the document, every person's profile row and the time (ms). */
 export interface EngineContext {
@@ -78,6 +78,47 @@ export interface EngineContext {
   people: PersonRow[];
   now: number;
 }
+
+/**
+ * One record of the market as the store keeps it (review of PR #88): every listing, exchange, item, request, event and holding is its
+ * own row, so a change writes only the rows it touched and two changes conflict only when they touch the same row or its guard.
+ */
+export interface MarketRecord {
+  /** The record's kind (a short word, such as "listing"), and its id: together its key ("listing:l…"). */
+  kind: string;
+  id: string;
+  /** The record itself, exactly as the engine keeps it. */
+  data: Record<string, unknown>;
+  /** Whose record it is (its seller, buyer, requester or creator), or null. The per-account limit counts an owner's open records. */
+  owner: string | null;
+  /**
+   * Whether it's open by its own fields alone (not closed, sold or over), whatever the time. The store counts an account's open
+   * records with the port's openOf, which also knows the clock and the records around it; this is what it counts for a port without.
+   */
+  open: boolean;
+  /** The record it hangs off, if any (an exchange's listing, a goods request's item): the photo route reads an item with its own. */
+  parent: string | null;
+  /**
+   * The records ("listing:l…") a change to this one depends on, which the store locks with it: an exchange guards its listing, so two
+   * buyers reserving the last ticket queue on that listing and the second is decided on the first's result.
+   */
+  guards: string[];
+  /** Records it depends on only when it's new (a new listing on its event, which can't be removed meanwhile). */
+  createGuards?: string[];
+  /**
+   * Names of locks a new record of this kind takes in its world, for rules across records no row stands for: a new event is
+   * checked against every other event (two classmates adding the same night at once get one event), so new events take one lock.
+   */
+  createLocks?: string[];
+  /**
+   * Whether it holds something for its owner (a reservation, a goods hold): the rules limit what one person holds (one unpaid
+   * reservation per event, the per-person caps), so a change that makes a record hold for someone locks that person too.
+   */
+  holds?: boolean;
+}
+
+/** How a kind's records are ordered in the document: newest first (the engine adds to the front) or oldest first (to the end). */
+export type RecordOrder = "newestFirst" | "oldestFirst";
 
 /** What the store knows when it asks for a view. */
 export interface ProjectContext {
@@ -105,6 +146,22 @@ export interface GuestContext {
 export interface EnginePort {
   /** The document a new world starts with (version 0). */
   empty(): WorldDoc;
+  /**
+   * Splits a document into its records and the rest (`meta`: the document with every record list emptied), as the store keeps them
+   * (review of PR #88). Records come in the document's own order within each kind. Pure; no engine run needed.
+   */
+  split(doc: WorldDoc): { meta: WorldDoc; records: MarketRecord[] };
+  /** The document again from `meta` and the records, each kind's in the order `orders` names (the store sorts them first). Pure. */
+  join(meta: WorldDoc, records: readonly { kind: string; id: string; data: Record<string, unknown> }[]): WorldDoc;
+  /** Each kind's order in the document. A kind not listed here isn't a record kind. */
+  orders(): Readonly<Record<string, RecordOrder>>;
+  /** A stored record's guards and whether it holds something for its owner (as split says), from its kind and data alone. */
+  rowFacts?(kind: string, data: Record<string, unknown>): { guards: string[]; holds: boolean };
+  /**
+   * The user ids a viewer's view may name (its people, and the sellers whose payment kinds it shows): the store reads only these
+   * profiles for the view (review of PR #88). Inside `run`.
+   */
+  viewPeople(doc: WorldDoc, viewerId: string): string[];
   /**
    * Checks a client's action before any lock: the allowlist of types, shapes, ids and sizes. It's part of the port
    * so the store has no action vocabulary of its own (the real port uses live.ts's parseAction; the tests' stand-in
@@ -138,6 +195,14 @@ export interface EnginePort {
    * A port without it counts listings.
    */
   payNeededRule?(): "listing" | "exchange";
+  /**
+   * Review of PR #88: what of one account's is still going on, as the page shows it, at the engine's clock (inside `run`). `own`: their
+   * listings that can still sell (the page offers Close listing), their items still up (Close item), their live requests and alerts,
+   * their open shares on a live request, and their exchanges and goods requests that aren't over. The per-account limit counts these.
+   * `theirs`: classmates' exchanges and goods requests on the account's listings and items that aren't over. Deleting one's data waits
+   * for both to be none. A port without it counts the rows' own `open`.
+   */
+  openOf?(doc: WorldDoc, userId: string): { own: number; theirs: number };
   /** The viewer's view, built from allowlists. */
   project(doc: WorldDoc, viewerId: string, ctx: ProjectContext): View;
   /**
@@ -177,6 +242,19 @@ const asDoc = (doc: LiveWorld): WorldDoc => doc as unknown as WorldDoc;
 export const enginePort: EnginePort = Object.freeze({
   empty: (): WorldDoc => asDoc(emptyWorld()),
 
+  split: (doc: WorldDoc): { meta: WorldDoc; records: MarketRecord[] } => splitLive(doc),
+
+  join: (meta: WorldDoc, records: readonly { kind: string; id: string; data: Record<string, unknown> }[]): WorldDoc => joinLive(meta, records),
+
+  orders: (): Readonly<Record<string, RecordOrder>> => LIVE_ORDERS,
+
+  rowFacts(kind: string, data: Record<string, unknown>): { guards: string[]; holds: boolean } {
+    const r = liveRecord(kind, data);
+    return { guards: r?.guards ?? [], holds: r?.holds === true };
+  },
+
+  viewPeople: (doc: WorldDoc, viewerId: string): string[] => viewPersonIds(doc, viewerId),
+
   parse: (raw: unknown): ParseResult => parseAction(raw),
 
   // Only called on actions that parse returned, which are live.ts's.
@@ -213,18 +291,16 @@ export const enginePort: EnginePort = Object.freeze({
     const live = asLive(doc);
     const notes: readonly EngineNotification[] = Array.isArray(live.notifications) ? live.notifications : [];
     live.notifications = [];
-    // Only the fields the notifications table keeps: never `read` or `via` (alert preferences don't exist in live). An email tag
-    // (follow-on B4) goes with them only as a pair in email_jobs' patterns, so a job can't trip that table's CHECKs and roll back the
-    // action; a malformed tag is dropped and its note stays in the app.
-    return notes.map((n) => {
-      const tag = noteTag(n);
-      return { id: n.id, userId: n.userId, text: n.text, link: noteLink(n.link), at: n.at, ...(tag ? { kind: tag.kind, ref: tag.ref } : {}) };
-    });
+    // Only the fields the notifications table keeps: never `read` or `via` (alert preferences don't exist in live), and never the
+    // engine's kind and ref tags (outbound email was removed from this tool; review of PR #88).
+    return notes.map((n) => ({ id: n.id, userId: n.userId, text: n.text, link: noteLink(n.link), at: n.at }));
   },
 
   payNeeded: (doc: WorldDoc, sellerId: string): number => payNeededBy(asLive(doc), sellerId),
 
   payNeededRule: (): "listing" | "exchange" => payNeededRule(),
+
+  openOf: (doc: WorldDoc, userId: string): { own: number; theirs: number } => liveOpenOf(asLive(doc), userId),
 
   project: (doc: WorldDoc, viewerId: string, ctx: ProjectContext): View => project(doc, viewerId, ctx),
 
@@ -247,12 +323,158 @@ export const enginePort: EnginePort = Object.freeze({
   photoFor: (doc: WorldDoc, itemId: string, viewerId: string | null): PhotoRef | null => itemPhotoFor(doc, itemId, viewerId),
 });
 
-/** A note's email tag (follow-on B4), checked field by field: both kind and ref as strings in email_jobs' patterns, or null. */
-function noteTag(n: { kind?: unknown; ref?: unknown }): { kind: string; ref: string } | null {
-  const { kind, ref } = n;
-  if (typeof kind !== "string" || typeof ref !== "string") return null;
-  if (kind.length > NOTE_KIND_MAX || !NOTE_KIND.test(kind) || !NOTE_REF.test(ref)) return null;
-  return { kind, ref };
+
+// ── The real document as rows (review of PR #88) ─────────────────────────────────────────
+
+/** The document's record lists: each its own kind of row, in the order the engine keeps it (it adds events and holdings at the end). */
+const LIVE_LISTS: readonly (readonly [list: string, kind: string, order: RecordOrder])[] = Object.freeze([
+  ["events", "event", "oldestFirst"],
+  ["holdings", "holding", "oldestFirst"],
+  ["listings", "listing", "newestFirst"],
+  ["requests", "request", "newestFirst"],
+  ["interests", "interest", "newestFirst"],
+  ["responses", "response", "newestFirst"],
+  ["goods", "good", "newestFirst"],
+  ["goodsReqs", "goodsReq", "newestFirst"],
+] as const);
+const LIVE_ORDERS: Readonly<Record<string, RecordOrder>> = Object.freeze(Object.fromEntries(LIVE_LISTS.map(([, kind, order]) => [kind, order])));
+const LIST_OF_KIND: Readonly<Record<string, string>> = Object.freeze(Object.fromEntries(LIVE_LISTS.map(([list, kind]) => [kind, list])));
+/** An exchange's or goods request's statuses once it's over (the engine's FINAL and GFINAL). */
+const FINAL_STATUSES: ReadonlySet<string> = new Set(["completed", "declined", "cancelled", "released", "expired"]);
+/** An exchange's statuses while it holds tickets for its buyer (reserved, through sent: the engine's reserves). */
+const HOLDING_STATUSES: ReadonlySet<string> = new Set(["accepted", "paid", "confirmed", "sent"]);
+
+const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+
+/**
+ * The port's openOf, with the engine's own tests for each kind, as the page applies them: a listing is open while the page offers
+ * "Close listing" (not closed, its event still taking listings, its train not gone, not every ticket handed off), an item while it
+ * offers "Close item" (not sold or closed, its last day not past), a request or alert while it's live and its event still takes
+ * them, a share while it's open on a live request, and an exchange or goods request until the engine counts it over (rState and
+ * gState, which also end it when its event starts or its hold lapses). A record whose event or item is missing counts as open.
+ */
+function liveOpenOf(d: LiveWorld, userId: string): { own: number; theirs: number } {
+  let own = 0;
+  let theirs = 0;
+  const listings = new Set<string>();
+  const items = new Set<string>();
+  const live = new Set<string>();
+  for (const l of d.listings ?? []) {
+    if (l.sellerId !== userId) continue;
+    listings.add(l.id);
+    const ev = EV[l.eventId];
+    if (!l.withdrawnAt && (!ev || (access(ev).ok && !departed(l) && listingNumbers(d, l).completed < l.listed))) own += 1;
+  }
+  for (const it of d.goods ?? []) {
+    if (it.sellerId !== userId) continue;
+    items.add(it.id);
+    if (!it.soldAt && !it.withdrawnAt && !pickupOver(it)) own += 1;
+  }
+  for (const i of d.interests ?? []) {
+    const ev = i.eventId ? EV[i.eventId] : undefined;
+    if (!isLive(i) || (i.eventId && ev && !demandAllowed(ev))) continue;
+    live.add(i.id);
+    if (i.userId === userId) own += 1;
+  }
+  for (const s of d.responses ?? []) if (s.sellerId === userId && s.status === "open" && live.has(s.isoId)) own += 1;
+  const over = (finals: readonly string[], st: string): boolean => finals.includes(st);
+  for (const r of d.requests ?? []) {
+    if (over(FINAL, EV[r.eventId] ? rState(r).st : r.status)) continue;
+    if (r.buyerId === userId) own += 1;
+    else if (listings.has(r.listingId)) theirs += 1;
+  }
+  for (const g of d.goodsReqs ?? []) {
+    const it = itemOf(d, g);
+    if (over(GFINAL, it ? gState(g, it).st : g.status)) continue;
+    if (g.buyerId === userId) own += 1;
+    else if (items.has(g.itemId)) theirs += 1;
+  }
+  return { own, theirs };
+}
+
+/**
+ * One stored record as its row: who owns it, whether it's still open, what it hangs off, and what a change to it depends on (the
+ * engine's invariants across records, C-DESIGN §4.6): an exchange on its listing (oversold), a goods request on its item (one hold),
+ * a share on the request and listing or item it links, a listing on the holding it's listed from (overlisted), and a new listing,
+ * holding or interest on its event (which can't be removed while anything refers to it), and a new event on the others (no twins:
+ * createLocks). What depends on one person's records (one unpaid reservation per event, the per-person caps) is covered by the store
+ * locking the profile of whoever a change makes hold something (holds) or gives a new record, and of the actor.
+ */
+function liveRecord(kind: string, r: Record<string, unknown>): MarketRecord | null {
+  const id = str(r["id"]);
+  if (!id) return null;
+  const done = (s: unknown): boolean => typeof s === "string" && FINAL_STATUSES.has(s);
+  const onEvent = (): string[] => {
+    const ev = str(r["eventId"]);
+    return ev ? [`event:${ev}`] : [];
+  };
+  switch (kind) {
+    case "event":
+      // A new event is checked against the others (no twin of one already there), so new events go one at a time.
+      return { kind, id, data: r, owner: str(r["createdBy"]) ?? str(r["addedBy"]), open: false, parent: null, guards: [], createLocks: ["new-event"] };
+    case "holding":
+      return { kind, id, data: r, owner: str(r["userId"]), open: false, parent: str(r["eventId"]), guards: [], createGuards: onEvent() };
+    case "listing": {
+      const holding = str(r["holdingId"]), reply = str(r["isoReplyFor"]);
+      return {
+        kind, id, data: r, owner: str(r["sellerId"]), open: r["withdrawnAt"] == null, parent: str(r["eventId"]),
+        guards: holding ? [`holding:${holding}`] : [],
+        createGuards: [...onEvent(), ...(reply ? [`interest:${reply}`] : [])],
+      };
+    }
+    case "request": {
+      // An exchange guards its listing: every reservation, invitation and step on a listing is checked against the others on it.
+      const listing = str(r["listingId"]);
+      return {
+        kind, id, data: r, owner: str(r["buyerId"]), open: !done(r["status"]), parent: listing, guards: listing ? [`listing:${listing}`] : [],
+        holds: typeof r["status"] === "string" && HOLDING_STATUSES.has(r["status"]),
+      };
+    }
+    case "interest":
+      return { kind, id, data: r, owner: str(r["userId"]), open: r["status"] === "open", parent: str(r["eventId"]), guards: [], createGuards: onEvent() };
+    case "response": {
+      const iso = str(r["isoId"]), listing = str(r["listingId"]), item = str(r["itemId"]);
+      const guards = [iso ? `interest:${iso}` : null, listing ? `listing:${listing}` : null, item ? `good:${item}` : null].filter((g): g is string => g !== null);
+      return { kind, id, data: r, owner: str(r["sellerId"]), open: r["status"] === "open", parent: iso, guards };
+    }
+    case "good":
+      return { kind, id, data: r, owner: str(r["sellerId"]), open: r["soldAt"] == null && r["withdrawnAt"] == null, parent: null, guards: [] };
+    case "goodsReq": {
+      // A goods request guards its item, as an exchange guards its listing: one buyer's hold at a time.
+      const item = str(r["itemId"]);
+      return { kind, id, data: r, owner: str(r["buyerId"]), open: !done(r["status"]), parent: item, guards: item ? [`good:${item}`] : [], holds: r["status"] === "accepted" };
+    }
+    default:
+      return null;
+  }
+}
+
+function splitLive(doc: WorldDoc): { meta: WorldDoc; records: MarketRecord[] } {
+  const meta: Record<string, unknown> = { ...doc };
+  const records: MarketRecord[] = [];
+  for (const [list, kind] of LIVE_LISTS) {
+    const items = doc[list];
+    meta[list] = [];
+    if (!Array.isArray(items)) continue;
+    for (const item of items) {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) throw new Error(`Handoff: a ${kind} in the document isn't a record.`);
+      const rec = liveRecord(kind, item as Record<string, unknown>);
+      if (!rec) throw new Error(`Handoff: a ${kind} in the document has no id.`);
+      records.push(rec);
+    }
+  }
+  return { meta: meta as WorldDoc, records };
+}
+
+function joinLive(meta: WorldDoc, records: readonly { kind: string; id: string; data: Record<string, unknown> }[]): WorldDoc {
+  const doc: Record<string, unknown> = { ...meta };
+  for (const [list] of LIVE_LISTS) doc[list] = [];
+  for (const r of records) {
+    const list = LIST_OF_KIND[r.kind];
+    if (!list) throw new Error(`Handoff: "${r.kind}" isn't a kind of record this code keeps.`);
+    (doc[list] as unknown[]).push(r.data);
+  }
+  return doc as WorldDoc;
 }
 
 /** A notification's link, field by field (the projection allowlists it again for the view). */

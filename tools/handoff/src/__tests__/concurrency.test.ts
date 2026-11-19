@@ -6,12 +6,13 @@
 
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import * as E from "../../engine/index.js";
 import type { LiveWorld } from "../../engine/index.js";
-import { BUSY_ERROR, applyAction, getView, type ApplyHooks, type ApplyInput } from "../store.js";
+import { BUSY_ERROR, applyAction, getView, readStoredWorld, type ApplyHooks, type ApplyInput } from "../store.js";
 import type { ActOutcome, Actor, WorldId } from "../types.js";
 import { barrier, createTestDb, databaseUrl, deferred, firstWaitsFor as waitsFor, waitForLockWaiters, type TestDb } from "./helpers/db.js";
-import { StoreWorld, T0, actions as sent, checked, okOf } from "./helpers/live-store.js";
-import { TOY_TEXT, toyPort, type ToyHold } from "./helpers/toy-port.js";
+import { NO_LIMITS, StoreWorld, T0, actions as sent, checked, okOf } from "./helpers/live-store.js";
+import { TOY_TEXT, toyPort, type ToyDoc, type ToyHold } from "./helpers/toy-port.js";
 import { pinLegacyFlow } from "./helpers/legacy-flow.js";
 
 // Follow-on B5, the switch (S3): this suite's exchanges begin the old way (take, offer, a held reply), which stays the rule for
@@ -26,7 +27,7 @@ const TAKE = { type: "take", item: "i-last" };
 let db: TestDb;
 
 function act(worldId: WorldId, actor: Actor, action: unknown, extra: Partial<ApplyInput> = {}): Promise<ActOutcome> {
-  return applyAction(db.sql, { worldId, actor, requestId: randomUUID(), action, ...extra }, toyPort);
+  return applyAction(db.sql, { worldId, actor, requestId: randomUUID(), action, limits: NO_LIMITS, ...extra }, toyPort);
 }
 
 async function stock(worldId: WorldId, listed: number): Promise<void> {
@@ -35,15 +36,15 @@ async function stock(worldId: WorldId, listed: number): Promise<void> {
 }
 
 async function holds(worldId: WorldId): Promise<ToyHold[]> {
-  const [row] = await db.sql<{ holds: ToyHold[] | null }[]>`
-    SELECT doc #> '{stock,i-last,holds}' AS holds FROM worlds WHERE id = ${worldId}`;
-  return row?.holds ?? [];
+  const stored = await readStoredWorld(db.sql, worldId, toyPort);
+  return (stored?.doc as ToyDoc | undefined)?.stock["i-last"]?.holds ?? [];
 }
 
 /** The world's version as another connection sees it: only committed writes are visible there. */
 async function committedVersion(worldId: WorldId): Promise<number | null> {
   const [row] = await db.admin<{ version: number }[]>`
-    SELECT version FROM ${db.admin(db.schema)}.worlds WHERE id = ${worldId}`;
+    SELECT (w.version + coalesce((SELECT sum(r.tally) FROM ${db.admin(db.schema)}.records r WHERE r.world_id = w.id), 0))::int AS version
+    FROM ${db.admin(db.schema)}.worlds w WHERE w.id = ${worldId}`;
   return row?.version ?? null;
 }
 
@@ -186,8 +187,7 @@ describe.skipIf(!databaseUrl)("Handoff world lock (Postgres)", () => {
     expect([a.ok, b.ok]).toEqual([true, true]); // a double booking
     // The later write silently replaced the earlier one: a lost update.
     expect(await holds(w)).toHaveLength(1);
-    const [row] = await db.sql<{ version: number }[]>`SELECT version FROM worlds WHERE id = ${w}`;
-    expect(row?.version).toBe(2);
+    expect(await committedVersion(w)).toBe(3); // both writes counted, though the second wrote over the first's hold
 
     // The same two buyers with the lock, also at once: exactly one has it.
     const w2: WorldId = "test-with-lock";
@@ -276,9 +276,8 @@ describe.skipIf(!databaseUrl)("Handoff world lock (Postgres)", () => {
     const items = ["i-a", "i-b", "i-c", "i-d", "i-e"];
     const outcomes = await Promise.all(items.map((item) => act(w, seller, { type: "stock", item, listed: 1 }, { hooks, lockTimeoutMs: 15_000 })));
     expect(outcomes.map((o) => o.ok)).toEqual([true, true, true, true, true]);
-    const [row] = await db.sql<{ version: number; items: string[] }[]>`
-      SELECT version, ARRAY(SELECT jsonb_object_keys(doc -> 'stock') ORDER BY 1) AS items FROM worlds WHERE id = ${w}`;
-    expect(row).toEqual({ version: 5, items });
+    const stored = await readStoredWorld(db.sql, w, toyPort);
+    expect({ version: stored?.version, items: Object.keys((stored?.doc as ToyDoc).stock).sort() }).toEqual({ version: 5, items });
     expect(await logged(w)).toBe(5);
   });
 
@@ -360,11 +359,15 @@ describe.skipIf(!databaseUrl)("Handoff world lock with the real engine (Postgres
 
   /** The world as a third connection sees it: only committed writes are visible there. */
   async function committed(worldId: WorldId): Promise<{ version: number; doc: LiveWorld; notes: number } | null> {
-    const [row] = await rdb.admin<{ version: number; doc: LiveWorld; notes: number }[]>`
-      SELECT w.version, w.doc,
-             (SELECT count(*)::int FROM ${rdb.admin(rdb.schema)}.notifications n WHERE n.world_id = w.id) AS notes
-      FROM ${rdb.admin(rdb.schema)}.worlds w WHERE w.id = ${worldId}`;
-    return row ?? null;
+    const third = rdb.pool(1);
+    try {
+      const stored = await readStoredWorld(third, worldId);
+      if (!stored) return null;
+      const [row] = await third<{ notes: number }[]>`SELECT count(*)::int AS notes FROM notifications WHERE world_id = ${worldId}`;
+      return { version: stored.version, doc: stored.doc as unknown as LiveWorld, notes: row?.notes ?? 0 };
+    } finally {
+      await third.end({ timeout: 1 });
+    }
   }
 
   async function storedRequests(w: StoreWorld, listing: string): Promise<{ buyerId: string; status: string }[]> {
@@ -456,9 +459,11 @@ describe.skipIf(!databaseUrl)("Handoff world lock with the real engine (Postgres
       w.act(realBuyer(1), sent.take(listing), { lock: false, hooks }),
     ]);
     expect([a.ok, b.ok]).toEqual([true, true]); // a double booking: two buyers each told to pay for the one ticket
-    // The later write replaced the earlier one: one buyer's reservation silently vanished (a lost update).
-    expect(await storedRequests(w, listing)).toHaveLength(1);
-    expect((await w.row())?.version).toBe(3);
+    // Each reservation is its own row, so both are stored: the one ticket sold twice.
+    expect(await storedRequests(w, listing)).toHaveLength(2);
+    expect((await w.row())?.version).toBe(4);
+    const broken = await committed(w.worldId);
+    expect(E.withEngine({ doc: broken!.doc, people: [], now: T0 }, () => E.invariantViolations(broken!.doc))).toEqual([`oversold:${listing}`]);
 
     // The same two buyers with the lock, also at once: exactly one has it.
     const locked = await listed("test-real-with-lock", 1);
@@ -475,7 +480,48 @@ describe.skipIf(!databaseUrl)("Handoff world lock with the real engine (Postgres
     const all = barrier(realBuyers.length);
     const outcomes = await Promise.all(realBuyers.map((x) => burst.w.act(x, sent.take(burst.listing), { lock: false, hooks: { afterLock: () => all.arrive() } })));
     expect(outcomes.filter((o) => o.ok)).toHaveLength(realBuyers.length);
-    expect(await storedRequests(burst.w, burst.listing)).toHaveLength(1); // nine of the ten reservations were lost
+    expect(await storedRequests(burst.w, burst.listing)).toHaveLength(realBuyers.length); // the one ticket reserved ten times
+  });
+
+  it("review of PR #88: unrelated trades go through at the same time; only a trade on the same listing waits", async () => {
+    // Two sellers' listings in one market. B's reservation on the first is held open, with its locks, until the test lets it go.
+    const w = new StoreWorld(rdb.sql, "test-real-independent", T0);
+    const event = await w.createEvent(realSeller);
+    const first = await w.list(realSeller, event, { qty: 1, ask: "35" });
+    const otherSeller = realBuyer(9);
+    const second = await w.list(otherSeller, event, { qty: 1, ask: "30" });
+    const item = okOf(await w.act(otherSeller, sent.postItem(w.now)), "an item").resultId!;
+    const one = holdAtLockReal();
+    const holding = w.act(realBuyer(0), sent.take(first), { hooks: one.hooks });
+    await one.locked;
+    try {
+      // Meanwhile: another buyer's reservation on the other listing, a request for the item, a new event and a third listing all
+      // commit, each in well under the time B's transaction stays open.
+      const quick = async <T,>(o: Promise<T>): Promise<T> => {
+        const late = new Promise<"waited">((resolve) => setTimeout(() => resolve("waited"), 3000).unref());
+        const answer = await Promise.race([o, late]);
+        if (answer === "waited") throw new Error("an unrelated change waited for B's");
+        return answer;
+      };
+      expect((await quick(w.act(realBuyer(1), sent.take(second)))).ok).toBe(true);
+      expect((await quick(w.act(realBuyer(2), { type: "requestItem", id: item, msg: "", shareContact: false }))).ok).toBe(true);
+      const other = okOf(await quick(w.act(realBuyer(3), sent.createEvent(w.now, { title: "[Test] Another night" }))), "another event").resultId!;
+      await quick(w.list(realBuyer(3), other, { qty: 1, ask: "20", paid: "20" }));
+      // A second buyer for B's listing does wait: it queues on that listing's row.
+      const same = w.act(realBuyer(4), sent.take(first), { lockTimeoutMs: 15_000 });
+      await waitForLockWaiters(rdb, 1);
+      one.release();
+      expect((await holding).ok).toBe(true);
+      expect(await same).toMatchObject({ ok: false, code: "refused", error: SOLD_OUT });
+    } finally {
+      one.release();
+    }
+    const doc = (await w.row())!.doc;
+    expect(doc.requests.filter((r) => r.status === "accepted").map((r) => [r.listingId, r.buyerId]).sort()).toEqual(
+      [[first, realBuyer(0).id], [second, realBuyer(1).id]].sort(),
+    );
+    expect(doc.goodsReqs.map((g) => g.buyerId)).toEqual([realBuyer(2).id]);
+    expect(doc.listings).toHaveLength(3);
   });
 
   it("orders a take and a withdraw either way: a take queued behind a withdraw is refused, a withdraw behind a take keeps it", async () => {

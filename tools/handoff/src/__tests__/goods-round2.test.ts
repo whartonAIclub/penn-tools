@@ -1,6 +1,6 @@
 // Forms round 2 (USER-INSTRUCTIONS §9j item 4, step FORMS-F2c), the engine half of Goods:
 // - An item posted at an explicit $0 reads "Free" wherever its price is put into words in the shared market: the notes classmates get
-//   (a match, a share with a request, a request to the seller), the seller's toast and the item's history, and the match email. (The
+//   (a match, a share with a request, a request to the seller), the seller's toast and the item's history. (The
 //   share message's checks were removed in SELL5-M1: §9v item 3 removed outward Share, so there is no share message any more.)
 //   What's stored stays the number 0; nothing else about the item changes, and a priced item reads as it always did.
 // - Only a Goods item's price: a ticket listed at $0 still reads "$0", and the preview keeps "$0".
@@ -8,17 +8,12 @@
 // Labelled test accounts with made-up ids; no database and no sign-in.
 import { afterEach, describe, expect, it } from "vitest";
 import * as E from "../../engine/index.js";
-import type { WorldDoc } from "../engine-port.js";
-import { emailRelevance } from "../email/relevance.js";
-import { renderEmail } from "../email/templates.js";
-import type { JobRef } from "../email/types.js";
 import { historyOf, lastHistory, must, resetEngine, textsFor } from "./helpers/invite.js";
 import { ServerWorld, guestViewOf, viewOf, PEOPLE6 } from "./helpers/views.js";
 import { ANN, BOB, DAN, T0, dateAfter } from "./helpers/worlds.js";
 
 afterEach(resetEngine);
 
-const SITE = "http://localhost:3000";
 const act = (a: Record<string, unknown>) => a as unknown as E.Action;
 const UNTIL = dateAfter(T0, 10);
 /** "Post item" as the Goods form sends it. */
@@ -57,31 +52,26 @@ describe("an item posted at $0 (9j item 4)", () => {
     expect(must(guestViewOf(w).goods.find((x) => x.id === g), "the guest view").price).toBe(0);
   });
 
-  it("alerts a matching item request in words that say free, and the match email says the same", () => {
+  it("alerts a matching item request in words that say free", () => {
     const w = new ServerWorld({ people: PEOPLE6 });
     const iso = must(w.ok(DAN.userId, wanted()).id, "Dan's request"); // no budget: any price fits, a free one too
     expect(must(w.doc.interests.find((i) => i.id === iso), "request").budget).toBeNull();
     const done = w.ok(ANN.userId, item());
     const g = must(done.id, "item");
     expect(done.toast).toBe("Item posted. 1 classmate with a matching request got an in-app alert.");
-    expect(done.notes.map((n) => [n.userId, n.text, n.kind ?? null, n.ref ?? null])).toEqual([
-      [DAN.userId, 'Possible match for your request "desk lamp": Ann is giving away "Desk lamp" for free.', "match.item", iso],
+    expect(done.notes.map((n) => [n.userId, n.text])).toEqual([
+      [DAN.userId, 'Possible match for your request "desk lamp": Ann is giving away "Desk lamp" for free.'],
     ]);
-    const job: JobRef = { notificationId: "n0000000000000001", userId: DAN.userId, kind: "match.item", ref: iso, link: { name: "item", id: g } };
-    const rel = w.run(() => emailRelevance(w.doc as unknown as WorldDoc, job));
-    if (!rel.ok) throw new Error(`expected the match to be worth sending, got ${rel.why}`);
-    expect(rel.facts).toMatchObject({ title: "Desk lamp", unit: "item", price: "Free", obo: false, via: "request", itemId: g });
-    const mail = must(renderEmail("match.item", rel.facts, SITE), "the match email");
-    expect(mail.subject).toBe("Possible match: Desk lamp");
-    expect(mail.text.split("\n")[0]).toBe("A classmate is giving it away for free. It isn't held for you.");
-    expect(mail.text + mail.html).not.toMatch(/\$0|for Free|selling/);
+    expect(iso).toBeTruthy();
+    expect(g).toBeTruthy();
     // Paused and resumed: those who started looking meanwhile hear in the same words.
     w.ok(ANN.userId, act({ type: "pauseItem", id: g }));
     w.advance(60_000);
     const late = must(w.ok(BOB.userId, wanted({ goods: { title: "Desk lamp", cat: "Home & kitchen" } })).id, "Bob's request");
     w.advance(60_000);
     const back = w.ok(ANN.userId, act({ type: "resumeItem", id: g }));
-    expect(back.notes.filter((n) => n.ref === late).map((n) => n.text)).toEqual(['Possible match for your request "Desk lamp": Ann is giving away "Desk lamp" for free.']);
+    expect(late).toBeTruthy();
+    expect(back.notes.filter((n) => n.userId === BOB.userId).map((n) => n.text)).toEqual(['Possible match for your request "Desk lamp": Ann is giving away "Desk lamp" for free.']);
   });
 
   it("goes from request to picked up without a price in dollars: the seller's note, the hold and the history", () => {
@@ -135,12 +125,6 @@ describe("everything with a price above $0 reads as before", () => {
     expect(w.ok(ANN.userId, act({ type: "acceptItemReq", id: gr, shareContact: true })).toast).toMatch(/^Held for Bob at \$30\. /);
     w.ok(BOB.userId, act({ type: "itemPickedUp", id: gr }));
     expect(lastHistory(itemOf(w, g))).toBe("Sold to Bob D. for $30");
-    const job: JobRef = { notificationId: "n0000000000000002", userId: DAN.userId, kind: "match.item", ref: iso, link: { name: "item", id: g } };
-    const other = must(w.ok(ANN.userId, item({ title: "Desk lamp, brass", price: "22" })).id, "a second item");
-    const rel = w.run(() => emailRelevance(w.doc as unknown as WorldDoc, { ...job, link: { name: "item", id: other } }));
-    if (!rel.ok) throw new Error(`expected the match to be worth sending, got ${rel.why}`);
-    expect(rel.facts.price).toBe("$22");
-    expect(must(renderEmail("match.item", rel.facts, SITE), "the match email").text.split("\n")[0]).toBe("A classmate is selling it for $22. It isn't held for you.");
   });
 
   it("leaves a ticket listed at $0 as $0: Free is a Goods item's word", () => {

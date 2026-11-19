@@ -49,7 +49,7 @@ import type {
 } from "../../engine/index.js";
 import { enginePort } from "../engine-port.js";
 import type { WorldDoc } from "../engine-port.js";
-import { ACTIONS_KEEP_DAYS, DOC_MAX_BYTES } from "../store.js";
+import { ACTIONS_KEEP_DAYS } from "../store.js";
 import type { GuestView } from "../types.js";
 import { PILOT_REPORT_FORMAT, REPORT_WORLD } from "./types.js";
 import type {
@@ -160,7 +160,7 @@ export function buildPilotReport(data: PilotData, opts: BuildOptions = {}): Pilo
         firstWriteAt: data.live ? iso(data.live.createdAt) : null,
         lastWriteAt: data.live ? iso(data.live.updatedAt) : null,
         bytes: data.live ? Buffer.byteLength(JSON.stringify(full), "utf8") : 0,
-        limitBytes: DOC_MAX_BYTES,
+        limitBytes: null, // review of PR #88: the market is rows, with no limit on the whole (one record at most RECORD_MAX_BYTES)
         sweepDue: data.live !== null && data.live.nextDue !== null && data.live.nextDue <= now,
       },
       profiles: data.profiles,
@@ -1023,7 +1023,7 @@ const COVERAGE: readonly string[] = Object.freeze([
   "Expiry is evaluated at the report's time without storing it, so figures can include expiries the server hasn't recorded yet (notYetRecordedBySweep).",
   "Refused changes: the last 7 days only (the actions log keeps 7 days). Retries write nothing, so they can't be counted.",
   "Known TEST and Local Developer accounts are identified from public.users when the connection may read it; testing with any other account can't be told apart from real use. Their records are left out of every activity figure, but their holds and handovers on other accounts' listings and items stay in the stock now, since that stock is really gone.",
-  "Profiles (handoff.people) exist for every account that opened Handoff signed in, in any world, including test and development accounts, so they're never used as participants.",
+  "Profiles (handoff.people) exist for every account that has changed something in Handoff, in any world, including test and development accounts, so they're never used as participants.",
   "Money is what the two people confirmed in Handoff, not verified payments.",
   "Past states (such as stock on a given day) can't be rebuilt beyond the timestamps; daily snapshots cover at most 7 days and aren't used.",
   "Notifications are counted only; read ones are deleted after 90 days.",

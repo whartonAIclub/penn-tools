@@ -207,9 +207,10 @@ export function pilotReportMarkdown(r: PilotReport): string {
   const s = r.sources;
   L.push("## Data", "");
   L.push(
-    `Live document: version ${s.liveDocument.version}, ${kb(s.liveDocument.bytes)} of the ${kb(s.liveDocument.limitBytes)} limit` +
+    `Live document: version ${s.liveDocument.version}, ${kb(s.liveDocument.bytes)}` +
+      `${s.liveDocument.limitBytes === null ? "" : ` of the ${kb(s.liveDocument.limitBytes)} limit`}` +
       `${s.liveDocument.sweepDue ? " (a stored deadline has passed; the next signed-in visit records it)" : ""}. ` +
-      `Profiles: ${s.profiles} (every account that opened Handoff signed in, in any world: not participants). Notifications kept: ` +
+      `Profiles: ${s.profiles} (every account that has changed something in Handoff, in any world: not participants). Notifications kept: ` +
       `${s.notifications.retained} (${s.notifications.unread} unread). Actions log rows kept: ${s.actionsLog.retainedRows}. Snapshots: ${s.snapshots}. ` +
       `Test worlds not read: ${r.scope.testWorldsNotRead}. Records left out (known test accounts): ${r.scope.recordsLeftOut.total}. ` +
       `Integrity: ${r.integrity.storedDocumentIssues} stored-document issues, ${r.integrity.recordsNotEvaluated} records not evaluated.`,

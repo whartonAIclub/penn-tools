@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { applyWorld, HANDOFF_PROTOCOL, setLiveClock } from "@penntools/tool-handoff/engine";
 import type {
-  ActAnswer, ActInput, GuestView, MarkReadAnswer, MarkReadInput, PayMethodInput, RefreshAnswer, RefreshInput, SaveEmailPrefsInput, SaveProfileInput, SeqStep, StaleCode, View,
+  ActAnswer, ActInput, GuestView, Guard, MarkReadAnswer, MarkReadInput, PayMethodInput, RefreshAnswer, RefreshInput, SaveProfileInput, SeqStep, StaleCode, View,
 } from "@penntools/tool-handoff";
 import { demoRoot } from "./dom";
 import { keepDraft } from "./session";
@@ -24,12 +24,13 @@ import { callGate, type CallGate } from "./call-gate";
 
 /** The page's server actions (actions.ts), as the live app calls them (C-CONTRACT §1). Handoff.tsx's API is one. */
 export interface LiveApi {
+  /** A change; one that carries a photo goes to the act route, not a server action (Handoff.tsx: review of PR #88). */
   act: (input: ActInput) => Promise<ActAnswer>;
   refresh: (input: RefreshInput) => Promise<RefreshAnswer>;
   markRead: (input: MarkReadInput) => Promise<MarkReadAnswer>;
   saveMyProfile: (input: SaveProfileInput) => Promise<ActAnswer>;
-  /** Follow-on B4: turns the viewer's email updates on or off (at their PennTools sign-in address); the answer carries the fresh view. */
-  saveEmailPrefs: (input: SaveEmailPrefsInput) => Promise<ActAnswer>;
+  /** Deletes the viewer's Handoff data (review of PR #88), unless something of theirs is still open. */
+  deleteMyData: (input: Guard) => Promise<ActAnswer>;
 }
 
 /** An action as App dispatches it: its type and that type's fields (the engine's Action; the server checks each type's fields). */
@@ -88,7 +89,7 @@ interface LinkProps {
 }
 
 /**
- * What useLiveLink gives App: dispatch, saveProfile and saveEmail, a refresh whose answer is waited for (refreshNow), whether a change is
+ * What useLiveLink gives App: dispatch and saveProfile, a refresh whose answer is waited for (refreshNow), whether a change is
  * out (busy), why the page is reloading (stale), and, while the page must show nothing of this account's until the account signed in now
  * is confirmed, the concealment (hold, null otherwise) with its status's Try again (retry), and whenIdle, which runs App's address writes
  * once none of the page's calls is out (SELL5-M5; _lib/call-gate.ts).
@@ -107,8 +108,8 @@ type Loose<U, All = U> = U extends unknown ? Partial<U & { [K in Exclude<KeyOfAn
 type Answer = Loose<ActAnswer | RefreshAnswer | MarkReadAnswer>;
 /** A call as send gives it back: the answer, with when it was sent and received (for the skew); or lost, when no answer came. */
 type Sent = { lost?: undefined; ans: Answer; sentAt: number; receivedAt: number } | { lost: true };
-/** What write sends: act's input (its requestId is remembered when its answer is lost), or saveMyProfile's or saveEmailPrefs's, which have none. */
-type WriteInput = ActInput | ((SaveProfileInput | SaveEmailPrefsInput) & { requestId?: undefined; action?: undefined });
+/** What write sends: act's input (its requestId is remembered when its answer is lost), or saveMyProfile's or deleteMyData's, which have none. */
+type WriteInput = ActInput | ((SaveProfileInput | Guard) & { requestId?: undefined; action?: undefined });
 /** A press, as the pending mark reads it: a submit names its submitter; a click's target may not be an element, so closest is checked. */
 type Press = Event & { submitter?: HTMLElement | null; target: (EventTarget & { closest?: Element["closest"] }) | null };
 
@@ -391,10 +392,8 @@ export function useLiveLink({ live, guest, initial, api, me, s, sRef, setS, flas
   // How the viewer is paid (follow-on B1): 0 to 2 methods, the first preferred. quiet: a form that shows the answer itself (Sell, before
   // its listing) says nothing in a toast.
   const saveProfile = (payMethods: PayMethodInput[], quiet = false) => guest ? refuseGuest(quiet) : settled(write(api!.saveMyProfile, { ...guard, payMethods }, quiet));
-  // Email updates (follow-on B4): "Exchanges that need you" (exchange) or "Matches for your requests and alerts" (matches), on or off; at
-  // least one. Nothing else is sent: the address is the session's. quiet: a form that saves it right after its own change (Get notified,
-  // Post a request) keeps that change's toast and says only what went wrong. The answer's view carries the new state (View.email).
-  const saveEmail = (choice: { exchange?: boolean; matches?: boolean }, quiet = false) => guest ? refuseGuest(quiet) : settled(write(api!.saveEmailPrefs, { ...guard, ...choice }, quiet));
+  // Review of PR #88: deletes the viewer's Handoff data; the answer says why not while something of theirs is still open.
+  const deleteData = () => guest ? refuseGuest() : settled(write(api!.deleteMyData, { ...guard }));
   // The concealed page's Try again: asks now, or as soon as the call that's out answers. A call out for STUCK_MS is given up on: the page
   // reloads, which asks the server afresh (and keeps nothing of this account's on screen meanwhile).
   const retry = () => {
@@ -404,5 +403,5 @@ export function useLiveLink({ live, guest, initial, api, me, s, sRef, setS, flas
     clearTimeout(timer.current);
     refresh();
   };
-  return { dispatch, saveProfile, saveEmail, refreshNow, busy, stale, hold, retry, whenIdle };
+  return { dispatch, saveProfile, deleteData, refreshNow, busy, stale, hold, retry, whenIdle };
 }

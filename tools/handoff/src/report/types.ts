@@ -44,7 +44,7 @@ export interface PilotData {
   live: { version: number; createdAt: number; updatedAt: number; nextDue: number | null; doc: WorldDoc } | null;
   /** Worlds other than "live" in the table: test worlds, never read. */
   testWorlds: number;
-  /** handoff.people rows: every account that opened Handoff signed in, in any world. A count only. */
+  /** handoff.people rows: every account that has changed something in Handoff (and not deleted its data), in any world. A count only. */
   profiles: number;
   notifications: { total: number; unread: number };
   snapshots: number;
@@ -191,7 +191,8 @@ export interface PilotReport {
       firstWriteAt: string | null;
       lastWriteAt: string | null;
       bytes: number;
-      limitBytes: number;
+      /** The most the document may hold, or null: no limit on the whole since the market is rows (review of PR #88). */
+      limitBytes: number | null;
       sweepDue: boolean;
     };
     profiles: number;

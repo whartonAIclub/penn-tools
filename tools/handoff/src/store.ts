@@ -1,35 +1,40 @@
-// Handoff's shared data: every SQL statement the tool runs. The page folder (page.tsx, actions.ts)
-// passes the pool from toolSql("handoff") and the signed-in user, who always comes from the session.
-// The marketplace rules are reached only through an EnginePort (engine-port.ts): the real engine by
-// default, or a test's stand-in.
+// Handoff's shared data: every SQL statement the tool runs. The page folder (page.tsx, actions.ts, the act and photo routes)
+// passes the pool from toolSql("handoff") and the signed-in user, who always comes from the session. The marketplace rules are
+// reached only through an EnginePort (engine-port.ts): the real engine by default, or a test's stand-in.
 //
-// Writes (applyAction, C-DESIGN §4.1). The action is parsed before any lock. Then one transaction:
-// lock the world's row (SELECT … FOR UPDATE; a world's first write creates the row in the same
-// transaction); run the reducer as the session's user at the
-// database's clock; refuse the write only if it introduces an invariant violation; save the
-// document; write the action's notifications to their own table; log the action, so a retry with
-// the same request id returns its first outcome. The actor's view is built after COMMIT.
+// Storage (review of PR #88). The market is rows: every event, holding, listing, exchange, public request or alert, share, item
+// and goods request is its own row in `records`, and worlds.doc keeps only the rest of the document (its settings: "meta"). The
+// engine still sees one document: the store joins the rows into it (the port's join), runs the rules on it, and writes back only
+// the rows that changed (the port's split). A world's version is worlds.version plus every row's tally: each change adds exactly
+// one, on a row it writes anyway, so the version still counts changes and no row is written by every change.
 //
-// Every write takes the same lock first, so writes form one order and each is checked against the
-// result of every earlier one, across app instances too (§4.3).
+// Writes (applyAction, C-DESIGN §4.1 as revised). The action is parsed before any transaction. Then one transaction:
+//   1. lock the actor's profile row, so one account's changes run one at a time (a retried click finds its first outcome; the
+//      account's limits count right), and look up this request id's earlier outcome;
+//   2. read the market as committed (this app instance's copy when nothing changed since), and run the rules at the database's
+//      clock, read with it;
+//   3. lock what the change touches, in a fixed order: the profiles of the people whose records it changes, then the rows it
+//      changes and the rows they depend on (an exchange's listing, a goods request's item, a new listing's event: the port's
+//      guards). If anything was committed meanwhile, read again and run the rules again, until what the change touches is all
+//      locked and it was decided on what is committed;
+//   4. refuse the change only if it introduces an invariant violation; write the rows that changed, the notifications and the
+//      actions log. The actor's view is built after COMMIT.
+// So two changes wait for each other only when they touch the same listing, item, exchange, request or person, and each is
+// decided on the other's result; unrelated trades go through at the same time.
 //
-// Reads (getView, §4.2): the committed document, swept first if a deadline has passed, then
-// projected for the viewer from allowlists.
+// Reads (getView, §4.2): the committed market (one copy per version, shared by every tab this app instance serves), swept first
+// if a deadline has passed, projected for the viewer from allowlists with only the profiles that view names. Opening Handoff
+// saves nothing: the profile row is made by the account's first change (review of PR #88).
 //
-// Guests (getGuestView, refreshGuestView; C-CONTRACT §7): a signed-out visitor's view, from the guest
-// allowlists, with no viewer. A pure read: no profile row, no world created, no expiry sweep, no lock.
+// Guests (getGuestView, refreshGuestView; C-CONTRACT §7): a signed-out visitor's view, from the guest allowlists, with no viewer.
+// A pure read: no profile row, no world created, no expiry sweep, no lock.
 
 import { createHash, randomUUID } from "node:crypto";
 import type { Sql, TransactionSql } from "postgres";
 import { checkPayMethods, readPayMethods } from "../engine/index.js";
 import { errorCode, isBusy, setupErrorKind, unavailableMessage } from "./db-errors.js";
-import { insertEmailJobs, pruneEmailIn } from "./email/dispatch.js";
-import { emailJobRows } from "./email/kinds.js";
-import { readEmailState } from "./email/prefs.js";
-import { emailRelevance } from "./email/relevance.js";
-import type { DispatchDeps, JobRef, Relevance } from "./email/types.js";
 import { enginePort } from "./engine-port.js";
-import type { EngineNote, EnginePort, LiveAction, ReduceResult, WorldDoc } from "./engine-port.js";
+import type { EngineNote, EnginePort, LiveAction, MarketRecord, ReduceResult, WorldDoc } from "./engine-port.js";
 import { PHOTO_NOT_HERE_ERROR, photoRefOf } from "./photo.js";
 import type { Photo, PhotoMime } from "./photo.js";
 import type {
@@ -51,24 +56,37 @@ import type {
 
 export const INTERNAL_ERROR = "Something went wrong. Nothing was changed.";
 export const BUSY_ERROR = "Handoff is busy. Try again in a moment.";
-export const FULL_ERROR = "Handoff's shared data has reached its size limit, so this change wasn't saved.";
+/** A change that would make one record (a listing with its history, say) larger than RECORD_MAX_BYTES. */
+export const FULL_ERROR = "That's more than Handoff can keep on one listing, item or request, so this change wasn't saved.";
 export const BAD_REQUEST_ERROR = "This change couldn't be sent. Reload the page and try again.";
 export const REUSED_REQUEST_ERROR = "This change was already sent with different details. Reload the page and try again.";
 /** After COMMIT the change is real, so a failure to build the view must never say "Nothing was changed". */
 export const SAVED_NO_VIEW_ERROR = "Your change was saved, but Handoff couldn't load the latest data. Reload the page.";
+/** Review of PR #88: an account sent more than ACTIONS_PER_MINUTE changes in a minute. Nothing is saved or logged. */
+export const RATE_ERROR = "You're making changes faster than Handoff takes them. Wait a minute, then try again. Nothing was changed.";
+/** Deleting one's data while something of theirs is still open (deleteMyData). */
+export const DELETE_OPEN_ERROR =
+  "First close or finish what's still going on: listings and items that can still sell, your requests and alerts, and exchanges with classmates that aren't done. Then you can delete your Handoff data.";
 const REFUSED_FALLBACK = "That can't be done right now.";
 const RELOAD_SUFFIX = " Reload the page to see the latest.";
 
 // ── Limits ───────────────────────────────────────────────────────────────────────────────
 
-/** Above this the document is logged on every write: archiving is due (C-DESIGN §1.4, J2-12). */
-export const DOC_WARN_BYTES = 2 * 1024 * 1024;
-/** Above this a write that grows the document is refused ("full"); writes that shrink it still go through. */
-export const DOC_MAX_BYTES = 5 * 1024 * 1024;
+/**
+ * Review of PR #88: the most open records (listings and items that can still sell, live requests and alerts, shares, exchanges not
+ * done; the port's openOf) one account may have in a world.
+ */
+export const OPEN_RECORDS_MAX = 100;
+/** Review of PR #88: the most changes one account may send to a world in a minute (refused ones count; a retried click doesn't). */
+export const ACTIONS_PER_MINUTE = 30;
+/** The refusal when an account would go over OPEN_RECORDS_MAX (logged like the rules' refusals, so a retry gets the same answer). */
+export const OPEN_LIMIT_ERROR = `You have ${OPEN_RECORDS_MAX} open listings, items, requests and exchanges, the most one account can have at once. Close one you no longer need, then try again.`;
+/** One record's stored JSON at most. The market as a whole has no size limit: nothing reads or writes all of it at once. */
+export const RECORD_MAX_BYTES = 256 * 1024;
 export const NOTIFICATIONS_IN_VIEW = 100;
 /**
- * The first write of each New York day prunes old actions, read notifications and extra snapshots, and so does every write
- * whose version is a multiple of this (review P4: by version alone, a quiet world kept its actions for weeks).
+ * The first write of each New York day prunes old actions, read notifications and extra snapshots, and so does every write that
+ * takes the world's version past a multiple of this (review P4: by the day alone, a quiet world kept its actions for weeks).
  */
 export const PRUNE_EVERY_VERSIONS = 50;
 export const ACTIONS_KEEP_DAYS = 7;
@@ -79,8 +97,14 @@ export const DAILY_SNAPSHOT_KEEP_DAYS = 7;
 /** The latest write's own snapshot and the rollback point before it, kept whatever their age (a quiet world has no others). */
 export const DAILY_SNAPSHOTS_ALWAYS_KEPT = 2;
 export const UPGRADE_SNAPSHOTS_KEPT = 3;
+/** A guest view is reused for this long at most (and never past its nextRefreshAt or the version it was built at). */
+export const GUEST_VIEW_REUSE_MS = 30_000;
 const DEFAULT_LOCK_TIMEOUT_MS = 5000;
 const STATEMENT_TIMEOUT = "15s";
+/** A write that keeps meeting newly committed changes reads and decides again at most this many times, then starts over. */
+const MAX_PASSES = 6;
+/** Whole transactions, for a deadlock or a row that changed under a write that didn't lock it. Then "busy". */
+const WRITE_ATTEMPTS = 5;
 const DAY_MS = 86_400_000;
 const NEW_YORK = "America/New_York";
 /** actions.actor_id for expiry sweeps, which run with no actor. No user id may take it. */
@@ -95,6 +119,12 @@ const NOTE_TEXT_MAX = 2000;
 const MAX_READ_IDS = 200;
 /** How many violation keys one log line names; the count is always complete. */
 const VIOLATIONS_LOGGED = 20;
+/**
+ * worlds.doc's `format` once a world is kept as rows, with the document's own format beside it (`rowsFormat`). Code from before the
+ * rows refuses any format but its own (engine-port.ts's WORLD_FORMAT), so during a deploy an older app instance can't mistake the
+ * meta alone for the whole market and write an empty one over it.
+ */
+const ROWS_FORMAT = "rows";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TEST_WORLD = /^test-[a-z0-9-]{1,40}$/;
@@ -104,7 +134,7 @@ const CONTROLS = /[\u0000-\u001f\u007f]/g;
 
 // ── Public API ───────────────────────────────────────────────────────────────────────────
 
-/** Test-only hooks, called with the world's lock held and just before COMMIT. */
+/** Test-only hooks. afterLock: once per transaction, once the change's first locks are held. beforeCommit: just before COMMIT. */
 export interface ApplyHooks {
   afterLock?(): Promise<void>;
   beforeCommit?(): Promise<void>;
@@ -125,10 +155,12 @@ export interface ApplyInput {
   photo?: Photo;
   /** Tests only: the time to run at (ms). actions.ts never passes it, so writes use the database's clock. */
   now?: number;
-  /** Tests only: false skips FOR UPDATE and the version guard (the race test's negative control). */
+  /** Tests only: false takes no lock and writes the rows it changed blindly (the race tests' negative control). */
   lock?: boolean;
-  /** Tests only: how long to wait for the world's lock (default 5000 ms). */
+  /** Tests only: how long to wait for each lock (default 5000 ms). */
   lockTimeoutMs?: number;
+  /** Tests only: other limits than OPEN_RECORDS_MAX and ACTIONS_PER_MINUTE (null: none). */
+  limits?: { openRecords?: number | null; perMinute?: number | null };
   /** Tests only. */
   hooks?: ApplyHooks;
 }
@@ -137,8 +169,6 @@ export interface PruneCounts {
   actions: number;
   notifications: number;
   snapshots: number;
-  /** Follow-on B4: the world's finished email jobs over 14 days old and its captured emails over 7 days old (email/dispatch.ts). */
-  email: number;
 }
 
 /** True for "live" and for "test-…" world ids: the same rule as the worlds.id CHECK. */
@@ -147,8 +177,9 @@ export function isWorldId(value: unknown): value is WorldId {
 }
 
 /**
- * Creates or refreshes the user's profile row from the session's name and email, on every page load and action.
- * Writes only when the name or email changed. Needs neither the world's lock nor a version bump.
+ * Creates or refreshes the user's profile row from the session's name and email. Called by the account's first change and every
+ * change after it (applyAction, saveMyProfile), never by opening Handoff (review of PR #88). Writes only when the name or email
+ * changed.
  */
 export async function ensurePerson(sql: Sql, actor: Actor): Promise<void> {
   assertUserId(actor.id);
@@ -164,9 +195,10 @@ export async function ensurePerson(sql: Sql, actor: Actor): Promise<void> {
 }
 
 /**
- * The viewer's view of a world. A world nobody has written to yet is an empty view at version 0 (nothing is
- * created). When a stored deadline has passed, the expiry is swept and stored first. Throws on database errors;
- * the page maps them with setupErrorKind.
+ * The viewer's view of a world. A world nobody has written to yet is an empty view at version 0 (nothing is created), and so is
+ * the view of someone who has never changed anything: they have no profile row, and none is made (review of PR #88). When a
+ * deadline has passed since the market was last stored, the expiry is swept and stored first. Throws on database errors; the page
+ * maps them with setupErrorKind.
  */
 export async function getView(
   sql: Sql,
@@ -174,31 +206,38 @@ export async function getView(
   port: EnginePort = enginePort,
 ): Promise<View> {
   assertWorldId(o.worldId);
+  assertUserId(o.viewer.id);
   assertNow(o.now);
-  await ensurePerson(sql, o.viewer);
-  // The clock and the row's identity first; the document itself only when this pool hasn't cached that version.
-  const head = await readHead(sql, o.worldId);
-  let now = o.now ?? head.ms;
-  const read = await readWorld(sql, o.worldId, head);
-  let doc = read?.doc ?? port.empty();
-  let version = read?.version ?? 0;
-  if (read && read.next_due !== null && read.next_due.getTime() <= now) {
+  return currentView(sql, port, o, await loadState(sql, sql, o.worldId, port));
+}
+
+/** getView's work, given the market as just read (refreshView reads it to decide, and passes it on). */
+async function currentView(
+  sql: Sql,
+  port: EnginePort,
+  o: { worldId: WorldId; viewer: Actor; now?: number },
+  loaded: Loaded,
+): Promise<View> {
+  let { ms, state } = loaded;
+  if (state && isDue(state, port, o.now ?? ms)) {
     try {
-      ({ doc, version, now } = await sweepWorld(sql, o.worldId, o.now, port));
+      await sweepWorld(sql, o.worldId, o.now, port);
+      ({ ms, state } = await loadState(sql, sql, o.worldId, port));
     } catch (e) {
       if (setupErrorKind(e)) throw e;
       // Views derive expiry from the clock, so this one is still right; the next read sweeps again.
       logFailure("sweep", o.worldId, "sweep", {}, e);
     }
   }
-  return buildView(sql, port, { worldId: o.worldId, viewerId: o.viewer.id, doc, version, now });
+  return buildView(sql, port, { worldId: o.worldId, viewer: o.viewer, state, now: o.now ?? ms });
 }
 
 /**
  * A refresh: `{unchanged: true}` when the world is still at `version`, nothing stored is due, and the tab's own view hasn't
  * reached its `nextRefreshAt`; otherwise the whole view. A view changes at its nextRefreshAt even when nothing is stored then
  * (a train leaving, an item's pickup window closing), so a tab that sends a nextRefreshAt that has come gets the whole view
- * (review INT-1). The unchanged path reads only the version and next_due.
+ * (review INT-1). The unchanged path reads the world's version, and the market only when this app instance hasn't cached that
+ * version yet (once per version, for every tab it serves).
  */
 export async function refreshView(
   sql: Sql,
@@ -213,14 +252,13 @@ export async function refreshView(
   port: EnginePort = enginePort,
 ): Promise<RefreshOutcome> {
   assertWorldId(o.worldId);
+  assertUserId(o.viewer.id);
   assertNow(o.now);
-  const head = await refreshHead(sql, o);
+  checkNextRefreshAt(o.nextRefreshAt);
+  const loaded = await loadState(sql, sql, o.worldId, port);
+  const head = refreshHead(loaded, port, o);
   if (head.unchanged) return { unchanged: true, version: head.version };
-  const view = await getView(
-    sql,
-    { worldId: o.worldId, viewer: o.viewer, ...(o.now !== undefined ? { now: o.now } : {}) },
-    port,
-  );
+  const view = await currentView(sql, port, { worldId: o.worldId, viewer: o.viewer, ...(o.now !== undefined ? { now: o.now } : {}) }, loaded);
   return { unchanged: false, view };
 }
 
@@ -228,7 +266,8 @@ export async function refreshView(
  * What a signed-out visitor sees (C-CONTRACT §7): the guest view, built from the guest allowlists, with no viewer. A pure read:
  * it writes nothing (no profile row, no world, no expiry sweep) and takes no lock. When a stored deadline has passed and no
  * signed-in read has swept it yet, the view is still right, since every view is computed at its own time. The engine runs it with
- * no one's profile row. Throws on database errors; the page maps them with setupErrorKind.
+ * no one's profile row. Every visitor gets the same view, so this app instance builds it once per version and reuses it for up to
+ * GUEST_VIEW_REUSE_MS (never past its nextRefreshAt). Throws on database errors; the page maps them with setupErrorKind.
  */
 export async function getGuestView(
   sql: Sql,
@@ -237,12 +276,25 @@ export async function getGuestView(
 ): Promise<GuestView> {
   assertWorldId(o.worldId);
   assertNow(o.now);
-  const head = await readHead(sql, o.worldId);
-  const now = o.now ?? head.ms;
-  const read = await readWorld(sql, o.worldId, head);
-  const doc = read?.doc ?? port.empty();
-  const version = read?.version ?? 0;
-  return port.run({ doc, people: [], now }, () => port.guest(doc, { worldId: o.worldId, version, now }));
+  return guestViewOf(port, o, await loadState(sql, sql, o.worldId, port));
+}
+
+function guestViewOf(port: EnginePort, o: { worldId: WorldId; now?: number }, loaded: Loaded): GuestView {
+  const { state } = loaded;
+  const now = o.now ?? loaded.ms;
+  if (!state) {
+    const empty = port.empty();
+    return port.run({ doc: empty, people: [], now }, () => port.guest(empty, { worldId: o.worldId, version: 0, now }));
+  }
+  // Reused only at the database's clock (tests inject their own time, and get a view built at it).
+  const reuse = o.now === undefined ? state.guest : null;
+  if (reuse && now >= reuse.builtAt && now - reuse.builtAt < GUEST_VIEW_REUSE_MS && (reuse.view.nextRefreshAt === null || now < reuse.view.nextRefreshAt)) {
+    return { ...reuse.view, serverNow: now };
+  }
+  const doc = docOfState(state, port);
+  const view = port.run({ doc, people: [], now }, () => port.guest(doc, { worldId: o.worldId, version: state.version, now }));
+  if (o.now === undefined) state.guest = { view: deepFreeze(view), builtAt: now };
+  return view;
 }
 
 /**
@@ -263,46 +315,31 @@ export async function refreshGuestView(
 ): Promise<GuestRefreshOutcome> {
   assertWorldId(o.worldId);
   assertNow(o.now);
-  const head = await refreshHead(sql, o);
+  checkNextRefreshAt(o.nextRefreshAt);
+  const loaded = await loadState(sql, sql, o.worldId, port);
+  const head = refreshHead(loaded, port, o);
   if (head.unchanged) return { unchanged: true, version: head.version };
-  const view = await getGuestView(sql, { worldId: o.worldId, ...(o.now !== undefined ? { now: o.now } : {}) }, port);
-  return { unchanged: false, view };
+  return { unchanged: false, view: guestViewOf(port, { worldId: o.worldId, ...(o.now !== undefined ? { now: o.now } : {}) }, loaded) };
 }
 
-/** The database's clock and the world's row identity (no document): one query, whether or not the world has a row. */
-async function readHead(
-  sql: Sql,
-  worldId: WorldId,
-): Promise<{ ms: number; version: number | null; xmin: string | null; next_due: Date | null }> {
-  return first(
-    await sql<{ ms: number; version: number | null; xmin: string | null; next_due: Date | null }[]>`
-      SELECT c.ms, w.version, w.xmin::text AS xmin, w.next_due
-      FROM (SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms) AS c
-      LEFT JOIN worlds w ON w.id = ${worldId}`,
-  );
+function checkNextRefreshAt(at: unknown): void {
+  if (at !== null && (typeof at !== "number" || !Number.isFinite(at))) {
+    throw new TypeError("Handoff: nextRefreshAt must be a time in ms, or null.");
+  }
 }
 
 /**
  * Whether a refresh may answer "unchanged" (both kinds): the world is still at the tab's version, nothing stored is due, and the
  * tab's view hasn't reached its own nextRefreshAt (a view's counts change then even when nothing is stored; review INT-1).
- * Reads only the version and next_due.
  */
-async function refreshHead(
-  sql: Sql,
-  o: { worldId: WorldId; version: number; nextRefreshAt: number | null; now?: number },
-): Promise<{ unchanged: boolean; version: number }> {
-  if (o.nextRefreshAt !== null && (typeof o.nextRefreshAt !== "number" || !Number.isFinite(o.nextRefreshAt))) {
-    throw new TypeError("Handoff: nextRefreshAt must be a time in ms, or null.");
-  }
-  const read = first(
-    await sql<{ ms: number; version: number | null; next_due: Date | null }[]>`
-      SELECT c.ms, w.version, w.next_due
-      FROM (SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms) AS c
-      LEFT JOIN worlds w ON w.id = ${o.worldId}`,
-  );
-  const now = o.now ?? read.ms;
-  const version = read.version ?? 0;
-  const due = read.next_due !== null && read.next_due.getTime() <= now;
+function refreshHead(
+  loaded: Loaded,
+  port: EnginePort,
+  o: { version: number; nextRefreshAt: number | null; now?: number },
+): { unchanged: boolean; version: number } {
+  const now = o.now ?? loaded.ms;
+  const version = loaded.state?.version ?? 0;
+  const due = loaded.state !== null && isDue(loaded.state, port, now);
   const reached = o.nextRefreshAt !== null && o.nextRefreshAt <= now;
   return { unchanged: o.version === version && !due && !reached, version };
 }
@@ -354,28 +391,30 @@ export async function applyAction(sql: Sql, input: ApplyInput, port: EnginePort 
     now: input.now,
     lock: input.lock !== false,
     lockTimeoutMs,
+    limits: {
+      openRecords: input.limits?.openRecords === undefined ? OPEN_RECORDS_MAX : input.limits.openRecords,
+      perMinute: input.limits?.perMinute === undefined ? ACTIONS_PER_MINUTE : input.limits.perMinute,
+    },
     hooks: input.hooks,
   };
 
   let written: Written;
   try {
+    // The profile row is made (or its name and email refreshed) by the account's changes only: opening Handoff saves nothing.
     await ensurePerson(sql, input.actor);
     written = await write(sql, spec, port);
   } catch (e) {
     return failedOutcome(e, spec);
   }
   if (written.kind === "mismatch") return { ok: false, code: "invalid", error: REUSED_REQUEST_ERROR };
+  if (written.kind === "limited") return { ok: false, code: "busy", error: RATE_ERROR };
   if (written.kind === "applied") logExistingViolations(input.worldId, written.version, written.existing);
 
   let view: View;
   try {
-    view = await buildView(sql, port, {
-      worldId: input.worldId,
-      viewerId: input.actor.id,
-      doc: written.doc,
-      version: written.version,
-      now: written.now,
-    });
+    // The market as committed now: this change, and any other committed since (read from the rows that changed).
+    const loaded = await loadState(sql, sql, input.worldId, port);
+    view = await buildView(sql, port, { worldId: input.worldId, viewer: input.actor, state: loaded.state, now: written.now });
   } catch (e) {
     logFailure("view after action", spec.worldId, action.type, spec.ids, e);
     return { ok: false, code: "internal", error: afterCommitError(written) };
@@ -390,40 +429,70 @@ export interface StoredPhoto {
   version: string;
 }
 
+/** What readItemPhoto answers when the asker already has this version (its ETag): that it's still theirs to see, without the bytes. */
+export interface PhotoNotModified {
+  notModified: true;
+  version: string;
+}
+
 const ITEM_ID = /^g[0-9a-f]{16}$/;
 const PHOTO_VERSION = /^[0-9a-f]{16}$/;
 
 /**
  * An item's photo for one viewer (§9s item 6), or null: served only when that viewer's view shows the item with its photo right now
  * (the port's photoFor: a signed-out visitor, viewerId null, only while the item is available; a signed-in account until it ends).
- * `version`, when given, must be the photo's current one, so an address made for an earlier photo serves nothing. A pure read: no
- * lock, no sweep, no profile row; the document usually comes from this pool's cache. An id or version that isn't one is null too.
+ * `version`, when given, must be the photo's current one, so an address made for an earlier photo serves nothing. `etag`: the
+ * version the asker already holds; when it is still the current one, no bytes are read (PhotoNotModified). Review of PR #88: reads
+ * only the item's own rows (the item, and the requests on it) and its photo, never the whole market. A pure read: no lock, no sweep,
+ * no profile row. An id or version that isn't one is null too.
  */
 export async function readItemPhoto(
   sql: Sql,
-  o: { worldId: WorldId; itemId: string; viewerId: string | null; version?: string; now?: number },
+  o: { worldId: WorldId; itemId: string; viewerId: string | null; version?: string; etag?: string; now?: number },
   port: EnginePort = enginePort,
-): Promise<StoredPhoto | null> {
+): Promise<StoredPhoto | PhotoNotModified | null> {
   assertWorldId(o.worldId);
   assertNow(o.now);
   if (typeof o.itemId !== "string" || !ITEM_ID.test(o.itemId)) return null;
   if (o.version !== undefined && (typeof o.version !== "string" || !PHOTO_VERSION.test(o.version))) return null;
   const photoFor = port.photoFor;
   if (!photoFor) return null;
-  const head = await readHead(sql, o.worldId);
-  const read = await readWorld(sql, o.worldId, head);
-  if (!read) return null;
-  const doc = read.doc;
-  const ref = port.run({ doc, people: [], now: o.now ?? head.ms }, () => photoFor(doc, o.itemId, o.viewerId));
+  const [row] = await sql<{ ms: number; split: boolean | null; meta: WorldDoc | null; recs: [string, string, number, Record<string, unknown>][] | null }[]>`
+    SELECT c.ms, w.split_at IS NOT NULL AS split, CASE WHEN w.split_at IS NOT NULL THEN w.doc END AS meta,
+           CASE WHEN w.split_at IS NOT NULL THEN (
+             SELECT coalesce(json_agg(json_build_array(r.kind, r.id, r.ord, r.data)), '[]'::json) FROM records r
+             WHERE r.world_id = w.id AND (r.id = ${o.itemId} OR r.parent_id = ${o.itemId})) END AS recs
+    FROM (SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms) AS c
+    LEFT JOIN worlds w ON w.id = ${o.worldId}`;
+  if (!row || row.split === null) return null;
+  const now = o.now ?? row.ms;
+  let doc: WorldDoc;
+  if (row.split && row.meta && row.recs) {
+    // The item and the requests on it, joined into a document that holds only them (and the world's meta).
+    const orders = port.orders();
+    const rows = row.recs.map(([kind, id, ord, data]) => ({ kind, id, ord, data }));
+    doc = port.join(readMeta(row.meta), rows.filter((r) => orders[r.kind] !== undefined).sort(byOrder(orders)));
+  } else {
+    // A world not yet kept as rows (until its first change after this version is deployed): the whole document.
+    const loaded = await loadState(sql, sql, o.worldId, port);
+    if (!loaded.state) return null;
+    doc = docOfState(loaded.state, port);
+  }
+  const ref = port.run({ doc, people: [], now }, () => photoFor(doc, o.itemId, o.viewerId));
   if (!ref || (o.version !== undefined && o.version !== ref.v)) return null;
-  const [row] = await sql<{ mime: PhotoMime; bytes: Uint8Array; version: string }[]>`
+  if (o.etag !== undefined && o.etag === ref.v) {
+    const [held] = await sql<{ version: string }[]>`
+      SELECT version FROM item_photos WHERE world_id = ${o.worldId} AND item_id = ${o.itemId} AND version = ${ref.v}`;
+    return held ? { notModified: true, version: held.version } : null;
+  }
+  const [photo] = await sql<{ mime: PhotoMime; bytes: Uint8Array; version: string }[]>`
     SELECT mime, bytes, version FROM item_photos WHERE world_id = ${o.worldId} AND item_id = ${o.itemId} AND version = ${ref.v}`;
-  return row ? { mime: row.mime, bytes: row.bytes, version: row.version } : null;
+  return photo ? { mime: photo.mime, bytes: photo.bytes, version: photo.version } : null;
 }
 
 /**
  * Marks the user's own notifications read: some by id, or "all". Scoped to the user in SQL, so another user's
- * ids change nothing. Takes no world lock and doesn't change the version. Returns how many were marked.
+ * ids change nothing. Takes no lock and doesn't change the version. Returns how many were marked.
  */
 export async function markNotificationsRead(
   sql: Sql,
@@ -491,8 +560,8 @@ const NO_PROFILE_ERROR = "Your profile isn't set up yet. Reload the page and try
  * Saves the user's payment methods (follow-on B1; C-CONTRACT §1 saveMyProfile): 0 to 2, the first preferred, checked and normalized
  * by the engine's checkPayMethods (a refusal names the method it's about: `index`). Saving replaces a handle saved before B1
  * (pay_handle is emptied). Removing every method is refused while one of the user's listings in `worldId` could still take a new buyer
- * and has no handle of its own (the engine's payNeededBy), under the world's lock, so a listing posted meanwhile is counted. Profiles
- * are shared by all worlds; nothing else is locked.
+ * and has no handle of its own (the engine's payNeededBy), with the user's profile row locked, so a listing they post meanwhile is
+ * counted. Profiles are shared by all worlds.
  */
 export async function savePayMethods(
   sql: Sql,
@@ -505,7 +574,7 @@ export async function savePayMethods(
   const checked = checkPayMethods(o.payMethods);
   if (!checked.ok) return { ok: false, error: checked.error, index: checked.index };
   const methods: PayMethod[] = checked.methods.map((m) => ({ kind: m.kind, value: m.value }));
-  // The JSON goes in as text and is cast in SQL, as the world's document does (bound straight to jsonb, it would be encoded twice).
+  // The JSON goes in as text and is cast in SQL, as the records do (bound straight to jsonb, it would be encoded twice).
   const json = JSON.stringify(methods);
   return sql.begin(async (raw): Promise<{ ok: true; methods: PayMethod[] } | { ok: false; error: string; index: 0 | 1 | null }> => {
     const tx = asSql(raw);
@@ -518,24 +587,75 @@ export async function savePayMethods(
 }
 
 /**
- * Whether something of the user's in the world still needs their saved methods (the engine's payNeededBy), read under the world's
- * lock (bounded as a write's wait is), so a change that removes them is ordered with the writes that list, invite or reserve. Says by
- * which rule (the port's payNeededRule: open listings until invite to pay is switched on, then open invitations and offers), or null
- * when nothing does, or the world has no row yet.
+ * Whether something of the user's in the world still needs their saved methods (the engine's payNeededBy), read with the user's
+ * profile row locked (bounded as a write's wait is): every change that lists, invites or offers for them locks that row too, so it is
+ * ordered with this one. Says by which rule (the port's payNeededRule: open listings until invite to pay is switched on, then open
+ * invitations and offers), or null when nothing does, or the world has no row yet.
  */
 async function payStillNeeded(tx: Sql, sql: Sql, worldId: WorldId, userId: string, port: EnginePort, at?: number): Promise<"listing" | "exchange" | null> {
   await tx.unsafe(`SET LOCAL lock_timeout = '${DEFAULT_LOCK_TIMEOUT_MS}ms'; SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
-  const row = await lockWorld(tx, sql, { worldId, lock: true });
-  if (!row) return null;
-  const now = at ?? (await clockMs(tx)); // the database's clock, read after the lock, as a write's is
-  const doc = row.doc;
+  await lockPeople(tx, [userId]);
+  const { ms, state } = await loadState(tx, sql, worldId, port);
+  if (!state) return null;
+  const now = at ?? ms; // the database's clock, read after the lock, as a write's is
+  const doc = docOfState(state, port);
   return engine(() => port.run({ doc, people: [], now }, () => (port.payNeeded(doc, userId) > 0 ? (port.payNeededRule ? port.payNeededRule() : "listing") : null)));
+}
+
+/**
+ * Review of PR #88: deletes what Handoff keeps about the user: their profile (name, email, payment methods), their notifications
+ * and their entries in the actions log, in every world. Refused (DELETE_OPEN_ERROR) while something of theirs in `worldId` is still
+ * going on, as the page shows it (the port's openOf): a listing that can still sell, an item still up, a live request or alert, or an
+ * exchange with a classmate that isn't over. The market's records of their past trades stay, as their classmates' records too: the
+ * views name them "A classmate" from then on, but what those records already say stays as it was (a trade's history line with
+ * their public name, the payment method a ticket exchange showed its buyer), and so do classmates' notifications. A later change of
+ * theirs makes a new profile.
+ */
+export async function deleteMyData(
+  sql: Sql,
+  o: { worldId: WorldId; userId: string; /** Tests only: the time to judge what's still open at (ms). */ now?: number },
+  port: EnginePort = enginePort,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertWorldId(o.worldId);
+  assertUserId(o.userId);
+  assertNow(o.now);
+  return sql.begin(async (raw): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const tx = asSql(raw);
+    await tx.unsafe(`SET LOCAL lock_timeout = '${DEFAULT_LOCK_TIMEOUT_MS}ms'; SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
+    await lockPeople(tx, [o.userId]);
+    const { ms, state } = await loadState(tx, sql, o.worldId, port);
+    if (state && stillOpen(state, port, o.userId, o.now ?? ms)) return { ok: false, error: DELETE_OPEN_ERROR };
+    await tx`DELETE FROM notifications WHERE user_id = ${o.userId}`;
+    await tx`DELETE FROM actions WHERE actor_id = ${o.userId}`;
+    await tx`DELETE FROM people WHERE user_id = ${o.userId}`;
+    return { ok: true };
+  });
+}
+
+/**
+ * Whether anything of the user's is still going on: one of theirs, or a classmate's that waits on one of theirs (an exchange on their
+ * listing). The port's openOf at `now`, or, for a port without it, the rows' own flags.
+ */
+function stillOpen(state: WorldState, port: EnginePort, userId: string, now: number): boolean {
+  const count = port.openOf?.bind(port);
+  if (count) {
+    const doc = docOfState(state, port);
+    const n = engine(() => port.run({ doc, people: [], now }, () => count(doc, userId)));
+    return n.own + n.theirs > 0;
+  }
+  const rows = recordsOf(state, port);
+  for (const r of rows.values()) {
+    if (!r.open) continue;
+    if (r.owner === userId) return true;
+    for (const g of r.guards) if (rows.get(g)?.owner === userId) return true;
+  }
+  return false;
 }
 
 /**
  * Deletes a world's actions older than 7 days, its read notifications older than 90 days, and snapshots over their caps:
  * daily ones beyond the newest 7 or older than 7 days (except the newest 2), and before-upgrade ones beyond 3; manual ones are
- * kept. Writes run this too: the first write of each New York day, and every 50th version.
+ * kept. Writes run this too: the first write of each New York day, and every 50 versions.
  */
 export async function pruneWorld(sql: Sql, worldId: WorldId, now?: number): Promise<PruneCounts> {
   assertWorldId(worldId);
@@ -546,42 +666,32 @@ export async function pruneWorld(sql: Sql, worldId: WorldId, now?: number): Prom
   });
 }
 
-// ── Email updates: the dispatcher's hooks (follow-on B4; email/dispatch.ts) ──────────────
-
 /**
- * The dispatcher's sweep (DispatchDeps.sweepDue): stores the world's expiry through the write path when its next_due has passed, so
- * time-based changes (and the notifications and email jobs they make) never wait for someone to open a page. True when it swept.
+ * The world as committed now, read straight from its rows (no cache): its version, the whole document, when it was created and
+ * last written, and the next deadline still to sweep. Pass a transaction for a consistent read (the pilot report reads in a
+ * REPEATABLE READ one). For tests, diagnostics and the report.
  */
-export async function sweepDue(sql: Sql, worldId: WorldId, now?: number, port: EnginePort = enginePort): Promise<boolean> {
+export async function readStoredWorld(
+  q: Sql,
+  worldId: WorldId,
+  port: EnginePort = enginePort,
+): Promise<{ version: number; doc: WorldDoc; split: boolean; createdAt: number; updatedAt: number; nextDue: number | null } | undefined> {
   assertWorldId(worldId);
-  assertNow(now);
-  const head = await readHead(sql, worldId);
-  if (head.next_due === null || head.next_due.getTime() > (now ?? head.ms)) return false;
-  await sweepWorld(sql, worldId, now, port);
-  return true;
+  const state = await readFull(q, worldId, port);
+  if (!state) return undefined;
+  const [row] = await q<{ created: number; updated: number }[]>`
+    SELECT floor(extract(epoch FROM created_at) * 1000)::float8 AS created,
+           floor(extract(epoch FROM greatest(updated_at, (SELECT max(updated_at) FROM records WHERE world_id = ${worldId}))) * 1000)::float8 AS updated
+    FROM worlds WHERE id = ${worldId}`;
+  return {
+    version: state.version,
+    doc: structuredClone(docOfState(state, port)) as WorldDoc, // the caller's own copy, not frozen
+    split: state.split,
+    createdAt: row?.created ?? 0,
+    updatedAt: row?.updated ?? 0,
+    nextDue: dueOf(state, port),
+  };
 }
-
-/**
- * The dispatcher's check (DispatchDeps.checkJobs): each job's emailRelevance on the committed document (this pool's cached copy when
- * it's current), in the engine with every profile's name and no one's email, at `now` (the database's clock unless a test gives one).
- * A world with no row answers "missing" for every job. Reads only.
- */
-export async function checkEmailJobs(sql: Sql, worldId: WorldId, jobs: readonly JobRef[], now?: number): Promise<Map<string, Relevance>> {
-  assertWorldId(worldId);
-  assertNow(now);
-  const head = await readHead(sql, worldId);
-  const read = await readWorld(sql, worldId, head);
-  if (!read) return new Map<string, Relevance>(jobs.map((j) => [j.notificationId, { ok: false, why: "missing" }]));
-  const people = await readPeople(sql, false);
-  const doc = read.doc;
-  return enginePort.run({ doc, people, now: now ?? head.ms }, () => new Map<string, Relevance>(jobs.map((j) => [j.notificationId, emailRelevance(doc, j)])));
-}
-
-/** The store's hooks for dispatchEmail, as the dispatch route passes them. */
-export const storeDispatchDeps: DispatchDeps = Object.freeze({
-  sweepDue: (sql: Sql, worldId: WorldId, now?: number): Promise<boolean> => sweepDue(sql, worldId, now),
-  checkJobs: (sql: Sql, worldId: WorldId, jobs: readonly JobRef[], now?: number): Promise<Map<string, Relevance>> => checkEmailJobs(sql, worldId, jobs, now),
-});
 
 // ── The write transaction ────────────────────────────────────────────────────────────────
 
@@ -597,6 +707,7 @@ interface WriteSpec {
   now: number | undefined;
   lock: boolean;
   lockTimeoutMs: number;
+  limits: { openRecords: number | null; perMinute: number | null };
   hooks: ApplyHooks | undefined;
 }
 
@@ -615,37 +726,15 @@ interface PriorAction {
   result: LoggedResult;
 }
 
-/**
- * The transaction's result. `doc`, `version` and `xmin` are the world as committed (or as locked, when nothing changed).
- * After COMMIT an applied write's `doc` is the stored JSON parsed again and frozen (`json` is that JSON).
- */
+/** The transaction's result. `version` is the world's version as this write left it (others may have committed since). */
 type Written =
   /** `existing`: violations the saved document still has, all from before this action (logged, never refused). */
-  | { kind: "applied"; res: ReduceResult; doc: WorldDoc; json: string; version: number; xmin: string; now: number; existing: string[] }
-  | { kind: "refused"; res: ReduceResult; doc: WorldDoc; version: number; xmin: string; now: number }
-  | { kind: "replay"; prior: PriorAction; doc: WorldDoc; version: number; xmin: string; now: number }
-  | { kind: "mismatch"; doc: WorldDoc; version: number; xmin: string; now: number }
-  | { kind: "unchanged"; doc: WorldDoc; version: number; xmin: string; now: number };
-
-type EngineOut =
-  | { refused: true; res: ReduceResult }
-  | { refused: false; res: ReduceResult; notes: EngineNote[]; before: string[]; after: string[]; due: number | null };
-
-/** A world's row: its document (deep-frozen; maybe this pool's cached copy) and the row's identity (version, xmin). */
-interface WorldRow {
-  version: number;
-  xmin: string;
-  doc: WorldDoc;
-  next_due: Date | null;
-}
-
-interface HeadRow {
-  ms: number;
-  type: string | null;
-  ids: Record<string, string> | null;
-  ok: boolean | null;
-  result: LoggedResult | null;
-}
+  | { kind: "applied"; res: ReduceResult; version: number; now: number; existing: string[] }
+  | { kind: "refused"; res: ReduceResult; version: number; now: number }
+  | { kind: "replay"; prior: PriorAction; now: number }
+  | { kind: "mismatch"; now: number }
+  | { kind: "limited"; now: number }
+  | { kind: "unchanged"; now: number };
 
 /** The action would leave the shared data in a state the rules forbid. Nothing is saved. */
 class InvariantError extends Error {
@@ -655,9 +744,19 @@ class InvariantError extends Error {
   }
 }
 
-/** The world's version moved under the lock: impossible unless a writer bypassed the lock. Nothing is saved. */
-class VersionConflict extends Error {
-  override name = "VersionConflict";
+/** A row changed under a write that should have held its lock (or, for the negative control, didn't take one). Tried again. */
+class RecordConflict extends Error {
+  override name = "RecordConflict";
+}
+
+/** A write kept meeting newly committed changes (MAX_PASSES). Tried again, then "busy". */
+class Contention extends Error {
+  override name = "Contention";
+}
+
+/** The world is still one document: it's split into rows first (ensureSplit), then the write runs again. */
+class NotSplit extends Error {
+  override name = "NotSplit";
 }
 
 /** The engine threw. Keeps only the original error's class, never its message or the action's payload. */
@@ -668,15 +767,15 @@ class EngineError extends Error {
   }
 }
 
-/** The write would grow the document past DOC_MAX_BYTES. */
-class DocTooLarge extends Error {
-  override name = "DocTooLarge";
+/** The write would make one record larger than RECORD_MAX_BYTES. */
+class RecordTooLarge extends Error {
+  override name = "RecordTooLarge";
   constructor(public readonly bytes: number) {
-    super("The document is too large.");
+    super("A record is too large.");
   }
 }
 
-/** The world's row isn't there: deleted while a sweep or a first write was on its way. */
+/** The world's row isn't there: deleted while a sweep was on its way. */
 class MissingWorld extends Error {
   override name = "MissingWorld";
 }
@@ -690,173 +789,553 @@ function asSql(tx: TransactionSql): Sql {
   return tx as unknown as Sql;
 }
 
+/** Runs the write's transaction, again after a deadlock or a conflict (with a short random wait), and splits a world first if it must. */
 async function write(sql: Sql, w: WriteSpec, port: EnginePort): Promise<Written> {
-  // The document a write leaves is cached just before COMMIT (see transact). If the transaction fails after that, the
-  // entry is taken out again, so the cache holds only what was committed.
-  let pending = null as CachedWorld | null;
-  let written: Written;
-  try {
-    written = await sql.begin((raw) => transact(asSql(raw), sql, w, port, (entry) => { pending = entry; }));
-  } catch (e) {
-    if (pending) forget(sql, w.worldId, pending);
-    throw e;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await sql.begin((raw) => transact(asSql(raw), sql, w, port));
+    } catch (e) {
+      if (e instanceof NotSplit && attempt < WRITE_ATTEMPTS) {
+        await ensureSplit(sql, w.worldId, port, w.lockTimeoutMs, w.now);
+        continue;
+      }
+      if (attempt < WRITE_ATTEMPTS && retryable(e)) {
+        await new Promise((resolve) => setTimeout(resolve, 5 + Math.floor(Math.random() * 20 * attempt)));
+        continue;
+      }
+      if (e instanceof Contention || errorCode(e) === "40P01") throw Object.assign(new Error("Handoff is busy."), { code: "55P03" });
+      throw e;
+    }
   }
-  // Committed. An applied write's document is the JSON just stored, parsed again and frozen, so the actor's view and the
-  // cache hold exactly what every other reader will read (JSON drops undefined values and turns NaN into null).
-  if (written.kind === "applied") written.doc = pending ? docOf(pending) : deepFreeze(JSON.parse(written.json) as WorldDoc);
-  // A write that changed no document leaves the one it locked (cached already, or read under the lock) for the next.
-  else if (w.lock && !pending) remember(sql, w.worldId, { version: written.version, xmin: written.xmin, json: null, doc: written.doc });
-  return written;
 }
 
-/** The write's transaction (C-DESIGN §4.1). `cachePending` receives the entry it cached just before COMMIT, if any. */
-async function transact(
-  tx: Sql,
-  sql: Sql,
-  w: WriteSpec,
-  port: EnginePort,
-  cachePending: (entry: CachedWorld) => void,
-): Promise<Written> {
-  /**
-   * Caches the document this transaction is about to commit, before COMMIT: COMMIT hands the lock to the next writer at
-   * once, and it should find this document rather than read it again. The entry is keyed by this transaction's own xmin,
-   * so it can match the row only once this transaction has committed; if it fails instead, write() takes the entry out.
-   * The race test's unlocked writes (the negative control) never touch the cache.
-   */
-  const cacheBeforeCommit = (entry: CachedWorld): void => {
-    if (!w.lock) return;
-    remember(sql, w.worldId, entry);
-    cachePending(entry);
+/** A deadlock (Postgres ends one of the two), a serialization failure, or a row that changed under the write: run it again. */
+function retryable(e: unknown): boolean {
+  if (e instanceof RecordConflict || e instanceof Contention) return true;
+  const code = errorCode(e);
+  return code === "40P01" || code === "40001";
+}
+
+/** The change a run of the rules makes to the stored rows. */
+interface Change {
+  /** New records, in the order they go in (so a list's order comes out as the engine keeps it). */
+  inserts: MarketRecord[];
+  updates: { rec: MarketRecord; prev: RecordRow }[];
+  deletes: RecordRow[];
+  /** The meta to store, when it changed (other than lastStamp: the clock the engine stamps from, which isn't worth a write). */
+  meta: WorldDoc | null;
+  /** The meta as the change left it, lastStamp and all: the rows it writes keep that stamp (see withStamp), the world's row the rest. */
+  nextMeta: WorldDoc;
+}
+
+type EngineOut =
+  | { refused: true; res: ReduceResult }
+  | {
+      refused: false; res: ReduceResult; notes: EngineNote[]; before: string[]; after: string[]; change: Change;
+      /** The actor's open records before and after (the port's openOf, at this run's clock), when the limit applies and the port counts them. */
+      open: { before: number; after: number } | null;
+    };
+
+/** The write's transaction (C-DESIGN §4.1 as revised: see the top of this file). */
+async function transact(tx: Sql, pool: Sql, w: WriteSpec, port: EnginePort): Promise<Written> {
+  await tx.unsafe(`SET LOCAL lock_timeout = '${w.lockTimeoutMs}ms'; SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
+  const sweep = w.actorId === null;
+  let hooked = false;
+  const afterLock = async (): Promise<void> => {
+    if (hooked) return;
+    hooked = true;
+    await w.hooks?.afterLock?.();
   };
 
-  await tx.unsafe(`SET LOCAL lock_timeout = '${w.lockTimeoutMs}ms'; SET LOCAL statement_timeout = '${STATEMENT_TIMEOUT}'`);
-  let row = await lockWorld(tx, sql, w);
-  if (!row && w.actorId !== null) {
-    // A world's first write creates its row here, inside the transaction, so that every wait an action makes on
-    // the world is bounded by lock_timeout (C-DESIGN §4.5). Outside it, this INSERT would wait, unbounded, for
-    // any writer that had saved the row but not yet committed. A concurrent first write waits on this INSERT
-    // until this transaction commits, then finds the row and locks it. Sweeps never create a world.
+  if (sweep) {
+    // One sweep of a world at a time: a read that finds another one running waits for it (bounded by lock_timeout), then finds
+    // nothing left to sweep and reads what it stored.
+    await tx`SELECT pg_advisory_xact_lock(${lockKey(`handoff-sweep:${w.worldId}`)}::bigint)`;
+  } else if (w.lock) {
+    // The actor's own profile row: their changes run one at a time, so a retry finds its first outcome and their limits count right.
+    await lockPeople(tx, [w.actorId!]);
+  }
+
+  // This actor's earlier outcome for the same request id, if this is a retry.
+  const [prior] = await tx<{ ms: number; type: string; ids: Record<string, string> | null; ok: boolean; result: LoggedResult | null }[]>`
+    SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms, type, ids, ok, result FROM actions
+    WHERE world_id = ${w.worldId} AND actor_id = ${w.actorId ?? SYSTEM_ACTOR} AND request_id = ${w.requestId}`;
+  if (prior) {
+    await afterLock();
+    const p: PriorAction = { type: prior.type, ids: prior.ids ?? {}, ok: prior.ok === true, result: prior.result ?? {} };
+    const now = w.now ?? prior.ms;
+    return sameAction(p, w.action.type, w.ids) ? { kind: "replay", prior: p, now } : { kind: "mismatch", now };
+  }
+
+  // Review of PR #88: one account's changes per minute (a retried click, answered above, doesn't count).
+  if (!sweep && w.limits.perMinute !== null) {
+    const [recent] = await tx<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM actions
+      WHERE world_id = ${w.worldId} AND actor_id = ${w.actorId!}
+        AND at > coalesce(${w.now !== undefined ? new Date(w.now - 60_000) : null}::timestamptz, clock_timestamp() - interval '1 minute')`;
+    if ((recent?.n ?? 0) >= w.limits.perMinute) {
+      await afterLock();
+      return { kind: "limited", now: w.now ?? (await clockMs(tx)) };
+    }
+  }
+
+  let loaded = await loadState(tx, pool, w.worldId, port);
+  if (!loaded.state) {
+    if (sweep) throw new MissingWorld();
+    // A world's first write creates its row here, inside the transaction, already kept as rows. A concurrent first write waits on
+    // this INSERT (bounded by lock_timeout) until this transaction commits, then finds the row.
     await tx`
-      INSERT INTO worlds (id, doc) VALUES (${w.worldId}, ${JSON.stringify(port.empty())}::text::jsonb)
+      INSERT INTO worlds (id, doc, split_at) VALUES (${w.worldId}, ${storedMetaJson(port.split(port.empty()).meta)}::text::jsonb, clock_timestamp())
       ON CONFLICT (id) DO NOTHING`;
-    row = await lockWorld(tx, sql, w);
+    loaded = await loadState(tx, pool, w.worldId, port);
+    if (!loaded.state) throw new MissingWorld();
   }
-  if (!row) throw new MissingWorld();
-  await w.hooks?.afterLock?.();
+  if (!loaded.state.split) throw new NotSplit();
+  let state = loaded.state;
+  let now = w.now ?? loaded.ms;
 
-  // The database's clock, read after the lock so time follows the order of writes; and this actor's earlier
-  // outcome for the same request id, if this is a retry.
-  const head = first(
-    await tx<HeadRow[]>`
-      SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms, a.type, a.ids, a.ok, a.result
-      FROM (SELECT 1) AS one
-      LEFT JOIN actions a
-        ON a.world_id = ${w.worldId} AND a.actor_id = ${w.actorId ?? SYSTEM_ACTOR} AND a.request_id = ${w.requestId}`,
-  );
-  const now = w.now ?? head.ms;
-  const locked = { doc: row.doc, version: row.version, xmin: row.xmin, now };
-  if (head.type !== null) {
-    const prior: PriorAction = { type: head.type, ids: head.ids ?? {}, ok: head.ok === true, result: head.result ?? {} };
-    return sameAction(prior, w.action.type, w.ids) ? { kind: "replay", prior, ...locked } : { kind: "mismatch", ...locked };
+  // A sweep checks again: another request may have swept already.
+  if (sweep && !isDue(state, port, now)) {
+    await afterLock();
+    return { kind: "unchanged", now };
   }
 
-  const sweep = w.actorId === null;
-  // A sweep checks next_due again under the lock: another request may have swept already.
-  if (sweep && !(row.next_due !== null && row.next_due.getTime() <= now)) {
-    return { kind: "unchanged", ...locked };
+  const held = { named: new Set<string>(), people: new Set<string>(sweep || !w.lock ? [] : [w.actorId!]), records: new Set<string>(), meta: false };
+  // Profiles the engine may name: the actor, and the owners of the records the action names (the rest are read when needed).
+  const people = new Map<string, PersonRow>();
+  await readPeopleInto(tx, people, seedPeople(state, port, w));
+
+  for (let pass = 1; ; pass++) {
+    const out = runRules(state, people, now, w, port);
+    // Profiles a run needed but didn't have: read them and run the rules again (nothing is locked or written for that).
+    const missing = out.refused ? [] : peopleNamed(state, out.change, out.notes).filter((id) => !people.has(id));
+    if (missing.length > 0) {
+      const before = people.size;
+      await readPeopleInto(tx, people, missing);
+      if (people.size > before) {
+        pass -= 1;
+        continue;
+      }
+    }
+
+    if (out.refused) {
+      if (sweep) throw new EngineError("SweepRefused");
+      await afterLock();
+      await logAction(tx, w, now, { ok: false, result: loggedResult(out.res, false), before: state.version, after: state.version });
+      await w.hooks?.beforeCommit?.();
+      return { kind: "refused", res: out.res, version: state.version, now };
+    }
+
+    // Review of PR #88: the most open records one account may have (the change may close some of theirs, too). Counted as the page
+    // shows them (the port's openOf: a sold-out listing or an item past its last day no longer counts), else by the rows' own flag.
+    if (!sweep && w.limits.openRecords !== null) {
+      const over = out.open
+        ? out.open.after > out.open.before && out.open.after > w.limits.openRecords
+        : ((opened) => opened > 0 && openCount(state, w.actorId!) + opened > w.limits.openRecords!)(openDelta(out.change, w.actorId!));
+      if (over) {
+        const res: ReduceResult = { state: docOfState(state, port), error: OPEN_LIMIT_ERROR };
+        await afterLock();
+        await logAction(tx, w, now, { ok: false, result: loggedResult(res, false), before: state.version, after: state.version });
+        await w.hooks?.beforeCommit?.();
+        return { kind: "refused", res, version: state.version, now };
+      }
+    }
+
+    const change = out.change;
+    if (sweep && out.notes.length === 0 && isEmptyChange(change)) {
+      // Nothing expired after all (a deadline the rules don't act on): this app instance won't sweep this version again until later.
+      state.sweptAt = Math.max(state.sweptAt, now);
+      await afterLock();
+      return { kind: "unchanged", now };
+    }
+
+    // What the change touches, locked in a fixed order: profiles, then rows, then the world's own row.
+    if (w.lock) {
+      const need = locksFor(state, change, w.actorId, out.notes.length > 0);
+      const named2 = need.named.filter((n) => !held.named.has(n));
+      const people2 = need.people.filter((id) => !held.people.has(id));
+      const records2 = need.records.filter((key) => !held.records.has(key));
+      const meta2 = need.meta && !held.meta;
+      if (named2.length > 0 || people2.length > 0 || records2.length > 0 || meta2) {
+        if (named2.length > 0) await lockNamed(tx, w.worldId, named2);
+        if (people2.length > 0) await lockPeople(tx, people2);
+        if (records2.length > 0) await lockRecords(tx, w.worldId, records2);
+        if (meta2) await tx`SELECT 1 FROM worlds WHERE id = ${w.worldId} FOR NO KEY UPDATE`;
+        for (const n of named2) held.named.add(n);
+        for (const id of people2) held.people.add(id);
+        for (const key of records2) held.records.add(key);
+        if (meta2) held.meta = true;
+        await afterLock();
+        // Anything committed since the market was read? Then read it again and decide again, now with these rows locked.
+        const again = await loadState(tx, pool, w.worldId, port);
+        if (!again.state) throw new MissingWorld();
+        if (!again.state.split) throw new NotSplit();
+        if (again.state.version !== state.version || again.state.born !== state.born) {
+          if (pass >= MAX_PASSES) throw new Contention();
+          state = again.state;
+          now = w.now ?? again.ms;
+          if (sweep && !isDue(state, port, now)) return { kind: "unchanged", now };
+          continue;
+        }
+      }
+    }
+    await afterLock();
+
+    // Only violations this action introduced are refused; old damage never freezes the world (§4.6, J1-4).
+    const introduced = introducedViolations(out.before, out.after);
+    if (introduced.length > 0) throw new InvariantError(introduced);
+    const version = await saveChange(tx, w, state, change, now, sweep, out.notes.length > 0);
+    // §9s item 6: item_photos follows the document in this same transaction (the bytes this action brought; the rows it no longer refers to).
+    await syncPhotos(tx, w, port, docOfState(state, port), out.res.state);
+    await insertNotifications(tx, w.worldId, w.requestId, out.notes);
+    await logAction(tx, w, now, { ok: true, result: loggedResult(out.res, true), before: state.version, after: version });
+    // The day's first write takes its snapshot and prunes, so nothing outlives its limit by more than a day of writes.
+    const firstToday = await maybeSnapshotDaily(tx, w.worldId, version, () => JSON.stringify(out.res.state), now);
+    if (firstToday || Math.floor(version / PRUNE_EVERY_VERSIONS) > Math.floor(state.version / PRUNE_EVERY_VERSIONS)) await pruneIn(tx, w.worldId, now);
+    await w.hooks?.beforeCommit?.();
+    return { kind: "applied", res: out.res, version, now, existing: out.after };
   }
-  const before = sweep ? JSON.stringify(row.doc) : null;
+}
 
-  // Profiles, read after the lock (C-DESIGN §4.1): a classmate whose first write committed while this one
-  // waited for the lock is in this read too, so the engine can name them. Without emails: the engine never
-  // sees them (§3.6).
-  const people = await readPeople(tx, false);
-
-  // Everything the engine does happens in one synchronous run.
-  const doc = row.doc;
+/** One run of the rules on the market as read: the outcome, and the rows it changes. Everything the engine does is in one synchronous run. */
+function runRules(state: WorldState, people: ReadonlyMap<string, PersonRow>, now: number, w: WriteSpec, port: EnginePort): EngineOut {
+  const doc = docOfState(state, port);
   const out = engine(() =>
-    port.run({ doc, people, now }, (): EngineOut => {
+    port.run({ doc, people: [...people.values()], now }, (): EngineOut | { refused: true; res: ReduceResult } => {
       const res = port.reduce(doc, w.actorId, w.action);
       if (typeof res.error === "string") return { refused: true, res };
       // Drained before the invariants are checked, so the new document is at rest like the stored one; otherwise
       // the at-rest rule "the document holds no notifications" (§4.6) would refuse every write that notifies.
       const notes = port.drain(res.state);
-      return {
-        refused: false,
-        res,
-        notes,
-        before: port.violations(doc),
-        after: port.violations(res.state),
-        due: port.nextDue(res.state),
-      };
+      const counted = w.actorId !== null && w.limits.openRecords !== null && port.openOf ? port.openOf.bind(port) : null;
+      const open = counted ? { before: counted(doc, w.actorId!).own, after: counted(res.state, w.actorId!).own } : null;
+      return { refused: false, res, notes, before: port.violations(doc), after: port.violations(res.state), change: EMPTY_CHANGE, open };
     }),
   );
+  if (out.refused) return out;
+  return { ...out, change: engine(() => changeOf(state, out.res.state, port)) };
+}
 
-  if (out.refused) {
-    if (sweep) throw new EngineError("SweepRefused");
-    await logAction(tx, w, now, { ok: false, result: loggedResult(out.res, false), before: row.version, after: row.version });
-    await w.hooks?.beforeCommit?.();
-    return { kind: "refused", res: out.res, ...locked };
-  }
-  // Only violations this action introduced are refused; old damage never freezes the world (§4.6, J1-4).
-  const introduced = introducedViolations(out.before, out.after);
-  if (introduced.length > 0) throw new InvariantError(introduced);
-  const due = dueTime(out.due, w.worldId);
+const EMPTY_CHANGE: Change = Object.freeze({ inserts: [], updates: [], deletes: [], meta: null, nextMeta: { mode: "live" } }) as unknown as Change;
 
-  const json = JSON.stringify(out.res.state);
-  if (sweep && out.notes.length === 0 && json === before) {
-    // Nothing expired: move next_due on and leave the version alone. A deadline the sweep didn't clear would
-    // make every read sweep again, so it isn't stored.
-    const next = due !== null && due <= now ? null : due;
-    if (next !== due) console.warn(`[handoff] world ${w.worldId}: nextDue is in the past after a sweep; not stored.`);
-    // Any UPDATE gives the row a new xmin, which keys the cached document, so the entry moves to it before COMMIT.
-    const [moved] = await tx<{ xmin: string }[]>`
-      UPDATE worlds SET next_due = ${toDate(next)} WHERE id = ${w.worldId} RETURNING xmin::text AS xmin`;
-    if (!moved) throw new MissingWorld();
-    cacheBeforeCommit({ version: row.version, xmin: moved.xmin, json: null, doc: row.doc });
-    return { kind: "unchanged", ...locked, xmin: moved.xmin };
-  }
+function isEmptyChange(c: Change): boolean {
+  return c.inserts.length === 0 && c.updates.length === 0 && c.deletes.length === 0 && c.meta === null;
+}
 
-  const bytes = Buffer.byteLength(json, "utf8");
-  if (bytes > DOC_MAX_BYTES && bytes > Buffer.byteLength(before ?? JSON.stringify(row.doc), "utf8")) {
-    // The expiry sweep is exempt: it records only what time already decided (holds lapsing, backups active again), a few lines
-    // per record and once each. Refused, it would stay due, and every read would run it again under the lock (review INT-3).
-    if (!sweep) throw new DocTooLarge(bytes);
-    console.warn(`[handoff] world ${w.worldId}: stored the expiry sweep although the document is ${bytes} bytes, past the ${DOC_MAX_BYTES}-byte limit; archiving is overdue.`);
+/**
+ * The rows a new document changes against the stored ones: new records, records whose JSON changed (the engine copies the document
+ * it's given, so an untouched record comes back exactly as it was read), and records it no longer has. New records must be where
+ * the engine adds them (the front of a newest-first list, the end of an oldest-first one), or their order couldn't be kept.
+ */
+function changeOf(state: WorldState, next: WorldDoc, port: EnginePort): Change {
+  const { meta, records } = port.split(next);
+  const orders = port.orders();
+  const inserts: MarketRecord[] = [];
+  const updates: { rec: MarketRecord; prev: RecordRow }[] = [];
+  const seen = new Set<string>();
+  const byKind = new Map<string, { recs: MarketRecord[]; fresh: boolean[] }>();
+  for (const rec of records) {
+    const key = `${rec.kind}:${rec.id}`;
+    if (seen.has(key)) throw new Error(`Handoff: two records are ${key}.`);
+    seen.add(key);
+    const prev = state.records.get(key);
+    let list = byKind.get(rec.kind);
+    if (!list) byKind.set(rec.kind, (list = { recs: [], fresh: [] }));
+    list.recs.push(rec);
+    list.fresh.push(!prev);
+    if (prev && JSON.stringify(rec.data) !== rowJson(prev)) updates.push({ rec, prev });
   }
-  const version = row.version + 1;
-  if (bytes > DOC_WARN_BYTES) {
-    console.warn(`[handoff] world ${w.worldId} is ${bytes} bytes at version ${version}; archiving is due.`);
+  for (const [kind, { recs, fresh }] of byKind) {
+    const order = orders[kind];
+    if (!order) throw new Error(`Handoff: "${kind}" isn't a kind of record this port keeps.`);
+    const n = fresh.filter(Boolean).length;
+    if (n === 0) continue;
+    // Newest first: the new ones are the first n, and go in from the oldest of them, so the newest gets the highest ord.
+    const ok = order === "newestFirst" ? fresh.slice(0, n).every(Boolean) : fresh.slice(recs.length - n).every(Boolean);
+    if (!ok) throw new Error(`Handoff: a new ${kind} isn't where the engine adds them.`);
+    const added = order === "newestFirst" ? recs.slice(0, n).reverse() : recs.slice(recs.length - n);
+    inserts.push(...added);
   }
+  const deletes = [...state.records.entries()].filter(([key]) => !seen.has(key)).map(([, row]) => row);
+  const metaChanged = metaKey(meta) !== metaKey(state.meta);
+  return { inserts, updates, deletes, meta: metaChanged ? meta : null, nextMeta: meta };
+}
 
-  // The JSON goes in as text and is cast in SQL: bound straight to a jsonb parameter, postgres.js would
-  // JSON-encode the string a second time and store a JSON string instead of the document.
-  const saved = w.lock
-    ? await tx<{ xmin: string }[]>`
-        UPDATE worlds SET doc = ${json}::text::jsonb, version = ${version}, next_due = ${toDate(due)}, updated_at = NOW()
-        WHERE id = ${w.worldId} AND version = ${row.version} RETURNING xmin::text AS xmin`
-    : await tx<{ xmin: string }[]>`
-        UPDATE worlds SET doc = ${json}::text::jsonb, version = ${version}, next_due = ${toDate(due)}, updated_at = NOW()
-        WHERE id = ${w.worldId} RETURNING xmin::text AS xmin`;
-  const xmin = saved[0]?.xmin;
-  if (saved.count !== 1 || xmin === undefined) throw new VersionConflict();
-  // §9s item 6: item_photos follows the document in this same transaction (the bytes this action brought; the rows it no longer refers to).
-  await syncPhotos(tx, w, port, row.doc, out.res.state);
-  await insertNotifications(tx, w.worldId, w.requestId, out.notes);
-  // Follow-on B4: an email job per stored notification of an emailed kind (the engine's tag: kind and ref, passed on by drain) whose
-  // recipient turned that category on, while a dispatcher with this world's sender worked in the last 10 minutes (email/dispatch.ts).
-  // In this transaction, joined to the notifications rows just written, so nothing is queued unless the action commits, a notification
-  // RB-10 dropped as a duplicate gets no job, and a retried change (answered from the actions log above) never gets here. Untagged
-  // notes make no rows and no query. A sweep's change id is its own random UUID.
-  await insertEmailJobs(tx, { worldId: w.worldId, changeId: w.requestId, now, rows: emailJobRows(out.notes) });
-  await logAction(tx, w, now, { ok: true, result: loggedResult(out.res, true), before: row.version, after: version });
-  // The day's first write takes its snapshot and prunes, so nothing outlives its limit by more than a day of writes.
-  const firstToday = await maybeSnapshotDaily(tx, w.worldId, version, json, now);
-  if (firstToday || version % PRUNE_EVERY_VERSIONS === 0) await pruneIn(tx, w.worldId, now);
-  // The JSON is cached as it was stored and parsed once, when first needed (the actor's view, usually).
-  cacheBeforeCommit({ version, xmin, json, doc: null });
-  await w.hooks?.beforeCommit?.();
-  return { kind: "applied", res: out.res, doc: out.res.state, json, version, xmin, now, existing: out.after };
+/** The meta as compared for a change: everything but lastStamp. */
+function metaKey(meta: WorldDoc): string {
+  return JSON.stringify({ ...meta, lastStamp: 0 });
+}
+
+/**
+ * The engine's stamp clock (the meta's lastStamp: every stamp it gives is past the last one, C-DESIGN §5.1). It moves with nearly
+ * every change, so rather than write the world's row each time, each row a change writes keeps the clock as that change left it
+ * (records.stamp), and the meta read back takes the latest of them.
+ */
+function stampOf(meta: WorldDoc): number {
+  const s = meta["lastStamp"];
+  return typeof s === "number" && Number.isFinite(s) ? s : 0;
+}
+
+function withStamp(meta: WorldDoc, stamp: number | null): WorldDoc {
+  return typeof meta["lastStamp"] === "number" && stamp !== null && stamp > meta["lastStamp"] ? { ...meta, lastStamp: stamp } : meta;
+}
+
+/** How many open records of the account's the change opens, less those it closes. */
+function openDelta(c: Change, userId: string): number {
+  let d = 0;
+  for (const r of c.inserts) if (r.owner === userId && r.open) d += 1;
+  for (const { rec, prev } of c.updates) d += (rec.owner === userId && rec.open ? 1 : 0) - (prev.owner === userId && prev.open ? 1 : 0);
+  for (const r of c.deletes) if (r.owner === userId && r.open) d -= 1;
+  return d;
+}
+
+function openCount(state: WorldState, userId: string): number {
+  let n = 0;
+  for (const r of state.records.values()) if (r.open && r.owner === userId) n += 1;
+  return n;
+}
+
+/**
+ * What a change must lock, in this order: the locks its new records name (the port's createLocks: new events go one at a time);
+ * the profiles of the actor and of whoever the change gives a new record or makes hold something (a reservation: what one person
+ * may hold is limited, so their changes are ordered); the stored rows it changes, and the stored rows those depend on (each
+ * record's guards, and a new record's createGuards); and the world's row when that's written (metaWrite). A row not yet stored
+ * can't be locked, and needn't be: nobody else can have it.
+ */
+function locksFor(
+  state: WorldState,
+  c: Change,
+  actorId: string | null,
+  notified: boolean,
+): { named: string[]; people: string[]; records: string[]; meta: boolean } {
+  const named = new Set<string>();
+  const people = new Set<string>(actorId ? [actorId] : []);
+  const records = new Set<string>();
+  const guard = (keys: readonly string[] | undefined): void => {
+    for (const k of keys ?? []) if (state.records.has(k)) records.add(k);
+  };
+  for (const r of c.inserts) {
+    for (const n of r.createLocks ?? []) named.add(n);
+    if (r.owner) people.add(r.owner);
+    guard(r.guards);
+    guard(r.createGuards);
+  }
+  for (const { rec, prev } of c.updates) {
+    records.add(`${prev.kind}:${prev.id}`);
+    if (rec.owner && ((rec.holds === true && !prev.holds) || rec.owner !== prev.owner)) people.add(rec.owner);
+    guard(rec.guards);
+    guard(prev.guards);
+  }
+  for (const r of c.deletes) {
+    records.add(`${r.kind}:${r.id}`);
+    if (r.owner) people.add(r.owner);
+    guard(r.guards);
+  }
+  return { named: [...named].sort(), people: [...people].sort(), records: [...records].sort(), meta: metaWrite(c, notified) };
+}
+
+/** Takes a world's named locks (createLocks), in name order; each held until the transaction ends. */
+async function lockNamed(tx: Sql, worldId: WorldId, names: readonly string[]): Promise<void> {
+  for (const name of [...names].sort()) await tx`SELECT pg_advisory_xact_lock(${lockKey(`handoff:${worldId}:${name}`)}::bigint)`;
+}
+
+/** The owners of the records the action names, and of the records those depend on: the people its words most likely name. */
+function seedPeople(state: WorldState, port: EnginePort, w: WriteSpec): string[] {
+  const ids = new Set<string>(w.actorId ? [w.actorId] : []);
+  const kinds = Object.keys(port.orders());
+  for (const value of Object.values(w.ids)) {
+    for (const kind of kinds) {
+      const row = state.records.get(`${kind}:${value}`);
+      if (!row) continue;
+      if (row.owner) ids.add(row.owner);
+      for (const g of row.guards) {
+        const owner = state.records.get(g)?.owner;
+        if (owner) ids.add(owner);
+      }
+    }
+  }
+  return [...ids];
+}
+
+/** Everyone a change's records and notifications name: their owners, the owners of what they depend on, and whom the notes go to. */
+function peopleNamed(state: WorldState, c: Change, notes: readonly EngineNote[]): string[] {
+  const ids = new Set<string>();
+  const add = (id: string | null | undefined): void => {
+    if (id) ids.add(id);
+  };
+  const guards = (keys: readonly string[] | undefined): void => {
+    for (const k of keys ?? []) add(state.records.get(k)?.owner);
+  };
+  for (const r of c.inserts) {
+    add(r.owner);
+    guards(r.guards);
+  }
+  for (const { rec, prev } of c.updates) {
+    add(rec.owner);
+    add(prev.owner);
+    guards(rec.guards);
+  }
+  for (const r of c.deletes) add(r.owner);
+  for (const n of notes) add(n.userId);
+  return [...ids];
+}
+
+/**
+ * Writes the change: new rows (each taking the next ord), changed rows (a new revision: a row whose revision moved under the write
+ * means it wasn't locked, and the write runs again), rows that went, and the meta. The world's version (worlds.version plus every
+ * row's tally) goes up by exactly one for the change: on one of the rows it writes (its tally), or, when the meta changes, a row
+ * goes or only notifications were made, on the world's own row (which then also takes the tallies of the rows that went, so the
+ * version never goes back). So no row is written by every change, and the version still counts changes. Returns it.
+ */
+async function saveChange(tx: Sql, w: WriteSpec, state: WorldState, c: Change, now: number, sweep: boolean, notified: boolean): Promise<number> {
+  const at = new Date(now);
+  const json = (r: MarketRecord, prev?: RecordRow): string => {
+    const s = JSON.stringify(r.data);
+    const bytes = Buffer.byteLength(s, "utf8");
+    // Past the limit, a record may only shrink (one stored before the limit, say), so it never stops its exchange.
+    if (bytes > RECORD_MAX_BYTES && (!prev || bytes > Buffer.byteLength(rowJson(prev), "utf8"))) {
+      // The expiry sweep is exempt: it stores only what time already decided, once (review INT-3).
+      if (!sweep) throw new RecordTooLarge(bytes);
+      console.warn(`[handoff] world ${w.worldId}: stored the expiry sweep although a ${r.kind} is ${bytes} bytes, past the ${RECORD_MAX_BYTES}-byte limit.`);
+    }
+    return s;
+  };
+  // Where the change is counted: the world's row when it's written anyway (the meta changed, a row went) or nothing else is, else
+  // the first row written (an update before an insert).
+  const onWorld = metaWrite(c, notified);
+  const first = c.updates[0]?.prev ?? null;
+  const counted = onWorld ? null : first ? `u:${first.kind}:${first.id}` : c.inserts[0] ? `i:${c.inserts[0].kind}:${c.inserts[0].id}` : null;
+  const stamp = stampOf(c.nextMeta);
+  const rowOf = (r: MarketRecord, tally: number, prev?: RecordRow): string =>
+    `{"kind":${JSON.stringify(r.kind)},"id":${JSON.stringify(r.id)},${prev ? `"rev":${prev.rev},` : ""}"tally":${tally},"owner":${JSON.stringify(r.owner)},"open":${r.open},"parent":${JSON.stringify(r.parent)},"data":${json(r, prev)}}`;
+  if (c.inserts.length > 0) {
+    // In array order, so each takes the next ord in turn (changeOf put them in the order that keeps each list's order).
+    const rows = c.inserts.map((r) => rowOf(r, counted === `i:${r.kind}:${r.id}` ? 1 : 0));
+    const inserted = await tx`
+      INSERT INTO records (world_id, kind, id, ord, rev, tally, stamp, owner_id, open, parent_id, data, updated_at)
+      SELECT ${w.worldId}, x.kind, x.id, nextval('record_ord'), 1, x.tally, ${stamp}, x.owner, x.open, x.parent, x.data, ${at}
+      FROM jsonb_to_recordset(${`[${rows.join(",")}]`}::text::jsonb)
+        AS x(kind text, id text, tally int, owner text, open boolean, parent text, data jsonb)
+      ON CONFLICT (world_id, kind, id) DO NOTHING`;
+    if (inserted.count !== c.inserts.length) throw new RecordConflict();
+  }
+  if (c.updates.length > 0) {
+    const rows = `[${c.updates.map(({ rec, prev }) => rowOf(rec, counted === `u:${prev.kind}:${prev.id}` ? 1 : 0, prev)).join(",")}]`;
+    const updated = w.lock
+      ? await tx`
+          UPDATE records r SET data = x.data, rev = r.rev + 1, tally = r.tally + x.tally, stamp = greatest(r.stamp, ${stamp}), owner_id = x.owner,
+            open = x.open, parent_id = x.parent, updated_at = ${at}
+          FROM jsonb_to_recordset(${rows}::text::jsonb) AS x(kind text, id text, rev int, tally int, owner text, open boolean, parent text, data jsonb)
+          WHERE r.world_id = ${w.worldId} AND r.kind = x.kind AND r.id = x.id AND r.rev = x.rev`
+      : await tx`
+          UPDATE records r SET data = x.data, rev = r.rev + 1, tally = r.tally + x.tally, stamp = greatest(r.stamp, ${stamp}), owner_id = x.owner,
+            open = x.open, parent_id = x.parent, updated_at = ${at}
+          FROM jsonb_to_recordset(${rows}::text::jsonb) AS x(kind text, id text, rev int, tally int, owner text, open boolean, parent text, data jsonb)
+          WHERE r.world_id = ${w.worldId} AND r.kind = x.kind AND r.id = x.id`;
+    if (w.lock && updated.count !== c.updates.length) throw new RecordConflict();
+  }
+  let gone = 0;
+  if (c.deletes.length > 0) {
+    const deleted = await tx<{ tally: number }[]>`
+      DELETE FROM records r USING unnest(${c.deletes.map((d) => d.kind)}::text[], ${c.deletes.map((d) => d.id)}::text[]) AS k(kind, id)
+      WHERE r.world_id = ${w.worldId} AND r.kind = k.kind AND r.id = k.id RETURNING r.tally`;
+    if (w.lock && deleted.count !== c.deletes.length) throw new RecordConflict();
+    gone = deleted.reduce((t, r) => t + r.tally, 0);
+  }
+  if (onWorld) {
+    // The world's row (this write holds it: locksFor) takes the meta as the change left it, its stamp clock too.
+    await tx`
+      UPDATE worlds SET doc = ${storedMetaJson(c.nextMeta)}::text::jsonb, version = version + ${1 + gone}, updated_at = ${at}
+      WHERE id = ${w.worldId}`;
+  } else if (c.inserts.length === 0 && c.updates.length === 0) {
+    return state.version; // nothing stored changed and nobody was told anything: the version stays
+  }
+  return state.version + 1;
+}
+
+/** Whether a change writes the world's own row: its meta changed, a row went, or it only notified (it changed no row to count on). */
+function metaWrite(c: Change, notified: boolean): boolean {
+  return c.meta !== null || c.deletes.length > 0 || (notified && c.inserts.length === 0 && c.updates.length === 0);
+}
+
+/**
+ * Splits a world still kept as one document into rows (review of PR #88), once, under its row's lock: a before-upgrade snapshot of
+ * the whole document first, then every record as its own row in the document's order, then the meta in place of the document. The
+ * version stays: it's the same market. A document in a format this code doesn't read is left as it is (the port's run refuses it,
+ * and the write fails as an internal error, as before the rows).
+ */
+async function ensureSplit(sql: Sql, worldId: WorldId, port: EnginePort, lockTimeoutMs: number, at?: number): Promise<void> {
+  await sql.begin(async (raw) => {
+    const tx = asSql(raw);
+    await tx.unsafe(`SET LOCAL lock_timeout = '${lockTimeoutMs}ms'; SET LOCAL statement_timeout = '60s'`);
+    const [row] = await tx<{ version: number; doc: WorldDoc; split: boolean; ms: number; due: number | null }[]>`
+      SELECT version, doc, split_at IS NOT NULL AS split, floor(extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms,
+             floor(extract(epoch FROM next_due) * 1000)::float8 AS due
+      FROM worlds WHERE id = ${worldId} FOR NO KEY UPDATE`;
+    if (!row || row.split) return;
+    const doc = row.doc;
+    const now = at ?? row.ms;
+    engine(() => port.run({ doc, people: [], now }, () => null)); // the port refuses a format it doesn't read
+    // The rows count as stored just before the document's next deadline (next_due), so the first read after it still sweeps it.
+    const stored = new Date(row.due !== null ? Math.min(row.due - 1, now) : now);
+    const { meta, records } = port.split(doc);
+    await tx`
+      INSERT INTO world_snapshots (world_id, version, reason, doc) VALUES (${worldId}, ${row.version}, 'before-upgrade', ${JSON.stringify(doc)}::text::jsonb)
+      ON CONFLICT (world_id, version, reason) DO NOTHING`;
+    if (records.length > 0) {
+      // Each list's order as ords: ascending along an oldest-first list, descending along a newest-first one.
+      const ords = (await tx<{ v: number }[]>`SELECT nextval('record_ord')::float8 AS v FROM generate_series(1, ${records.length})`).map((r) => r.v).sort((a, b) => a - b);
+      const orders = port.orders();
+      const byKind = new Map<string, MarketRecord[]>();
+      for (const r of records) {
+        let list = byKind.get(r.kind);
+        if (!list) byKind.set(r.kind, (list = []));
+        list.push(r);
+      }
+      const rows: string[] = [];
+      let next = 0;
+      for (const [kind, list] of byKind) {
+        if (!orders[kind]) throw new Error(`Handoff: "${kind}" isn't a kind of record this port keeps.`);
+        const take = ords.slice(next, next + list.length);
+        next += list.length;
+        list.forEach((r, i) => {
+          const ord = orders[kind] === "newestFirst" ? take[list.length - 1 - i]! : take[i]!;
+          rows.push(`{"kind":${JSON.stringify(r.kind)},"id":${JSON.stringify(r.id)},"ord":${ord},"owner":${JSON.stringify(r.owner)},"open":${r.open},"parent":${JSON.stringify(r.parent)},"data":${JSON.stringify(r.data)}}`);
+        });
+      }
+      const inserted = await tx`
+        INSERT INTO records (world_id, kind, id, ord, rev, owner_id, open, parent_id, data, updated_at)
+        SELECT ${worldId}, x.kind, x.id, x.ord, 1, x.owner, x.open, x.parent, x.data, ${stored}
+        FROM jsonb_to_recordset(${`[${rows.join(",")}]`}::text::jsonb)
+          AS x(kind text, id text, ord bigint, owner text, open boolean, parent text, data jsonb)`;
+      if (inserted.count !== records.length) throw new Error("Handoff: not every record was split into its row.");
+    }
+    // The same market at the same version (every row's tally starts at 0): a tab showing it is still up to date.
+    await tx`UPDATE worlds SET doc = ${storedMetaJson(meta)}::text::jsonb, split_at = clock_timestamp(), next_due = NULL WHERE id = ${worldId}`;
+    await pruneSnapshots(tx, worldId, "before-upgrade", UPGRADE_SNAPSHOTS_KEPT);
+    console.info(`[handoff] world ${worldId}: split ${records.length} record(s) into rows at version ${row.version}.`);
+  });
+}
+
+/** The system's expiry sweep (no actor, not a client action), through the same write path. */
+async function sweepWorld(sql: Sql, worldId: WorldId, now: number | undefined, port: EnginePort): Promise<void> {
+  const w = await write(
+    sql,
+    {
+      worldId,
+      actorId: null,
+      requestId: randomUUID(),
+      action: { type: "sweep" },
+      ids: {},
+      now,
+      lock: true,
+      lockTimeoutMs: DEFAULT_LOCK_TIMEOUT_MS,
+      limits: { openRecords: null, perMinute: null },
+      hooks: undefined,
+    },
+    port,
+  );
+  if (w.kind === "applied") logExistingViolations(worldId, w.version, w.existing);
 }
 
 /** The document and item_photos disagree about a photo: a bug, never a person's mistake. Nothing is saved. */
@@ -896,74 +1375,26 @@ async function syncPhotos(tx: Sql, w: WriteSpec, port: EnginePort, before: World
   }
 }
 
-/**
- * The world's row, locked with FOR UPDATE, and its document: this pool's cached copy when the row's version and xmin still
- * match it (any UPDATE of the row, including a manual fix in SQL, gives it a new xmin), otherwise read here, under the lock.
- * With the lock off (the race test's negative control only), one unlocked read and no cache.
- */
-async function lockWorld(tx: Sql, sql: Sql, w: Pick<WriteSpec, "worldId" | "lock">): Promise<WorldRow | undefined> {
-  if (!w.lock) {
-    const [row] = await tx<WorldRow[]>`SELECT version, xmin::text AS xmin, doc, next_due FROM worlds WHERE id = ${w.worldId}`;
-    return row && { ...row, doc: deepFreeze(row.doc) };
-  }
-  const [head] = await tx<{ version: number; xmin: string; next_due: Date | null }[]>`
-    SELECT version, xmin::text AS xmin, next_due FROM worlds WHERE id = ${w.worldId} FOR UPDATE`;
-  if (!head) return undefined;
-  const hit = cachedDoc(sql, w.worldId, head.version, head.xmin);
-  if (hit) return { ...head, doc: hit };
-  // With the row locked, this is the latest version there is: a cached one above it is dead (the world was deleted and
-  // created again, or set back), and would otherwise keep every later document out of the cache (see remember).
-  forgetAbove(sql, w.worldId, head.version);
-  // This transaction holds the row's lock, so this reads the very version it just locked.
-  const [body] = await tx<{ doc: WorldDoc }[]>`SELECT doc FROM worlds WHERE id = ${w.worldId}`;
-  if (!body) throw new MissingWorld();
-  return { ...head, doc: deepFreeze(body.doc) };
+/** Locks profile rows, in user id order (every write locks profiles before rows, so two writes can't wait on each other in a circle). */
+async function lockPeople(tx: Sql, ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await tx`SELECT user_id FROM people WHERE user_id = ANY(${[...ids].sort()}::text[]) ORDER BY user_id FOR UPDATE`;
 }
 
-/**
- * A world's committed row for a read (getView), given the head it already read: this pool's cached document when the
- * version and xmin match, otherwise the row read again in one query, so its document, version and next_due agree (a write
- * may have committed since the head). Undefined when the world has no row.
- */
-async function readWorld(
-  sql: Sql,
-  worldId: WorldId,
-  head: { version: number | null; xmin: string | null; next_due: Date | null },
-): Promise<WorldRow | undefined> {
-  if (head.version === null || head.xmin === null) return undefined;
-  const hit = cachedDoc(sql, worldId, head.version, head.xmin);
-  if (hit) return { version: head.version, xmin: head.xmin, doc: hit, next_due: head.next_due };
-  const [row] = await sql<WorldRow[]>`SELECT version, xmin::text AS xmin, doc, next_due FROM worlds WHERE id = ${worldId}`;
-  if (!row) return undefined;
-  const doc = deepFreeze(row.doc);
-  remember(sql, worldId, { version: row.version, xmin: row.xmin, json: null, doc });
-  return { ...row, doc };
+/** Locks stored rows ("kind:id"), in key order. */
+async function lockRecords(tx: Sql, worldId: WorldId, keys: readonly string[]): Promise<void> {
+  if (keys.length === 0) return;
+  const sorted = [...keys].sort();
+  const kinds = sorted.map((k) => k.slice(0, k.indexOf(":")));
+  const ids = sorted.map((k) => k.slice(k.indexOf(":") + 1));
+  await tx`
+    SELECT r.kind, r.id FROM records r JOIN unnest(${kinds}::text[], ${ids}::text[]) AS k(kind, id) ON r.kind = k.kind AND r.id = k.id
+    WHERE r.world_id = ${worldId} ORDER BY r.kind, r.id FOR UPDATE OF r`;
 }
 
-/** The system's expiry sweep (no actor, not a client action), through the same write path. */
-async function sweepWorld(
-  sql: Sql,
-  worldId: WorldId,
-  now: number | undefined,
-  port: EnginePort,
-): Promise<{ doc: WorldDoc; version: number; now: number }> {
-  const w = await write(
-    sql,
-    {
-      worldId,
-      actorId: null,
-      requestId: randomUUID(),
-      action: { type: "sweep" },
-      ids: {},
-      now,
-      lock: true,
-      lockTimeoutMs: DEFAULT_LOCK_TIMEOUT_MS,
-      hooks: undefined,
-    },
-    port,
-  );
-  if (w.kind === "applied") logExistingViolations(worldId, w.version, w.existing);
-  return { doc: w.doc, version: w.version, now: w.now };
+/** A Postgres advisory lock key (a signed 64-bit integer, as text) for a name. */
+function lockKey(name: string): string {
+  return createHash("sha256").update(name, "utf8").digest().readBigInt64BE(0).toString();
 }
 
 function engine<T>(fn: () => T): T {
@@ -999,13 +1430,6 @@ function sameAction(prior: PriorAction, type: string, ids: Record<string, string
   const a = Object.keys(prior.ids).sort();
   const b = Object.keys(ids).sort();
   return a.length === b.length && a.every((key, i) => key === b[i] && prior.ids[key] === ids[key]);
-}
-
-function dueTime(due: number | null, worldId: string): number | null {
-  if (due === null) return null;
-  if (Number.isFinite(due)) return due;
-  console.warn(`[handoff] world ${worldId}: nextDue returned a non-finite time; not stored.`);
-  return null;
 }
 
 function loggedResult(res: ReduceResult, ok: boolean): LoggedResult {
@@ -1062,10 +1486,10 @@ async function insertNotifications(tx: Sql, worldId: WorldId, changeId: string, 
 }
 
 /**
- * The first write of each New York day keeps a snapshot of the document it saved. Returns whether this was that write (its
+ * The first write of each New York day keeps a snapshot of the whole document it saved. Returns whether this was that write (its
  * caller then prunes, which also caps the snapshots).
  */
-async function maybeSnapshotDaily(tx: Sql, worldId: WorldId, version: number, json: string, now: number): Promise<boolean> {
+async function maybeSnapshotDaily(tx: Sql, worldId: WorldId, version: number, json: () => string, now: number): Promise<boolean> {
   const at = new Date(now);
   const [today] = await tx<{ taken: boolean }[]>`
     SELECT EXISTS (
@@ -1076,7 +1500,7 @@ async function maybeSnapshotDaily(tx: Sql, worldId: WorldId, version: number, js
   if (today?.taken) return false;
   await tx`
     INSERT INTO world_snapshots (world_id, version, reason, doc, taken_at)
-    VALUES (${worldId}, ${version}, 'daily', ${json}::text::jsonb, ${at})
+    VALUES (${worldId}, ${version}, 'daily', ${json()}::text::jsonb, ${at})
     ON CONFLICT (world_id, version, reason) DO NOTHING`;
   return true;
 }
@@ -1125,102 +1549,337 @@ async function pruneIn(tx: Sql, worldId: WorldId, now: number): Promise<PruneCou
   const daily = await pruneSnapshots(tx, worldId, "daily", DAILY_SNAPSHOTS_KEPT);
   const old = await pruneOldDailySnapshots(tx, worldId, now);
   const upgrade = await pruneSnapshots(tx, worldId, "before-upgrade", UPGRADE_SNAPSHOTS_KEPT);
-  // Follow-on B4: finished email jobs after 14 days and captured emails after 7 (the dispatcher prunes its worlds the same way).
-  const email = await pruneEmailIn(tx, worldId, now);
-  return { actions: actions.count, notifications: notifications.count, snapshots: daily + old + upgrade, email };
+  return { actions: actions.count, notifications: notifications.count, snapshots: daily + old + upgrade };
 }
 
-// ── The document cache (C-DESIGN §1.2 item 3) ────────────────────────────────────────────
+// ── The market as read (review of PR #88) ────────────────────────────────────────────────
 //
-// Each pool (one per app instance, as toolSql builds it) keeps the last document it read or wrote for each world, keyed
-// by the row's version and xmin. A write then locks the row with a small SELECT and skips reading and parsing the whole
-// document while it holds the lock, and a read skips it when nothing changed. Correctness never depends on the cache:
-// another instance's write, or any manual UPDATE of the row, changes the xmin, so the next lock or read misses and reads
-// the row. Cached documents are deep-frozen: the engine copies a document before changing it, and anything that tried to
-// write into a cached one would throw (engine and store code are strict-mode modules) instead of silently changing what
-// later writes start from. A write caches its document just before COMMIT, keyed by its own transaction's xmin, which the
-// row carries only if the transaction commits; if it fails, the entry is removed. So a hit is always a committed document.
+// A world at one version: its meta and its rows. Each pool (one per app instance, as toolSql builds it) keeps the latest it read
+// for each world, and reads only what changed since: one query for the version, and, when it moved, one for every row's revision
+// and one for the rows whose revision it doesn't have. Every tab the instance serves then shares the same copy, the document joined
+// from it, its next deadline and the guest view. Correctness never depends on the cache: the version is read from the database
+// every time, and a world's version only ever grows (each committed change raises it by at least one), so one version is one
+// market. Cached records are deep-frozen: the engine copies a document before changing it, and anything that tried to write into a
+// cached one would throw (engine and store code are strict-mode modules) instead of silently changing what later writes start from.
+
+/** One stored record: its kind and id, its place in its list (ord), its revision, who owns it, whether it's open, the record itself. */
+interface RecordRow {
+  kind: string;
+  id: string;
+  ord: number;
+  rev: number;
+  owner: string | null;
+  open: boolean;
+  /** Its guards ("kind:id"), as the port's split names them. */
+  guards: readonly string[];
+  /** Whether it holds something for its owner (the port's split: a reservation, a goods hold). */
+  holds: boolean;
+  data: Readonly<Record<string, unknown>>;
+  /** The record's JSON, as compared with a change's (computed when first needed). */
+  json: string | null;
+}
+
+/** A world as committed at one version. Its records and meta are deep-frozen; the rest is this pool's, filled in as needed. */
+interface WorldState {
+  worldId: WorldId;
+  version: number;
+  /** When the world's row was made (µs): a world deleted and made again is another world. */
+  born: string;
+  /** The world's row's xmin as read: any write to that row is another copy. */
+  xmin: string;
+  /** Kept as rows. False only until a world from before the rows is split (ensureSplit, at its first write). */
+  split: boolean;
+  meta: WorldDoc;
+  records: ReadonlyMap<string, RecordRow>;
+  /** The latest time a write stored a record: every deadline up to it has been swept (each write sweeps the whole market first). */
+  processedAt: number;
+  /** A world not yet kept as rows: its stored next_due. */
+  storedDue: number | null;
+  /** This pool's sweep at this version found nothing to store, at this time. */
+  sweptAt: number;
+  doc: WorldDoc | null;
+  due: { at: number; value: number | null } | null;
+  guest: { view: GuestView; builtAt: number } | null;
+}
+
+interface Loaded {
+  /** The database's clock (ms), read with the version. */
+  ms: number;
+  state: WorldState | null;
+}
+
+/** The record's JSON as stored (and as an unchanged one comes back from the engine). */
+function rowJson(row: RecordRow): string {
+  if (row.json === null) row.json = JSON.stringify(row.data);
+  return row.json;
+}
+
+/** Each kind's rows in their list's order: newest first by ord descending, oldest first by ord ascending. */
+function byOrder(orders: Readonly<Record<string, string>>): (a: { kind: string; ord: number }, b: { kind: string; ord: number }) => number {
+  return (a, b) => (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : orders[a.kind] === "newestFirst" ? b.ord - a.ord : a.ord - b.ord);
+}
+
+/** The whole document, joined from the state's rows once (deep-frozen) and kept with it. */
+function docOfState(state: WorldState, port: EnginePort): WorldDoc {
+  if (!state.doc) {
+    const rows = [...state.records.values()].sort(byOrder(port.orders()));
+    state.doc = deepFreeze(port.join(state.meta, rows));
+  }
+  return state.doc;
+}
+
+/** Every record of the state with its owner, openness and guards (a world not yet split has them from its document). */
+function recordsOf(state: WorldState, port: EnginePort): ReadonlyMap<string, Pick<RecordRow, "owner" | "open" | "guards">> {
+  if (state.split) return state.records;
+  return new Map(port.split(docOfState(state, port)).records.map((r) => [`${r.kind}:${r.id}`, r] as const));
+}
+
+/**
+ * The next deadline the market holds after the time it was last swept to (null: none), as this pool last worked it out for this
+ * version. A world not yet kept as rows has it stored (next_due).
+ */
+function dueOf(state: WorldState, port: EnginePort): number | null {
+  if (!state.split) return state.storedDue;
+  const at = Math.max(state.processedAt, state.sweptAt);
+  if (state.due && state.due.at === at) return state.due.value;
+  const doc = docOfState(state, port);
+  const value = engine(() => port.run({ doc, people: [], now: at }, () => port.nextDue(doc)));
+  const due = value !== null && Number.isFinite(value) ? value : null;
+  if (value !== null && due === null) console.warn(`[handoff] world ${state.worldId}: nextDue returned a non-finite time; ignored.`);
+  state.due = { at, value: due };
+  return due;
+}
+
+function isDue(state: WorldState, port: EnginePort, now: number): boolean {
+  const due = dueOf(state, port);
+  return due !== null && due <= now;
+}
+
+/**
+ * The world as committed now: this pool's copy when its version is the database's, otherwise read (only the rows that changed, when
+ * this pool has an earlier version). `q` runs the queries (a transaction's, for a write); `pool` keys the cache.
+ */
+async function loadState(q: Sql, pool: Sql, worldId: WorldId, port: EnginePort): Promise<Loaded> {
+  const cache = stateCache(pool);
+  for (let attempt = 1; ; attempt++) {
+    const head = first(
+      await q<{ ms: number; meta_version: number | null; born: string | null; xmin: string | null; split: boolean | null; tallies: number | null }[]>`
+        SELECT c.ms, w.version AS meta_version, (extract(epoch FROM w.created_at) * 1000000)::bigint::text AS born, w.xmin::text AS xmin,
+               w.split_at IS NOT NULL AS split,
+               (SELECT coalesce(sum(r.tally), 0) FROM records r WHERE r.world_id = w.id)::float8 AS tallies
+        FROM (SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::float8 AS ms) AS c
+        LEFT JOIN worlds w ON w.id = ${worldId}`,
+    );
+    if (head.meta_version === null || head.born === null) return { ms: head.ms, state: null };
+    const version = head.meta_version + (head.tallies ?? 0);
+    const hit = cache.worlds.get(worldId);
+    // The world's row's xmin too: any write to that row (the meta, or a manual fix to it) is another copy, whatever the version says.
+    if (hit && hit.version === version && hit.born === head.born && hit.xmin === head.xmin && hit.split === head.split) {
+      cache.hits += 1;
+      touch(cache, worldId, hit);
+      return { ms: head.ms, state: hit };
+    }
+    cache.misses += 1;
+    const base = hit && hit.born === head.born && hit.split && head.split ? hit : null;
+    const counted = (n: number): void => {
+      cache.rowsRead += n;
+    };
+    const state = base ? await readChanged(q, worldId, port, base, counted) : await readFull(q, worldId, port, counted);
+    if (state === "moved") {
+      if (attempt < 3) continue;
+      const full = await readFull(q, worldId, port, counted);
+      if (full) remember(pool, full);
+      return { ms: head.ms, state: full ?? null };
+    }
+    if (state) remember(pool, state);
+    return { ms: head.ms, state: state ?? null };
+  }
+}
+
+type MetaRow = {
+  version: number;
+  born: string;
+  xmin: string;
+  split: boolean;
+  doc: WorldDoc;
+  next_due: Date | null;
+  processed: number | null;
+  tallies: number;
+  stamp: number | null;
+};
+
+/** The whole world in one query (one snapshot): its meta, or its document before the split, and every row. */
+async function readFull(q: Sql, worldId: WorldId, port: EnginePort, counted?: (rows: number) => void): Promise<WorldState | undefined> {
+  const [row] = await q<(MetaRow & { recs: [string, string, number, number, string | null, boolean, Record<string, unknown>][] })[]>`
+    SELECT w.version, (extract(epoch FROM w.created_at) * 1000000)::bigint::text AS born, w.xmin::text AS xmin, w.split_at IS NOT NULL AS split,
+           w.doc, w.next_due,
+           (SELECT floor(extract(epoch FROM max(r.updated_at)) * 1000) FROM records r WHERE r.world_id = w.id)::float8 AS processed,
+           (SELECT coalesce(sum(r.tally), 0) FROM records r WHERE r.world_id = w.id)::float8 AS tallies,
+           (SELECT max(r.stamp) FROM records r WHERE r.world_id = w.id)::float8 AS stamp,
+           (SELECT coalesce(json_agg(json_build_array(r.kind, r.id, r.ord, r.rev, r.owner_id, r.open, r.data)), '[]'::json)
+            FROM records r WHERE r.world_id = w.id) AS recs
+    FROM worlds w WHERE w.id = ${worldId}`;
+  if (!row) return undefined;
+  if (!row.split) return unsplitState(worldId, row, port);
+  counted?.(row.recs.length);
+  const factsOf = factsReader(port);
+  const records = new Map<string, RecordRow>();
+  for (const [kind, id, ord, rev, owner, open, data] of row.recs) {
+    records.set(`${kind}:${id}`, { kind, id, ord, rev, owner, open, ...factsOf(kind, data), data: deepFreeze(data), json: null });
+  }
+  return splitState(worldId, row, row.version + row.tallies, records);
+}
+
+/**
+ * The world's rows that changed since `base` (same world, kept as rows): every row's revision in one query, then the rows whose
+ * revision `base` doesn't have. "moved" when a write committed between the two (a row came back at another revision): read again.
+ */
+async function readChanged(
+  q: Sql,
+  worldId: WorldId,
+  port: EnginePort,
+  base: WorldState,
+  counted?: (rows: number) => void,
+): Promise<WorldState | undefined | "moved"> {
+  const [row] = await q<(MetaRow & { revs: [string, string, number][] })[]>`
+    SELECT w.version, (extract(epoch FROM w.created_at) * 1000000)::bigint::text AS born, w.xmin::text AS xmin, w.split_at IS NOT NULL AS split,
+           w.doc, w.next_due,
+           (SELECT floor(extract(epoch FROM max(r.updated_at)) * 1000) FROM records r WHERE r.world_id = w.id)::float8 AS processed,
+           (SELECT coalesce(sum(r.tally), 0) FROM records r WHERE r.world_id = w.id)::float8 AS tallies,
+           (SELECT max(r.stamp) FROM records r WHERE r.world_id = w.id)::float8 AS stamp,
+           (SELECT coalesce(json_agg(json_build_array(r.kind, r.id, r.rev)), '[]'::json) FROM records r WHERE r.world_id = w.id) AS revs
+    FROM worlds w WHERE w.id = ${worldId}`;
+  if (!row) return undefined;
+  if (!row.split || row.born !== base.born) return readFull(q, worldId, port, counted);
+  const want = new Map<string, number>();
+  const records = new Map<string, RecordRow>();
+  for (const [kind, id, rev] of row.revs) {
+    const key = `${kind}:${id}`;
+    const had = base.records.get(key);
+    if (had && had.rev === rev) records.set(key, had);
+    else want.set(key, rev);
+  }
+  // Most of the market changed (or this is a small one): one read of everything is cheaper.
+  if (want.size > Math.max(50, row.revs.length / 2)) return readFull(q, worldId, port, counted);
+  if (want.size > 0) {
+    const keys = [...want.keys()];
+    const fetched = await q<{ kind: string; id: string; ord: number; rev: number; owner_id: string | null; open: boolean; data: Record<string, unknown> }[]>`
+      SELECT r.kind, r.id, r.ord::float8 AS ord, r.rev, r.owner_id, r.open, r.data
+      FROM records r JOIN unnest(${keys.map((k) => k.slice(0, k.indexOf(":")))}::text[], ${keys.map((k) => k.slice(k.indexOf(":") + 1))}::text[]) AS k(kind, id)
+        ON r.kind = k.kind AND r.id = k.id
+      WHERE r.world_id = ${worldId}`;
+    counted?.(fetched.length);
+    const factsOf = factsReader(port);
+    for (const f of fetched) {
+      const key = `${f.kind}:${f.id}`;
+      if (want.get(key) !== f.rev) return "moved";
+      records.set(key, { kind: f.kind, id: f.id, ord: f.ord, rev: f.rev, owner: f.owner_id, open: f.open, ...factsOf(f.kind, f.data), data: deepFreeze(f.data), json: null });
+    }
+    if (fetched.length !== want.size) return "moved";
+  }
+  return splitState(worldId, row, row.version + row.tallies, records);
+}
+
+/** A record's guards, and whether it holds something for its owner, from its data, as the port's split says. */
+function factsReader(port: EnginePort): (kind: string, data: Record<string, unknown>) => { guards: readonly string[]; holds: boolean } {
+  return (kind, data) => (port.rowFacts ? port.rowFacts(kind, data) : { guards: [], holds: false });
+}
+
+function splitState(worldId: WorldId, row: MetaRow, version: number, records: Map<string, RecordRow>): WorldState {
+  return {
+    worldId,
+    version,
+    born: row.born,
+    xmin: row.xmin,
+    split: true,
+    meta: deepFreeze(withStamp(readMeta(row.doc), row.stamp)),
+    records,
+    processedAt: row.processed ?? 0,
+    storedDue: null,
+    sweptAt: 0,
+    doc: null,
+    due: null,
+    guest: null,
+  };
+}
+
+/** A world from before the rows: its document is the market, read whole (it's split at its first write). */
+function unsplitState(worldId: WorldId, row: MetaRow, port: EnginePort): WorldState {
+  const doc = deepFreeze(row.doc);
+  const { meta } = port.split(doc);
+  return {
+    worldId,
+    version: row.version,
+    born: row.born,
+    xmin: row.xmin,
+    split: false,
+    meta: deepFreeze(meta),
+    records: new Map(),
+    processedAt: 0,
+    storedDue: row.next_due ? row.next_due.getTime() : null,
+    sweptAt: 0,
+    doc,
+    due: null,
+    guest: null,
+  };
+}
+
+/** worlds.doc for a world kept as rows: its meta, marked (ROWS_FORMAT) so code from before the rows refuses it. */
+function storedMetaJson(meta: WorldDoc): string {
+  return JSON.stringify({ ...meta, format: ROWS_FORMAT, rowsFormat: meta["format"] ?? null });
+}
+
+/** The meta as the engine reads it, from worlds.doc. */
+function readMeta(stored: WorldDoc): WorldDoc {
+  const { rowsFormat, ...rest } = stored as WorldDoc & { rowsFormat?: unknown };
+  return (rest["format"] === ROWS_FORMAT ? { ...rest, format: rowsFormat ?? undefined } : rest) as WorldDoc;
+}
 
 /** Worlds cached per pool: "live", plus a few test worlds in development. */
 export const DOC_CACHE_WORLDS = 8;
 
-/** One world's cached document: the JSON as it was stored until something first needs it, then parsed and frozen. */
-interface CachedWorld {
-  version: number;
-  xmin: string;
-  json: string | null;
-  doc: WorldDoc | null;
-}
-
-/** The entry's document, parsed from its JSON (once) and deep-frozen. */
-function docOf(entry: CachedWorld): WorldDoc {
-  if (!entry.doc) {
-    if (entry.json === null) throw new Error("Handoff: a cached world has neither a document nor its JSON.");
-    entry.doc = deepFreeze(JSON.parse(entry.json) as WorldDoc);
-    entry.json = null;
-  }
-  return entry.doc;
-}
-
-/** Takes out an entry this pool cached before a COMMIT that then failed (only if it is still the one there). */
-function forget(sql: Sql, worldId: WorldId, entry: CachedWorld): void {
-  const { worlds } = docCache(sql);
-  if (worlds.get(worldId) === entry) worlds.delete(worldId);
-}
-
-/** Takes out the world's entry if it is for a version above `version`, which a writer holding the row's lock knows is the latest. */
-function forgetAbove(sql: Sql, worldId: WorldId, version: number): void {
-  const { worlds } = docCache(sql);
-  const entry = worlds.get(worldId);
-  if (entry && entry.version > version) worlds.delete(worldId);
-}
-
-interface DocCache {
-  worlds: Map<string, CachedWorld>;
+interface StateCache {
+  worlds: Map<string, WorldState>;
   hits: number;
   misses: number;
+  /** Record rows read (whole or changed): what a miss cost. */
+  rowsRead: number;
 }
 
-const docCaches = new WeakMap<Sql, DocCache>();
+const stateCaches = new WeakMap<Sql, StateCache>();
 
-function docCache(sql: Sql): DocCache {
-  let cache = docCaches.get(sql);
+function stateCache(sql: Sql): StateCache {
+  let cache = stateCaches.get(sql);
   if (!cache) {
-    cache = { worlds: new Map(), hits: 0, misses: 0 };
-    docCaches.set(sql, cache);
+    cache = { worlds: new Map(), hits: 0, misses: 0, rowsRead: 0 };
+    stateCaches.set(sql, cache);
   }
   return cache;
 }
 
-function cachedDoc(sql: Sql, worldId: WorldId, version: number, xmin: string): WorldDoc | null {
-  const cache = docCache(sql);
-  const entry = cache.worlds.get(worldId);
-  if (entry && entry.version === version && entry.xmin === xmin) {
-    cache.hits += 1;
-    return docOf(entry);
-  }
-  cache.misses += 1;
-  return null;
+/** Keeps the state as this pool's copy of the world, unless the pool already holds a later version of the same world. */
+function remember(pool: Sql, state: WorldState): void {
+  const cache = stateCache(pool);
+  const current = cache.worlds.get(state.worldId);
+  if (current && current.born === state.born && current.version > state.version) return;
+  touch(cache, state.worldId, state);
 }
 
-/** Caches a committed document, unless the pool already holds a newer version of the world (writes can finish out of order). */
-function remember(sql: Sql, worldId: WorldId, entry: CachedWorld): void {
-  const { worlds } = docCache(sql);
-  const current = worlds.get(worldId);
-  if (current && current.version > entry.version) return;
-  worlds.delete(worldId); // re-inserted last: the least recently stored world is evicted first
-  worlds.set(worldId, entry);
-  while (worlds.size > DOC_CACHE_WORLDS) {
-    const oldest = worlds.keys().next().value;
+/** Re-inserted last: the least recently used world is evicted first. */
+function touch(cache: StateCache, worldId: string, state: WorldState): void {
+  cache.worlds.delete(worldId);
+  cache.worlds.set(worldId, state);
+  while (cache.worlds.size > DOC_CACHE_WORLDS) {
+    const oldest = cache.worlds.keys().next().value;
     if (oldest === undefined) break;
-    worlds.delete(oldest);
+    cache.worlds.delete(oldest);
   }
 }
 
-/** How the pool's document cache has done: for tests and diagnostics. */
-export function documentCacheStats(sql: Sql): { worlds: number; hits: number; misses: number } {
-  const cache = docCache(sql);
-  return { worlds: cache.worlds.size, hits: cache.hits, misses: cache.misses };
+/** How the pool's cache has done: for tests and diagnostics. */
+export function documentCacheStats(sql: Sql): { worlds: number; hits: number; misses: number; rowsRead: number } {
+  const cache = stateCache(sql);
+  return { worlds: cache.worlds.size, hits: cache.hits, misses: cache.misses, rowsRead: cache.rowsRead };
 }
 
 /** Freezes a parsed JSON value and everything in it, so a write into it throws. Returns it. */
@@ -1234,25 +1893,37 @@ export function deepFreeze<T>(value: T): T {
 
 // ── Views ────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The viewer's view of the state (or of an empty market). Review of PR #88: only the profiles the view names are read (the port's
+ * viewPeople), never every profile; and a viewer who has never changed anything has no profile row, so the view names them as the
+ * session does, with no payment methods.
+ */
 async function buildView(
   sql: Sql,
   port: EnginePort,
-  a: { worldId: WorldId; viewerId: string; doc: WorldDoc; version: number; now: number },
+  a: { worldId: WorldId; viewer: Actor; state: WorldState | null; now: number },
 ): Promise<View> {
-  const people = await readPeople(sql, true);
+  const doc = a.state ? docOfState(a.state, port) : port.empty();
+  const version = a.state?.version ?? 0;
+  const ids = port.run({ doc, people: [], now: a.now }, () => port.viewPeople(doc, a.viewer.id));
+  if (!ids.includes(a.viewer.id)) ids.push(a.viewer.id);
+  const people = await readProfiles(sql, ids, true);
+  const byId = new Map(people.map((p) => [p.userId, p] as const));
+  // The viewer's own name and email are the session's (their profile row keeps what it had at their last change); a viewer
+  // without a row has no payment methods yet.
+  const own = byId.get(a.viewer.id);
+  const session = sessionPerson(a.viewer);
+  byId.set(a.viewer.id, own ? { ...own, name: session.name, email: session.email } : session);
   const rows = await sql<
     { id: string; user_id: string; text: string; link: NotificationLink | null; at_ms: number; read: boolean; unread: number }[]
   >`
     SELECT id, user_id, text, link, round(extract(epoch FROM at) * 1000)::float8 AS at_ms, read_at IS NOT NULL AS read,
            (SELECT count(*)::int FROM notifications
-            WHERE world_id = ${a.worldId} AND user_id = ${a.viewerId} AND read_at IS NULL) AS unread
+            WHERE world_id = ${a.worldId} AND user_id = ${a.viewer.id} AND read_at IS NULL) AS unread
     FROM notifications
-    WHERE world_id = ${a.worldId} AND user_id = ${a.viewerId}
+    WHERE world_id = ${a.worldId} AND user_id = ${a.viewer.id}
     ORDER BY at DESC, id DESC
     LIMIT ${NOTIFICATIONS_IN_VIEW}`;
-  const byId = new Map(people.map((p) => [p.userId, p] as const));
-  // ensurePerson ran first, so the viewer is always in the view (C-DESIGN §1.4, J1-1).
-  if (!byId.has(a.viewerId)) throw new Error("Handoff: the viewer has no profile row.");
   const notifications: ViewNotification[] = rows.map((r) => ({
     id: r.id,
     userId: r.user_id,
@@ -1262,34 +1933,36 @@ async function buildView(
     read: r.read,
   }));
   const unreadCount = rows[0]?.unread ?? 0;
-  // Follow-on B4: the viewer's own email updates (email/prefs.ts readEmailState): available only while this world's sender (the capture
-  // for test worlds, a provider for live) worked in the last 10 minutes; their categories for their current sign-in address. Read
-  // before the engine runs (nothing async happens inside run); the guest view never has it.
-  const email = await readEmailState(sql, { userId: a.viewerId, worldId: a.worldId, now: a.now });
   // The engine runs without anyone's email; only the projection gets them, through its context.
-  const enginePeople = people.map((p) => ({ ...p, email: null }));
-  const view = port.run({ doc: a.doc, people: enginePeople, now: a.now }, () =>
-    port.project(a.doc, a.viewerId, {
+  const enginePeople = [...byId.values()].map((p) => ({ ...p, email: null }));
+  return port.run({ doc, people: enginePeople, now: a.now }, () =>
+    port.project(doc, a.viewer.id, {
       worldId: a.worldId,
-      version: a.version,
+      version,
       now: a.now,
       people: byId,
       notifications,
       unreadCount,
     }),
   );
-  return { ...view, email };
+}
+
+/** The viewer as the session names them (no profile row yet: they haven't changed anything). */
+function sessionPerson(actor: Actor): PersonRow {
+  return { userId: actor.id, name: cleanName(actor.name), email: cleanEmail(actor.email), payHandle: "", payMethods: [] };
 }
 
 /**
- * Every profile row. payMethods (follow-on B1) are the saved methods, or a handle saved before B1 as one method of kind "other", word
- * for word (the engine's readPayMethods), or none: never anything taken from the email.
+ * These profile rows (those that exist). payMethods (follow-on B1) are the saved methods, or a handle saved before B1 as one method
+ * of kind "other", word for word (the engine's readPayMethods), or none: never anything taken from the email.
  */
-async function readPeople(q: Sql, withEmail: boolean): Promise<PersonRow[]> {
+async function readProfiles(q: Sql, ids: readonly string[], withEmail: boolean): Promise<PersonRow[]> {
+  if (ids.length === 0) return [];
   type Row = { user_id: string; name: string; email: string | null; pay_handle: string; pay_methods: unknown };
+  const list = [...new Set(ids)];
   const rows = withEmail
-    ? await q<Row[]>`SELECT user_id, name, email, pay_handle, pay_methods FROM people ORDER BY user_id`
-    : await q<Row[]>`SELECT user_id, name, NULL::text AS email, pay_handle, pay_methods FROM people ORDER BY user_id`;
+    ? await q<Row[]>`SELECT user_id, name, email, pay_handle, pay_methods FROM people WHERE user_id = ANY(${list}::text[]) ORDER BY user_id`
+    : await q<Row[]>`SELECT user_id, name, NULL::text AS email, pay_handle, pay_methods FROM people WHERE user_id = ANY(${list}::text[]) ORDER BY user_id`;
   return rows.map((r) => ({
     userId: r.user_id,
     name: r.name,
@@ -1297,6 +1970,12 @@ async function readPeople(q: Sql, withEmail: boolean): Promise<PersonRow[]> {
     payHandle: r.pay_handle,
     payMethods: readPayMethods(r.pay_methods, r.pay_handle),
   }));
+}
+
+/** Reads these profiles (without emails: the engine never sees them, §3.6) into `into`. Someone with no row stays out of it. */
+async function readPeopleInto(q: Sql, into: Map<string, PersonRow>, ids: readonly string[]): Promise<void> {
+  const want = ids.filter((id) => !into.has(id));
+  for (const p of await readProfiles(q, want, false)) into.set(p.userId, p);
 }
 
 // ── Outcomes ─────────────────────────────────────────────────────────────────────────────
@@ -1344,8 +2023,8 @@ function afterCommitError(w: Written): string {
 }
 
 function failedOutcome(e: unknown, w: WriteSpec): ActOutcome {
-  if (e instanceof DocTooLarge) {
-    console.warn(`[handoff] world ${w.worldId}: refused "${w.action.type}", which would grow the document to ${e.bytes} bytes.`);
+  if (e instanceof RecordTooLarge) {
+    console.warn(`[handoff] world ${w.worldId}: refused "${w.action.type}", which would make a record ${e.bytes} bytes.`);
     return { ok: false, code: "full", error: FULL_ERROR };
   }
   if (isBusy(e)) return { ok: false, code: "busy", error: BUSY_ERROR };
@@ -1406,10 +2085,6 @@ function clip(text: string, max: number): string {
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-function toDate(ms: number | null): Date | null {
-  return ms === null ? null : new Date(ms);
 }
 
 function first<T>(rows: readonly T[]): T {

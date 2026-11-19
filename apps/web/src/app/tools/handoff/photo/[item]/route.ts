@@ -8,8 +8,8 @@
 // earlier photo (?v= names the version, so a replaced photo's address stops working).
 //
 // The viewer is the session's user (getCurrentUser) or nobody, and the market is the page's (the handoff-world cookie, honored only
-// in development). It writes nothing. The answer is private to the browser that asked (it depends on the session), cached there
-// for ten minutes and revalidated by ETag; the bytes are served as the stored type only, never sniffed.
+// in development). It writes nothing. The answer is private to the browser that asked (it depends on the session) and revalidated by
+// ETag on every use (no-cache), so a photo stops showing as soon as its item does; the bytes are served as the stored type only.
 import { cookies } from "next/headers";
 import { toolSql } from "@penntools/platform/db";
 import { handleGetPhoto, type ActionContext } from "@penntools/tool-handoff";
@@ -20,27 +20,33 @@ export const dynamic = "force-dynamic";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-export async function GET(req: Request, { params }: { params: Promise<{ item: string }> }): Promise<Response> {
-  // Next.js 15 and later hand a route its params, and the request's cookies, asynchronously.
+export async function GET(req: Request, { params }: RouteContext<"/tools/handoff/photo/[item]">): Promise<Response> {
+  // Next.js 15 and later hand a route its params, and the request's cookies, asynchronously. RouteContext types the params from this
+  // route's own path (review of PR #88), so renaming the [item] segment is a type error rather than a silent 404.
   const [{ item }, jar] = await Promise.all([params, cookies()]);
   const ctx: ActionContext = {
     user: () => getCurrentUser(),
     sql: () => toolSql("handoff"),
     worldId: () => resolveWorldId(jar.get(WORLD_COOKIE)?.value, process.env.NODE_ENV),
   };
-  const answer = await handleGetPhoto(ctx, { itemId: item, version: new URL(req.url).searchParams.get("v") ?? undefined });
+  // The version the browser already holds (its ETag), so an unchanged photo that's still this viewer's to see is a 304, its bytes
+  // never read (review of PR #88: each photo request read the whole market; now it reads the item's own rows).
+  const etag = /^"([0-9a-f]{16})"$/.exec(req.headers.get("if-none-match") ?? "")?.[1];
+  const answer = await handleGetPhoto(ctx, { itemId: item, version: new URL(req.url).searchParams.get("v") ?? undefined, ...(etag ? { etag } : {}) });
   if (!answer.ok) return new Response(null, { status: answer.status, headers: NO_STORE });
-  const { photo } = answer;
   const headers = {
-    "content-type": photo.mime,
-    "cache-control": "private, max-age=600",
-    etag: `"${photo.version}"`,
+    // Review of PR #88: no-cache, so the browser asks each time (its ETag makes an unchanged photo a 304). With max-age a photo stayed
+    // visible for up to 10 minutes after its item was held or sold, though the route would refuse it by then.
+    "cache-control": "private, no-cache",
     vary: "Cookie",
     "x-content-type-options": "nosniff",
     "content-disposition": "inline",
     "content-security-policy": "default-src 'none'",
   };
-  if (req.headers.get("if-none-match") === headers.etag) return new Response(null, { status: 304, headers });
+  if ("notModified" in answer) return new Response(null, { status: 304, headers: { ...headers, etag: `"${answer.version}"` } });
+  const { photo } = answer;
   const body = new Uint8Array(photo.bytes); // a copy on its own ArrayBuffer, as a Response body is typed
-  return new Response(body, { headers: { ...headers, "content-length": String(body.byteLength) } });
+  return new Response(body, {
+    headers: { ...headers, "content-type": photo.mime, etag: `"${photo.version}"`, "content-length": String(body.byteLength) },
+  });
 }

@@ -36,30 +36,29 @@ describe.skipIf(!databaseUrl)("Handoff schema (Postgres)", () => {
     await expect(db.sql.unsafe(schemaSql)).resolves.toBeDefined();
   });
 
-  it("has exactly the ten tables, their primary keys and their indexes", async () => {
+  it("has exactly the seven tables, their primary keys and their indexes", async () => {
     const tables = await db.admin<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables WHERE table_schema = ${db.schema} ORDER BY table_name`;
     expect(tables.map((t) => t.table_name)).toEqual([
-      "actions", "email_capture", "email_dispatch", "email_jobs", "email_prefs", "item_photos", "notifications", "people", "world_snapshots", "worlds", // item_photos: §9s item 6
+      // item_photos: §9s item 6. records: the market as rows (review of PR #88). The email tables went with outbound email.
+      "actions", "item_photos", "notifications", "people", "records", "world_snapshots", "worlds",
     ]);
 
     const indexes = await db.admin<{ indexname: string; indexdef: string }[]>`
       SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = ${db.schema} ORDER BY indexname`;
     expect(indexes.map((i) => i.indexname)).toEqual([
+      "actions_actor_at_idx",
       "actions_at_idx",
       "actions_pkey",
-      "email_capture_pkey",
-      "email_dispatch_pkey",
-      "email_jobs_due",
-      "email_jobs_pkey",
-      "email_jobs_user",
-      "email_jobs_world_id_user_id_event_key_key",
-      "email_prefs_pkey",
       "item_photos_pkey",
       "notifications_pkey",
       "notifications_unread_once",
       "notifications_user_idx",
       "people_pkey",
+      "records_id_idx",
+      "records_parent_idx",
+      "records_pkey",
+      "records_tally_idx",
       "world_snapshots_pkey",
       "worlds_pkey",
     ]);
@@ -67,11 +66,9 @@ describe.skipIf(!databaseUrl)("Handoff schema (Postgres)", () => {
     expect(def("notifications_unread_once")).toMatch(/^CREATE UNIQUE INDEX .* \(world_id, user_id, dedupe\) WHERE \(read_at IS NULL\)$/);
     expect(def("notifications_user_idx")).toMatch(/\(world_id, user_id, at DESC\)$/);
     expect(def("actions_pkey")).toMatch(/\(world_id, actor_id, request_id\)$/);
-    // Follow-on B4: one job per notification, one per change, kind, record and recipient, and the dispatcher's two partial indexes.
-    expect(def("email_jobs_pkey")).toMatch(/\(world_id, notification_id\)$/);
-    expect(def("email_jobs_world_id_user_id_event_key_key")).toMatch(/^CREATE UNIQUE INDEX .* \(world_id, user_id, event_key\)$/);
-    expect(def("email_jobs_due")).toMatch(/\(retry_at\) WHERE \(status = ANY \(ARRAY\['pending'::text, 'failed'::text, 'sending'::text\]\)\)$/);
-    expect(def("email_jobs_user")).toMatch(/\(user_id, category\) WHERE \(status = ANY \(ARRAY\['pending'::text, 'failed'::text\]\)\)$/);
+    expect(def("actions_actor_at_idx")).toMatch(/\(world_id, actor_id, at\)$/); // the per-account limit on changes a minute
+    expect(def("records_pkey")).toMatch(/\(world_id, kind, id\)$/);
+    expect(def("records_tally_idx")).toMatch(/\(world_id\) INCLUDE \(tally, rev\)$/); // the version, read on every refresh
   });
 
   it("accepts only 'live' and test-… world ids", async () => {
@@ -206,113 +203,40 @@ describe.skipIf(!databaseUrl)("Handoff schema (Postgres)", () => {
     ).toBe("23503");
   });
 
-  // ── Follow-on B4: the email tables ──────────────────────────────────────────────────────
+  // ── Review of PR #88: the market as rows; outbound email gone ───────────────────────────
 
-  it("keeps one email preference row per profile: the sign-in address, the sign-in, a consent version; off by default; gone with the profile", async () => {
-    await db.sql`INSERT INTO people (user_id, name, email) VALUES ('ep1', 'Ann Lee', 'ann@upenn.edu'), ('ep2', 'Bob Diaz', NULL)`;
-    const prefs = (user: string, address: string, signIn = "google", version = "v1") => db.sql`
-      INSERT INTO email_prefs (user_id, address, sign_in, consent_version, consented_at) VALUES (${user}, ${address}, ${signIn}, ${version}, NOW())`;
-    expect(await outcome(() => prefs("ep1", "ann@upenn.edu"))).toBe("ok");
-    const [row] = await db.sql<{ exchange_on: boolean; matches_on: boolean }[]>`SELECT exchange_on, matches_on FROM email_prefs WHERE user_id = 'ep1'`;
-    expect(row).toEqual({ exchange_on: false, matches_on: false }); // nothing is on until someone turns it on
-    expect(await outcome(() => prefs("ep1", "ann@upenn.edu"))).toBe("23505"); // one row per account
-    expect(await outcome(() => prefs("ep-none", "cat@upenn.edu"))).toBe("23503"); // only for a profile that exists
-    for (const bad of ["", "a@", "@b", "ab", "a b@upenn.edu", "a@b@upenn.edu", "a@upenn edu", `${"x".repeat(250)}@x.io`]) {
-      expect(await outcome(() => prefs("ep2", bad)), JSON.stringify(bad)).toBe("23514");
+  it("keeps each record as its own row: checked kind, id, revision, tally and data; gone with its world", async () => {
+    await db.sql`INSERT INTO worlds (id, doc) VALUES ('test-rows', '{"mode":"live"}')`;
+    const row = (kind: string, id: string, data: string, extra: { rev?: number; tally?: number } = {}) => db.sql`
+      INSERT INTO records (world_id, kind, id, ord, rev, tally, data) VALUES ('test-rows', ${kind}, ${id}, nextval('record_ord'), ${extra.rev ?? 1}, ${extra.tally ?? 0}, ${data}::text::jsonb)`;
+    expect(await outcome(() => row("listing", "l1", '{"id":"l1"}'))).toBe("ok");
+    expect(await outcome(() => row("listing", "l1", '{"id":"l1"}'))).toBe("23505"); // one row per kind and id
+    expect(await outcome(() => row("goodsReq", "l1", '{"id":"l1"}'))).toBe("ok"); // another kind may share the id
+    for (const [kind, id, data, extra] of [
+      ["no kind!", "x1", "{}", {}],
+      ["listing", "", "{}", {}],
+      ["listing", "x2", "[]", {}],
+      ["listing", "x3", "{}", { rev: 0 }],
+      ["listing", "x4", "{}", { tally: -1 }],
+    ] as const) {
+      expect(await outcome(() => row(kind, id, data, extra)), `${kind} ${id} ${data}`).toBe("23514");
     }
-    expect(await outcome(() => prefs("ep2", "bob@upenn.edu", "github"))).toBe("23514");
-    for (const version of ["1", "v", "V1", "v1000", "v1 ", ""]) expect(await outcome(() => prefs("ep2", "bob@upenn.edu", "dev", version)), version).toBe("23514");
-    expect(await outcome(() => db.sql`INSERT INTO email_prefs (user_id, address, sign_in, consent_version) VALUES ('ep2', 'bob@upenn.edu', 'dev', 'v1')`)).toBe("23502"); // consented_at
-    await db.sql`DELETE FROM people WHERE user_id = 'ep1'`;
-    expect(await count(db.sql`SELECT count(*)::int AS n FROM email_prefs WHERE user_id = 'ep1'`)).toBe(0);
+    await db.sql`DELETE FROM worlds WHERE id = 'test-rows'`;
+    expect((await db.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM records WHERE world_id = 'test-rows'`)[0]?.n).toBe(0);
   });
 
-  it("keeps the dispatcher's heartbeat for the capture and a provider only", async () => {
-    const beat = (sender: string, runAt: Date | null = new Date()) => db.sql`
-      INSERT INTO email_dispatch (sender, last_run_at, last_ok_at) VALUES (${sender}, ${runAt}, NULL)`;
-    expect(await outcome(() => beat("capture"))).toBe("ok");
-    expect(await outcome(() => beat("provider"))).toBe("ok");
-    expect(await outcome(() => beat("capture"))).toBe("23505");
-    for (const sender of ["smtp", "Capture", "whatsapp", "sms"]) expect(await outcome(() => beat(sender)), sender).toBe("23514");
-    expect(await outcome(() => db.sql`UPDATE email_dispatch SET last_run_at = NULL WHERE sender = 'capture'`)).toBe("23502");
-  });
-
-  it("keeps one email job per notification and per change, kind, record and recipient, with fixed codes, and a lease, sent time and expiry that agree with the status", async () => {
-    const T = Date.UTC(2026, 10, 9, 15, 0);
-    await db.sql`INSERT INTO worlds (id, doc) VALUES ('test-email', '{"mode":"live"}')`;
-    for (let i = 1; i <= 40; i++) {
-      await db.sql`INSERT INTO notifications (world_id, id, user_id, text, dedupe, at) VALUES ('test-email', ${`n${i}`}, 'ann', 'Hi', md5(${`n${i}`}), NOW())`;
-    }
-    let next = 0;
-    type Job = { note: string; kind: string; category: string; ref: string; link: string | null; key: string; status: string; reason: string | null; attempts: number; lease: Date | null; sent: Date | null; expires: Date; user: string };
-    const job = (o: Partial<Job> = {}) => {
-      next += 1;
-      const j: Job = {
-        note: `n${next}`, kind: "offer.received", category: "exchange", ref: "r0123456789abcdef", link: '{"name":"activity","listing":"l1"}',
-        key: `${UUID}:offer.received:r${next}`, status: "pending", reason: null, attempts: 0, lease: null, sent: null, expires: new Date(T + 86_400_000), user: "ann", ...o,
-      };
-      return db.sql`
-        INSERT INTO email_jobs (world_id, notification_id, user_id, kind, category, ref, link, event_key, status, reason, attempts, retry_at, lease_until,
-                                expires_at, sent_at, created_at)
-        VALUES ('test-email', ${j.note}, ${j.user}, ${j.kind}, ${j.category}, ${j.ref}, ${j.link}::text::jsonb, ${j.key}, ${j.status}, ${j.reason},
-                ${j.attempts}, ${new Date(T)}, ${j.lease}, ${j.expires}, ${j.sent}, ${new Date(T)})`;
-    };
-    expect(await outcome(() => job({ note: "n40", key: "first" }))).toBe("ok");
-    expect(await outcome(() => job({ note: "n40" }))).toBe("23505"); // a second job for the same notification
-    expect(await outcome(() => job({ key: "first" }))).toBe("23505"); // the same change, kind and record for the same person
-    expect(await outcome(() => job({ key: "first", user: "bob" }))).toBe("ok"); // another person's
-    expect(await outcome(() => job({ note: "n-none" }))).toBe("23503"); // only for a stored notification
-    for (const kind of ["offer", "Offer.received", "offer_received", "offer.received.x.y", "match.", `${"a".repeat(36)}.bcde`]) {
-      expect(await outcome(() => job({ kind })), kind).toBe("23514");
-    }
-    expect(await outcome(() => job({ kind: "match.listing", category: "match" }))).toBe("ok");
-    expect(await outcome(() => job({ category: "broadcast" }))).toBe("23514");
-    for (const ref of ["R1", "r 1", "", "x".repeat(49)]) expect(await outcome(() => job({ ref })), ref).toBe("23514");
-    expect(await outcome(() => job({ link: "[]" }))).toBe("23514");
-    expect(await outcome(() => job({ link: null }))).toBe("23502");
-    expect(await outcome(() => job({ key: "k".repeat(161) }))).toBe("23514");
-    expect(await outcome(() => job({ status: "queued" }))).toBe("23514");
-    for (const reason of ["not_relevant:answered", "retry:rate_limited", "opted_out", "dead:attempts"]) expect(await outcome(() => job({ status: "skipped", reason })), reason).toBe("ok");
-    for (const reason of ["Opted out", "opted-out", "x".repeat(61), ""]) expect(await outcome(() => job({ status: "skipped", reason })), reason).toBe("23514");
-    for (const attempts of [-1, 21]) expect(await outcome(() => job({ attempts })), String(attempts)).toBe("23514");
-    // A lease exactly while sending, a sent time exactly once sent, and an expiry after the job was made.
-    const lease = new Date(T + 120_000);
-    expect(await outcome(() => job({ status: "sending", lease, attempts: 1 }))).toBe("ok");
-    expect(await outcome(() => job({ status: "sending" }))).toBe("23514");
-    expect(await outcome(() => job({ lease }))).toBe("23514");
-    expect(await outcome(() => job({ status: "sent", sent: new Date(T) }))).toBe("ok");
-    expect(await outcome(() => job({ status: "sent" }))).toBe("23514");
-    expect(await outcome(() => job({ sent: new Date(T) }))).toBe("23514");
-    expect(await outcome(() => job({ expires: new Date(T) }))).toBe("23514");
-  });
-
-  it("keeps the capture outbox to its column limits, once per key, and deletes jobs and captures with their notification or world", async () => {
-    await db.sql`INSERT INTO worlds (id, doc) VALUES ('test-email-cascade', '{"mode":"live"}')`;
-    for (const id of ["m1", "m2"]) {
-      await db.sql`INSERT INTO notifications (world_id, id, user_id, text, dedupe, at) VALUES ('test-email-cascade', ${id}, 'ann', 'Hi', md5(${id}), NOW())`;
-      await db.sql`
-        INSERT INTO email_jobs (world_id, notification_id, user_id, kind, category, ref, link, event_key, retry_at, expires_at, created_at)
-        VALUES ('test-email-cascade', ${id}, 'ann', 'offer.received', 'exchange', 'r1', '{"name":"activity"}', ${`${UUID}:offer.received:${id}`},
-                NOW(), NOW() + interval '1 day', NOW())`;
-    }
-    const capture = (o: { key?: string; note?: string; to?: string; subject?: string; body?: string; url?: string } = {}) => db.sql`
-      INSERT INTO email_capture (idempotency_key, world_id, notification_id, to_address, subject, body_text, action_url)
-      VALUES (${o.key ?? "handoff:test-email-cascade:m1"}, 'test-email-cascade', ${o.note ?? "m1"}, ${o.to ?? "handoff-test-a@example.invalid"},
-              ${o.subject ?? "Offer on your ticket"}, ${o.body ?? "Ann made an offer."}, ${o.url ?? "http://localhost:3000/tools/handoff#activity"})`;
-    expect(await outcome(() => capture())).toBe("ok");
-    expect(await outcome(() => capture())).toBe("23505"); // once per idempotency key
-    expect(await outcome(() => capture({ key: "handoff:test-email-cascade:x", note: "m-none" }))).toBe("23503"); // only for a job
-    for (const [field, value] of [["key", "k".repeat(121)], ["to", "t".repeat(255)], ["subject", "s".repeat(201)], ["body", "b".repeat(4001)], ["url", "u".repeat(601)]] as const) {
-      expect(await outcome(() => capture({ key: `handoff:test-email-cascade:${field}`, note: "m2", [field]: value })), field).toBe("23514");
-    }
-    expect(await outcome(() => capture({ key: "handoff:test-email-cascade:m2", note: "m2" }))).toBe("ok");
-    // A notification takes its job and capture with it; the world takes everything.
-    await db.sql`DELETE FROM notifications WHERE world_id = 'test-email-cascade' AND id = 'm1'`;
-    const left = () => count(db.sql`
-      SELECT ((SELECT count(*) FROM email_jobs WHERE world_id = 'test-email-cascade') + (SELECT count(*) FROM email_capture WHERE world_id = 'test-email-cascade'))::int AS n`);
-    expect(await left()).toBe(2);
-    await db.sql`DELETE FROM worlds WHERE id = 'test-email-cascade'`;
-    expect(await left()).toBe(0);
+  it("drops the email tables an earlier version of this file made, and keeps in-app notifications", async () => {
+    await db.sql.unsafe(`
+      CREATE TABLE email_prefs (user_id TEXT PRIMARY KEY);
+      CREATE TABLE email_dispatch (sender TEXT PRIMARY KEY);
+      CREATE TABLE email_jobs (world_id TEXT, notification_id TEXT, PRIMARY KEY (world_id, notification_id));
+      CREATE TABLE email_capture (idempotency_key TEXT PRIMARY KEY)`);
+    await db.sql`INSERT INTO notifications (world_id, id, user_id, text, dedupe, at) VALUES ('test-base', 'kept1', 'kept-user', 'Hi', ${MD5}, NOW())`;
+    await db.sql.unsafe(schemaSql);
+    const tables = await db.admin<{ table_name: string }[]>`
+      SELECT table_name FROM information_schema.tables WHERE table_schema = ${db.schema} AND table_name LIKE 'email%'`;
+    expect(tables).toEqual([]);
+    expect((await db.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM notifications WHERE id = 'kept1'`)[0]?.n).toBe(1);
   });
 });
 

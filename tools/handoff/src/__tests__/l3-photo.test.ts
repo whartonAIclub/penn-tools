@@ -11,12 +11,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as E from "../../engine/index.js";
 import { HANDOFF_PROTOCOL } from "../../engine/index.js";
-import { handleAct, handleGetPhoto, type ActionContext } from "../handlers.js";
+import { ACT_BODY_MAX_BYTES, PHOTO_ROUTE_ERROR, handleAct, handleGetPhoto, type ActionContext } from "../handlers.js";
 import { parseAction } from "../live.js";
 import {
   PHOTO_MAX_BYTES, PHOTO_MAX_SIDE, PHOTO_NOT_HERE_ERROR, PHOTO_SIZE_ERROR, PHOTO_TYPE_ERROR, checkPhotoBytes, photoRefOf, readPhoto, type Photo,
 } from "../photo.js";
-import { applyAction, getGuestView, readItemPhoto } from "../store.js";
+import { applyAction, getGuestView, readItemPhoto, type StoredPhoto } from "../store.js";
 import type { Actor, WorldId } from "../types.js";
 import { GUEST_ITEM_KEYS } from "./helpers/contract.js";
 import { createTestDb, databaseUrl, type TestDb } from "./helpers/db.js";
@@ -104,7 +104,8 @@ describe("a photo is checked by its bytes (9s item 6)", () => {
       ["no frame size", jpeg(10, 10, { noFrame: true })], ["no end", jpeg(10, 10, { noEnd: true })], ["zero wide", jpeg(0, 10)], ["riff only", Buffer.from(ascii("RIFF\x04\x00\x00\x00WAVE"))]] as const) {
       expect(checkPhotoBytes(bytes), name).toEqual({ ok: false, error: PHOTO_TYPE_ERROR });
     }
-    expect(PHOTO_TYPE_ERROR).toBe("That file isn't a photo Handoff can use. Choose a JPEG, PNG or WebP image.");
+    // Review of PR #88: the words name only what the server takes (a PNG is refused here; the page turns one into a JPEG first).
+    expect(PHOTO_TYPE_ERROR).toBe("That file isn't a photo Handoff can use. Choose a JPEG or WebP image.");
   });
 
   it("refuses more than 300 KB, and more than 1600 px a side, in its own words", () => {
@@ -130,6 +131,25 @@ describe("a photo is checked by its bytes (9s item 6)", () => {
     expect(includes(p.bytes, "JFIF")).toBe(true); // the picture's own segments stay
     expect(Buffer.from(p.bytes).equals(Buffer.from(photoOf(jpeg(1024, 768)).bytes))).toBe(true); // exactly the same picture without them
     expect(photoOf(p.bytes).version).toBe(p.version); // checked again, it is unchanged
+  });
+
+  it("keeps no metadata placed after the first scan either, as a progressive or crafted JPEG can (review of PR #88)", () => {
+    // A progressive JPEG: a first scan, then a table, an EXIF segment, a comment and an ICC profile between scans, a second scan, the end.
+    const scan = (fill: number): number[] => [...seg(0xda, [3, 1, 0, 2, 0x11, 3, 0x11, 0, 63, 0]), ...new Array<number>(16).fill(fill), 0xff, 0x00, 0x12, 0xff, 0xd3, 0x34];
+    const head = [...jpeg(640, 480, { pad: 0, noEnd: true })].slice(0, -seg(0xda, [3, 1, 0, 2, 0x11, 3, 0x11, 0, 63, 0]).length);
+    const sent = Buffer.from([...head, ...scan(0x55), ...seg(0xc4, new Array<number>(20).fill(0)), ...seg(0xe1, ascii(GPS)), ...seg(0xfe, ascii("taken on my phone")),
+      ...seg(0xe2, ascii("ICC_PROFILE\0late")), ...scan(0x66), 0xff, 0xd9, ...ascii("PK\x03\x04 appended")]);
+    const p = photoOf(sent);
+    for (const word of ["Exif", "39.9526N", "taken on my phone", "ICC_PROFILE", "appended"]) expect(includes(p.bytes, word), word).toBe(false);
+    expect([p.width, p.height]).toEqual([640, 480]);
+    // Both scans' coded data are kept as they are, stuffed bytes and restart markers included, and the table between them too.
+    const kept = Buffer.from(p.bytes);
+    expect(kept.includes(Buffer.from([...new Array<number>(16).fill(0x55), 0xff, 0x00, 0x12, 0xff, 0xd3, 0x34]))).toBe(true);
+    expect(kept.includes(Buffer.from([...new Array<number>(16).fill(0x66), 0xff, 0x00, 0x12, 0xff, 0xd3, 0x34]))).toBe(true);
+    expect(kept.subarray(-2).equals(Buffer.from([0xff, 0xd9]))).toBe(true);
+    expect(photoOf(p.bytes).version).toBe(p.version);
+    // A file that ends inside a scan is refused.
+    expect(checkPhotoBytes(Buffer.from([...head, ...scan(0x55)]))).toEqual({ ok: false, error: PHOTO_TYPE_ERROR });
   });
 
   it("reads what the page sends (base64) and refuses what isn't that", () => {
@@ -173,8 +193,11 @@ let db: TestDb;
 const world = (id: WorldId): StoreWorld => new StoreWorld(db.sql, id, T0);
 const rows = async (w: StoreWorld): Promise<Row[]> => [...await db.sql<Row[]>`
   SELECT item_id, owner_id, mime, version, width, height, octet_length(bytes)::int AS size FROM item_photos WHERE world_id = ${w.worldId} ORDER BY item_id`];
-const served = (w: StoreWorld, itemId: string, viewer: Actor | null, version?: string) =>
-  readItemPhoto(db.sql, { worldId: w.worldId, itemId, viewerId: viewer ? viewer.id : null, now: w.now, ...(version !== undefined ? { version } : {}) });
+const served = async (w: StoreWorld, itemId: string, viewer: Actor | null, version?: string): Promise<StoredPhoto | null> => {
+  const got = await readItemPhoto(db.sql, { worldId: w.worldId, itemId, viewerId: viewer ? viewer.id : null, now: w.now, ...(version !== undefined ? { version } : {}) });
+  if (got && "notModified" in got) throw new Error("Asked without an ETag, and was told it's unchanged.");
+  return got;
+};
 const item = async (w: StoreWorld, id: string): Promise<Record<string, unknown>> => {
   const row = await w.row(); const it = row?.doc.goods.find((g) => g.id === id);
   if (!it) throw new Error(`no item ${id}`);
@@ -415,13 +438,30 @@ describe.skipIf(!databaseUrl)("a Goods photo through the store (real engine, Pos
     const version = (await rows(w))[0]!.version;
     for (const user of [A, B, null]) {
       const got = await handleGetPhoto(ctx(user), { itemId: id, version });
-      expect(got.ok && [got.photo.mime, got.photo.version]).toEqual(["image/jpeg", version]);
+      expect(got.ok && "photo" in got && [got.photo.mime, got.photo.version]).toEqual(["image/jpeg", version]);
+      // Review of PR #88: a browser that already holds this version (its ETag) is told so, and the bytes aren't read again.
+      expect(await handleGetPhoto(ctx(user), { itemId: id, version, etag: version })).toEqual({ ok: true, notModified: true, version });
     }
+    expect(await handleGetPhoto(ctx(B), { itemId: id, version, etag: "0000000000000000" })).toMatchObject({ ok: true, photo: { version } });
     expect(await handleGetPhoto(ctx(B), { itemId: id, version: "ffffffffffffffff" })).toEqual({ ok: false, status: 404 });
     expect(await handleGetPhoto(ctx(null), { itemId: "../../etc/passwd", version })).toEqual({ ok: false, status: 404 });
     expect(await handleGetPhoto({ ...ctx(null), sql: () => null }, { itemId: id, version })).toEqual({ ok: false, status: 503 });
     const closing = await handleAct(ctx(A), { viewerId: A.id, protocol: HANDOFF_PROTOCOL, requestId: randomUUID(), action: { type: "withdrawItem", id } });
     expect(closing.ok).toBe(true);
-    for (const user of [A, B, null]) expect(await handleGetPhoto(ctx(user), { itemId: id, version })).toEqual({ ok: false, status: 404 });
+    for (const user of [A, B, null]) {
+      expect(await handleGetPhoto(ctx(user), { itemId: id, version })).toEqual({ ok: false, status: 404 });
+      expect(await handleGetPhoto(ctx(user), { itemId: id, version, etag: version })).toEqual({ ok: false, status: 404 }); // not "unchanged" either
+    }
+  });
+
+  it("review of PR #88: the server action refuses a photo (the act route takes it, with its body capped); nothing is written", async () => {
+    const w = world("test-l3-action");
+    const ctx: ActionContext = { user: async () => A, sql: () => db.sql, worldId: () => w.worldId };
+    const sent = { viewerId: A.id, protocol: HANDOFF_PROTOCOL, requestId: randomUUID(), action: post(), photo: b64(jpeg(640, 480)) };
+    expect(await handleAct(ctx, sent, { photo: false })).toEqual({ ok: false, code: "invalid", error: PHOTO_ROUTE_ERROR });
+    expect(await w.row()).toBeUndefined();
+    // The route's cap holds the largest photo the page makes, as base64, with the action beside it.
+    expect(ACT_BODY_MAX_BYTES).toBeGreaterThan(JSON.stringify({ ...sent, photo: b64(new Uint8Array(PHOTO_MAX_BYTES)) }).length);
+    expect(ACT_BODY_MAX_BYTES).toBeLessThan(512 * 1024);
   });
 });

@@ -9,17 +9,12 @@ import type { Sql } from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { HANDOFF_PROTOCOL } from "../../engine/index.js";
 import { unavailableMessage } from "../db-errors.js";
-import { CONSENT_VERSION, EMAIL_UNAVAILABLE_ERROR, NOT_FOR_THIS_ACCOUNT_ERROR, NO_EMAIL_ADDRESS_ERROR } from "../email/prefs.js";
-import type { SignInKind } from "../email/types.js";
 import {
-  EMAIL_PREFS_INVALID,
-  EMAIL_PREFS_SAVED,
   PAY_METHODS_INVALID,
   STALE_ERRORS,
   handleAct,
   handleMarkRead,
   handleRefresh,
-  handleSaveEmailPrefs,
   handleSaveMyProfile,
   type ActAnswer,
   type ActionContext,
@@ -29,7 +24,6 @@ import {
 import { BAD_REQUEST_ERROR, INTERNAL_ERROR } from "../store.js";
 import type { View, WorldId } from "../types.js";
 import { createTestDb, databaseUrl, type TestDb } from "./helpers/db.js";
-import { heartbeat } from "./helpers/email-db.js";
 import { TEST_A, TEST_B, actions as sent, checked, wallAfter } from "./helpers/live-store.js";
 
 const A: SessionUser = TEST_A;
@@ -38,11 +32,8 @@ const WORLD: WorldId = "test-handlers";
 
 let db: TestDb;
 
-/**
- * What actions.ts supplies, with a record of what the handler asked for, in order. `signIn` is the server's sign-in provider ("dev"
- * by default, as in local development); null leaves it out, as the contexts written before follow-on B4 do.
- */
-function context(o: { user?: SessionUser | null | Error; sql?: Sql | null; world?: WorldId; signIn?: SignInKind | null } = {}): { ctx: ActionContext; asked: string[] } {
+/** What actions.ts supplies, with a record of what the handler asked for, in order. */
+function context(o: { user?: SessionUser | null | Error; sql?: Sql | null; world?: WorldId } = {}): { ctx: ActionContext; asked: string[] } {
   const asked: string[] = [];
   const ctx: ActionContext = {
     async user() {
@@ -59,12 +50,6 @@ function context(o: { user?: SessionUser | null | Error; sql?: Sql | null; world
       return o.world ?? WORLD;
     },
   };
-  if (o.signIn !== null) {
-    ctx.signIn = () => {
-      asked.push("signIn");
-      return o.signIn ?? "dev";
-    };
-  }
   return { asked, ctx };
 }
 
@@ -127,21 +112,6 @@ describe("the server actions' guards (no database needed)", () => {
     }
   });
 
-  it("saveEmailPrefs: signed out, another account or another protocol is stale before anything else, and the sign-in is never asked", async () => {
-    const on = { exchange: true };
-    const signedOut = context({ user: null, sql: null });
-    expect(await handleSaveEmailPrefs(signedOut.ctx, { ...guard(), ...on })).toEqual({ ok: false, code: "signed_out", error: STALE_ERRORS.signed_out });
-    expect(signedOut.asked).toEqual(["user"]);
-    const other = context({ sql: null });
-    expect(await handleSaveEmailPrefs(other.ctx, { ...guard(B), ...on })).toEqual({ ok: false, code: "account_changed", error: STALE_ERRORS.account_changed });
-    expect(other.asked).toEqual(["user"]);
-    const old = context({ sql: null });
-    expect(await handleSaveEmailPrefs(old.ctx, { viewerId: A.id, protocol: HANDOFF_PROTOCOL + 1, ...on })).toEqual({ ok: false, code: "reload", error: STALE_ERRORS.reload });
-    expect(old.asked).toEqual(["user"]);
-    const noDb = context({ sql: null });
-    expect(await handleSaveEmailPrefs(noDb.ctx, { ...guard(), ...on })).toEqual({ ok: false, code: "unavailable", reason: "no-database", error: unavailableMessage("no-database") });
-    expect(noDb.asked).toEqual(["user", "sql"]);
-  });
 });
 
 describe.skipIf(!databaseUrl)("the server actions with the real engine (Postgres)", () => {
@@ -255,115 +225,5 @@ describe.skipIf(!databaseUrl)("the server actions with the real engine (Postgres
     const removed = await handleSaveMyProfile(context({ user: C }).ctx, { ...guard(C), payMethods: [] });
     expect(removed).toMatchObject({ ok: true, toast: "Payment methods removed." });
     if (removed.ok) expect(removed.view.viewer.payMethods).toEqual([]);
-  });
-
-  // ── saveEmailPrefs (follow-on B4) ─────────────────────────────────────────────────────
-
-  /** The person's stored preferences, or undefined. */
-  const prefsOf = async (u: SessionUser) =>
-    (await db.sql<{ address: string; sign_in: string; exchange_on: boolean; matches_on: boolean; consent_version: string }[]>`
-      SELECT address, sign_in, exchange_on, matches_on, consent_version FROM email_prefs WHERE user_id = ${u.id}`)[0];
-  /** A refusal's words, after checking it came with the fresh view, as every refusal does. */
-  const refusedWith = (o: ActAnswer, viewer: SessionUser): string => {
-    if (o.ok || o.code !== "refused") throw new Error(`expected a refusal, got ${JSON.stringify(o.ok ? "ok" : o.code)}`);
-    checked(o.view, viewer.id); // the contract, the owner's email envelope included
-    expect(o.view.email).toBeDefined();
-    return o.error;
-  };
-  /** A dispatcher heartbeat from just now (the handler runs at the database's clock), or none. */
-  const beat = async (sender: "capture" | "provider" | null): Promise<void> => {
-    await db.sql`DELETE FROM email_dispatch`;
-    if (sender) await heartbeat(db.sql, sender, Date.now());
-  };
-
-  it("saveEmailPrefs: neither category, or anything but true or false, is invalid, and nothing is stored", async () => {
-    await beat("capture");
-    for (const input of [{}, { exchange: "yes" }, { matches: 1 }, { exchange: null }, { exchange: true, matches: "no" }, { exchange: undefined }]) {
-      expect(await handleSaveEmailPrefs(context().ctx, { ...guard(), ...input }), JSON.stringify(input)).toEqual({ ok: false, code: "invalid", error: EMAIL_PREFS_INVALID });
-    }
-    expect(await prefsOf(A)).toBeUndefined();
-  });
-
-  it("saveEmailPrefs: turning on is refused while email isn't available, and for an account without an address; nothing is stored", async () => {
-    await beat(null);
-    const unavailable = await handleSaveEmailPrefs(context().ctx, { ...guard(), exchange: true });
-    expect(refusedWith(unavailable, A)).toBe(EMAIL_UNAVAILABLE_ERROR);
-    if (!unavailable.ok && unavailable.code === "refused") {
-      expect(unavailable.view.email).toEqual({ available: false, mode: null, address: A.email, exchange: false, matches: false, reconfirm: false, paused: false });
-    }
-    await beat("provider"); // a provider's heartbeat doesn't make email available in a test world: that's the capture's
-    expect(refusedWith(await handleSaveEmailPrefs(context().ctx, { ...guard(), matches: true }), A)).toBe(EMAIL_UNAVAILABLE_ERROR);
-    expect(await prefsOf(A)).toBeUndefined();
-    await beat("capture");
-    const noAddress: SessionUser = { id: "handoff-test-no-address", name: "Handoff Test No Address", email: null };
-    expect(refusedWith(await handleSaveEmailPrefs(context({ user: noAddress }).ctx, { ...guard(noAddress), exchange: true }), noAddress)).toBe(NO_EMAIL_ADDRESS_ERROR);
-    expect(await prefsOf(noAddress)).toBeUndefined();
-  });
-
-  it("saveEmailPrefs: turns a category on with the session's address and sign-in, never ones the page sends; the development sign-in is recorded as such", async () => {
-    await beat("capture");
-    const { ctx, asked } = context({ signIn: "dev" });
-    const planted = { address: "planted@upenn.edu", email: "planted@upenn.edu", signIn: "google", sign_in: "google", userId: B.id };
-    const on = await handleSaveEmailPrefs(ctx, { ...guard(), exchange: true, ...planted });
-    if (!on.ok) throw new Error(`saveEmailPrefs: ${on.code}`);
-    expect(on).toMatchObject({ replay: false, toast: EMAIL_PREFS_SAVED, resultId: null });
-    expect(checked(on.view, A.id).viewer.id).toBe(A.id);
-    // The answer's view shows the result: on, for the session's own address.
-    expect(on.view.email).toEqual({ available: true, mode: "capture", address: A.email, exchange: true, matches: false, reconfirm: false, paused: false });
-    expect(asked).toEqual(["user", "sql", "world", "signIn"]);
-    expect(await prefsOf(A)).toEqual({ address: A.email, sign_in: "dev", exchange_on: true, matches_on: false, consent_version: CONSENT_VERSION });
-    expect(await prefsOf(B)).toBeUndefined();
-    // A context that doesn't say how the session signed in counts as the development sign-in; only "google" is Google.
-    const C: SessionUser = { id: "handoff-test-email-c", name: "Handoff Test Email C", email: "handoff-test-email-c@example.invalid" };
-    expect(await handleSaveEmailPrefs(context({ user: C, signIn: null }).ctx, { ...guard(C), matches: true })).toMatchObject({ ok: true });
-    expect((await prefsOf(C))?.sign_in).toBe("dev");
-    const D: SessionUser = { id: "handoff-test-email-d", name: "Handoff Test Email D", email: "handoff-test-email-d@example.invalid" };
-    expect(await handleSaveEmailPrefs(context({ user: D, signIn: "google" }).ctx, { ...guard(D), matches: true })).toMatchObject({ ok: true });
-    expect((await prefsOf(D))?.sign_in).toBe("google");
-  });
-
-  it("saveEmailPrefs: real email (live) is never turned on for the development identity or a TEST account; a Penn Google account can", async () => {
-    // This schema's own "live": nothing in it is written (a view of it creates no world), and the provider's heartbeat is a row here.
-    await beat("provider");
-    const live = { world: "live" as WorldId };
-    const localDev: SessionUser = { id: "local-dev-user", name: "Local Developer", email: "dev@localhost" };
-    const pennTest: SessionUser = { id: "handoff-test-penn", name: "Handoff Test Penn", email: "handoff-test-penn@wharton.upenn.edu" };
-    const penn: SessionUser = { id: "penn-ann-lee", name: "Ann Lee", email: "ann.lee@wharton.upenn.edu" };
-    for (const [who, signIn] of [[localDev, "dev"], [localDev, "google"], [pennTest, "google"], [penn, "dev"]] as const) {
-      const o = await handleSaveEmailPrefs(context({ ...live, user: who, signIn }).ctx, { ...guard(who), exchange: true });
-      expect(refusedWith(o, who), `${who.id} ${signIn}`).toBe(NOT_FOR_THIS_ACCOUNT_ERROR);
-      expect(await prefsOf(who)).toBeUndefined();
-    }
-    expect(await handleSaveEmailPrefs(context({ ...live, user: penn, signIn: "google" }).ctx, { ...guard(penn), exchange: true })).toMatchObject({ ok: true, toast: EMAIL_PREFS_SAVED });
-    expect(await prefsOf(penn)).toMatchObject({ address: penn.email, sign_in: "google", exchange_on: true });
-    // Without a working provider, live isn't available even for them.
-    await beat("capture");
-    expect(refusedWith(await handleSaveEmailPrefs(context({ ...live, user: penn, signIn: "google" }).ctx, { ...guard(penn), matches: true }), penn)).toBe(EMAIL_UNAVAILABLE_ERROR);
-    expect(await db.sql`SELECT 1 FROM worlds WHERE id = 'live'`).toHaveLength(0);
-  });
-
-  it("saveEmailPrefs: turning off always works, with no dispatcher and no address, and skips that person's waiting emails", async () => {
-    await beat("capture");
-    const E: SessionUser = { id: "handoff-test-email-e", name: "Handoff Test Email E", email: "handoff-test-email-e@example.invalid" };
-    expect(await handleSaveEmailPrefs(context({ user: E }).ctx, { ...guard(E), exchange: true, matches: true })).toMatchObject({ ok: true });
-    // One email waiting for E in another world (as the store queues it): a notification and its job.
-    await db.sql`INSERT INTO worlds (id, doc) VALUES ('test-handlers-email', '{"mode":"live"}') ON CONFLICT (id) DO NOTHING`;
-    await db.sql`INSERT INTO notifications (world_id, id, user_id, text, dedupe, at) VALUES ('test-handlers-email', 'n-email-e', ${E.id}, 'Hi', md5('n-email-e'), NOW())`;
-    await db.sql`
-      INSERT INTO email_jobs (world_id, notification_id, user_id, kind, category, ref, link, event_key, retry_at, expires_at, created_at)
-      VALUES ('test-handlers-email', 'n-email-e', ${E.id}, 'offer.received', 'exchange', 'r1', '{"name":"activity"}', ${`${randomUUID()}:offer.received:r1`},
-              NOW(), NOW() + interval '1 day', NOW())`;
-    await beat(null); // email isn't available any more, and the account has lost its address
-    const noAddress: SessionUser = { ...E, email: null };
-    const off = await handleSaveEmailPrefs(context({ user: noAddress }).ctx, { ...guard(noAddress), exchange: false });
-    expect(off).toMatchObject({ ok: true, toast: EMAIL_PREFS_SAVED });
-    expect(await prefsOf(E)).toMatchObject({ exchange_on: false, matches_on: false }); // matches went off with the address it was for
-    const [job] = await db.sql<{ status: string; reason: string | null }[]>`SELECT status, reason FROM email_jobs WHERE notification_id = 'n-email-e'`;
-    expect(job).toEqual({ status: "skipped", reason: "opted_out" });
-    // Off again, or off for someone who never turned anything on: still fine, and nothing is created for them.
-    expect(await handleSaveEmailPrefs(context({ user: noAddress }).ctx, { ...guard(noAddress), exchange: false, matches: false })).toMatchObject({ ok: true });
-    const F: SessionUser = { id: "handoff-test-email-f", name: "Handoff Test Email F", email: null };
-    expect(await handleSaveEmailPrefs(context({ user: F }).ctx, { ...guard(F), matches: false })).toMatchObject({ ok: true });
-    expect(await prefsOf(F)).toBeUndefined();
   });
 });

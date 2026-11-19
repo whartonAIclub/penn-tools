@@ -15,31 +15,32 @@ import {
   BAD_REQUEST_ERROR,
   DOC_CACHE_WORLDS,
   FULL_ERROR,
+  ACTIONS_PER_MINUTE,
+  DELETE_OPEN_ERROR,
   INTERNAL_ERROR,
+  OPEN_LIMIT_ERROR,
+  OPEN_RECORDS_MAX,
+  RATE_ERROR,
+  RECORD_MAX_BYTES,
   REUSED_REQUEST_ERROR,
   SAVED_NO_VIEW_ERROR,
   applyAction,
-  checkEmailJobs,
+  deleteMyData,
   documentCacheStats,
   ensurePerson,
   getGuestView,
   getView,
   markNotificationsRead,
   pruneWorld,
+  readStoredWorld,
   refreshView,
   saveProfile,
-  storeDispatchDeps,
-  sweepDue,
   type ApplyInput,
 } from "../store.js";
-import { EXCHANGE_TTL_MS } from "../email/kinds.js";
-import { NOT_FOR_THIS_ACCOUNT_ERROR, saveEmailPrefs } from "../email/prefs.js";
-import type { JobRef } from "../email/types.js";
 import type { ActOutcome, Actor, View, WorldId } from "../types.js";
 import { guestContractViolations } from "./helpers/contract.js";
 import { createTestDb, databaseUrl, deferred, waitForLockWaiters, type TestDb } from "./helpers/db.js";
-import { TEST_D, TEST_E, TEST_F, changeNotes, heartbeat, jobsOf } from "./helpers/email-db.js";
-import { DAY as LDAY, MIN as LMIN, StoreWorld, T0 as LT0, TEST_A, TEST_B, TEST_C, actions as sent, checked, dateAfter, okOf } from "./helpers/live-store.js";
+import { DAY as LDAY, MIN as LMIN, NO_LIMITS, StoreWorld, T0 as LT0, TEST_A, TEST_B, TEST_C, actions as sent, checked, dateAfter, okOf, storeDocument } from "./helpers/live-store.js";
 import { TOY_TEXT, toyControls, toyPort, violations, type ToyDoc } from "./helpers/toy-port.js";
 import { pinLegacyFlow } from "./helpers/legacy-flow.js";
 
@@ -60,8 +61,9 @@ const MB = 1024 * 1024;
 
 let db: TestDb;
 
+/** An action through the store with the stand-in port; the per-account limits are off unless the test passes its own. */
 function act(worldId: WorldId, actor: Actor, action: unknown, extra: Partial<ApplyInput> = {}): Promise<ActOutcome> {
-  return applyAction(db.sql, { worldId, actor, requestId: randomUUID(), action, ...extra }, toyPort);
+  return applyAction(db.sql, { worldId, actor, requestId: randomUUID(), action, limits: NO_LIMITS, ...extra }, toyPort);
 }
 
 function ok(o: ActOutcome): Extract<ActOutcome, { ok: true }> {
@@ -74,10 +76,10 @@ function refused(o: ActOutcome): Extract<ActOutcome, { code: "refused" }> {
   return o;
 }
 
+/** The world as stored (its rows joined into the document), with the next deadline still to sweep. */
 async function world(id: string): Promise<{ version: number; doc: ToyDoc; next_due: Date | null } | undefined> {
-  const [row] = await db.sql<{ version: number; doc: ToyDoc; next_due: Date | null }[]>`
-    SELECT version, doc, next_due FROM worlds WHERE id = ${id}`;
-  return row;
+  const w = await readStoredWorld(db.sql, id as WorldId, toyPort);
+  return w && { version: w.version, doc: w.doc as ToyDoc, next_due: w.nextDue === null ? null : new Date(w.nextDue) };
 }
 
 async function count(query: Promise<{ n: number }[]>): Promise<number> {
@@ -314,10 +316,10 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
     const ids = (await getView(db.sql, { worldId: w, viewer: bob, now: T0 + 3 }, toyPort)).notifications.map((n) => n.id);
     const version = (await world(w))?.version;
 
-    // Hold the world's lock with an action while marking: neither markRead nor saveProfile waits for it.
+    // Hold a write's locks (ann's own profile, among them) while marking: neither markRead nor saveProfile waits for it.
     const held = deferred();
     const locked = deferred();
-    const holding = act(w, ann, { type: "trim" }, {
+    const holding = act(w, ann, { type: "stock", item: "i-one", listed: 1 }, {
       now: T0 + 4,
       hooks: {
         afterLock: async () => {
@@ -392,7 +394,7 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
     const w = "test-sweep-recheck";
     ok(await act(w, ann, { type: "stock", item: "i-one", listed: 1 }, { now: T0 }));
     ok(await act(w, bob, { type: "take", item: "i-one", holdMs: 15 * MIN }, { now: T0 }));
-    // A write holds the lock. Every write sweeps first, so it will expire the hold and clear next_due.
+    // A write holds its locks (the item among them). Every write sweeps first, so it will expire the hold.
     const locked = deferred();
     const held = deferred();
     const writing = act(w, ann, { type: "stock", item: "i-two", listed: 1 }, {
@@ -405,30 +407,36 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
       },
     });
     await locked.promise;
-    // Meanwhile a read sees next_due passed and queues its sweep behind that write.
-    const sweepsBefore = toyControls.sweepRuns;
+    // Meanwhile a read sees the hold's deadline passed: its sweep runs the rules on the market as committed, and queues on the
+    // item's row, which that write holds.
     const reading = getView(db.sql, { worldId: w, viewer: cat, now: T0 + 16 * MIN }, toyPort);
     await waitForLockWaiters(db, 1);
     held.resolve();
     ok(await writing);
     const view = await reading;
-    expect(view.version).toBe(3); // the write's version: the sweep stored nothing
+    expect(view.version).toBe(3); // the write's version: the sweep, decided again on what the write stored, stored nothing
     expect(view.listings.find((l) => l.id === "i-one")?.numbers.available).toBe(1);
-    expect(toyControls.sweepRuns - sweepsBefore).toBe(0); // and never ran the engine
     expect(await count(db.sql`SELECT count(*)::int AS n FROM actions WHERE world_id = ${w} AND actor_id = 'system'`)).toBe(0);
   });
 
-  it("moves next_due on without a new version when a sweep finds nothing to expire", async () => {
+  it("leaves the version alone when a sweep finds nothing to expire, and doesn't sweep that version again", async () => {
     const w = "test-noop-sweep";
     ok(await act(w, ann, { type: "stock", item: "i-one", listed: 2 }, { now: T0 }));
-    await db.sql`UPDATE worlds SET next_due = ${new Date(T0 - MIN)} WHERE id = ${w}`;
-    expect((await getView(db.sql, { worldId: w, viewer: cat, now: T0 + 1 }, toyPort)).version).toBe(1);
-    expect((await world(w))?.next_due).toBeNull();
-
-    ok(await act(w, bob, { type: "take", item: "i-one", holdMs: 30 * MIN }, { now: T0 + 2 }));
-    await db.sql`UPDATE worlds SET next_due = ${new Date(T0 + 3)} WHERE id = ${w}`;
-    expect((await getView(db.sql, { worldId: w, viewer: cat, now: T0 + 5 }, toyPort)).version).toBe(2);
-    expect((await world(w))?.next_due?.getTime()).toBe(T0 + 2 + 30 * MIN);
+    toyControls.phantomDue = T0 + MIN; // a deadline the rules report, but nothing acts on
+    try {
+      const sweeps = toyControls.sweepRuns;
+      expect((await world(w))?.next_due?.getTime()).toBe(T0 + MIN);
+      expect((await getView(db.sql, { worldId: w, viewer: cat, now: T0 + 2 * MIN }, toyPort)).version).toBe(1);
+      expect(toyControls.sweepRuns - sweeps).toBe(1);
+      // This app instance knows that version has nothing to sweep before then, so its next reads don't sweep it again.
+      expect((await getView(db.sql, { worldId: w, viewer: cat, now: T0 + 3 * MIN }, toyPort)).version).toBe(1);
+      expect(await refreshView(db.sql, { worldId: w, viewer: cat, version: 1, nextRefreshAt: null, now: T0 + 4 * MIN }, toyPort)).toEqual({ unchanged: true, version: 1 });
+      expect(toyControls.sweepRuns - sweeps).toBe(1);
+    } finally {
+      toyControls.phantomDue = null;
+    }
+    ok(await act(w, bob, { type: "take", item: "i-one", holdMs: 30 * MIN }, { now: T0 + 5 * MIN }));
+    expect((await world(w))?.next_due?.getTime()).toBe(T0 + 35 * MIN);
     expect(await count(db.sql`SELECT count(*)::int AS n FROM actions WHERE world_id = ${w} AND actor_id = 'system'`)).toBe(0);
   });
 
@@ -509,7 +517,7 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
     // saved while it remains logs it once, by key (C-DESIGN §4.6).
     const damaged = (await world(w))!.doc;
     damaged.stock["i-one"]!.listed = 0;
-    await db.sql`UPDATE worlds SET doc = ${JSON.stringify(damaged)}::text::jsonb WHERE id = ${w}`;
+    await storeDocument(db.sql, w, damaged); // a manual fix gone wrong, as one document: the next write splits it into rows again
     expect(violations(damaged)).toEqual(["oversold:i-one"]);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -527,39 +535,83 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
     expect(violations((await world(w))!.doc)).toEqual([]);
   });
 
-  it("reads profiles after taking the world's lock, so it can name someone whose profile appeared while it waited", async () => {
-    // The real engine names people in notification and history text from the profiles the store reads. A
-    // classmate's first write can commit while another write waits for the lock; reading profiles after the lock
-    // (C-DESIGN §4.1) means the waiting write always knows everyone its document can mention.
-    const w = "test-people-after-lock";
+  it("reads the profiles a change names as it runs, and opening Handoff makes none (review of PR #88)", async () => {
+    // The real engine names people in notification and history text from the profiles the store reads for the change. Opening
+    // Handoff saves nothing, so someone who has only looked is "Someone" to the toy engine (the real one says "A classmate");
+    // once they have changed something, their profile is there for every change after.
+    const w = "test-people-named";
     const dan: Actor = { id: "user-dan-late", name: "Dan Okafor", email: null };
     ok(await act(w, ann, { type: "stock", item: "i-one", listed: 1 }, { now: T0 }));
-    const locked = deferred();
-    const held = deferred();
-    const holding = act(w, ann, { type: "trim" }, {
-      now: T0 + 1,
-      hooks: {
-        afterLock: async () => {
-          locked.resolve();
-          await held.promise;
-        },
-      },
-    });
-    await locked.promise;
-    let greeting: Promise<ActOutcome> | undefined;
-    try {
-      // Bob's action names Dan, who has never opened Handoff. Postgres reports it queued on the lock...
-      greeting = act(w, bob, { type: "greet", to: dan.id }, { now: T0 + 2 });
-      await waitForLockWaiters(db, 1);
-      // ...and while it waits, Dan opens the page, which creates his profile (no world lock needed).
-      await getView(db.sql, { worldId: w, viewer: dan, now: T0 + 2 }, toyPort);
-    } finally {
-      held.resolve();
+    const looked = await getView(db.sql, { worldId: w, viewer: dan, now: T0 + 1 }, toyPort);
+    expect(looked.viewer).toMatchObject({ id: dan.id, name: "Dan Okafor" }); // the session's name, though nothing was saved
+    expect(await count(db.sql`SELECT count(*)::int AS n FROM people WHERE user_id = ${dan.id}`)).toBe(0);
+    ok(await act(w, bob, { type: "greet", to: dan.id }, { now: T0 + 2 }));
+    ok(await act(w, dan, { type: "stock", item: "i-dan", listed: 1 }, { now: T0 + 3 })); // his first change makes his profile
+    expect(await count(db.sql`SELECT count(*)::int AS n FROM people WHERE user_id = ${dan.id}`)).toBe(1);
+    ok(await act(w, bob, { type: "greet", to: dan.id }, { now: T0 + 4 }));
+    const danView = await getView(db.sql, { worldId: w, viewer: dan, now: T0 + 5 }, toyPort);
+    expect(danView.notifications.map((n) => n.text)).toEqual(["Hello, Dan.", "Hello, Someone."]);
+  });
+
+  it("review of PR #88: caps one account's open records; closing one makes room; others aren't affected", async () => {
+    const w = "test-open-cap";
+    const limits = { openRecords: 2, perMinute: null };
+    ok(await act(w, ann, { type: "stock", item: "i-a", listed: 1 }, { now: T0, limits }));
+    ok(await act(w, ann, { type: "stock", item: "i-b", listed: 1 }, { now: T0 + 1, limits }));
+    const capped = refused(await act(w, ann, { type: "stock", item: "i-c", listed: 1 }, { now: T0 + 2, limits }));
+    expect(capped.error).toBe(OPEN_LIMIT_ERROR); // a refusal, logged as one, so a retry gets the same answer
+    expect(await count(db.sql`SELECT count(*)::int AS n FROM actions WHERE world_id = ${w} AND NOT ok`)).toBe(1);
+    expect(Object.keys((await world(w))!.doc.stock)).toEqual(["i-a", "i-b"]);
+    // Changing an open record of one's own is fine at the cap; so is another account's new record.
+    ok(await act(w, ann, { type: "stock", item: "i-a", listed: 3 }, { now: T0 + 3, limits }));
+    ok(await act(w, bob, { type: "stock", item: "i-bob", listed: 1 }, { now: T0 + 4, limits }));
+    // Closing one makes room.
+    ok(await act(w, ann, { type: "withdraw", item: "i-b" }, { now: T0 + 5, limits }));
+    ok(await act(w, ann, { type: "stock", item: "i-c", listed: 1 }, { now: T0 + 6, limits }));
+    expect(OPEN_RECORDS_MAX).toBe(100);
+  });
+
+  it("review of PR #88: caps one account's changes a minute, without logging them; a retried click still gets its answer", async () => {
+    const w = "test-rate";
+    const limits = { openRecords: null, perMinute: 3 };
+    ok(await act(w, ann, { type: "stock", item: "i-one", listed: 1 }, { now: T0, limits }));
+    const rid = randomUUID();
+    ok(await applyAction(db.sql, { worldId: w, actor: ann, requestId: rid, action: { type: "stock", item: "i-one", listed: 2 }, now: T0 + 1000, limits }, toyPort));
+    refused(await act(w, ann, { type: "take", item: "i-one" }, { now: T0 + 2000, limits })); // refusals count too
+    expect(await act(w, ann, { type: "stock", item: "i-one", listed: 3 }, { now: T0 + 3000, limits })).toEqual({ ok: false, code: "busy", error: RATE_ERROR });
+    expect(await count(db.sql`SELECT count(*)::int AS n FROM actions WHERE world_id = ${w}`)).toBe(3); // the fourth wasn't logged
+    expect((await world(w))!.doc.stock["i-one"]?.listed).toBe(2);
+    // The retry of a change already made is answered from the log, over the limit or not.
+    expect(await applyAction(db.sql, { worldId: w, actor: ann, requestId: rid, action: { type: "stock", item: "i-one", listed: 2 }, now: T0 + 4000, limits }, toyPort)).toMatchObject({ ok: true, replay: true });
+    // Another account isn't held back by ann's pace; and a minute on, ann can go on.
+    ok(await act(w, bob, { type: "take", item: "i-one" }, { now: T0 + 5000, limits }));
+    ok(await act(w, ann, { type: "stock", item: "i-one", listed: 3 }, { now: T0 + 62_000, limits }));
+    expect(ACTIONS_PER_MINUTE).toBe(30);
+  });
+
+  it("review of PR #88: deletes an account's Handoff data once nothing of theirs is open; their past records stay, nameless", async () => {
+    const w = "test-delete-data";
+    ok(await act(w, ann, { type: "stock", item: "i-one", listed: 1 }, { now: T0 }));
+    ok(await act(w, bob, { type: "take", item: "i-one" }, { now: T0 + 1 }));
+    ok(await act(w, ann, { type: "note", to: bob.id, text: "For Bob" }, { now: T0 + 2 }));
+    ok(await act(w, bob, { type: "note", to: ann.id, text: "For Ann" }, { now: T0 + 3 }));
+    // Ann's item is open, and so is Bob's hold on it: neither may delete yet.
+    expect(await deleteMyData(db.sql, { worldId: w, userId: ann.id }, toyPort)).toEqual({ ok: false, error: DELETE_OPEN_ERROR });
+    expect(await deleteMyData(db.sql, { worldId: w, userId: bob.id }, toyPort)).toEqual({ ok: true }); // a toy hold isn't a record of Bob's
+    ok(await act(w, ann, { type: "withdraw", item: "i-one" }, { now: T0 + 4 }));
+    const before = (await world(w))!.doc;
+    expect(await deleteMyData(db.sql, { worldId: w, userId: ann.id }, toyPort)).toEqual({ ok: true });
+    for (const table of ["people", "notifications", "actions"] as const) {
+      const column = table === "people" ? "user_id" : table === "actions" ? "actor_id" : "user_id";
+      expect(await count(db.sql`SELECT count(*)::int AS n FROM ${db.sql(table)} WHERE ${db.sql(column)} = ${ann.id}`), table).toBe(0);
     }
-    ok(await holding);
-    ok(await greeting);
-    const danView = await getView(db.sql, { worldId: w, viewer: dan, now: T0 + 3 }, toyPort);
-    expect(danView.notifications.map((n) => n.text)).toEqual(["Hello, Dan."]);
+    expect((await world(w))!.doc).toEqual(before); // the market's records stay as they were
+    // A view of the market names ann as nobody in particular now; her own view is as on a first visit.
+    const cats = await getView(db.sql, { worldId: w, viewer: cat, now: T0 + 5 }, toyPort);
+    expect(cats.people[ann.id]?.name).toBe("A classmate");
+    const anns = await getView(db.sql, { worldId: w, viewer: ann, now: T0 + 5 }, toyPort);
+    expect([anns.viewer.name, anns.unreadCount, anns.notifications]).toEqual(["Ann Lee", 0, []]);
+    expect(await count(db.sql`SELECT count(*)::int AS n FROM people WHERE user_id = ${ann.id}`)).toBe(0);
   });
 
   it("never gives the engine anyone's email: only the projection's context carries them", async () => {
@@ -574,32 +626,32 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
     expect(toyControls.runsWithEmail - runsWithEmail).toBe(0);
   });
 
-  it("refuses to grow the document past 5 MB, warns past 2 MB, and still lets it shrink", async () => {
+  it("keeps no limit on the whole market (review of PR #88), but refuses one record past RECORD_MAX_BYTES", async () => {
     const w = "test-size";
+    // Past the old 5 MB limit on the one document: every record is its own row, and a change writes only its own.
+    ok(await act(w, ann, { type: "pad", bytes: Math.round(5.5 * MB) }, { now: T0 }));
+    ok(await act(w, ann, { type: "stock", item: "i-one", listed: 1 }, { now: T0 + 1 }));
+    expect(Buffer.byteLength(JSON.stringify((await world(w))!.doc))).toBeGreaterThan(5.5 * MB);
+    const written = await db.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM records WHERE world_id = ${w} AND kind = 'item'`;
+    expect(written[0]?.n).toBe(1);
+    // One record past the limit is refused, and nothing is saved; at the limit it goes through.
+    expect(await act(w, ann, { type: "memo", item: "i-one", bytes: RECORD_MAX_BYTES }, { now: T0 + 2 })).toEqual({ ok: false, code: "full", error: FULL_ERROR });
+    expect((await world(w))?.version).toBe(2);
+    ok(await act(w, ann, { type: "memo", item: "i-one", bytes: RECORD_MAX_BYTES - 200 }, { now: T0 + 3 }));
+    // A record already past it (written before the limit changed, say) may still shrink.
+    const big = (await world(w))!.doc;
+    big.stock["i-one"]!.memo = "m".repeat(RECORD_MAX_BYTES + 10);
+    await storeDocument(db.sql, w, big);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      ok(await act(w, ann, { type: "pad", bytes: Math.round(4.7 * MB) }, { now: T0 }));
-      expect(JSON.stringify(warn.mock.calls)).toContain("archiving is due");
-      const bytes = Buffer.byteLength(JSON.stringify((await world(w))!.doc));
-      expect(bytes).toBeGreaterThan(4.6 * MB);
-      expect(bytes).toBeLessThan(5 * MB);
-
-      expect(await act(w, ann, { type: "pad", bytes: Math.round(0.5 * MB) }, { now: T0 + 1 })).toEqual({ ok: false, code: "full", error: FULL_ERROR });
-      expect((await world(w))?.version).toBe(1);
-
-      // A document already over the limit (say, written before the limit changed) refuses any growth...
-      const over = (await world(w))!.doc;
-      for (let i = 0; i < 2400; i++) over.pad.push({ ...over.pad[0]!, id: `x${i}` });
-      await db.sql`UPDATE worlds SET doc = ${JSON.stringify(over)}::text::jsonb WHERE id = ${w}`;
-      expect(Buffer.byteLength(JSON.stringify((await world(w))!.doc))).toBeGreaterThan(5 * MB);
-      expect(await act(w, ann, { type: "stock", item: "i-one", listed: 1 }, { now: T0 + 2 })).toMatchObject({ ok: false, code: "full" });
-      // ...but still accepts writes that shrink it.
-      ok(await act(w, ann, { type: "trim" }, { now: T0 + 3 }));
-      expect(Buffer.byteLength(JSON.stringify((await world(w))!.doc))).toBeLessThan(1000);
+      ok(await act(w, ann, { type: "memo", item: "i-one", bytes: 0 }, { now: T0 + 4 }));
     } finally {
       warn.mockRestore();
     }
-  }, 30_000);
+    expect((await world(w))!.doc.stock["i-one"]?.memo).toBeUndefined();
+    ok(await act(w, ann, { type: "trim" }, { now: T0 + 5 }));
+    expect(Buffer.byteLength(JSON.stringify((await world(w))!.doc))).toBeLessThan(1000);
+  }, 60_000);
 
   it("writes a profile only when the account's name or email changed, and never shows an email as a name", async () => {
     const person = async (id: string) =>
@@ -702,7 +754,7 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
 
     // Each day's first write already pruned what was over 7 days old then (day 0's three actions on day 8, day 1's on day 9).
     // Day 9, 01:00 after T0: day 2's action goes too; the read notification (9 days old) stays.
-    expect(await pruneWorld(db.sql, w, T0 + 9 * DAY + HOUR)).toEqual({ actions: 1, notifications: 0, snapshots: 2, email: 0 });
+    expect(await pruneWorld(db.sql, w, T0 + 9 * DAY + HOUR)).toEqual({ actions: 1, notifications: 0, snapshots: 2 });
     expect(await count(db.sql`SELECT count(*)::int AS n FROM actions WHERE world_id = ${w}`)).toBe(7);
     const kept = async () => [...(await db.sql<{ reason: string; n: number }[]>`
       SELECT reason, count(*)::int AS n FROM world_snapshots WHERE world_id = ${w} GROUP BY reason ORDER BY reason`)];
@@ -714,47 +766,13 @@ describe.skipIf(!databaseUrl)("Handoff store (Postgres)", () => {
 
     // 100 days on: every action and the read notification go; the unread one stays. Daily snapshots are all over 7 days old
     // then, so only the newest two stay; before-upgrade ones keep their cap of 3, and manual ones are never pruned.
-    expect(await pruneWorld(db.sql, w, T0 + 100 * DAY)).toEqual({ actions: 7, notifications: 1, snapshots: 5, email: 0 });
+    expect(await pruneWorld(db.sql, w, T0 + 100 * DAY)).toEqual({ actions: 7, notifications: 1, snapshots: 5 });
     expect(await kept()).toEqual([
       { reason: "before-upgrade", n: 3 },
       { reason: "daily", n: 2 },
       { reason: "manual", n: 5 },
     ]);
     expect((await getView(db.sql, { worldId: w, viewer: bob, now: T0 + 100 * DAY }, toyPort)).notifications.map((n) => n.text)).toEqual(["Old, unread"]);
-  });
-
-  it("prunes the world's finished email jobs after 14 days and its captured emails after 7, never a job still waiting (follow-on B4)", async () => {
-    const w = "test-prune-email";
-    ok(await act(w, ann, { type: "stock", item: "i-one", listed: 1 }, { now: T0 }));
-    for (let i = 0; i < 4; i++) ok(await act(w, ann, { type: "note", to: bob.id, text: `Note ${i}` }, { now: T0 + (i + 1) * MIN }));
-    const notes = (await db.sql<{ id: string }[]>`SELECT id FROM notifications WHERE world_id = ${w} ORDER BY at`).map((n) => n.id);
-    expect(notes).toHaveLength(4);
-    const at = T0 + 10 * MIN;
-    const job = (note: string | undefined, status: "sent" | "skipped" | "dead" | "pending", daysAgo: number) => {
-      const t = new Date(at - daysAgo * DAY);
-      return db.sql`
-        INSERT INTO email_jobs (world_id, notification_id, user_id, kind, category, ref, link, event_key, status, reason, retry_at, expires_at, sent_at,
-                                created_at, updated_at)
-        VALUES (${w}, ${note ?? ""}, ${bob.id}, 'offer.received', 'exchange', 'r1', '{"name":"activity"}', ${`${randomUUID()}:offer.received:r1`},
-                ${status}, ${status === "skipped" || status === "dead" ? "expired" : null}, ${t}, ${new Date(t.getTime() + DAY)},
-                ${status === "sent" ? t : null}, ${t}, ${t})`;
-    };
-    await job(notes[0], "sent", 20); // finished over 14 days ago: pruned
-    await job(notes[1], "skipped", 15); // the same
-    await job(notes[2], "dead", 10); // finished, but not 14 days ago yet: kept
-    await job(notes[3], "pending", 30); // never pruned by age while it waits (the dispatcher expires it first)
-    const capture = (key: string, note: string | undefined, daysAgo: number) => db.sql`
-      INSERT INTO email_capture (idempotency_key, world_id, notification_id, to_address, subject, body_text, action_url, captured_at)
-      VALUES (${key}, ${w}, ${note ?? ""}, 'bob@example.invalid', 'Subject', 'Body', 'http://localhost:3000/tools/handoff#activity', ${new Date(at - daysAgo * DAY)})`;
-    await capture("handoff:test-prune-email:old", notes[2], 8); // over 7 days: pruned
-    await capture("handoff:test-prune-email:new", notes[3], 6); // kept
-    expect(await pruneWorld(db.sql, w, at)).toEqual({ actions: 0, notifications: 0, snapshots: 0, email: 3 });
-    const left = await db.sql<{ notification_id: string; status: string }[]>`SELECT notification_id, status FROM email_jobs WHERE world_id = ${w}`;
-    expect(left.map((j) => [notes.indexOf(j.notification_id), j.status]).sort()).toEqual([[2, "dead"], [3, "pending"]]);
-    expect((await db.sql<{ idempotency_key: string }[]>`SELECT idempotency_key FROM email_capture WHERE world_id = ${w}`).map((c) => c.idempotency_key)).toEqual([
-      "handoff:test-prune-email:new",
-    ]);
-    expect(await pruneWorld(db.sql, w, at)).toEqual({ actions: 0, notifications: 0, snapshots: 0, email: 0 });
   });
 
   it("prunes at the first write of each New York day, so a quiet world's actions don't outlive 7 days (review P4)", async () => {
@@ -897,14 +915,16 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
       SELECT actor_id, type, ids, ok, result, version_before, version_after FROM actions WHERE world_id = ${worldId} ORDER BY at, version_after`;
   }
 
-  /** Writes a changed document straight into the row, as a manual fix in SQL would (the version stays). */
+  /**
+   * Writes a changed document in place of the world's market, as a manual fix (or a world from before the rows) would leave it: one
+   * document, which the next write splits into rows again. The version stays, and so does its next deadline.
+   */
   async function plant(worldId: WorldId, change: (doc: LiveWorld) => void): Promise<number> {
-    const [row] = await rdb.sql<{ doc: LiveWorld }[]>`SELECT doc FROM worlds WHERE id = ${worldId}`;
-    const doc = row!.doc;
+    const stored = (await readStoredWorld(rdb.sql, worldId))!;
+    const doc = stored.doc as unknown as LiveWorld;
     change(doc);
-    const json = JSON.stringify(doc);
-    await rdb.sql`UPDATE worlds SET doc = ${json}::text::jsonb WHERE id = ${worldId}`;
-    return Buffer.byteLength(json);
+    await storeDocument(rdb.sql, worldId, doc, { nextDue: stored.nextDue });
+    return Buffer.byteLength(JSON.stringify(doc));
   }
 
   it("shows a first-time viewer an empty market at version 0, keeps the contract, and creates nothing", async () => {
@@ -925,6 +945,50 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
       { actor_id: A.id, type: "addThen", ids: { "add.eventId": event, "add.tier": "t1" }, ok: true, result: { toast: expect.stringMatching(/^Ticket listed\./), resultId: listing }, version_before: 1, version_after: 2 },
       { actor_id: A.id, type: "take", ids: { listingId: listing }, ok: false, result: { error: "You can't buy your own listing." }, version_before: 2, version_after: 2 },
     ]);
+  });
+
+  it("review of PR #88: deleting one's data waits only for what's still going on, as the page shows it", async () => {
+    // Two listings of one ticket each: the first sells and is handed off, never closed; the second closes mid-exchange.
+    const { w, event, listing: l1 } = await listedWorld("test-real-delete-open");
+    const l2 = await w.list(A, await w.createEvent(A, { title: "[Test] Another night" }), { qty: 1, ask: "30" });
+    const del = (who: { id: string }) => deleteMyData(rdb.sql, { worldId: w.worldId, userId: who.id, now: w.now });
+    const busy = { ok: false, error: DELETE_OPEN_ERROR };
+    expect(await del(A)).toEqual(busy); // listings that can still sell
+    const r1 = okOf(await w.act(B, sent.take(l1)), "B's reservation").resultId!;
+    const r2 = okOf(await w.act(C, sent.take(l2)), "C's reservation").resultId!;
+    for (const [who, type] of [[B, "markPaid"], [A, "confirmPayment"], [A, "markTransferred"], [B, "buyerReceived"]] as const) await w.ok(who, sent.onRequest(type, r1));
+    await w.ok(C, sent.onRequest("markPaid", r2));
+    await w.ok(A, { type: "withdraw", listingId: l2 }); // "Close listing": C's paid reservation goes on
+    expect(await del(A)).toEqual(busy); // nothing of A's can sell, but C's exchange on A's listing isn't done
+    expect(await del(C)).toEqual(busy); // and it's C's own
+    for (const [who, type] of [[A, "confirmPayment"], [A, "markTransferred"], [C, "buyerReceived"]] as const) await w.ok(who, sent.onRequest(type, r2));
+    // The first listing sold out and was handed off: the page offers no "Close listing" for it, so it no longer counts, though its
+    // row was never closed (counted by that flag, A could never delete).
+    const [row] = await rdb.sql<{ open: boolean }[]>`SELECT open FROM records WHERE world_id = ${w.worldId} AND kind = 'listing' AND id = ${l1}`;
+    expect(row?.open).toBe(true);
+    // An item counts while it's up, and not once its last day is past; a live request counts until it's closed.
+    await w.ok(A, sent.postItem(w.now, { until: dateAfter(w.now, 1) }));
+    const iso = okOf(await w.act(B, sent.request(event, { qty: 1, budget: "35", note: "", expires: dateAfter(w.now, 5) })), "B's request").resultId!;
+    expect(await del(A)).toEqual(busy);
+    expect(await del(B)).toEqual(busy);
+    w.advance(2 * LDAY);
+    expect(await del(A)).toEqual({ ok: true });
+    expect(await del(B)).toEqual(busy);
+    await w.ok(B, { type: "closeInterest", id: iso });
+    expect(await del(B)).toEqual({ ok: true });
+    expect(await del(C)).toEqual({ ok: true });
+  });
+
+  it("review of PR #88: the open-records cap counts what's still going on, so an item past its last day makes room", async () => {
+    const w = world("test-real-open-cap");
+    const limits = { openRecords: 2, perMinute: null };
+    await w.ok(A, sent.postItem(w.now, { title: "Old lamp", until: dateAfter(w.now, 1) }), { limits });
+    await w.ok(A, sent.postItem(w.now, { title: "Desk" }), { limits });
+    expect((await w.refused(A, sent.postItem(w.now, { title: "Chair" }), { limits })).error).toBe(OPEN_LIMIT_ERROR);
+    await w.ok(B, sent.postItem(w.now, { title: "B's chair" }), { limits }); // another account isn't held back
+    w.advance(2 * LDAY);
+    await w.ok(A, sent.postItem(w.now, { title: "Chair" }), { limits }); // the lamp's last day is past
+    expect((await w.refused(A, sent.postItem(w.now, { title: "Stool" }), { limits })).error).toBe(OPEN_LIMIT_ERROR);
   });
 
   it("answers a retry with its first outcome and applies it once; a request id reused for another action is invalid", async () => {
@@ -1019,268 +1083,27 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
     expect((await w.view(B)).requests.find((x) => x.id === r)?.status).toBe("expired");
   });
 
-  it("moves next_due on without a new version when a sweep finds nothing that lapsed", async () => {
+  it("splits a world from before the rows at its first write, keeping its version and next deadline; a stale next_due sweeps nothing", async () => {
+    // Review of PR #88: a world stored as one document (as every world was before the rows), with a next_due that has passed though
+    // nothing is due then: the first read sweeps (a write, so the world is split first, with a before-upgrade snapshot), finds
+    // nothing to store and leaves the version alone.
     const { w, listing } = await listedWorld("test-real-noop-sweep", 2);
-    await rdb.sql`UPDATE worlds SET next_due = ${new Date(LT0 - LMIN)} WHERE id = ${w.worldId}`;
-    expect((await w.view(C)).version).toBe(2);
-    expect((await w.row())!.next_due).toBeNull();
     okOf(await w.act(B, sent.take(listing)), "take");
-    await rdb.sql`UPDATE worlds SET next_due = ${new Date(LT0 + 1)} WHERE id = ${w.worldId}`;
+    const doc = (await w.row())!.doc;
+    await storeDocument(rdb.sql, w.worldId, doc, { nextDue: LT0 - LMIN });
+    expect((await rdb.sql`SELECT 1 FROM records WHERE world_id = ${w.worldId}`).length).toBe(0);
     w.now = LT0 + 5 * LMIN;
     expect((await w.view(C)).version).toBe(3);
-    expect((await w.row())!.next_due?.getTime()).toBe(LT0 + 15 * LMIN);
+    const split = (await readStoredWorld(rdb.sql, w.worldId))!;
+    expect(split).toMatchObject({ version: 3, split: true, nextDue: LT0 + 15 * LMIN });
+    expect(split.doc).toEqual(doc); // the same market, now as rows
+    expect((await rdb.sql`SELECT kind FROM records WHERE world_id = ${w.worldId} ORDER BY kind`).map((r) => r["kind"])).toEqual(["event", "holding", "listing", "request"]);
+    expect((await rdb.sql`SELECT version, reason FROM world_snapshots WHERE world_id = ${w.worldId} AND reason = 'before-upgrade'`).map((r) => [r["version"], r["reason"]])).toEqual([[3, "before-upgrade"]]);
     expect((await logged(w.worldId)).filter((x) => x.actor_id === "system")).toEqual([]);
-  });
-
-  it("gives each signed-in view its owner's email envelope: available only while the world's own sender worked in the last 10 minutes; never a guest's (follow-on B4)", async () => {
-    const w = world("test-real-email-view");
-    const env = async (who: Actor) => (await w.view(who)).email; // w.view checks every view against the contract, envelope included
-    const off = (who: Actor) => ({ available: false, mode: null, address: who.email, exchange: false, matches: false, reconfirm: false, paused: false });
-    try {
-      // No dispatcher has run: not available, nothing on, the viewer's own sign-in address.
-      expect(await env(A)).toEqual(off(A));
-      // A provider's heartbeat doesn't make a test world's email available: that's the capture's. It does for live (this schema's own
-      // "live", which a view doesn't create), in provider mode.
-      const live = async () => checked(await getView(rdb.sql, { worldId: "live", viewer: A, now: w.now }), A.id).email;
-      await heartbeat(rdb.sql, "provider", w.now);
-      expect(await env(A)).toEqual(off(A));
-      expect(await live()).toEqual({ ...off(A), available: true, mode: "provider" });
-      await rdb.sql`DELETE FROM email_dispatch WHERE sender = 'provider'`;
-      // The capture's: available in the test world, in capture mode, and never for live.
-      await heartbeat(rdb.sql, "capture", w.now);
-      expect(await env(A)).toEqual({ ...off(A), available: true, mode: "capture" });
-      expect(await live()).toEqual(off(A));
-      expect(await rdb.sql`SELECT 1 FROM worlds WHERE id = 'live'`).toHaveLength(0);
-      // Each viewer gets their own: A turns exchange emails on; B's envelope stays off, with B's own address.
-      expect(await saveEmailPrefs(rdb.sql, { userId: A.id, address: A.email, signIn: "dev", worldId: w.worldId, exchange: true, now: w.now })).toMatchObject({ ok: true });
-      expect(await env(A)).toEqual({ ...off(A), available: true, mode: "capture", exchange: true });
-      expect(await env(B)).toEqual({ ...off(B), available: true, mode: "capture" });
-      // An action's answer carries the actor's envelope too.
-      expect(okOf(await w.act(A, sent.createEvent(w.now)), "createEvent").view.email).toEqual({ ...off(A), available: true, mode: "capture", exchange: true });
-      // The heartbeat goes stale: not available any more, and what A turned on still shows, paused, so they can turn it off. B, with
-      // nothing on, has nothing paused; nor has live, whose own sender (a provider) has never worked.
-      w.advance(10 * LMIN + 1);
-      expect(await env(A)).toEqual({ ...off(A), exchange: true, paused: true });
-      expect(await env(B)).toEqual(off(B));
-      expect(await live()).toEqual({ ...off(A), exchange: true });
-      // A's sign-in address changes: nothing is on until they turn it on again for the new one.
-      const moved: Actor = { ...A, email: "handoff-test-a-new@example.invalid" };
-      expect(await env(moved)).toEqual({ ...off(moved), reconfirm: true });
-      // An account without an address: none to show, and nothing on.
-      const noAddress: Actor = { ...A, email: null };
-      expect(await env(noAddress)).toEqual({ ...off(noAddress), reconfirm: true });
-      // The guest view never has one.
-      const guest = await getGuestView(rdb.sql, { worldId: w.worldId, now: w.now });
-      expect(guest).not.toHaveProperty("email");
-      expect(guestContractViolations(guest)).toEqual([]);
-    } finally {
-      await ensurePerson(rdb.sql, A); // A's own address again, for the tests after this one
-      await rdb.sql`DELETE FROM email_dispatch`;
-      await rdb.sql`DELETE FROM email_prefs`;
-    }
-  });
-
-  it("sweepDue (the email dispatcher's sweep) stores a due world's expiry through the write path, once; nothing due, or no world, is left alone (follow-on B4)", async () => {
-    const { w, listing } = await listedWorld("test-real-sweep-due");
-    okOf(await w.act(B, sent.take(listing)), "take"); // held for 15 minutes
-    const version = async (): Promise<number> => (await w.row())?.version ?? -1;
-    const before = await version();
-    expect(await sweepDue(rdb.sql, w.worldId, LT0 + LMIN)).toBe(false);
-    expect(await version()).toBe(before);
-    expect(await sweepDue(rdb.sql, w.worldId, LT0 + 16 * LMIN)).toBe(true);
-    expect(await version()).toBe(before + 1);
-    expect((await logged(w.worldId)).filter((x) => x.actor_id === "system").map((s) => [s.type, s.ok])).toEqual([["sweep", true]]);
-    expect(await sweepDue(rdb.sql, w.worldId, LT0 + 17 * LMIN)).toBe(false); // nothing due any more
-    expect(await version()).toBe(before + 1);
-    expect(await sweepDue(rdb.sql, "test-real-sweep-due-none", LT0)).toBe(false);
-    expect(await rdb.sql`SELECT 1 FROM worlds WHERE id = 'test-real-sweep-due-none'`).toHaveLength(0); // a sweep never creates a world
-    await expect(sweepDue(rdb.sql, "prod" as WorldId)).rejects.toThrow(TypeError);
-  });
-
-  it("checkEmailJobs (the email dispatcher's check) answers each job on the committed document, for its recipient only (follow-on B4)", async () => {
-    const { w, event, listing } = await listedWorld("test-real-check-jobs", 2);
-    const r = okOf(await w.act(B, sent.take(listing)), "take").resultId!;
-    await w.ok(B, sent.onRequest("markPaid", r));
-    const jobs: JobRef[] = [
-      { notificationId: "n1", userId: A.id, kind: "payment.reported", ref: r, link: null },
-      { notificationId: "n2", userId: B.id, kind: "payment.reported", ref: r, link: null }, // B isn't the seller
-      { notificationId: "n3", userId: B.id, kind: "transfer.sent", ref: r, link: null }, // nothing was transferred
-      { notificationId: "n4", userId: A.id, kind: "offer.received", ref: "r0000000000000000", link: null }, // no such request
-    ];
-    const first = await checkEmailJobs(rdb.sql, w.worldId, jobs, w.now);
-    expect(first).toEqual(new Map([
-      ["n1", { ok: true, facts: { title: "[Test] Spring Formal", who: "Handoff", unit: "ticket", qty: null, due: null, price: null, obo: false, via: null, eventId: event, listingId: listing, itemId: null } }],
-      ["n2", { ok: false, why: "missing" }],
-      ["n3", { ok: false, why: "answered" }],
-      ["n4", { ok: false, why: "missing" }],
-    ]));
-    // Once the seller confirms the payment, the email asking them to has nothing left to ask; the store's hooks say the same.
-    await w.ok(A, sent.onRequest("confirmPayment", r));
-    expect(await checkEmailJobs(rdb.sql, w.worldId, jobs.slice(0, 1), w.now)).toEqual(new Map([["n1", { ok: false, why: "answered" }]]));
-    expect(await storeDispatchDeps.checkJobs(rdb.sql, w.worldId, jobs.slice(0, 1), w.now)).toEqual(new Map([["n1", { ok: false, why: "answered" }]]));
-    // A world with no row: every job is missing, and nothing is created.
-    const none = await checkEmailJobs(rdb.sql, "test-real-check-jobs-none", jobs, w.now);
-    expect([...none.values()]).toEqual(jobs.map(() => ({ ok: false, why: "missing" })));
-    expect(await rdb.sql`SELECT 1 FROM worlds WHERE id = 'test-real-check-jobs-none'`).toHaveLength(0);
-    expect(Object.isFrozen(storeDispatchDeps)).toBe(true);
-    expect(Object.keys(storeDispatchDeps).sort()).toEqual(["checkJobs", "sweepDue"]);
-  });
-
-  /** Everything a test of the email jobs leaves behind: the shared heartbeat and preferences (each world's jobs cascade with it). */
-  async function clearEmail(): Promise<void> {
-    await rdb.sql`DELETE FROM email_dispatch`;
-    await rdb.sql`DELETE FROM email_prefs`;
-  }
-
-  it("makes an email job in the action's own transaction for each stored notification of an emailed kind whose recipient turned that category on, while the world's own sender worked in the last 10 minutes; nothing else gets one (follow-on B4: B4.2, B4.6, B4.13, B4.15)", async () => {
-    const { w, event, listing } = await offersWorld("test-real-email-jobs", 3);
-    const jobs = () => jobsOf(rdb.sql, w.worldId);
-    try {
-      // A turns both categories on while the capture works; then no dispatcher has worked for a while: B's offer brings A its
-      // notification (tagged by the engine) and no job, so no backlog builds up while email isn't connected.
-      await heartbeat(rdb.sql, "capture", w.now);
-      expect(await saveEmailPrefs(rdb.sql, { userId: A.id, address: A.email, signIn: "dev", worldId: w.worldId, exchange: true, matches: true, now: w.now })).toMatchObject({ ok: true });
-      await rdb.sql`DELETE FROM email_dispatch`;
-      const quiet = randomUUID();
-      okOf(await w.act(B, sent.offer(listing, "30"), { requestId: quiet }), "B's offer");
-      expect((await changeNotes(rdb.sql, w.worldId, quiet)).map((n) => n.userId)).toEqual([A.id]);
-      expect(await jobs()).toEqual([]);
-      // A provider's heartbeat is the live world's: it makes no job in a test world.
-      await heartbeat(rdb.sql, "provider", w.now);
-      okOf(await w.act(C, sent.offer(listing, "30"), {}), "C's offer");
-      expect(await jobs()).toEqual([]);
-      // The capture worked in the last 10 minutes: D's offer makes A's job in the same write, about that offer, keyed by this change.
-      await heartbeat(rdb.sql, "capture", w.now);
-      const rid = randomUUID();
-      const offered = okOf(await w.act(TEST_D, sent.offer(listing, "32"), { requestId: rid }), "D's offer");
-      const r = offered.resultId!;
-      const [note, ...others] = await changeNotes(rdb.sql, w.worldId, rid);
-      expect([note?.userId, others]).toEqual([A.id, []]);
-      expect(await jobs()).toEqual([{
-        notification_id: note!.id, user_id: A.id, kind: "offer.received", category: "exchange", ref: r, status: "pending", reason: null, attempts: 0,
-        retry_at: new Date(w.now), lease_until: null, sent_at: null, event_key: `${rid}:offer.received:${r}`,
-      }]);
-      const [stored] = await rdb.sql<{ link: Record<string, string>; created_at: Date; expires_at: Date; updated_at: Date }[]>`
-        SELECT link, created_at, expires_at, updated_at FROM email_jobs WHERE world_id = ${w.worldId}`;
-      expect(stored).toEqual({ link: { name: "activity", tab: "todo" }, created_at: new Date(w.now), expires_at: new Date(w.now + EXCHANGE_TTL_MS), updated_at: new Date(w.now) });
-      expect(offered.view.version).toBe((await w.row())!.version); // the job's write is the action's own (one version, one transaction)
-      // A's counter-offer is tagged for D, who never turned email on: D hears of it in the app only.
-      const countered = randomUUID();
-      okOf(await w.act(A, { type: "counter", requestId: r, amount: "33" }, { requestId: countered }), "A's counter");
-      expect((await changeNotes(rdb.sql, w.worldId, countered)).map((n) => n.userId)).toEqual([TEST_D.id]);
-      expect(await jobs()).toHaveLength(1);
-      // B4.6: E posts a public request for the event. A, who has a listing for it, hears of it in the app, and gets no job for it
-      // although both categories are on: a request's ping to sellers is no email (no general new-post broadcast).
-      const asked = randomUUID();
-      okOf(await w.act(TEST_E, sent.request(event, { qty: 1, budget: "40", note: "", expires: dateAfter(w.now, 5) }), { requestId: asked }), "E's request");
-      expect((await changeNotes(rdb.sql, w.worldId, asked)).map((n) => n.userId)).toContain(A.id);
-      expect(await jobs()).toHaveLength(1);
-      // A turns exchange emails off: a further offer brings A its notification and no job.
-      expect(await saveEmailPrefs(rdb.sql, { userId: A.id, address: A.email, signIn: "dev", worldId: w.worldId, exchange: false, now: w.now })).toMatchObject({ ok: true });
-      const later = randomUUID();
-      okOf(await w.act(TEST_F, sent.offer(listing, "34"), { requestId: later }), "F's offer");
-      expect((await changeNotes(rdb.sql, w.worldId, later)).map((n) => n.userId)).toEqual([A.id]);
-      expect((await jobs()).map((j) => [j.status, j.reason])).toEqual([["skipped", "opted_out"]]); // the one job, skipped by the opt-out; no new one
-    } finally {
-      await clearEmail();
-    }
-  });
-
-  it("makes a job for each of two separate exchanges in the same words, each about its own record (follow-on B4: B4.13)", async () => {
-    const { w, listing } = await listedWorld("test-real-email-twice", 2);
-    try {
-      await heartbeat(rdb.sql, "capture", w.now);
-      expect(await saveEmailPrefs(rdb.sql, { userId: A.id, address: A.email, signIn: "dev", worldId: w.worldId, exchange: true, now: w.now })).toMatchObject({ ok: true });
-      // B's first exchange: reserved, paid (A hears "Handoff B. says they paid you…"), and finished, so B can reserve again.
-      const r1 = okOf(await w.act(B, sent.take(listing)), "B's reservation").resultId!;
-      const paid1 = randomUUID();
-      okOf(await w.act(B, sent.onRequest("markPaid", r1), { requestId: paid1 }), "B paid");
-      for (const [who, type] of [[A, "confirmPayment"], [A, "markTransferred"], [B, "buyerReceived"]] as const) okOf(await w.act(who, sent.onRequest(type, r1)), type);
-      // B's second exchange, paid in the very same words while A hasn't read the first: its own notification, its own job.
-      const r2 = okOf(await w.act(B, sent.take(listing)), "B's second reservation").resultId!;
-      const paid2 = randomUUID();
-      okOf(await w.act(B, sent.onRequest("markPaid", r2), { requestId: paid2 }), "B paid again");
-      const [note1] = await changeNotes(rdb.sql, w.worldId, paid1);
-      const [note2] = await changeNotes(rdb.sql, w.worldId, paid2);
-      expect([note1?.userId, note2?.userId]).toEqual([A.id, A.id]);
-      expect(note1!.text).toBe(note2!.text);
-      expect(note1!.id).not.toBe(note2!.id);
-      expect(r1).not.toBe(r2);
-      // Both jobs were made at the same injected instant, so they're compared by the record each is about.
-      const jobs = await jobsOf(rdb.sql, w.worldId);
-      expect(Object.fromEntries(jobs.map((j) => [j.ref, [j.notification_id, j.user_id, j.kind, j.event_key, j.status]]))).toEqual({
-        [r1]: [note1!.id, A.id, "payment.reported", `${paid1}:payment.reported:${r1}`, "pending"],
-        [r2]: [note2!.id, A.id, "payment.reported", `${paid2}:payment.reported:${r2}`, "pending"],
-      });
-      expect(jobs).toHaveLength(2);
-    } finally {
-      await clearEmail();
-    }
-  });
-
-  it("writes a job with its notification or not at all: a failure before COMMIT leaves neither, and a replayed change adds none (follow-on B4: B4.7, B4.14)", async () => {
-    const { w, listing } = await offersWorld("test-real-email-atomic", 3);
-    const notes = async (): Promise<number> => (await rdb.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM notifications WHERE world_id = ${w.worldId}`)[0]!.n;
-    const version = async (): Promise<number> => (await w.row())!.version;
-    try {
-      await heartbeat(rdb.sql, "capture", w.now);
-      expect(await saveEmailPrefs(rdb.sql, { userId: A.id, address: A.email, signIn: "dev", worldId: w.worldId, exchange: true, now: w.now })).toMatchObject({ ok: true });
-      const before = { version: await version(), notes: await notes(), jobs: await jobsOf(rdb.sql, w.worldId) };
-      // The write fails after the notification and its job were written, before COMMIT: the actor is told, and nothing is kept.
-      const log = vi.spyOn(console, "error").mockImplementation(() => {});
-      try {
-        const failed = await w.act(B, sent.offer(listing, "30"), { hooks: { beforeCommit: async () => { throw new Error("the action failed before COMMIT"); } } });
-        expect(failed).toEqual({ ok: false, code: "internal", error: INTERNAL_ERROR });
-      } finally {
-        log.mockRestore();
-      }
-      expect({ version: await version(), notes: await notes(), jobs: await jobsOf(rdb.sql, w.worldId) }).toEqual(before);
-      // The same intent again, with its request id: one notification, one job. Its retry is answered from the actions log and adds neither.
-      const rid = randomUUID();
-      const first = okOf(await w.act(B, sent.offer(listing, "30"), { requestId: rid }), "B's offer");
-      expect(first.replay).toBe(false);
-      const once = { version: await version(), notes: await notes(), jobs: await jobsOf(rdb.sql, w.worldId) };
-      expect(once).toMatchObject({ version: before.version + 1, notes: before.notes + 1 });
-      expect(once.jobs).toHaveLength(1);
-      expect(once.jobs[0]).toMatchObject({ user_id: A.id, kind: "offer.received", ref: first.resultId, event_key: `${rid}:offer.received:${first.resultId}` });
-      const again = okOf(await w.act(B, sent.offer(listing, "30"), { requestId: rid }), "the retry");
-      expect(again).toMatchObject({ replay: true, resultId: first.resultId });
-      expect({ version: await version(), notes: await notes(), jobs: await jobsOf(rdb.sql, w.worldId) }).toEqual(once);
-    } finally {
-      await clearEmail();
-    }
-  });
-
-  it("the shared development identity gets a capture job in a test world only, never a provider job: it can't turn real email on, so the live world makes none for it (follow-on B4: B4.10, B4.15)", async () => {
-    const dev: Actor = { id: "local-dev-user", name: "Local Developer", email: "dev@localhost" };
-    const live = world("live"); // this schema's own throwaway "live", never the handoff schema's
-    const w = world("test-real-email-dev");
-    try {
-      // Live, with a provider working: the development identity can't turn real email on, whatever the sign-in says, so B's offer
-      // brings it its (tagged) notification and no job.
-      await heartbeat(rdb.sql, "provider", w.now);
-      const liveListing = await live.list(dev, await live.createEvent(dev), { qty: 2, ask: "35", obo: true });
-      for (const signIn of ["dev", "google"] as const) {
-        expect(await saveEmailPrefs(rdb.sql, { userId: dev.id, address: dev.email, signIn, worldId: "live", exchange: true, now: w.now }), signIn).toEqual({ ok: false, error: NOT_FOR_THIS_ACCOUNT_ERROR });
-      }
-      const rid = randomUUID();
-      okOf(await live.act(B, sent.offer(liveListing, "30"), { requestId: rid }), "B's offer on live");
-      expect((await changeNotes(rdb.sql, "live", rid)).map((n) => n.userId)).toEqual([dev.id]);
-      expect(await jobsOf(rdb.sql, "live")).toEqual([]);
-      expect(await rdb.sql`SELECT 1 FROM email_prefs`).toHaveLength(0);
-      // A test world, with the capture working: the capture sends nothing, so it takes the development identity, and its job is made.
-      await heartbeat(rdb.sql, "capture", w.now);
-      const listing = await w.list(dev, await w.createEvent(dev), { qty: 2, ask: "35", obo: true });
-      expect(await saveEmailPrefs(rdb.sql, { userId: dev.id, address: dev.email, signIn: "dev", worldId: w.worldId, exchange: true, now: w.now }))
-        .toMatchObject({ ok: true, email: { available: true, mode: "capture", address: dev.email, exchange: true } });
-      const offered = okOf(await w.act(C, sent.offer(listing, "30")), "C's offer");
-      expect((await jobsOf(rdb.sql, w.worldId)).map((j) => [j.user_id, j.kind, j.ref, j.status])).toEqual([[dev.id, "offer.received", offered.resultId, "pending"]]);
-      expect(await rdb.sql`SELECT 1 FROM email_jobs WHERE world_id = 'live'`).toHaveLength(0);
-    } finally {
-      await clearEmail();
-      await rdb.sql`DELETE FROM worlds WHERE id = 'live'`;
-      await rdb.sql`DELETE FROM people WHERE user_id = ${dev.id}`;
-    }
+    // And the market goes on as before: the hold lapses at its time, and is swept then.
+    w.now = LT0 + 16 * LMIN;
+    expect((await w.view(C)).listings[0]?.numbers).toEqual({ reserved: 0, completed: 0, available: 2 });
+    expect((await w.row())!.version).toBe(4);
   });
 
   it("rolls back an engine exception with a generic error, logging the type, ids and class but no message", async () => {
@@ -1343,12 +1166,12 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
     }
   });
 
-  it("refuses to grow the shared document past 5 MB, warns past 2 MB, and still lets a write shrink it", async () => {
+  it("has no limit on the whole market (review of PR #88): a 5 MB one takes writes, each writing only its own rows", async () => {
     const w = world("test-real-size");
     const event = await w.createEvent(A);
     const long = "Looking for two tickets, any section is fine, and I can pay right away by Venmo or PayPal. ".repeat(2).slice(0, 190);
     const iso = okOf(await w.act(B, sent.request(event, { qty: 2, budget: "35", note: long, expires: dateAfter(w.now, 5) })), "B's request").resultId!;
-    // Thousands of finished public requests, as a long-running market would hold before archiving.
+    // Thousands of finished public requests, as a long-running market would hold.
     const bytes = await plant(w.worldId, (doc) => {
       for (let k = 0; Buffer.byteLength(JSON.stringify(doc)) < 5.02 * 1024 * 1024; k++) {
         for (let j = 0; j < 500; j++) {
@@ -1359,21 +1182,17 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
       }
     });
     expect(bytes).toBeGreaterThan(5 * 1024 * 1024);
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const before = (await w.row())!.version;
-      expect(await w.act(C, sent.createEvent(w.now, { title: "[Test] One more" }))).toEqual({ ok: false, code: "full", error: FULL_ERROR });
-      expect((await w.row())!.version).toBe(before);
-      // B's edit makes the document smaller (a shorter note), so it goes through, with the warning.
-      const edit = okOf(await w.act(B, { type: "saveInterest", data: { id: iso, eventId: event, qty: 2, budget: "35", note: "", expires: dateAfter(w.now, 5) } }), "B's shorter note");
-      expect(edit.view.interests.find((i) => i.id === iso)?.note).toBe("");
-      expect(JSON.stringify(warn.mock.calls)).toContain("archiving is due");
-    } finally {
-      warn.mockRestore();
-    }
+    const before = (await w.row())!.version;
+    okOf(await w.act(C, sent.createEvent(w.now, { title: "[Test] One more" })), "C's event"); // splits the world, then adds one row
+    const edit = okOf(await w.act(B, { type: "saveInterest", data: { id: iso, eventId: event, qty: 2, budget: "35", note: "", expires: dateAfter(w.now, 5) } }), "B's shorter note");
+    expect(edit.view.interests.find((i) => i.id === iso)?.note).toBe("");
+    expect((await w.row())!.version).toBe(before + 2);
+    // Each of the two changes wrote its own row: the rest still have the revision the split gave them.
+    const revs = await rdb.sql<{ rev: number; n: number }[]>`SELECT rev, count(*)::int AS n FROM records WHERE world_id = ${w.worldId} GROUP BY rev ORDER BY rev`;
+    expect(revs.find((r) => r.rev > 1)).toMatchObject({ rev: 2, n: 1 }); // B's request, changed once
   }, 60_000);
 
-  it("still stores a due expiry sweep past 5 MB, once, so reads stop running it under the lock and backups hear (review INT-3)", async () => {
+  it("refuses one record past RECORD_MAX_BYTES, but still stores a due expiry sweep on it, once (review INT-3)", async () => {
     const w = world("test-real-size-sweep");
     const event = await w.createEvent(A);
     const listing = await w.list(A, event, { qty: 1, ask: "35" });
@@ -1382,17 +1201,12 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
     const held = okOf(await w.act(B, { type: "requestItem", id: item, msg: "", shareContact: false }), "B's request for it").resultId!;
     okOf(await w.act(A, { type: "acceptItemReq", id: held, shareContact: true }), "A holds it for B (48 hours)");
     const backup = okOf(await w.act(C, { type: "requestItem", id: item, msg: "", shareContact: false }), "C's backup").resultId!;
-    const note = "Looking for two tickets, any section is fine, and I can pay right away by Venmo or PayPal. ".repeat(2).slice(0, 190);
+    // B's reservation with a history already past the limit (as one stored before it might be).
     await plant(w.worldId, (doc) => {
-      for (let n = 0; Buffer.byteLength(JSON.stringify(doc)) < 5.02 * 1024 * 1024; n += 500) {
-        for (let j = 0; j < 500; j++) {
-          doc.interests.push({ id: `iso-${(n + j).toString(16).padStart(16, "0")}`, userId: `user-pad-${(n + j) % 300}`, eventId: event, kind: "iso", qty: 1, budget: 30,
-            note, expires: dateAfter(LT0, 2), status: "closed", createdAt: LT0 - LDAY, closedAt: LT0 - LDAY + 1, closedReason: "cancelled" });
-        }
-      }
+      const req = doc.requests.find((x) => x.id === r)! as unknown as { history: { at: number; text: string }[] };
+      for (let n = 0; Buffer.byteLength(JSON.stringify(req)) <= RECORD_MAX_BYTES + 1000; n++) req.history.push({ at: LT0, text: `Padding line ${n} of a long history.` });
     });
     const before = (await w.row())!;
-    expect(Buffer.byteLength(JSON.stringify(before.doc))).toBeGreaterThan(5 * 1024 * 1024);
     expect(before.next_due?.getTime()).toBe(LT0 + 15 * LMIN);
     w.now = LT0 + 49 * 60 * LMIN; // both holds have lapsed
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -1401,7 +1215,7 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
       const a = await w.view(A);
       expect(a.version).toBe(before.version + 1);
       expect(error.mock.calls).toEqual([]); // no "sweep failed"
-      expect(JSON.stringify(warn.mock.calls)).toContain("stored the expiry sweep although the document is");
+      expect(JSON.stringify(warn.mock.calls)).toContain("stored the expiry sweep although a request is");
       const row = (await w.row())!;
       expect(row.version).toBe(before.version + 1);
       expect(row.doc.requests.find((x) => x.id === r)?.status).toBe("expired");
@@ -1413,8 +1227,8 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
       expect((await logged(w.worldId)).filter((x) => x.actor_id === "system").map((x) => [x.ok, x.version_before, x.version_after])).toEqual([[true, before.version, before.version + 1]]);
       const c = await w.view(C);
       expect(c.notifications.map((n) => n.text)).toContain('"Desk chair" is available again and your request is active. Handoff can accept or decline it.');
-      // A user's write that grows it is still refused.
-      expect(await w.act(C, sent.createEvent(w.now, { title: "[Test] One more" }))).toEqual({ ok: false, code: "full", error: FULL_ERROR });
+      // Writes that don't grow that record go through; any other record has its usual room.
+      okOf(await w.act(C, sent.createEvent(w.now, { title: "[Test] One more" })), "an unrelated write");
     } finally {
       warn.mockRestore();
       error.mockRestore();
@@ -1511,28 +1325,37 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
     expect(await refresh(c2.view, leaves + 60 * LMIN)).toEqual({ unchanged: true, version: c0.version });
   });
 
-  it("serves writes and reads from the pool's cached document, and misses after another instance's write or a manual fix", async () => {
+  it("shares one copy of the market per version among every view, and after another instance's write reads only the rows that changed (review of PR #88)", async () => {
     const pool = rdb.pool(2); // this test's own pool, so the counts are only its own
     const w = new StoreWorld(pool, "test-real-cache", LT0);
     const stats = () => documentCacheStats(pool);
-    const event = await w.createEvent(A); // the first write reads the row it created: a miss
-    expect(stats()).toEqual({ worlds: 1, hits: 0, misses: 1 });
-    const listing = await w.list(A, event, { qty: 2, ask: "35" }); // locked with a small SELECT, document from the cache
-    await w.view(B); // read from the cache too
-    expect(stats()).toEqual({ worlds: 1, hits: 2, misses: 1 });
+    const event = await w.createEvent(A);
+    const listing = await w.list(A, event, { qty: 2, ask: "35" });
+    for (let i = 0; i < 6; i++) okOf(await w.act(A, sent.postItem(w.now, { title: `[Test] Thing ${i}` })), `item ${i}`); // more rows
+    await w.view(B);
+    const s0 = stats();
+    // More tabs at the same version (B's again, C's): the same copy, nothing read but the version.
+    await w.view(B);
+    await w.view(C);
+    expect(stats()).toMatchObject({ worlds: 1, hits: s0.hits + 2, misses: s0.misses, rowsRead: s0.rowsRead });
 
-    // Another app instance (its own pool) takes one: this pool's next read misses and sees it.
+    // Another app instance (its own pool) takes one: this pool's next read misses, and reads only the row that changed.
     okOf(await new StoreWorld(rdb.pool(1), w.worldId, LT0).act(B, sent.take(listing)), "take from the other instance");
-    expect((await w.view(A)).listings[0]?.numbers).toEqual({ reserved: 1, completed: 0, available: 1 });
-    expect(stats()).toEqual({ worlds: 1, hits: 2, misses: 2 });
+    expect((await w.view(A)).listings.find((l) => l.id === listing)?.numbers).toEqual({ reserved: 1, completed: 0, available: 1 });
+    const s1 = stats();
+    expect(s1.misses).toBe(s0.misses + 1);
+    expect(s1.rowsRead - s0.rowsRead).toBe(1); // B's new reservation; every other row came from this pool's copy
+    const total = await rdb.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM records WHERE world_id = ${w.worldId}`;
+    expect(total[0]!.n).toBe(10); // the event, A's holding and listing, six items, and B's reservation
 
-    // A manual fix in SQL that leaves the version as it was still changes the row's xmin: a miss, and the next write keeps it.
-    await rdb.sql`UPDATE worlds SET doc = jsonb_set(doc, '{listings,0,note}', '"Fixed by hand"') WHERE id = ${w.worldId}`;
-    expect((await w.view(A)).listings[0]?.note).toBe("Fixed by hand");
-    expect(stats()).toEqual({ worlds: 1, hits: 2, misses: 3 });
+    // A manual fix to a row, which raises its revision (schema.sql says so), is read too, and the next write keeps it.
+    await rdb.sql`
+      UPDATE records SET data = jsonb_set(data, '{note}', '"Fixed by hand"'), rev = rev + 1, tally = tally + 1
+      WHERE world_id = ${w.worldId} AND kind = 'listing' AND id = ${listing}`;
+    expect((await w.view(A)).listings.find((l) => l.id === listing)?.note).toBe("Fixed by hand");
+    expect(stats().rowsRead - s1.rowsRead).toBe(1);
     okOf(await w.act(C, sent.createEvent(w.now, { title: "[Test] Later" })), "a later write");
-    expect(stats()).toEqual({ worlds: 1, hits: 3, misses: 3 });
-    expect((await w.row())!.doc.listings[0]?.note).toBe("Fixed by hand");
+    expect((await w.row())!.doc.listings.find((l) => l.id === listing)?.note).toBe("Fixed by hand");
   });
 
   it("keeps cached documents frozen: an engine that writes into the document it was given fails, and nothing changes", async () => {
@@ -1558,11 +1381,12 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
     expect(okOf(await w.act(B, sent.take(listing)), "the take, with the real engine").toast).toMatch(/^Reserved for 15 minutes\./);
   });
 
-  it("takes out the document it cached before COMMIT when the transaction then fails", async () => {
+  it("caches only what was committed: a write that fails at COMMIT leaves no trace in any view", async () => {
     const pool = rdb.pool(1);
     const w = new StoreWorld(pool, "test-real-forget", LT0);
     const event = await w.createEvent(A);
     const listing = await w.list(A, event, { qty: 1, ask: "35" }); // version 2, cached
+    await w.view(C);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const failing = await w.act(B, sent.take(listing), { hooks: { async beforeCommit() { throw new Error("the connection dropped at COMMIT"); } } });
@@ -1573,11 +1397,10 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
     const before = documentCacheStats(pool);
     const first = await w.view(C);
     const second = await w.view(C);
-    expect(first.version).toBe(2);
+    expect([first.version, second.version]).toEqual([2, 2]);
     expect(second.listings[0]?.numbers).toEqual({ reserved: 0, completed: 0, available: 1 }); // the take never happened
-    // The failed write's entry is gone: the first read caches the committed version and the second finds it.
     const after = documentCacheStats(pool);
-    expect({ hits: after.hits - before.hits, misses: after.misses - before.misses }).toEqual({ hits: 1, misses: 1 });
+    expect({ hits: after.hits - before.hits, misses: after.misses - before.misses }).toEqual({ hits: 2, misses: 0 }); // the copy from before
   });
 
   it("caches a world again after it was deleted and created anew (its version went back to 0)", async () => {
@@ -1587,13 +1410,15 @@ describe.skipIf(!databaseUrl)("Handoff store with the real engine (Postgres)", (
     await w.list(A, event, { qty: 1, ask: "35" });
     await w.list(B, event, { qty: 1, ask: "36" }); // version 3 is cached
     await rdb.sql`DELETE FROM worlds WHERE id = ${w.worldId}`;
+    await w.createEvent(C); // a new world at version 1: the version-3 copy is another world's (made at another time), never this one's
+    await w.createEvent(C, { title: "[Test] Second" });
     const before = documentCacheStats(pool);
-    await w.createEvent(C); // a new world at version 1: the version-3 entry is dead, so it must not block caching
-    await w.createEvent(C, { title: "[Test] Second" }); // locked from the cache
-    await w.view(A); // read from the cache
+    const view = await w.view(A);
+    await w.view(B);
     const after = documentCacheStats(pool);
-    expect({ hits: after.hits - before.hits, misses: after.misses - before.misses }).toEqual({ hits: 2, misses: 1 });
-    expect((await w.view(A)).events.map((e) => e.title).sort()).toEqual(["[Test] Second", "[Test] Spring Formal"]);
+    expect(after.hits - before.hits).toBeGreaterThanOrEqual(1); // the new world is cached, and read from the cache
+    expect(view.version).toBe(2);
+    expect(view.events.map((e) => e.title).sort()).toEqual(["[Test] Second", "[Test] Spring Formal"]);
   });
 
   it("caches at most DOC_CACHE_WORLDS worlds per pool", async () => {

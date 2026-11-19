@@ -10,7 +10,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as E from "../../engine/index.js";
 import { ID } from "../live.js";
-import { getView, markNotificationsRead, refreshView, savePayMethods } from "../store.js";
+import { ensurePerson, getView, markNotificationsRead, refreshView, savePayMethods } from "../store.js";
 import type { View, ViewNotification, WorldId } from "../types.js";
 import { createTestDb, databaseUrl, firstWaitsFor, type TestDb } from "./helpers/db.js";
 import { MIN, StoreWorld, T0, TEST_A as A, TEST_B as B, TEST_C as C, actions, checked, dateAfter } from "./helpers/live-store.js";
@@ -54,7 +54,7 @@ describe.skipIf(!databaseUrl)("Handoff's first two-user journey (real engine, Po
     await db?.close();
   });
 
-  it("1. A and B open Handoff: an empty market, each with their own profile and nothing else", async () => {
+  it("1. A and B open Handoff: an empty market, each named as the session names them, and nothing saved (review of PR #88)", async () => {
     for (const p of [A, B]) {
       const v = await w.view(p);
       expect(v).toMatchObject({ protocol: E.HANDOFF_PROTOCOL, mode: "live", worldId: WORLD, version: 0, serverNow: T0, nextRefreshAt: null, unreadCount: 0 });
@@ -67,9 +67,12 @@ describe.skipIf(!databaseUrl)("Handoff's first two-user journey (real engine, Po
       }
     }
     expect(await w.row()).toBeUndefined(); // reading creates no world
+    // ...and no profile: opening Handoff saves nothing about anyone; an account's first change makes its profile.
+    expect((await db.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM people`)[0]?.n).toBe(0);
   });
 
   it("2. A saves a payment method (Profile: Venmo); only A's own view carries it", async () => {
+    await ensurePerson(db.sql, A); // as saveMyProfile does: saving is A's first change, which makes A's profile
     expect(await savePayMethods(db.sql, { userId: A.id, payMethods: [{ kind: "venmo", value: HANDLE }] })).toEqual({ ok: true, methods: [VENMO_A] });
     const a = await w.view(A);
     expect(a.viewer.payMethods).toEqual([VENMO_A]);

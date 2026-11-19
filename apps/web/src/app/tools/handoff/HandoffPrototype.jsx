@@ -39,7 +39,6 @@ import {
 // form kept when a session ends) and the page App is showing. live-link: the live page's link to the server (useLiveLink), typed
 // against the server's own types.
 import { LIVE, GUEST, setMode } from "./_lib/mode";
-import { emailOffer, emailOn, emailPaused, CAPTURE_NOTE } from "./_lib/email";
 import { demoRoot, demoQuery, demoQueryAll, demoElement, demoShareUrl, focusSoon, demoLayer, setLayer } from "./_lib/dom";
 import {
   CAT_ICON, catLook, hasOwn, RECORD_PAGES, FORM_PAGES, PREVIEW_PAGES, GATE_ASK, GUEST_PAGES, SECTION_OF, PAGE_OF, FORM_FROM_PAGES, returnHash, settledHash, addressOf,
@@ -54,7 +53,7 @@ import { useLiveLink, installLive, asGuest, settled, RELOADING } from "./_lib/li
 import {
   sellOptions, optionMeta, sellMode, nameReady, NEW_PER_PERSON, NEW_MORE, newValues, newMoreUsed, newWhen, newEventIssues, newEventAction, draftEvent,
   WHAT, whatHelp, whatError, newMoreIds, sellMethod, sellConfirm, payRowNames, qtyNote, listingQtyLine, buyerQtyChoices, clampQty, buyerTotal, requestAction,
-  requestNew, isoMoreHint, requestPostedWords, clubOptions, memberTicketOffer, memberClubError, // §9q items 4 and 5: the short request form; the club field; Members-only
+  requestNew, isoMoreHint, clubOptions, memberTicketOffer, memberClubError, // §9q items 4 and 5: the short request form; the club field; Members-only
   RESTRICT0, restrictValues, restrictOffer, restrictIssues, restrictBody, listingClubBody, // §9v items 4 and 5: "This ticket has restrictions" and a listing's club
   askAfterEvent, askIssue, dateBesideAsk, clubPlace // §9s items 3 and 4: the price before the event and what's said under it, the date beside it, the club's place
 } from "./_lib/sell";
@@ -401,7 +400,7 @@ function App({ mode = "preview", initial = null, api = null, localSignIn = false
   // or request page via linkFrom, nested with that page's own origin), for its back button (BackButton); pages that don't take it ignore it.
   // openShare: the development preview's own Share sheet only. The shared market has no outward Share (§9v item 3, SELL5-M1): no Share
   // button and no WhatsApp or copy-link sheet anywhere; a record's ordinary URL is its link, and posting ends on its page with Done.
-  const ctx = { s, me, go, dispatch, switchTo, openShare: live ? null : setShare, flash, rt, origin: view.origin, saveProfile: link.saveProfile, saveEmail: link.saveEmail, localSignIn };
+  const ctx = { s, me, go, dispatch, switchTo, openShare: live ? null : setShare, flash, rt, origin: view.origin, saveProfile: link.saveProfile, deleteData: link.deleteData, localSignIn };
   // Live: the view holds only this account's notifications (the newest 100) and the count of every unread one. A guest has none.
   const myNotes = guest ? [] : live ? s.notifications : s.notifications.filter(n => n.userId === me);
   const unread = guest ? 0 : live ? s.unreadCount || 0 : myNotes.filter(n => !n.read).length;
@@ -516,7 +515,7 @@ function App({ mode = "preview", initial = null, api = null, localSignIn = false
               {menu === "bell" && (
                 <div className="pop" role="dialog" aria-label="Notifications">
                   <div className="notif-head">{live
-                    ? <span><b>Notifications</b><small className="muted" style={{ display: "block", fontSize: 12 }}>In the app{emailOn(s) ? " · email on" : ""}</small></span> /* follow-on B4: "· email on" only while a category is on and a dispatcher works (emailOn) */
+                    ? <span><b>Notifications</b><small className="muted" style={{ display: "block", fontSize: 12 }}>In the app</small></span>
                     : <span><b>{PEOPLE[me].first}'s notifications</b><small className="muted" style={{ display: "block", fontSize: 12 }}>In the app{alertVia(s, me).map(k => ` · ${k}`).join("")} (simulated) · <button className="linkish" style={{ fontSize: 12, textDecoration: "underline", textUnderlineOffset: 3 }} onClick={() => go("profile")}>Email or text alerts</button></small></span>}
                     <button className="btn btn-ghost btn-sm" disabled={live && unread === 0} onClick={() => dispatch({ type: "readAll" }, true)}>Mark all read</button></div>
                   <div className="notif-list">
@@ -1086,7 +1085,7 @@ function EventCard({ ev, sum, onOpen, onClub = null }) {
 function LinkChecking() {
   return <div className="wrap"><div className="page-head"><h1 className="sr">Opening a listing</h1><p className="muted" role="status">Checking this listing…</p></div></div>;
 }
-function EventPage({ s, me, id, go, dispatch, openShare, back = "explore", focusListing, listed = null, listedNote = null, checking = false, openAlert, resume, draft, nav, origin, saveEmail, flash, saveProfile }) { // saveProfile: "Your listing"'s first invitation (the seller's payment method, follow-on B5); back: the discovery view you came from (App's lastDisc); origin: see BackButton; draft: a reserve, offer or alert form kept when the session ended (keepDraft); saveEmail, flash: Get notified's "Also email me matches" (follow-on B4); checking: focusListing's link opened in this tab, fresh availability not in yet (App)
+function EventPage({ s, me, id, go, dispatch, openShare, back = "explore", focusListing, listed = null, listedNote = null, checking = false, openAlert, resume, draft, nav, origin, flash, saveProfile }) { // saveProfile: "Your listing"'s first invitation (the seller's payment method, follow-on B5); back: the discovery view you came from (App's lastDisc); origin: see BackButton; draft: a reserve, offer or alert form kept when the session ended (keepDraft); checking: focusListing's link opened in this tab, fresh availability not in yet (App)
   const ev = Object.prototype.hasOwnProperty.call(EV, id) ? EV[id] : null;
   const goHere = linkFrom(go, { name: "event", id }, origin); // a request row's page comes back here, and this page keeps its own way back
   // Get notified's dialog (opened here, or straight away from a lookup row's Get notified), and the listing a link pointed at.
@@ -1633,7 +1632,7 @@ function EventPage({ s, me, id, go, dispatch, openShare, back = "explore", focus
       </div>
       {canReqSpots > 0 && !reqFor && !listInView && !calm && <div className="sticky-cta"><button className="btn btn-primary" onClick={toListings}><Icon name="ticket" size={15} />See {plural(canReqSpots, unit)}</button></div>}
       {/* Saving or turning off swaps "Get notified" and "Edit", so focus then goes to whichever is there. */}
-      {alertOpen && canWait && <AlertDialog ev={ev} s={s} me={me} dispatch={dispatch} saveEmail={saveEmail} flash={flash} draft={alertDraft.current} onClose={() => { alertDraft.current = null; setAlertOpen(false); }}
+      {alertOpen && canWait && <AlertDialog ev={ev} s={s} me={me} dispatch={dispatch} flash={flash} draft={alertDraft.current} onClose={() => { alertDraft.current = null; setAlertOpen(false); }}
         onDone={() => setTimeout(() => { const el = demoElement("al-edit") || demoElement("al-open"); if (el) el.focus(); }, 0)} />}
     </div>
   );
@@ -3197,7 +3196,7 @@ function SellPage({ s, me, go, dispatch, initialTitle, initialCat, openShare, fl
    - Defaults: one ticket (the quantity sits in "Optional details"; from two up its count shows beside those words: §9n), no budget
      ("Add max budget"; blank is never $0) and the event's cutoff as the deadline ("Looking until … · Change" for an earlier date).
    Editing a request and a Goods request keep saveInterest and their own fields. The preview keeps its form. */
-function PostIsoPage({ s, me, go, dispatch, flash, saveEmail, initialEvent, initialText, market, initialCat, editId, from, fromId, back = "isos", draft, evDraft }) { // draft: this form as typed when a session ended (keepDraft); evDraft: its "A trek? Add it with its details" (the preview: none), kept the same way; saveEmail: "Also email me matches" (follow-on B4); initialText: live, the name the search field starts with (Available's "Post a request for …")
+function PostIsoPage({ s, me, go, dispatch, flash, initialEvent, initialText, market, initialCat, editId, from, fromId, back = "isos", draft, evDraft }) { // draft: this form as typed when a session ended (keepDraft); evDraft: its "A trek? Add it with its details" (the preview: none), kept the same way; initialText: live, the name the search field starts with (Available's "Post a request for …")
   const editing = editId ? s.interests.find(i => i.id === editId && i.userId === me && i.kind === "iso" && i.status === "open") || null : null;
   const E = editing || {}, EM = E.missing || {}, EG = E.goods || null;
   const K = draft && typeof draft === "object" ? pickLike({ mode: "", eventId: "", gTitle: "", gCat: "", qty: 1, budget: "", note: "", exp: "", until: "", more: false, what: "", isNew: false }, draft) : null; // only its own keys, each as typed (until, more: the live form's date and its "Optional details"; what, isNew: its search field)
@@ -3245,10 +3244,6 @@ function PostIsoPage({ s, me, go, dispatch, flash, saveEmail, initialEvent, init
   const [untilOpen, setUntilOpen] = useState(() => !!(K && EF_DATE.test(K.until)));
   const [expPick, setExp] = useState(K && ["keep", "3", "7", "14", "30", "event"].includes(K.exp) && (K.exp !== "keep" || (editing && !isExpired(editing))) ? K.exp : editing && !isExpired(editing) ? "keep" : null); // editing: keep its deadline unless you pick another
   const [tried, setTried] = useState(false); // after a first "Post request", a missing answer shows beside its field (a wrong one shows at once)
-  // Live (follow-on B4): while the view offers email (emailOffer) and "Matches for your requests and alerts" is off, one unchecked "Also email me
-  // matches (to <address>)", saved (saveEmail) only once the request itself is saved; not part of the kept form (nothing typed; off by default).
-  const emailBox = (e => e && !e.matches ? e : null)(emailOffer(s));
-  const [alsoEmail, setAlsoEmail] = useState(false);
   useDraftSource("page", () => ({ place: { name: "post", eventId: initialEvent, market, cat: initialCat, edit: editId, from, fromId }, data: { post: { mode, eventId, gTitle, gCat, qty, budget, note, exp: expPick || "", until, more: moreOpen, ...(LIVE ? { what, isNew, nd } : {}) } } })); // the typed name and the new event's fields: the same account only, never in a URL
   const [sourceUrl, setSourceUrl] = useState(EM.sourceUrl || "");
   const link = cleanUrl(sourceUrl);
@@ -3357,9 +3352,6 @@ function PostIsoPage({ s, me, go, dispatch, flash, saveEmail, initialEvent, init
   async function submit(e) {
     e.preventDefault();
     if (problems.length) { setTried(true); const p = problems[0]; if (p.id === "iso-until") setUntilOpen(true); if (problems.some(x => x.more)) setMoreOpen(true); setTimeout(() => { const el = demoElement(p.id); if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: "center" }); } }, 0); return; }
-    // Only once the request is saved: email matches too (quiet: the request's toast stays); if that's refused, the request stands and the refusal shows.
-    // Answers true when this post turned email on for matches, false when that was refused (said), nothing when it wasn't asked.
-    const emailToo = async () => { if (alsoEmail && emailBox && saveEmail) { const e2 = await saveEmail({ matches: true }, true); if (e2.error) { flash("Email updates weren't turned on: " + e2.error, "error"); return false; } return true; } return undefined; };
     if (one) { // one change: the request, with its event when that's new (postRequest); a refusal stores nothing, and its words go where they apply
       const key = postKey, r = await dispatch(postA, true); // quiet: this form says the answer itself, with where matches show (§9q item 4)
       if (r.error) { // an answer that never came: perhaps stored; the same form sent again settles it (it reuses the request)
@@ -3371,10 +3363,8 @@ function PostIsoPage({ s, me, go, dispatch, flash, saveEmail, initialEvent, init
         return;
       }
       unanswered.current = null; setSrvErr(null);
-      // Posted (§9q item 4): the server's words say where matches show (the bell and My activity); email is named only while it's
-      // available and on for matches (already, or turned on with this post). A refusal to turn it on shows instead.
-      const mailed = await emailToo(), offer = emailOffer(s);
-      if (mailed !== false) flash(requestPostedWords(r.toast, offer ? { address: offer.address, matches: offer.matches === true || mailed === true } : null));
+      // Posted (§9q item 4): the server's words say where matches show (the bell and My activity).
+      flash(typeof r.toast === "string" ? r.toast : "");
       if (from === "activity") go("activity", { open: "iso:" + r.result.id });
       else if (from === "event" && picked) go("event", { id: picked.id }); // back to the event, where "Classmates looking" now lists it
       else go("iso", { id: r.result.id, posted: true }); // §9v item 3: its page says "Request posted.", with Done (this visit only)
@@ -3389,7 +3379,6 @@ function PostIsoPage({ s, me, go, dispatch, flash, saveEmail, initialEvent, init
       : { ...id, qty: q, budget, note: note.trim(), expires: expDate(), missing: { title, club, when: whenDate, flexible, details, sourceUrl } };
     const r = await dispatch({ type: "saveInterest", data });
     if (r.error) return;
-    await emailToo();
     if (from === "activity") go("activity", { open: "iso:" + r.result.id });
     else if (from === "event" && ev) go("event", { id: ev.id }); // back to the event, where "Classmates looking" now lists it
     else go("iso", { id: r.result.id, ...(LIVE && !editing ? { posted: true } : {}) }); // §9v item 3 (live): a new request's page says "Request posted."
@@ -3528,9 +3517,6 @@ function PostIsoPage({ s, me, go, dispatch, flash, saveEmail, initialEvent, init
               <div className="field"><label htmlFor="iso-note">Note (optional)</label>
                 <input id="iso-note" type="text" value={note} maxLength={200} onChange={e => setNote(e.target.value)} placeholder="e.g. Can take it today" aria-describedby="iso-note-help" />
                 <span id="iso-note-help" className="help">Shown with your request.</span></div>
-              {/* The email opt-in for matches, only while email is available and off (emailBox): with the other optional choices. */}
-              {short && emailBox && <label className="check iso-email" htmlFor="iso-email"><input id="iso-email" type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} aria-describedby="iso-email-help" />
-                <span>Also email me matches (to {emailBox.address})<span id="iso-email-help" className="muted" style={{ display: "block", fontSize: 12.5 }}>{emailBox.mode === "capture" ? CAPTURE_NOTE : "For all your requests and alerts. Turn it off anytime in Handoff settings."}</span></span></label>}
             </div>
             </>; })()}
           </> : <>
@@ -3558,8 +3544,6 @@ function PostIsoPage({ s, me, go, dispatch, flash, saveEmail, initialEvent, init
               <input id="iso-note" type="text" value={note} maxLength={200} onChange={e => setNote(e.target.value)} placeholder="e.g. Can take it today" /></div>
           </div>
           </>}
-          {emailBox && mode === "goods" && <label className="check iso-email" htmlFor="iso-email"><input id="iso-email" type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} aria-describedby="iso-email-help" />
-            <span>Also email me matches (to {emailBox.address})<span id="iso-email-help" className="muted" style={{ display: "block", fontSize: 12.5 }}>{emailBox.mode === "capture" ? CAPTURE_NOTE : "For all your requests and alerts. Turn it off anytime in Handoff settings."}</span></span></label>}
           {!LIVE && <AlertOptIn s={s} me={me} dispatch={dispatch} idp="iso-al" compact />}
           <p className="help post-note">Posting a request doesn't reserve anything.</p>
           {srv && srv.at === "post" && <p id="iso-post-err" className="err" role="alert" tabIndex={-1} style={{ margin: 0 }}>{srv.msg}</p>}
@@ -3919,7 +3903,7 @@ function ClosedRequest({ c, go }) {
 }
 /* A request's own page: the card, any listing or item that fits, and (for someone else's live request) "I have this". Your own request
    shows its controls instead. A private alert is never a public page: to anyone but its owner it's "not found", like a missing request. */
-function IsoPage({ s, me, id, go, dispatch, openShare, origin, saveProfile, saveEmail, flash, posted = false }) { // saveEmail, flash: the alert dialog's "Also email me matches" (follow-on B4); posted (§9v item 3, live): Post request just made it
+function IsoPage({ s, me, id, go, dispatch, openShare, origin, saveProfile, flash, posted = false }) { // posted (§9v item 3, live): Post request just made it
   const i = s.interests.find(x => x.id === id);
   const [alertOpen, setAlertOpen] = useState(false);
   const backBtn = <BackButton back="isos" origin={origin} go={go} s={s} me={me} />; // a request belongs to Wanted, unless My activity or another page opened it
@@ -3937,7 +3921,7 @@ function IsoPage({ s, me, id, go, dispatch, openShare, origin, saveProfile, save
       {backBtn}
       <h1 className="sr">Your private alert: {ev.title}</h1>
       <div className="ev-layout"><div style={{ display: "grid", gap: 14 }}><AlertCard al={i} s={s} go={goHere} dispatch={dispatch} onEdit={() => setAlertOpen(true)} /></div></div>
-      {alertOpen && demandAllowed(ev) && <AlertDialog ev={ev} s={s} me={me} dispatch={dispatch} saveEmail={saveEmail} flash={flash} onClose={() => setAlertOpen(false)} />}
+      {alertOpen && demandAllowed(ev) && <AlertDialog ev={ev} s={s} me={me} dispatch={dispatch} flash={flash} onClose={() => setAlertOpen(false)} />}
     </div>); }
   const ev = i.eventId ? EV[i.eventId] : null; const gd = i.goods || null; const mine = i.userId === me; const live = liveRequest(s, i);
   const listed = isoMatches(s, i);
@@ -4018,18 +4002,33 @@ function ShareSheet({ target, s, seedIds, onClose }) {
    name and email, or says which sign-in they came from: PennTools' own header shows who is signed in, and PennTools manages both. How
    buyers pay you is the one thing you set (saveMyProfile; follow-on B1): one method, and optionally a second, the first preferred. Saved,
    it shows as one line with Change; with none saved, the fields show. Nothing asks for it before you need it: Sell a ticket asks only when
-   none are saved. Then what others see (the public form of your name: #pf-public), email updates when they're offered (which name the
-   address they go to), and the tickets you've added.
+   none are saved. Then what others see (the public form of your name: #pf-public), and the tickets you've added.
    §9v item 6 (SELL5-M5): identity is the PennTools account's (no Handoff username, name to pick or onboarding). What others see is one
    line, "On your listings and requests, signed-in classmates see you as Maya P.", with the rest under a collapsed "Who can see my
    details?" (#pf-who) that says what the server's projection does (_lib/profile.js WHO_SEES). "Tickets you've added" (#pf-added) is
    hidden when you have none, and otherwise collapsed with a count; open, each event with how many and an unlisted count only when it
    says something, and one sentence that these are self-reported (no chip per row). The disclosures at reservation are unchanged. */
-function LiveProfile({ s, me, go, saveProfile, saveEmail }) { // saveEmail: the Email updates panel (follow-on B4)
+/* Review of PR #88: what Handoff keeps about you, and for how long (#pf-data), with "Delete my Handoff data" (deleteMyData). The
+   server refuses it, in words, while a listing, item, request or exchange of yours is still open. */
+const DATA_KEPT = "Handoff saves a profile for you (your PennTools name and email, and any payment methods you add) the first time you post, ask or change something here, not when you only look. It keeps it while you use Handoff. Your activity log is deleted after 7 days, and notifications you've read after 90. You can delete your Handoff data here once nothing of yours is still going on: your profile, notifications and activity log go. Your past trades stay with the classmates you traded with, as they were recorded: Handoff then shows you as \"A classmate\", but what was already written stays, such as a trade's history line with your first name and last initial, their notifications that mention you, and the payment method a ticket buyer was shown.";
+function LiveProfile({ s, me, go, saveProfile, deleteData }) {
   const v = s.viewer || {}; const saved = Array.isArray(v.payMethods) ? v.payMethods : [];
+  const [asking, setAsking] = useState(false); const [deleting, setDeleting] = useState(false);
+  const [dataErr, setDataErr] = useState(""); const [dataNote, setDataNote] = useState("");
+  const removeData = async () => {
+    if (deleting || !deleteData) return;
+    setDeleting(true); setDataErr(""); setDataNote("");
+    const r = await deleteData();
+    setDeleting(false); setAsking(false);
+    if (r.error) setDataErr(r.error); else setDataNote(r.toast || "Deleted.");
+  };
   const [open, setOpen] = useState(() => saved.length === 0); // the fields, or the saved line with Change
   const [st, setSt] = useState(() => payEditorFrom(saved));
   const [tried, setTried] = useState(false); // after a first Save, every problem shows beside its field
+  // Nothing saved any more (the data was just deleted, here or in another tab): the empty fields, never a summary of nothing or the
+  // old handle typed in.
+  const none = saved.length === 0;
+  useEffect(() => { if (none) { setOpen(true); setSt(payEditorFrom([])); setTried(false); } }, [none]);
   const [note, setNote] = useState(""); const [err, setErr] = useState(""); const [saving, setSaving] = useState(false);
   const errRef = useRef(null);
   const added = addedTickets(s, me); // §9v item 6: your own tickets with something left; none hides the section
@@ -4077,7 +4076,6 @@ function LiveProfile({ s, me, go, saveProfile, saveEmail }) { // saveEmail: the 
           </details>
         </div>
       </div>
-      <EmailPrefsPanel s={s} saveEmail={saveEmail} />
       {added.rows.length > 0 && <details id="pf-added" className="xsec pf-added" style={{ marginTop: 14 }}>
         <summary><h2 className="pf-added-h">{ADDED_TITLE}</h2><span className="pf-count">{added.total}</span></summary>
         <div className="xsec-body">
@@ -4085,48 +4083,19 @@ function LiveProfile({ s, me, go, saveProfile, saveEmail }) { // saveEmail: the 
           <p id="pf-added-note" className="muted" style={{ fontSize: 13, margin: 0 }}>{ADDED_NOTE}</p>
         </div>
       </details>}
+      {deleteData && <section id="pf-data" className="panel" style={{ display: "grid", gap: 8, marginTop: 14 }} aria-labelledby="pf-data-h">
+        <h2 id="pf-data-h" style={{ fontSize: 18, margin: 0 }}>Your Handoff data</h2>
+        <p className="muted" style={{ fontSize: 13.5, margin: 0 }}>{DATA_KEPT}</p>
+        <div className="actions">
+          {asking
+            ? <><button type="button" className="btn btn-danger" disabled={deleting} onClick={removeData}>{deleting ? "Deleting…" : "Yes, delete my Handoff data"}</button>
+              <button type="button" className="btn" disabled={deleting} onClick={() => setAsking(false)}>Cancel</button></>
+            : <button type="button" className="btn btn-ghost btn-danger" onClick={() => { setAsking(true); setDataErr(""); setDataNote(""); }}>Delete my Handoff data…</button>}
+        </div>
+        {dataErr && <p id="pf-data-err" className="err" role="alert" style={{ margin: 0 }}>{dataErr}</p>}
+        <p className="help" role="status" style={{ margin: 0 }}>{dataNote}</p>
+      </section>}
     </div>
-  );
-}
-/* Live: your email updates (follow-on B4; FOLLOWON-PLAN §2.4), rendered only while the view offers them (emailOffer: a dispatcher with this
-   world's sender worked in the last 10 minutes and the account has an address). The live route has no provider connected, so it never shows
-   this; development's capture shows it in test worlds and sends nothing. The address is your PennTools sign-in address, as text: nothing is
-   typed here, and nothing else is ever emailed. Two choices, both off until you turn one on, each saved as you change it (saveEmailPrefs,
-   with the server's toast "Email updates saved."); the box shows your choice while the answer is out, and goes back if it's refused, with
-   the refusal beside the boxes. If the account's address changed since you turned email on, both are off until you turn one on again, for
-   the new address (reconfirm).
-   Paused (B4 fix F1; emailPaused): a choice is on but no dispatcher has worked in the last 10 minutes, though one has before. The panel
-   stays, as the one way to turn email off: it says nothing is being sent now, and holds only the boxes that are on, so nothing can be
-   turned on. Turning one off also stops an email already waiting for it (the server skips it). With nothing left on, the panel goes. */
-function EmailPrefsPanel({ s, saveEmail }) {
-  const offer = emailOffer(s);
-  const paused = offer ? null : emailPaused(s);
-  const em = offer || paused;
-  const [pending, setPending] = useState(null); // { key, on } while a change is out
-  const [err, setErr] = useState(""); const errRef = useRef(null);
-  if (!em) return null;
-  const toggle = async (key, on) => {
-    if (pending || !saveEmail) return;
-    setErr(""); setPending({ key, on });
-    const r = await saveEmail({ [key]: on });
-    setPending(null);
-    if (r.error) { setErr(r.error); setTimeout(() => { if (errRef.current) errRef.current.focus(); }, 0); }
-  };
-  const box = (key, title, what) => { const busy = !!pending && pending.key === key; const on = busy ? pending.on : em[key] === true; return (
-    <label className="check" htmlFor={"pf-em-" + key}><input id={"pf-em-" + key} type="checkbox" checked={on} onChange={e => toggle(key, e.target.checked)} aria-busy={busy ? "true" : undefined} aria-describedby={"pf-em-consent" + (err ? " pf-em-err" : "")} /><span><b>{title}</b>: {what}</span></label>); };
-  const shown = key => !paused || em[key] === true || (!!pending && pending.key === key); // paused: only what's on (and the one being turned off, until it's saved)
-  return (
-    <section className="panel email-prefs" aria-labelledby="pf-em-h" style={{ display: "grid", gap: 10, marginTop: 14 }}>
-      <h2 id="pf-em-h" style={{ fontSize: 18 }}>Email updates</h2>
-      {paused
-        ? <p id="pf-em-consent" className="muted" style={{ fontSize: 13.5, margin: 0 }}>Handoff isn't sending email right now, so you'll hear about things in the app. Your email updates are still on for <b style={{ overflowWrap: "anywhere" }}>{em.address}</b>, your PennTools sign-in address, and start again when email is back, unless you turn them off here.</p>
-        : <p id="pf-em-consent" className="muted" style={{ fontSize: 13.5, margin: 0 }}>Off until you turn one on. Turning one on means Handoff may email you about it at <b style={{ overflowWrap: "anywhere" }}>{em.address}</b>, your PennTools sign-in address, until you turn it off here.</p>}
-      {em.reconfirm && <p className="callout warn" style={{ margin: 0 }}>Your account's email address changed, so email updates are off. Turn one on again to use the address above.</p>}
-      {shown("exchange") && box("exchange", "Exchanges that need you", inviteFlowOn() ? "a request to buy, an invitation to pay, a reported payment or a transfer waiting for your response." : "an offer, a reported payment or a transfer waiting for your response.")}
-      {shown("matches") && box("matches", "Matches for your requests and alerts", "a listing or item that may fit one of yours.")}
-      {em.mode === "capture" && <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>{CAPTURE_NOTE}</p>}
-      {err && <p ref={errRef} id="pf-em-err" className="err" role="alert" tabIndex={-1} style={{ margin: 0 }}>{err}</p>}
-    </section>
   );
 }
 /* Live: Help, about the real product (USER-INSTRUCTIONS §4.6): posting, requests and private alerts, reservations, payments made directly

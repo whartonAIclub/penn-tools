@@ -12,21 +12,18 @@
 //   6. The store does the work. Anything thrown becomes "unavailable" (setupErrorKind), "busy" (isBusy) or "internal"
 //      ("Something went wrong. Nothing was changed."), logged with the call, the action's type and the error's class only.
 // Identity comes only from the session: viewerId is compared, never used as the actor. No handler revalidates anything:
-// every answer that changes what the page shows carries the fresh view. saveEmailPrefs (follow-on B4) also asks, last, how the
-// session signed in (signIn), so a real provider never sends to the development sign-in; the address is always the session's.
+// every answer that changes what the page shows carries the fresh view.
 
 import type { Sql } from "postgres";
 import { HANDOFF_PROTOCOL } from "../engine/index.js";
 import { errorCode, isBusy, setupErrorKind, unavailableMessage } from "./db-errors.js";
-import { saveEmailPrefs } from "./email/prefs.js";
-import type { SignInKind } from "./email/types.js";
-import { readPhoto } from "./photo.js";
+import { PHOTO_MAX_BYTES, readPhoto } from "./photo.js";
 import type { Photo } from "./photo.js";
 import {
-  BAD_REQUEST_ERROR,
   BUSY_ERROR,
   INTERNAL_ERROR,
   applyAction,
+  deleteMyData,
   ensurePerson,
   getView,
   markNotificationsRead,
@@ -54,11 +51,6 @@ export interface ActionContext {
   sql(): Sql | null;
   /** The world this request uses. Asked only once the guards pass. */
   worldId(): WorldId;
-  /**
-   * The server's sign-in provider: "google", or "dev" for the local development sign-in. Asked only by saveEmailPrefs, after the
-   * guards. Left out, or anything but "google", it counts as "dev", which a real email provider never sends to (email/gates.ts).
-   */
-  signIn?(): SignInKind;
 }
 
 // ── What the page sends and gets back (C-CONTRACT §1, §4) ────────────────────────────────
@@ -81,11 +73,6 @@ export type MarkReadInput = Guard & { ids: string[] | "all" };
  * the page before B1's one `payHandle` is gone with that page.
  */
 export type SaveProfileInput = Guard & { payMethods: PayMethodInput[] };
-/**
- * saveEmailPrefs (follow-on B4): turn "Exchanges that need you" (exchange) or "Matches for your requests and alerts" (matches) on or
- * off; at least one. Nothing else is read from the page: the address is the session's PennTools sign-in email.
- */
-export type SaveEmailPrefsInput = Guard & { exchange?: boolean; matches?: boolean };
 
 export type StaleCode = "signed_out" | "account_changed" | "reload";
 /** The tab no longer matches the session or the server: the page shows a neutral "Reloading…" and reloads. */
@@ -108,16 +95,25 @@ export const STALE_ERRORS: Readonly<Record<StaleCode, string>> = Object.freeze({
 });
 /** payMethods missing or not a list (a page before protocol 2 sent a payHandle instead): the page and the contract disagree. */
 export const PAY_METHODS_INVALID = "Choose Venmo, Zelle or PayPal.";
-/** saveEmailPrefs with neither category, or with something other than true or false: the page and the contract disagree. */
-export const EMAIL_PREFS_INVALID = BAD_REQUEST_ERROR;
-export const EMAIL_PREFS_SAVED = "Email updates saved.";
 /** More ids than any bell sends at once; the store marks at most 200 per call. */
 const MAX_READ_IDS = 500;
 
 // ── The handlers ─────────────────────────────────────────────────────────────────────────
 
-/** Runs one client action for the session's user (applyAction). */
-export async function handleAct(ctx: ActionContext, input: unknown): Promise<ActAnswer> {
+/**
+ * The most the act route (the page folder's act/route.ts, which takes the changes that carry a photo) reads of a request's body:
+ * one photo at its largest as base64 (PHOTO_MAX_BYTES, a third larger), and the action and guard beside it. Review of PR #88: a
+ * photo never goes through a server action, and the route refuses a larger body before holding it all (readBodyText).
+ */
+export const ACT_BODY_MAX_BYTES = Math.ceil(PHOTO_MAX_BYTES / 3) * 4 + 32 * 1024;
+/** A photo sent to the server action instead of the act route (a page from before the route). */
+export const PHOTO_ROUTE_ERROR = "Handoff was updated, and photos are sent another way now. Reload the page and try again.";
+
+/**
+ * Runs one client action for the session's user (applyAction). `photo: false` (the server action) refuses a change that carries a
+ * photo: those go to the act route, which caps its body (ACT_BODY_MAX_BYTES).
+ */
+export async function handleAct(ctx: ActionContext, input: unknown, opts: { photo?: boolean } = {}): Promise<ActAnswer> {
   const g = await gate(ctx, input, "act");
   if (!g.ok) return g.answer;
   const i = fields(input);
@@ -125,6 +121,7 @@ export async function handleAct(ctx: ActionContext, input: unknown): Promise<Act
   // JPEG or WebP, or is too large, is refused in words (photo.ts), and nothing of the action is applied.
   let photo: Photo | undefined;
   if (i["photo"] !== undefined && i["photo"] !== null) {
+    if (opts.photo === false) return { ok: false, code: "invalid", error: PHOTO_ROUTE_ERROR };
     const read = readPhoto(i["photo"]);
     if (!read.ok) return { ok: false, code: "invalid", error: read.error };
     photo = read.photo;
@@ -142,8 +139,14 @@ export async function handleAct(ctx: ActionContext, input: unknown): Promise<Act
   }
 }
 
-/** What the photo route answers with: the image, or the status to send instead (404: nothing this viewer may see; 503: no database). */
-export type PhotoAnswer = { ok: true; photo: StoredPhoto } | { ok: false; status: 404 | 500 | 503 };
+/**
+ * What the photo route answers with: the image; or that the version the browser holds (its ETag) is still the one to show, without
+ * reading the bytes again; or the status to send instead (404: nothing this viewer may see; 503: no database).
+ */
+export type PhotoAnswer =
+  | { ok: true; photo: StoredPhoto }
+  | { ok: true; notModified: true; version: string }
+  | { ok: false; status: 404 | 500 | 503 };
 
 /**
  * An item's photo for whoever asks (§9s item 6; the page folder's photo/[item]/route.ts). The viewer is the session's user, or nobody:
@@ -152,7 +155,7 @@ export type PhotoAnswer = { ok: true; photo: StoredPhoto } | { ok: false; status
  * on hold, paused, sold, closed or expired for this viewer, another photo's version, an id that isn't one. A plain GET: no tab, so no
  * viewerId or protocol to compare; it writes nothing.
  */
-export async function handleGetPhoto(ctx: ActionContext, input: { itemId: unknown; version?: unknown }): Promise<PhotoAnswer> {
+export async function handleGetPhoto(ctx: ActionContext, input: { itemId: unknown; version?: unknown; etag?: unknown }): Promise<PhotoAnswer> {
   try {
     if (typeof input.itemId !== "string" || (input.version !== undefined && input.version !== null && typeof input.version !== "string")) return { ok: false, status: 404 };
     const user = await ctx.user();
@@ -163,8 +166,10 @@ export async function handleGetPhoto(ctx: ActionContext, input: { itemId: unknow
       itemId: input.itemId,
       viewerId: user ? user.id : null,
       ...(typeof input.version === "string" ? { version: input.version } : {}),
+      ...(typeof input.etag === "string" ? { etag: input.etag } : {}),
     });
-    return photo ? { ok: true, photo } : { ok: false, status: 404 };
+    if (!photo) return { ok: false, status: 404 };
+    return "notModified" in photo ? { ok: true, notModified: true, version: photo.version } : { ok: true, photo };
   } catch (e) {
     if (setupErrorKind(e)) return { ok: false, status: 503 };
     console.error("[handoff] photo failed", { error: e instanceof Error ? e.name || "Error" : typeof e });
@@ -235,40 +240,26 @@ export async function handleSaveMyProfile(ctx: ActionContext, input: unknown): P
 }
 
 /**
- * Turns the session user's email updates on or off (follow-on B4; email/prefs.ts) and answers with the fresh view, whose email envelope
- * shows the result. The address is the session's PennTools sign-in email and the sign-in is the server's: never anything the page
- * sends but the two choices. Turning off always works; turning on is "refused", with the view, when email isn't available ("Email
- * updates aren't available yet."), the account has no address ("Your PennTools account has no email address.") or, for real email,
- * a provider may not send to the account ("Email updates aren't available for this account.": the development sign-in, a TEST account).
+ * Review of PR #88: deletes the user's Handoff data (deleteMyData: their profile, notifications and actions log entries), unless
+ * something of theirs is still open, which is refused in words. Answers with the fresh view: a viewer with no profile row, as on a
+ * first visit.
  */
-export async function handleSaveEmailPrefs(ctx: ActionContext, input: unknown): Promise<ActAnswer> {
-  const g = await gate(ctx, input, "saveEmailPrefs");
+export async function handleDeleteMyData(ctx: ActionContext, input: unknown): Promise<ActAnswer> {
+  const g = await gate(ctx, input, "deleteMyData");
   if (!g.ok) return g.answer;
-  const i = fields(input);
-  const exchange = i["exchange"];
-  const matches = i["matches"];
-  const choice = (v: unknown): v is boolean | undefined => v === undefined || typeof v === "boolean";
-  if (!choice(exchange) || !choice(matches) || (exchange === undefined && matches === undefined)) {
-    return { ok: false, code: "invalid", error: EMAIL_PREFS_INVALID };
-  }
   try {
-    const signIn: SignInKind = ctx.signIn?.() === "google" ? "google" : "dev";
-    await ensurePerson(g.sql, g.actor); // the profile row, with the session's address, even if this is the first thing the user does
-    const saved = await saveEmailPrefs(g.sql, {
-      userId: g.actor.id,
-      address: g.actor.email,
-      signIn,
-      worldId: g.worldId,
-      ...(exchange !== undefined ? { exchange } : {}),
-      ...(matches !== undefined ? { matches } : {}),
-    });
+    const done = await deleteMyData(g.sql, { worldId: g.worldId, userId: g.actor.id });
     const view = await getView(g.sql, { worldId: g.worldId, viewer: g.actor });
-    if (!saved.ok) return { ok: false, code: "refused", error: saved.error, replay: false, view };
-    return { ok: true, replay: false, toast: EMAIL_PREFS_SAVED, resultId: null, view };
+    if (!done.ok) return { ok: false, code: "refused", error: done.error, replay: false, view };
+    return { ok: true, replay: false, toast: DATA_DELETED, resultId: null, view };
   } catch (e) {
-    return failure(e, "saveEmailPrefs");
+    return failure(e, "deleteMyData");
   }
 }
+
+/** What deleting one's data says when it's done. */
+export const DATA_DELETED =
+  "Your Handoff profile, notifications and activity log were deleted. Your past trades stay with the classmates you traded with, as they were recorded.";
 
 // ── The guards (§2.4 steps 1 to 5) ───────────────────────────────────────────────────────
 
