@@ -411,6 +411,8 @@ The engine is built and tested with hand-made fixture weeks before any ingestion
 
 ---
 
+**Sample data on the homepage (November 18, 2026, Arpit's request).** The opened Exercise section shows Penn Now's crowd levels ("Quiet now", "usually busiest 5 PM–7 PM") and a "Fitness community" card of group activities as **made-up samples**, each labelled as such on the page, so the layout can be judged before either feature exists. They live in `apps/web/src/app/tools/penn-fitness/exercise/demo.ts`; replace that file when the real features come, don't build on it.
+
 ## 13. Open questions (ask me when they become relevant)
 
 - ~~Stack choice~~ and ~~which vision LLM, and how keys are managed~~: decided at kickoff (section 0).

@@ -9,7 +9,7 @@ import type { SharedPrefs } from "../sharedPrefs.js";
 import { minutesOfDay, type LocalDate, type LocalDateTime, type TimeOfDay } from "../time.js";
 import { addDays } from "./clock.js";
 import { ENGINE_CONFIG } from "./engine/config.js";
-import { findGaps } from "./engine/gaps.js";
+import { findGaps, placeOptions } from "./engine/gaps.js";
 import { planWeek } from "./engine/plan.js";
 import { walkingMinutes } from "./engine/travel.js";
 import type { WeekPlan, WorkoutPlanInput } from "./engine/types.js";
@@ -38,10 +38,12 @@ export interface ExerciseSummary {
   todaysGap: { start: TimeOfDay; minutes: number } | null;
   /** Every free stretch left today worth showing, in order. */
   todaysGaps: FreeStretch[];
+  /** Today's free stretches, or, once none are left, the next day's that has some; null when the week has none left. */
+  freeSoon: { date: LocalDate; stretches: FreeStretch[] } | null;
   /** Each day of the week, Monday first. */
   days: ExerciseDay[];
-  /** The closest places to work out, from home, nearest first (up to 3). */
-  nearby: { placeName: string; walkMinutes: number }[];
+  /** The closest places to work out, from home, nearest first (up to 3), with their kind (gym, pool, court...). */
+  nearby: { placeId: string; placeName: string; kind: string; walkMinutes: number }[];
   /** The user has given their nearest corner, so walking times are real rather than by area. */
   homeCornerSet: boolean;
   /** The user's waking hours, the span a day is drawn over. */
@@ -55,7 +57,17 @@ export interface FreeStretch {
   start: TimeOfDay;
   end: TimeOfDay;
   minutes: number;
+  /** What the stretch has room for, walking there and back included (the engine's placeOptions). */
+  fits: StretchFit;
 }
+
+/** A full session of the user's length, a short one (SHORT_SESSION_MINUTES), or just a break. */
+export type StretchFit =
+  | { kind: "workout" | "short"; minutes: number; placeName: string; travelMinutes: number }
+  | { kind: "break" };
+
+/** The shortest session worth suggesting in a stretch too short for a full one. */
+export const SHORT_SESSION_MINUTES = 20;
 
 export interface ExerciseDay {
   date: LocalDate;
@@ -107,7 +119,7 @@ export interface WeekSources {
 const clock = (minutes: number): TimeOfDay => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
 /** The week's free stretches from now on, worth showing, in time order. */
-function freeStretches(input: WorkoutPlanInput, now: LocalDateTime): FreeStretch[] {
+function freeStretches(input: WorkoutPlanInput, now: LocalDateTime, placeName: (id: string) => string): FreeStretch[] {
   const today = now.slice(0, 10);
   const nowMinutes = minutesOfDay(now.slice(11));
   const stretches: FreeStretch[] = [];
@@ -115,7 +127,18 @@ function freeStretches(input: WorkoutPlanInput, now: LocalDateTime): FreeStretch
     if (gap.date < today) continue;
     const start = gap.date === today ? Math.max(minutesOfDay(gap.start), nowMinutes) : minutesOfDay(gap.start);
     const minutes = minutesOfDay(gap.end) - start;
-    if (minutes >= SHORTEST_GAP_WORTH_SHOWING) stretches.push({ date: gap.date, start: clock(start), end: gap.end, minutes });
+    if (minutes < SHORTEST_GAP_WORTH_SHOWING) continue;
+    // What fits from now on: a full session if it can, else a short one, nearest place first.
+    const from = { ...gap, start: clock(start) };
+    let fits: StretchFit = { kind: "break" };
+    for (const [kind, length] of [["workout", input.sessionMinutes], ["short", SHORT_SESSION_MINUTES]] as const) {
+      const option = placeOptions(from, input.places, length)[0];
+      if (option) {
+        fits = { kind, minutes: length, placeName: placeName(option.placeId), travelMinutes: option.travelTo + option.travelBack };
+        break;
+      }
+    }
+    stretches.push({ date: gap.date, start: clock(start), end: gap.end, minutes, fits });
   }
   return stretches;
 }
@@ -206,13 +229,18 @@ export function assembleWeek(sources: WeekSources): ExerciseWeek {
     };
   });
 
-  const stretches = freeStretches(input, now);
+  const stretches = freeStretches(input, now, placeName);
   const todays = stretches.filter((s) => s.date === today);
   const longestToday = todays.reduce<FreeStretch | null>((best, s) => (best === null || s.minutes > best.minutes ? s : best), null);
 
   // One way from home, nearest first, one entry per place name.
   const nearby = [...input.places]
-    .map((place) => ({ placeName: placeName(place.id), walkMinutes: walkingMinutes(input.home, place.location) }))
+    .map((place) => ({
+      placeId: place.id,
+      placeName: placeName(place.id),
+      kind: sources.places.find((p) => p.id === place.id)?.kind ?? "gym",
+      walkMinutes: walkingMinutes(input.home, place.location),
+    }))
     .sort((a, b) => a.walkMinutes - b.walkMinutes)
     .filter((entry, i, all) => all.findIndex((e) => e.placeName === entry.placeName) === i)
     .slice(0, 3);
@@ -229,6 +257,7 @@ export function assembleWeek(sources: WeekSources): ExerciseWeek {
     isBusy: plan.isBusy,
     todaysGap: longestToday ? { start: longestToday.start, minutes: longestToday.minutes } : null,
     todaysGaps: todays,
+    freeSoon: stretches.length === 0 ? null : { date: stretches[0]!.date, stretches: stretches.filter((s) => s.date === stretches[0]!.date) },
     days,
     nearby,
     homeCornerSet: shared.homeCorner !== null,

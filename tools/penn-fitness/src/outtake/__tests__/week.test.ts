@@ -122,18 +122,47 @@ describe("assembleWeek", () => {
   it("lists every free stretch left today, from now", () => {
     const blocks = [block("2026-11-18T12:00", "2026-11-18T13:00"), block("2026-11-18T13:10", "2026-11-18T18:00")];
     const { summary } = assembleWeek(sources({ blocks, now: "2026-11-18T09:30" }));
-    // The 10 minutes between commitments is too short to show.
+    // The 10 minutes between commitments is too short to show. Pottruck is 4 blocks from home (40th & Locust,
+    // 6 minutes) and 1 from the classes at Huntsman (2 minutes): 8 minutes' walking either way round.
+    const pottruck = { kind: "workout", minutes: 45, placeName: "Pottruck", travelMinutes: 8 };
     expect(summary.todaysGaps).toEqual([
-      { date: "2026-11-18", start: "09:30", end: "12:00", minutes: 150 },
-      { date: "2026-11-18", start: "18:00", end: "22:30", minutes: 270 },
+      { date: "2026-11-18", start: "09:30", end: "12:00", minutes: 150, fits: pottruck },
+      { date: "2026-11-18", start: "18:00", end: "22:30", minutes: 270, fits: pottruck },
     ]);
     expect(summary.todaysGap).toEqual({ start: "18:00", minutes: 270 });
+  });
+
+  it("offers the next day's free time once today has none left", () => {
+    const blocks = [block("2026-11-18T13:00", "2026-11-18T22:30"), block("2026-11-19T07:00", "2026-11-19T12:00")];
+    const morning = assembleWeek(sources({ blocks, now: "2026-11-18T09:00" })).summary;
+    expect(morning.freeSoon).toMatchObject({ date: "2026-11-18", stretches: [{ start: "09:00", end: "13:00" }] });
+    const evening = assembleWeek(sources({ blocks, now: "2026-11-18T21:00" })).summary;
+    expect(evening.todaysGaps).toEqual([]);
+    expect(evening.freeSoon).toMatchObject({ date: "2026-11-19", stretches: [{ start: "12:00", end: "22:30" }] });
+    // Nothing left in the week at all.
+    expect(assembleWeek(sources({ now: "2026-11-22T22:20" })).summary.freeSoon).toBeNull();
+  });
+
+  it("says what each free stretch has room for: a workout, a short session, or just a break", () => {
+    const blocks = [
+      block("2026-11-18T08:00", "2026-11-18T12:00"),
+      block("2026-11-18T12:30", "2026-11-18T15:00"),
+      block("2026-11-18T15:22", "2026-11-18T22:30"),
+    ];
+    const fits = assembleWeek(sources({ blocks, now: "2026-11-18T07:00" })).summary.todaysGaps.map((g) => [g.start, g.fits.kind]);
+    // 60 minutes: 45 plus the walks. 30 minutes: only 20 plus the walks. 22 minutes: not even that.
+    expect(fits).toEqual([
+      ["07:00", "workout"],
+      ["12:00", "short"],
+      ["15:00", "break"],
+    ]);
   });
 
   it("lists the nearest places from home, one per name", () => {
     const { summary } = assembleWeek(sources());
     // From 40th & Locust: Pottruck (and Sheerr Pool, inside it) 4 blocks, then 33rd Street.
     expect(summary.nearby.map((n) => n.placeName)).toEqual(["Pottruck", "Sheerr Pool", "Fox Fitness"]);
+    expect(summary.nearby.map((n) => n.kind)).toEqual(["gym", "pool", "gym"]);
     expect(summary.nearby[0]!.walkMinutes).toBe(6);
     expect(summary.homeCornerSet).toBe(true);
   });
@@ -168,7 +197,10 @@ describe("assembleWeek", () => {
       ];
       const { tips } = assembleWeek(sources({ blocks, now: "2026-11-16T07:00" })).summary;
       expect(tips).toContainEqual({ kind: "lightestDay", date: "2026-11-20", freeMinutes: 870 });
-      expect(tips).toContainEqual({ kind: "longestStretch", stretch: { date: "2026-11-21", start: "09:00", end: "22:30", minutes: 810 } });
+      expect(tips).toContainEqual({
+        kind: "longestStretch",
+        stretch: expect.objectContaining({ date: "2026-11-21", start: "09:00", end: "22:30", minutes: 810 }),
+      });
     });
 
     it("says how booked a heavy week is", () => {
