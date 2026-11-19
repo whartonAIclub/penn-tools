@@ -80,6 +80,7 @@ export * from "./places.js";
 export * from "./preferences.js";
 export * from "./sharedPrefs.js";
 export * from "./storage/preferences.js";
+export * from "./storage/schedule.js";
 
 // Outtake (exercise)
 export * from "./outtake/types.js";
@@ -89,4 +90,6 @@ export * from "./outtake/planInput.js";
 export * from "./outtake/checkIn.js";
 export * from "./outtake/ingest/ics.js";
 export * from "./outtake/ingest/timetable.js";
+export * from "./outtake/ingest/manual.js";
+export * from "./outtake/ingest/timeline.js";
 export * from "./outtake/engine/index.js";
