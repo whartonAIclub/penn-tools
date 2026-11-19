@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Post a request</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1F6B5A}a:hover{color:#174F43}
+button{font-family:inherit;cursor:pointer}
+input,textarea{font-family:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid #1F6B5A;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F4F6F1; color: #18252B; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 20px 14px; background: #FFFFFF">
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 21px">New request</span>
+      <span style="font-size: 12px; color: #5A676C">{{stepLabel}}</span>
+    </div>
+    <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #1F6B5A; background: #E3F0EB; padding: 6px 10px; border-radius: 999px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      Penn verified
+    </span>
+  </div>
+  <div style="height: 4px; background: #E2E6DF"><div style="height: 4px; background: #1F6B5A; width: {{progress}}"></div></div>
+
+  <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 10px">
+    <sc-for list="{{log}}" as="m" hint-placeholder-count="3">
+      <div style="display: flex; justify-content: {{m.justify}}">
+        <sc-if value="{{m.bot}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; gap: 8px; align-items: flex-end; max-width: 310px">
+            <span style="flex: none; width: 28px; height: 28px; border-radius: 50%; background: #1F6B5A; color: #FFFFFF; display: grid; place-items: center">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="5.5" cy="10" r="2"></circle><circle cx="9.5" cy="5.5" r="2"></circle><circle cx="14.5" cy="5.5" r="2"></circle><circle cx="18.5" cy="10" r="2"></circle><path d="M12 12c-3 0-6 3.5-6 6 0 1.7 1.3 2.5 3 2.5 1.2 0 2-.6 3-.6s1.8.6 3 .6c1.7 0 3-.8 3-2.5 0-2.5-3-6-6-6z"></path></svg>
+            </span>
+            <div style="background: #FFFFFF; border: 1px solid #E2E6DF; border-radius: 16px 16px 16px 4px; padding: 10px 13px; font-size: 14px; line-height: 1.45">{{m.text}}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{m.me}}" hint-placeholder-val="{{false}}">
+          <div style="background: #1F6B5A; color: #FFFFFF; border-radius: 16px 16px 4px 16px; padding: 10px 13px; font-size: 14px; line-height: 1.45; max-width: 270px">{{m.text}}</div>
+        </sc-if>
+      </div>
+    </sc-for>
+
+    <sc-if value="{{showSummary}}" hint-placeholder-val="{{false}}">
+      <div style="background: #FFFFFF; border: 1px solid #E2E6DF; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; margin-top: 4px">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <sc-if value="{{photo}}" hint-placeholder-val="{{true}}">
+            <span style="width: 52px; height: 52px; border-radius: 50%; background: #F0B23A; color: #18252B; display: grid; place-items: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 22px">{{initial}}</span>
+          </sc-if>
+          <sc-if value="{{noPhoto}}" hint-placeholder-val="{{false}}">
+            <span style="width: 52px; height: 52px; border-radius: 50%; background: #E2E6DF; color: #5A676C; display: grid; place-items: center; font-size: 11px">No photo</span>
+          </sc-if>
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+            <span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 18px">{{name}}</span>
+            <span style="font-size: 13px; color: #5A676C">{{petLine}}</span>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px 10px; font-size: 14px">
+          <span style="color: #5A676C">When</span><span>{{dates}}</span>
+          <span style="color: #5A676C">Visits</span><span>{{freqText}}</span>
+          <span style="color: #5A676C">Care</span><span>{{needsText}}</span>
+          <span style="color: #5A676C">Keys</span><span>{{accessText}}</span>
+          <span style="color: #5A676C">Pay</span><span>{{payText}}</span>
+          <span style="color: #5A676C">Notes</span><span>{{notesText}}</span>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{posted}}" hint-placeholder-val="{{false}}">
+      <div style="background: #FCF1D8; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+        <span style="font-weight: 700; color: #6B4700">Your request is live</span>
+        <span style="font-size: 14px; color: #3D3320">Only signed in Penn students can see it. Your email stays hidden until you approve a sitter.</span>
+        <a href="Browse.dc.html" style="font-size: 14px; font-weight: 600">See how sitters see it</a>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="background: #FFFFFF; border-top: 1px solid #E2E6DF; padding: 14px 16px 22px; display: flex; flex-direction: column; gap: 12px; max-height: 440px; overflow-y: auto; box-sizing: border-box">
+
+    <sc-if value="{{s0}}" hint-placeholder-val="{{true}}">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <sc-if value="{{notTyping}}" hint-placeholder-val="{{true}}">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+            <sc-for list="{{speciesOptions}}" as="o" hint-placeholder-count="4">
+              <button type="button" onClick="{{o.pick}}" aria-pressed="{{o.pressed}}" style="{{o.style}}">{{o.label}}</button>
+            </sc-for>
+          </div>
+          <sc-if value="{{showSpeciesOther}}" hint-placeholder-val="{{false}}">
+            <label for="speciesOther" style="font-size: 13px; color: #5A676C">Tell us what kind of pet, or list them all</label>
+            <input id="speciesOther" value="{{speciesOther}}" onInput="{{onSpeciesOther}}" placeholder="A rabbit, two dogs and a cat, a bearded dragon" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 12px; color: #18252B">
+            <button type="button" onClick="{{next}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Continue</button>
+          </sc-if>
+          <button type="button" onClick="{{startTyping}}" style="background: none; border: none; color: #1F6B5A; font-size: 14px; font-weight: 600; padding: 6px; min-height: 44px">Rather type it all in one sentence?</button>
+        </sc-if>
+        <sc-if value="{{typing}}" hint-placeholder-val="{{false}}">
+          <label for="oneLine" style="font-size: 13px; color: #5A676C">Describe what you need, like texting a friend</label>
+          <textarea id="oneLine" rows="3" style="font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 10px 12px; resize: none; color: #18252B">Walk Mochi twice a day over Thanksgiving, she's a shiba near 40th St</textarea>
+          <button type="button" onClick="{{fillFromText}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Fill it in for me</button>
+          <span style="font-size: 12px; color: #5A676C; text-align: center">We ask about anything you leave out</span>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s1}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; gap: 10px; align-items: flex-end">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+            <label for="petName" style="font-size: 13px; color: #5A676C">Name</label>
+            <input id="petName" value="{{name}}" onInput="{{onName}}" style="height: 48px; box-sizing: border-box; font-size: 16px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 12px; color: #18252B">
+          </div>
+          <button type="button" onClick="{{togglePhoto}}" aria-label="Add a photo" aria-pressed="{{photoPressed}}" style="width: 48px; height: 48px; border-radius: 12px; border: 1.5px dashed #8C9993; background: {{photoBg}}; color: #18252B; display: grid; place-items: center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+          </button>
+        </div>
+        <label for="petBreed" style="font-size: 13px; color: #5A676C">Breed, age, size or temperament (optional)</label>
+        <input id="petBreed" value="{{breed}}" onInput="{{onBreed}}" placeholder="Shiba Inu, 3, friendly but nervous around bikes" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 12px; color: #18252B">
+        <span style="font-size: 12px; color: #5A676C">{{photoHint}}</span>
+        <button type="button" onClick="{{next}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Continue</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s2}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{dateOptions}}" as="d" hint-placeholder-count="3">
+          <button type="button" onClick="{{d.pick}}" aria-pressed="{{d.pressed}}" style="{{d.style}}">
+            <span style="font-size: 15px; font-weight: 600">{{d.label}}</span>
+            <span style="font-size: 12px; color: #5A676C">{{d.sub}}</span>
+          </button>
+        </sc-for>
+        <sc-if value="{{showCustomDates}}" hint-placeholder-val="{{false}}">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <label for="dateFrom" style="font-size: 13px; color: #5A676C">From</label>
+              <input id="dateFrom" type="date" value="{{from}}" onInput="{{onFrom}}" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 10px; color: #18252B">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <label for="dateTo" style="font-size: 13px; color: #5A676C">To</label>
+              <input id="dateTo" type="date" value="{{to}}" onInput="{{onTo}}" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 10px; color: #18252B">
+            </div>
+          </div>
+          <button type="button" onClick="{{confirmDates}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Use these dates</button>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s3}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 13px; font-weight: 600">How often</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{freqOptions}}" as="f" hint-placeholder-count="5">
+            <button type="button" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="{{f.style}}">{{f.label}}</button>
+          </sc-for>
+        </div>
+        <sc-if value="{{showFreqOther}}" hint-placeholder-val="{{false}}">
+          <label for="freqOther" style="font-size: 13px; color: #5A676C">Describe the schedule</label>
+          <input id="freqOther" value="{{freqOther}}" onInput="{{onFreqOther}}" placeholder="Mornings only, weekdays" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 12px; color: #18252B">
+        </sc-if>
+        <span style="font-size: 13px; font-weight: 600">What to do on each visit</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{needOptions}}" as="n" hint-placeholder-count="6">
+            <button type="button" onClick="{{n.toggle}}" aria-pressed="{{n.pressed}}" style="{{n.style}}">{{n.label}}</button>
+          </sc-for>
+        </div>
+        <sc-if value="{{showNeedOther}}" hint-placeholder-val="{{false}}">
+          <label for="needOther" style="font-size: 13px; color: #5A676C">What else should the sitter do?</label>
+          <input id="needOther" value="{{needOther}}" onInput="{{onNeedOther}}" placeholder="Water the plants, bring in packages" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 12px; color: #18252B">
+        </sc-if>
+        <button type="button" onClick="{{next}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Continue</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s4}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{accessOptions}}" as="a" hint-placeholder-count="5">
+          <button type="button" onClick="{{a.pick}}" aria-pressed="{{a.pressed}}" style="{{a.style}}">
+            <span style="font-size: 15px; font-weight: 600">{{a.label}}</span>
+            <span style="font-size: 12px; color: #5A676C">{{a.sub}}</span>
+          </button>
+        </sc-for>
+        <sc-if value="{{showAccessOther}}" hint-placeholder-val="{{false}}">
+          <label for="accessOther" style="font-size: 13px; color: #5A676C">How will the sitter get in?</label>
+          <input id="accessOther" value="{{accessOther}}" onInput="{{onAccessOther}}" placeholder="My roommate will let them in" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 12px; color: #18252B">
+          <button type="button" onClick="{{next}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Continue</button>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s5}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{payOptions}}" as="p" hint-placeholder-count="3">
+            <button type="button" onClick="{{p.pick}}" aria-pressed="{{p.pressed}}" style="{{p.style}}">{{p.label}}</button>
+          </sc-for>
+        </div>
+        <button type="button" onClick="{{payFair}}" style="min-height: 48px; border-radius: 12px; border: 1.5px solid #E2E6DF; background: #F4F6F1; font-size: 14px; font-weight: 600; color: #18252B">Suggest a fair rate for me</button>
+        <button type="button" onClick="{{payOwn}}" style="min-height: 48px; border-radius: 12px; border: 1.5px solid #E2E6DF; background: #F4F6F1; font-size: 14px; font-weight: 600; color: #18252B">Set my own amount</button>
+        <sc-if value="{{showPayOther}}" hint-placeholder-val="{{false}}">
+          <label for="payOther" style="font-size: 13px; color: #5A676C">Amount and how you'll pay</label>
+          <input id="payOther" value="{{payOther}}" onInput="{{onPayOther}}" placeholder="$150 for the week on Venmo" style="height: 48px; box-sizing: border-box; font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 0 12px; color: #18252B">
+          <button type="button" onClick="{{next}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Continue</button>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s6}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <label for="petNotes" style="font-size: 13px; color: #5A676C">Health, quirks, vet, anything else</label>
+        <textarea id="petNotes" rows="3" onInput="{{onNotes}}" style="font-size: 15px; border: 1.5px solid #E2E6DF; border-radius: 12px; padding: 10px 12px; resize: none; color: #18252B">{{notes}}</textarea>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+          <button type="button" onClick="{{skipNotes}}" style="height: 50px; border-radius: 12px; border: 1.5px solid #E2E6DF; background: #FFFFFF; font-size: 15px; font-weight: 600; color: #18252B">Skip</button>
+          <button type="button" onClick="{{next}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Continue</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s7}}" hint-placeholder-val="{{false}}">
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <button type="button" onClick="{{back}}" style="height: 50px; border-radius: 12px; border: 1.5px solid #E2E6DF; background: #FFFFFF; font-size: 15px; font-weight: 600; color: #18252B">Edit answers</button>
+        <button type="button" onClick="{{post}}" style="height: 50px; border-radius: 12px; border: none; background: #1F6B5A; color: #FFFFFF; font-size: 15px; font-weight: 700">Post request</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{s8}}" hint-placeholder-val="{{false}}">
+      <button type="button" onClick="{{restart}}" style="height: 50px; border-radius: 12px; border: 1.5px solid #E2E6DF; background: #FFFFFF; font-size: 15px; font-weight: 600; color: #18252B">Post another request</button>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.fresh();
+  }
+  fresh() {
+    return {
+      step: 0, typing: false, typed: false,
+      species: '', speciesOther: '', name: 'Mochi', breed: '', photo: false,
+      dates: '', datesKey: '', from: '2026-11-12', to: '2026-11-15',
+      freq: '', freqOther: '', needs: [], needOther: '',
+      access: '', accessOther: '', pay: '', payOther: '',
+      notes: 'Pulls on the leash near squirrels. Vet is University City Animal Clinic.', notesSkipped: false
+    };
+  }
+  fmt(iso) {
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const p = (iso || '').split('-');
+    return p.length === 3 ? m[Number(p[1]) - 1] + ' ' + Number(p[2]) : iso;
+  }
+  chip(on) {
+    return 'min-height: 44px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 600; border: 1.5px solid ' + (on ? '#1F6B5A' : '#E2E6DF') + '; background: ' + (on ? '#E3F0EB' : '#FFFFFF') + '; color: ' + (on ? '#174F43' : '#18252B');
+  }
+  tile(on) {
+    return 'min-height: 56px; border-radius: 14px; font-size: 15px; font-weight: 600; border: 1.5px solid ' + (on ? '#1F6B5A' : '#E2E6DF') + '; background: ' + (on ? '#E3F0EB' : '#F4F6F1') + '; color: #18252B';
+  }
+  row(on) {
+    return 'min-height: 54px; border-radius: 12px; text-align: left; padding: 8px 14px; display: flex; flex-direction: column; justify-content: center; gap: 2px; color: #18252B; border: 1.5px solid ' + (on ? '#1F6B5A' : '#E2E6DF') + '; background: ' + (on ? '#E3F0EB' : '#F4F6F1');
+  }
+  renderVals() {
+    const s = this.state;
+    const set = (patch) => () => this.setState(patch);
+    const OTHER = 'Something else';
+    const petKind = s.species === OTHER ? (s.speciesOther || 'pet') : s.species === 'More than one' ? (s.speciesOther || 'pets') : s.species.toLowerCase();
+    const isCat = s.species === 'Cat';
+    const freqText = s.freq === OTHER ? (s.freqOther || 'Custom schedule') : (s.freq || 'Not set');
+    const needList = s.needs.filter((n) => n !== OTHER).concat(s.needs.includes(OTHER) && s.needOther ? [s.needOther] : []);
+    const accessText = s.access === OTHER ? (s.accessOther || 'Custom') : (s.access || 'Not set');
+    const payText = s.pay === 'own' ? (s.payOther || 'Set by you') : (s.pay || 'Not set');
+
+    const log = [];
+    const bot = (text) => log.push({ bot: true, me: false, justify: 'flex-start', text });
+    const me = (text) => log.push({ bot: false, me: true, justify: 'flex-end', text });
+    bot("Hi Lu. Who are we looking after while you're away?");
+    if (s.typed) {
+      me('Walk Mochi twice a day over Thanksgiving, she’s a shiba near 40th St');
+      bot('Got it. I filled in what you told me. Two things were missing, so I picked safe defaults: meet in person for keys, and a fair rate. Change anything before you post.');
+    } else {
+      if (s.step >= 1) { me(s.species === OTHER || s.species === 'More than one' ? (s.speciesOther || s.species) : 'A ' + petKind); bot('Lovely. Tell me about them. A photo helps your sitter know who to look for at the door.'); }
+      if (s.step >= 2) { me(s.name + (s.breed ? ', ' + s.breed : '') + (s.photo ? '. Photo added.' : '')); bot('When will you be away?'); }
+      if (s.step >= 3) { me(s.dates); bot('How often should someone come by, and what should they do?'); }
+      if (s.step >= 4) { me(freqText + '. ' + (needList.length ? needList.join(', ') : 'Not sure yet')); bot('How will your sitter get in?'); }
+      if (s.step >= 5) { me(accessText); bot('What would you like to pay? Pick a rate, or I can suggest one.'); }
+      if (s.step >= 6) { me(payText); bot('Last one. Anything a sitter should know about health, quirks or your vet?'); }
+      if (s.step >= 7) { me(s.notesSkipped ? 'Nothing else' : s.notes); bot('Here is your request. Look it over, then post it.'); }
+    }
+    if (s.step >= 8) bot('Done. I’ll tell you as soon as a verified sitter offers to help.');
+
+    const speciesOptions = ['Dog', 'Cat', 'More than one', OTHER].map((label) => {
+      const on = s.species === label;
+      const needsText = label === OTHER || label === 'More than one';
+      return { label, pressed: on ? 'true' : 'false', style: this.tile(on),
+        pick: set(needsText ? { species: label } : { species: label, name: label === 'Cat' ? 'Tofu' : 'Mochi', step: 1 }) };
+    });
+
+    const dateOptions = [
+      { key: 'custom', label: 'Pick my own dates', sub: 'Choose a start and end day' },
+      { key: 'weekend', label: 'This weekend', sub: 'Sat Nov 7 to Sun Nov 8' },
+      { key: 'weekly', label: 'Every week, same days', sub: 'A regular walker or visitor' }
+    ].map((d) => {
+      const on = s.datesKey === d.key;
+      let pick;
+      if (d.key === 'custom') pick = set({ datesKey: d.key });
+      else if (d.key === 'weekly') pick = set({ datesKey: d.key, dates: 'Every week, days to agree with the sitter', step: 3 });
+      else pick = set({ datesKey: d.key, dates: d.sub, step: 3 });
+      return { ...d, pressed: on ? 'true' : 'false', style: this.row(on), pick };
+    });
+
+    const freqOptions = ['Once a day', 'Twice a day', 'Every other day', 'Stay overnight', OTHER].map((label) => {
+      const on = s.freq === label;
+      return { label, pressed: on ? 'true' : 'false', style: this.chip(on), pick: set({ freq: label }) };
+    });
+
+    const baseNeeds = isCat ? ['Feeding', 'Litter box', 'Fresh water', 'Playtime', 'Medication', 'Brushing'] : ['Walks', 'Feeding', 'Fresh water', 'Playtime', 'Medication', 'Clean up'];
+    const needOptions = baseNeeds.concat(OTHER).map((label) => {
+      const on = s.needs.includes(label);
+      return { label, pressed: on ? 'true' : 'false', style: this.chip(on),
+        toggle: () => this.setState({ needs: on ? s.needs.filter((n) => n !== label) : s.needs.concat(label) }) };
+    });
+
+    const accessOptions = [
+      { label: 'Meet in person', sub: 'Hand over keys before you leave' },
+      { label: 'Front desk or doorman', sub: 'Leave keys with your building' },
+      { label: 'Lockbox or door code', sub: 'Shared only after you both approve' },
+      { label: 'Decide with my sitter', sub: 'Sort it out once you match' },
+      { label: OTHER, sub: 'Type your own' }
+    ].map((a) => {
+      const on = s.access === a.label;
+      return { ...a, pressed: on ? 'true' : 'false', style: this.row(on), pick: set(a.label === OTHER ? { access: a.label } : { access: a.label, step: 5 }) };
+    });
+
+    const payOptions = ['$15', '$20', '$25'].map((v) => {
+      const on = s.pay === v + ' a visit';
+      return { label: v, pressed: on ? 'true' : 'false', style: this.tile(on), pick: set({ pay: v + ' a visit', step: 6 }) };
+    });
+
+    const labels = ['Step 1 of 7, your pet', 'Step 2 of 7, about them', 'Step 3 of 7, dates', 'Step 4 of 7, care', 'Step 5 of 7, keys', 'Step 6 of 7, pay', 'Step 7 of 7, notes', 'Review before posting', 'Posted'];
+    return {
+      log,
+      stepLabel: labels[s.step],
+      progress: Math.round((s.step / 8) * 100) + '%',
+      s0: s.step === 0, s1: s.step === 1, s2: s.step === 2, s3: s.step === 3, s4: s.step === 4, s5: s.step === 5, s6: s.step === 6, s7: s.step === 7, s8: s.step === 8,
+      typing: s.typing, notTyping: !s.typing,
+      showSummary: s.step >= 7, posted: s.step >= 8,
+      showSpeciesOther: s.species === OTHER || s.species === 'More than one',
+      showCustomDates: s.datesKey === 'custom',
+      showFreqOther: s.freq === OTHER,
+      showNeedOther: s.needs.includes(OTHER),
+      showAccessOther: s.access === OTHER,
+      showPayOther: s.pay === 'own',
+      speciesOther: s.speciesOther, name: s.name, breed: s.breed, from: s.from, to: s.to,
+      freqOther: s.freqOther, needOther: s.needOther, accessOther: s.accessOther, payOther: s.payOther, notes: s.notes,
+      initial: (s.name || '?').charAt(0).toUpperCase(),
+      petLine: (s.breed || (petKind.charAt(0).toUpperCase() + petKind.slice(1))) + ', near 40th Street',
+      photo: s.photo, noPhoto: !s.photo, photoPressed: s.photo ? 'true' : 'false',
+      photoBg: s.photo ? '#FCF1D8' : '#F4F6F1',
+      photoHint: s.photo ? 'Photo added. Sitters see it on your request.' : 'Tap the camera to add a photo. Optional, but requests with photos get offers faster.',
+      dates: s.dates, freqText, accessText, payText,
+      needsText: needList.length ? needList.join(', ') : 'Not set',
+      notesText: s.notesSkipped ? 'None' : s.notes,
+      speciesOptions, dateOptions, freqOptions, needOptions, accessOptions, payOptions,
+      startTyping: set({ typing: true }),
+      fillFromText: set({ typed: true, typing: false, species: 'Dog', name: 'Mochi', breed: 'Shiba Inu', photo: false, dates: 'Wed Nov 25 to Sun Nov 29', datesKey: 'thanks', freq: 'Twice a day', needs: ['Walks', 'Fresh water'], access: 'Meet in person', pay: '$20 a visit', notesSkipped: true, step: 7 }),
+      onSpeciesOther: (e) => this.setState({ speciesOther: e.target.value }),
+      onName: (e) => this.setState({ name: e.target.value }),
+      onBreed: (e) => this.setState({ breed: e.target.value }),
+      onFrom: (e) => this.setState({ from: e.target.value }),
+      onTo: (e) => this.setState({ to: e.target.value }),
+      onFreqOther: (e) => this.setState({ freqOther: e.target.value }),
+      onNeedOther: (e) => this.setState({ needOther: e.target.value }),
+      onAccessOther: (e) => this.setState({ accessOther: e.target.value }),
+      onPayOther: (e) => this.setState({ payOther: e.target.value }),
+      onNotes: (e) => this.setState({ notes: e.target.value, notesSkipped: false }),
+      togglePhoto: set({ photo: !s.photo }),
+      confirmDates: set({ dates: this.fmt(s.from) + ' to ' + this.fmt(s.to), step: 3 }),
+      payFair: set({ pay: '$20 a visit, suggested for this area', step: 6 }),
+      payOwn: set({ pay: 'own' }),
+      next: set({ step: s.step + 1 }),
+      back: set({ step: 0, typed: false }),
+      skipNotes: set({ notesSkipped: true, step: 7 }),
+      post: set({ step: 8 }),
+      restart: () => this.setState(this.fresh())
+    };
+  }
+}
+</script>
+</body>
+</html>

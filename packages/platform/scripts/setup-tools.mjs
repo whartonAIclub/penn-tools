@@ -70,6 +70,7 @@ const TOOLS = [
   { name: "studentdiscountmaximizer", dir: "tools/student-discount-maximizer", connectionLimit: 30 },
   { name: "pennpals", dir: "tools/penn-pals", connectionLimit: 30 },
   { name: "handoff", dir: "tools/handoff", connectionLimit: 30 },
+  { name: "pennpaws", dir: "tools/pennpaws", connectionLimit: 30 },
 ];
 
 // Tools that have been removed (see "Removing a tool" in the README), as

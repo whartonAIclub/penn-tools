@@ -71,6 +71,8 @@ import { DueTool } from "@penntools/tool-due";
 toolRegistry.register(new DueTool());
 import { HandoffTool } from "@penntools/tool-handoff";
 toolRegistry.register(new HandoffTool());
+import { PennpawsTool } from "@penntools/tool-pennpaws";
+toolRegistry.register(new PennpawsTool());
 // ── Repositories ──────────────────────────────────────────────────────────────
 // Postgres is required, locally too (see README for the Docker setup).
 
