@@ -5,6 +5,8 @@
 // macros, this week's eating-out money and groceries; then the week and tips.
 
 import { useState } from "react";
+import { caloriesEaten, estimatedBurn } from "@penntools/tool-penn-fitness";
+import { CalorieCircle } from "../CalorieCircle";
 import type { HomeExercise } from "../home";
 import home from "../HomeSection.module.css";
 import {
@@ -113,6 +115,7 @@ export function Dashboard({
   const upcoming = plan ? nextMeal(plan, today, now) : null;
   const targets = profile?.weightKg ? macroTargets(profile.weightKg, profile.activityLevel) : null;
   const totals = dayTotals(todaysMeals);
+  const eaten = caloriesEaten(todaysMeals);
   const cheer = CHEERS[new Date().getDate() % CHEERS.length]!;
 
   return (
@@ -188,6 +191,11 @@ export function Dashboard({
             <Ring label="Carbs" grams={totals.carbsG} range={targets?.carbs ?? null} color="var(--ring-carbs)" />
             <Ring label="Fat" grams={totals.fatG} range={targets?.fat ?? null} color="var(--ring-fat)" />
           </span>
+          <CalorieCircle
+            calories={eaten.calories}
+            label="eaten today"
+            note={eaten.estimated < eaten.logged ? `estimate · ${eaten.estimated} of ${eaten.logged} meals` : "estimate"}
+          />
           <button
             className={styles.smallPrimary}
             onClick={(e) => {
@@ -302,6 +310,13 @@ export function Dashboard({
               <span className={home.title}>Next workout</span>
             </span>
             {exercise.summary}
+            {exercise.plannedMinutes > 0 && (
+              <CalorieCircle
+                calories={estimatedBurn(exercise.plannedMinutes, profile?.weightKg ?? null)}
+                label="planned this week"
+                note={profile?.weightKg ? "estimate" : "estimate · add weight"}
+              />
+            )}
             <span className={home.chevron}>
               <span className={home.closed}>Open ▾</span>
               <span className={home.open}>Close ▴</span>

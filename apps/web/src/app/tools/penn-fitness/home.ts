@@ -14,6 +14,8 @@ export interface HomeExercise {
   details: ReactNode;
   /** The week's workouts day by day, shown in "This week" above both sections. */
   weekStrip: ReactNode;
+  /** Minutes of workouts planned this week, for the calorie estimate (the dashboard knows the weight). */
+  plannedMinutes: number;
   /** Exercise's item in "Your setup", linking to its preferences. */
   setup: { emoji: string; title: string; summary: string; href: string };
 }

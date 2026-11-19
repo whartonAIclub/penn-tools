@@ -100,7 +100,7 @@ Instrument for this from the start. If we can't measure it, the feature isn't do
   2. **Uploading an `.ics` calendar file manually.**
   They can also quick-add one-off busy blocks by hand.
 - **Focus on functionality, not UI/UX.** Build minimal, functional screens: plain lists, tables, and basic forms. Visual design gets refined later. Don't spend effort on styling, animations, or polish.
-- **No calorie or energy-balance features**, and no "burned vs. eaten" displays. These carry disordered-eating and over-exercise risk in student populations.
+- **No calorie or energy-balance features**, and no "burned vs. eaten" displays. These carry disordered-eating and over-exercise risk in student populations. **Amended November 18, 2026 (Arpit): calories may be shown, gently.** The homepage shows "about N cal eaten today" (from meal-log estimates) and "about N cal, planned this week" (from planned workouts at a moderate pace), each as a neutral circle labelled "estimate": no targets, no progress fill, no "remaining", in separate sections and never set against each other as a balance (`src/calories.ts`, `CalorieCircle.tsx`). Nothing is "burnt" until workouts are checked in.
 - **Privacy:**
   - Store only what the engine needs: start/end times, plus a busy flag and an optional short label.
   - Don't keep uploaded timetable images after parsing.

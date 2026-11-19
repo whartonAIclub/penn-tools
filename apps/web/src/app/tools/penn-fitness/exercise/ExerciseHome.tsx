@@ -228,6 +228,7 @@ export function homeExercise(loaded: LoadedWeek | null, today: string): HomeExer
       label: "Exercise couldn't be loaded",
       details: unavailable,
       weekStrip: null,
+      plannedMinutes: 0,
       setup: { emoji: "🏃", title: "Workouts", summary: "Open Exercise to set up", href: PREFERENCES },
     };
   }
@@ -239,6 +240,10 @@ export function homeExercise(loaded: LoadedWeek | null, today: string): HomeExer
     label: label(summary, today),
     details: <ExerciseDetails summary={summary} today={today} />,
     weekStrip: <WeekStrip summary={summary} today={today} />,
+    plannedMinutes: summary.days.reduce(
+      (sum, day) => sum + (day.workout ? minutesOfDay(day.workout.end.slice(11)) - minutesOfDay(day.workout.start.slice(11)) : 0),
+      0,
+    ),
     setup: {
       emoji: "🏃",
       title: "Workouts",

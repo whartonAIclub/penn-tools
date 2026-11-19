@@ -83,6 +83,35 @@
   flex-shrink: 0;
 }
 
+/* A calorie estimate: neutral and full, never a progress ring. */
+.calorieCircle {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.calorieRing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border: 6px solid var(--accent-soft);
+  outline: 1px dashed var(--border);
+  outline-offset: -1px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.calorieNumber { font-size: 0.85rem; font-weight: 800; color: #0f172a; line-height: 1; }
+.calorieUnit { font-size: 0.65rem; color: var(--section-label); }
+.calorieLabel { font-size: 0.72rem; font-weight: 700; color: #0f172a; white-space: nowrap; }
+.calorieNote { font-size: 0.62rem; color: var(--section-label); white-space: nowrap; }
+
 /* Closed Exercise: the section's name beside the drawn next workout. */
 .labelColumn {
   flex-shrink: 0;
