@@ -4,7 +4,9 @@
 // is built from) with the plan's actions; the next meal in one line; today's
 // macros, this week's eating-out money and groceries; then the week and tips.
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
+import type { HomeExercise } from "../home";
+import home from "../HomeSection.module.css";
 import {
   DAY_KEYS,
   DAYS,
@@ -80,7 +82,7 @@ export function Dashboard({
   onSetup,
   onStartOver,
   onAte,
-  afterGreeting,
+  exercise,
 }: {
   name: string | null;
   preview: boolean;
@@ -104,8 +106,8 @@ export function Dashboard({
   onSetup: () => void;
   onStartOver: () => void;
   onAte: (meal: PlannedMeal) => void;
-  /** Shown right after the greeting: the homepage's exercise section (exercise/ExerciseHome.tsx). */
-  afterGreeting?: ReactNode;
+  /** The homepage's exercise section, after Nutrition's (exercise/ExerciseHome.tsx); none when not given. */
+  exercise?: HomeExercise | undefined;
 }) {
   const today = todayKey();
   const upcoming = plan ? nextMeal(plan, today, now) : null;
@@ -136,20 +138,23 @@ export function Dashboard({
         </div>
       </header>
 
-      {afterGreeting}
-
-      <SetupBar
-        preview={preview}
-        plan={plan}
-        planning={planning}
-        planStale={planStale}
-        profile={profile}
-        preferences={preferences}
-        schedule={schedule}
-        onOpen={onOpen}
-        onSetup={onSetup}
-        onStartOver={onStartOver}
-      />
+      {/* ── Nutrition: today's macros closed, the full dashboard open ─────── */}
+      <details className={`${home.fold} ${home.nutrition}`}>
+        <summary className={home.summary}>
+          <span className={home.icon} aria-hidden="true">
+            🥗
+          </span>
+          <span className={home.text}>
+            <span className={home.label}>Nutrition</span>
+            <span className={home.title}>Today&apos;s macros</span>
+            <span className={home.meta}>{macrosLine(totals, targets)}</span>
+          </span>
+          <span className={home.chevron}>
+            <span className={home.closed}>Open ▾</span>
+            <span className={home.open}>Close ▴</span>
+          </span>
+        </summary>
+        <div className={home.body}>
 
       {/* ── Next meal, in one line ─────────────────────────────────────────── */}
       {planning ? (
@@ -257,8 +262,51 @@ export function Dashboard({
           </ol>
         </section>
       )}
+        </div>
+      </details>
+
+      {/* ── Exercise: the next workout closed, its section open ───────────── */}
+      {exercise && (
+        <details className={`${home.fold} ${home.exercise}`}>
+          <summary className={home.summary}>
+            <span className={home.icon} aria-hidden="true">
+              🏃
+            </span>
+            <span className={home.text}>
+              <span className={home.label}>Exercise</span>
+              <span className={home.title}>{exercise.title}</span>
+              <span className={home.meta}>{exercise.meta}</span>
+            </span>
+            <span className={home.chevron}>
+              <span className={home.closed}>Open ▾</span>
+              <span className={home.open}>Close ▴</span>
+            </span>
+          </summary>
+          <div className={home.body}>{exercise.details}</div>
+        </details>
+      )}
+
+      <SetupBar
+        preview={preview}
+        plan={plan}
+        planning={planning}
+        planStale={planStale}
+        profile={profile}
+        preferences={preferences}
+        schedule={schedule}
+        onOpen={onOpen}
+        onSetup={onSetup}
+        onStartOver={onStartOver}
+        extra={exercise ? [exercise.setup] : []}
+      />
     </div>
   );
+}
+
+/** "40 of 95–125 g protein · 65 g carbs · 18 g fat": today's macros in one line, against the protein target if set. */
+function macrosLine(totals: ReturnType<typeof dayTotals>, targets: MacroTargets | null): string {
+  const protein = targets ? `${totals.proteinG} of ${targets.protein[0]}–${targets.protein[1]} g protein` : `${totals.proteinG} g protein`;
+  return `${protein} · ${totals.carbsG} g carbs · ${totals.fatG} g fat`;
 }
 
 /**
@@ -276,6 +324,7 @@ function SetupBar({
   onOpen,
   onSetup,
   onStartOver,
+  extra,
 }: {
   preview: boolean;
   plan: MealPlan | null;
@@ -287,6 +336,8 @@ function SetupBar({
   onOpen: (panel: Panel) => void;
   onSetup: () => void;
   onStartOver: () => void;
+  /** Other halves' setup items (Exercise's), linking to their own pages. */
+  extra: HomeExercise["setup"][];
 }) {
   const [confirming, setConfirming] = useState(false);
   const hasSetup = profile !== null || preferences !== null || schedule !== null || plan !== null;
@@ -349,6 +400,20 @@ function SetupBar({
               ✏️
             </span>
           </button>
+        ))}
+        {extra.map((part) => (
+          <a key={part.href} href={part.href} className={`${styles.setupChip} ${home.setupLink}`}>
+            <span className={styles.setupChipEmoji} aria-hidden="true">
+              {part.emoji}
+            </span>
+            <span className={styles.setupChipText}>
+              <strong>{part.title}</strong>
+              <small>{part.summary}</small>
+            </span>
+            <span className={styles.setupChipEdit} aria-hidden="true">
+              ✏️
+            </span>
+          </a>
         ))}
       </div>
 

@@ -10,7 +10,7 @@ import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
 import { loadExerciseWeek } from "./exercise/data";
-import { ExerciseHome } from "./exercise/ExerciseHome";
+import { homeExercise } from "./exercise/ExerciseHome";
 import { Nutrition } from "./nutrition/Nutrition";
 import styles from "./page.module.css";
 
@@ -35,7 +35,7 @@ export default async function PennFitnessPage() {
         Penn Fitness <span className={styles.section}>· Nutrition</span>
       </h1>
       <Nutrition
-        afterGreeting={<ExerciseHome summary={exercise?.summary ?? null} today={(exercise?.now ?? newYorkNow()).slice(0, 10)} />}
+        exercise={homeExercise(exercise, (exercise?.now ?? newYorkNow()).slice(0, 10))}
         userId={user.id}
         userName={user.name ?? null}
         providers={providers}

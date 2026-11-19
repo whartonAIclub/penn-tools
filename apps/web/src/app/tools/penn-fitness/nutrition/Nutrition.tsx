@@ -5,7 +5,8 @@
 // first-time setup is a short wizard. Owns the data they share, keeps it in
 // storage.ts, and makes plans with planWeek in actions.ts.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
+import type { HomeExercise } from "../home";
 import type { AIProvider } from "@penntools/core/ai";
 import {
   DEFAULT_PLANNER_PROFILE,
@@ -95,7 +96,7 @@ export function Nutrition({
   sampleText,
   sampleLog,
   maxLength,
-  afterGreeting,
+  exercise,
 }: {
   userId: string;
   userName: string | null;
@@ -105,8 +106,8 @@ export function Nutrition({
   sampleText: string;
   sampleLog: MealLog;
   maxLength: number;
-  /** Shown on the dashboard right after the greeting (the homepage's exercise section). */
-  afterGreeting?: ReactNode;
+  /** The homepage's exercise section, shown on the dashboard after Nutrition's. */
+  exercise?: HomeExercise | undefined;
 }) {
   const provider = providers[0];
   const preview = !provider;
@@ -293,7 +294,7 @@ export function Nutrition({
         onSetup={() => (profile ? void makePlan(profile, preferences ?? EMPTY_PREFERENCES) : setView({ kind: "setup" }))}
         onStartOver={startOver}
         onAte={ate}
-        afterGreeting={afterGreeting}
+        exercise={exercise}
       />
     );
   }
