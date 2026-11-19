@@ -23,6 +23,7 @@ import {
   type Attachment,
 } from "@penntools/tool-askpenn";
 import { getAI } from "@/lib/ai";
+import { readBodyText } from "@/lib/readBody";
 import { getCurrentUser, signInRequired } from "@/lib/auth";
 import { pdfPageCount } from "@/lib/pdf";
 
@@ -37,30 +38,6 @@ async function checkPdfs(attachments: Attachment[]): Promise<string | null> {
   return null;
 }
 
-/**
- * The body as text, or null once it's over MAX_REQUEST_BYTES. Counted while
- * reading, since Content-Length can be missing or wrong, so an oversized body
- * is refused without holding it all.
- */
-async function readBody(req: NextRequest): Promise<string | null> {
-  if (Number(req.headers.get("content-length")) > MAX_REQUEST_BYTES) return null;
-  const reader = req.body?.getReader();
-  if (!reader) return "";
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_REQUEST_BYTES) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-
 export async function POST(req: NextRequest): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return signInRequired();
@@ -68,7 +45,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const sql = toolSql("askpenn");
   if (!sql) return Response.json({ error: "AskPenn's database is not configured." }, { status: 500 });
 
-  const text = await readBody(req);
+  const text = await readBodyText(req, MAX_REQUEST_BYTES);
   if (text === null) return Response.json({ error: "This message is too large to send." }, { status: 413 });
   let body: Record<string, unknown> | null = null;
   try {

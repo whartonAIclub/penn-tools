@@ -4,7 +4,6 @@
 
 export * from "./types/index.js";
 export * from "./tools/index.js";
-export * from "./llm/index.js";
 export * from "./ai/index.js";
 export * from "./repositories/index.js";
 export * from "./embeddings/index.js";

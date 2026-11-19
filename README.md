@@ -27,8 +27,8 @@ Locally, you don't need Google credentials: without them, **Sign in** logs you i
 Copy `.env.example` to `apps/web/.env.local` (the setup script does this automatically) and fill in:
 
 ```bash
-# The platform's keys: they pay for each user's free AI credit ($0.50), the legacy
-# LLM API and, for OpenAI, embeddings. Past the credit, tools use users' own keys.
+# The platform's keys: they pay for each user's free AI credit ($0.50) and, for
+# OpenAI, embeddings. Past the credit, tools use users' own keys.
 OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""
 
@@ -72,7 +72,7 @@ pnpm test                                     # run all tests
 pnpm --filter @penntools/tool-askpenn test    # run one package's tests
 pnpm build                                    # production build
 pnpm typecheck                                # TypeScript check
-pnpm check:tools                              # tool code follows the platform rules (no vendor SDKs or key access; PDFs opened safely; notYetMigrated matches legacy API use)
+pnpm check:tools                              # tool code follows the platform rules (no vendor SDKs or key access; PDFs opened safely; no calls to the removed legacy LLM API)
 pnpm new-tool                                 # scaffold a new tool (see Adding a tool)
 
 # Apply schema changes + tool databases. db:deploy doesn't read .env.local, so pass the URL
@@ -104,8 +104,8 @@ The database is Railway's pgvector Postgres template (the platform schema needs 
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `${{pgvector.DATABASE_URL}}` — a reference to the database service |
-| `OPENAI_API_KEY` | The platform's OpenAI key: embeddings (tool seeds, and searches by users without their own OpenAI key), the legacy LLM API, and each user's free AI credit ($0.50, then their own keys from Settings) |
-| `ANTHROPIC_API_KEY` | The platform's Anthropic key: the free AI credit and the legacy LLM API |
+| `OPENAI_API_KEY` | The platform's OpenAI key: embeddings (tool seeds, and searches by users without their own OpenAI key) and each user's free AI credit ($0.50, then their own keys from Settings) |
+| `ANTHROPIC_API_KEY` | The platform's Anthropic key: the free AI credit |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The Google OAuth client (redirect URI `<public URL>/api/auth/callback/google`) |
 | `NEXTAUTH_SECRET` | Signs session cookies; generate with `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | The app's public URL |

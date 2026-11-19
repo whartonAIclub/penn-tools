@@ -68,10 +68,9 @@ test("creates the tool package and page, and registers the tool", (t) => {
   assert.match(tool, /id: "course-finder",/);
   assert.match(tool, /contributors: \["Ada", "Bob"\],/);
   assert.match(tool, /mentor: "Grace",/);
-  // New tools start in the category they name, in beta, and on the AI API.
+  // New tools start in the category they name, in beta.
   assert.match(tool, /category: "Academics",/);
   assert.match(tool, /beta: true,/);
-  assert.doesNotMatch(tool, /notYetMigrated/);
   assert.equal(r.read("tools/course-finder/src/index.ts"), 'export { CourseFinderTool } from "./CourseFinderTool.js";\n');
   assert.equal(JSON.parse(r.read("tools/course-finder/package.json")).name, "@penntools/tool-course-finder");
   assert.ok(r.exists("tools/course-finder/tsconfig.json"));

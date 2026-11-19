@@ -41,6 +41,15 @@ importers:
       '@penntools/tool-deadline-calendar':
         specifier: workspace:*
         version: link:../../tools/deadline-calendar
+      '@penntools/tool-due':
+        specifier: workspace:*
+        version: link:../../tools/due
+      '@penntools/tool-feedback-insights':
+        specifier: workspace:*
+        version: link:../../tools/feedback-insights
+      '@penntools/tool-handoff':
+        specifier: workspace:*
+        version: link:../../tools/handoff
       '@penntools/tool-industry-connector':
         specifier: workspace:*
         version: link:../../tools/industry-connector
@@ -77,12 +86,6 @@ importers:
       '@penntools/tool-wemba-sync':
         specifier: workspace:*
         version: link:../../tools/wemba-sync
-      html2canvas:
-        specifier: ^1.4.1
-        version: 1.4.1
-      jspdf:
-        specifier: ^4.2.1
-        version: 4.2.1
       jszip:
         specifier: ^3.10.2
         version: 3.10.2
@@ -226,6 +229,48 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/due:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/feedback-insights:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@22.20.5)
+
+  tools/handoff:
+    dependencies:
+      '@penntools/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.8
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
@@ -385,7 +430,19 @@ importers:
       '@penntools/core':
         specifier: workspace:*
         version: link:../../packages/core
+      docx:
+        specifier: ~9.15.3
+        version: 9.15.3
+      jspdf:
+        specifier: ^4.2.1
+        version: 4.2.1
     devDependencies:
+      jszip:
+        specifier: ^3.10.2
+        version: 3.10.2
+      pdfjs-dist:
+        specifier: ^3.11.174
+        version: 3.11.174
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
@@ -999,6 +1056,9 @@ packages:
   '@types/node@22.20.5':
     resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
+  '@types/node@26.6.6':
+    resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
+
   '@types/pako@2.0.4':
     resolution: {integrity: sha512-VWDCbrLeVXJM9fihYodcLiIv0ku+AlOa/TQ1SvYOaBuyrSKgEcro95LJyIsJ4vSo6BXIxOKxiJAat04CmST9Fw==}
 
@@ -1295,6 +1355,10 @@ packages:
 
   dingbat-to-unicode@1.0.1:
     resolution: {integrity: sha512-98l0sW87ZT58pU4i61wa2OHwxbiYSbuxsCBozaVnYX2iCnr3bLM3fIes1/ej7h1YdOKuKt/MLs706TVnALA65w==}
+
+  docx@9.15.3:
+    resolution: {integrity: sha512-3FnU6K5cuvGXEAn24yhvP3mfrZ1G8k9+hH8pSVDYsMR+mGmfK/t0NR5AwoMQodnaaxiRt2e+SvckffcJe/NvTQ==}
+    engines: {node: '>=16'}
 
   dompurify@3.4.18:
     resolution: {integrity: sha512-ofe3wI/uNm68HInABYFJYqQxRw1EaKAjNdrFVKqjUY+UZurvNd2L/HuQe097s/4RivWiZyP6tT7aoT8atjfhwg==}
@@ -1762,6 +1826,11 @@ packages:
   nanoid@3.3.20:
     resolution: {integrity: sha512-uKdg2G3GNCKQn9byYOpxbGqrT2fGO5KRt5J/8b3pok8rT6qxGWF6hxMyJiEYtAf+FVyYuD9hRaDqX5uPFYJ4ZQ==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
+  nanoid@6.0.2:
+    resolution: {integrity: sha512-hIvVOb9Qr1p/9CNNLOe0OlWvgx/ziTsVwKN/GDSsuArN2K0wDiafP3s0SWmsm7o2BdnyS8Z9Z64NFBUbn6ziBg==}
+    engines: {node: ^22 || ^24 || >=26}
     hasBin: true
 
   next-auth@4.24.15:
@@ -2309,6 +2378,9 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
+
   unpdf@2.1.0:
     resolution: {integrity: sha512-G/Hsrm++g0EoubUhV8TDFItq6oQ+FUu9EMvIRtHUwseKXB0iJoCvaLvBGOpYUBqyvggv/XfxhYYtohL2QpE3xQ==}
     engines: {node: '>=24'}
@@ -2854,6 +2926,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/node@26.6.6':
+    dependencies:
+      undici-types: 8.9.0
+
   '@types/pako@2.0.4': {}
 
   '@types/raf@3.4.3':
@@ -2998,7 +3074,8 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  base64-arraybuffer@1.0.2: {}
+  base64-arraybuffer@1.0.2:
+    optional: true
 
   base64-js@1.5.1: {}
 
@@ -3145,6 +3222,7 @@ snapshots:
   css-line-break@2.1.0:
     dependencies:
       utrie: 1.0.2
+    optional: true
 
   csstype@3.2.3: {}
 
@@ -3202,6 +3280,12 @@ snapshots:
   diff-sequences@29.6.3: {}
 
   dingbat-to-unicode@1.0.1: {}
+
+  docx@9.15.3:
+    dependencies:
+      '@types/node': 26.6.6
+      fflate: 0.8.3
+      nanoid: 6.0.2
 
   dompurify@3.4.18:
     optionalDependencies:
@@ -3513,6 +3597,7 @@ snapshots:
     dependencies:
       css-line-break: 2.1.0
       text-segmentation: 1.0.3
+    optional: true
 
   https-proxy-agent@5.0.1:
     dependencies:
@@ -3809,6 +3894,8 @@ snapshots:
     optional: true
 
   nanoid@3.3.20: {}
+
+  nanoid@6.0.2: {}
 
   next-auth@4.24.15(next@16.4.6(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
@@ -4358,6 +4445,7 @@ snapshots:
   text-segmentation@1.0.3:
     dependencies:
       utrie: 1.0.2
+    optional: true
 
   tinybench@2.9.0: {}
 
@@ -4451,6 +4539,8 @@ snapshots:
 
   undici-types@6.21.0: {}
 
+  undici-types@8.9.0: {}
+
   unpdf@2.1.0: {}
 
   unzipper@0.10.14:
@@ -4471,6 +4561,7 @@ snapshots:
   utrie@1.0.2:
     dependencies:
       base64-arraybuffer: 1.0.2
+    optional: true
 
   uuid@11.1.1: {}
 
