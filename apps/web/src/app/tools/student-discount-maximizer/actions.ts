@@ -13,20 +13,25 @@ import type { AIProvider } from "@penntools/core/ai";
 import {
   CATEGORIES,
   DiscountError,
+  DuplicateDealError,
   KINDS,
   NEIGHBORHOODS,
+  SCOPES,
   addDiscount,
   checkPastedText,
+  findSimilarDeals,
   fillFromText,
   listDiscountPage,
   markExpired,
   restore,
   vote,
   type Discount,
+  type SimilarDeal,
   type DiscountAudience,
   type DiscountPage,
   type DiscountCategory,
   type DiscountKind,
+  type DiscountScope,
   type DiscountSort,
   type DealDraft,
   type Neighborhood,
@@ -39,6 +44,8 @@ export interface ActionError {
   /** The AIError kind, when the AI API failed. */
   kind?: string;
   message: string;
+  /** The deals at the store, when adding a deal was refused as a possible duplicate. */
+  similar?: SimilarDeal[];
 }
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: ActionError };
@@ -46,6 +53,7 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: Action
 export interface Filters {
   status: "active" | "expired";
   kind: DiscountKind | null;
+  scope: DiscountScope | null;
   category: DiscountCategory | null;
   audience: DiscountAudience | null;
   neighborhood: Neighborhood | null;
@@ -66,6 +74,7 @@ async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   try {
     return { ok: true, data: await fn() };
   } catch (error) {
+    if (error instanceof DuplicateDealError) return { ok: false, error: { message: error.message, similar: error.similar } };
     if (error instanceof DiscountError) return fail(error.message);
     if (isAIError(error)) return { ok: false, error: error.toJSON() };
     const problem = setupProblem(error);
@@ -93,6 +102,7 @@ export async function loadDiscounts(filters: Filters, offset = 0): Promise<Actio
       userId: user?.id ?? null,
       status: f.status === "expired" ? "expired" : "active",
       kind: KINDS.includes(f.kind as DiscountKind) ? (f.kind as DiscountKind) : null,
+      scope: SCOPES.includes(f.scope as DiscountScope) ? (f.scope as DiscountScope) : null,
       category: CATEGORIES.includes(f.category as DiscountCategory) ? (f.category as DiscountCategory) : null,
       audience: f.audience === "penn" || f.audience === "general" ? f.audience : null,
       neighborhood: NEIGHBORHOODS.includes(f.neighborhood as Neighborhood) ? (f.neighborhood as Neighborhood) : null,
@@ -107,6 +117,13 @@ export async function addDeal(input: unknown): Promise<ActionResult<Discount>> {
   const user = await getCurrentUser();
   if (!user) return signedOut;
   return run(() => addDiscount(database(), user.id, input));
+}
+
+/** Active deals at the same store, for the Add a deal form's duplicate warning. Works signed out too. */
+export async function similarDeals(business: string): Promise<ActionResult<SimilarDeal[]>> {
+  if (typeof business !== "string") return fail("Enter a store name.");
+  const user = await getCurrentUser();
+  return run(() => findSimilarDeals(database(), business, user?.id ?? null));
 }
 
 /** true "works", false "doesn't work", null to take the vote back. */

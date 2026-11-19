@@ -1,24 +1,28 @@
 // Fills in the Add a deal form from text a student pasted, such as a deal's
-// web page, an email, or text copied from a photo of a sign, with the AI API
+// web page or an email, with the AI API
 // (free credit, then the student's own key). The student checks the result
 // before saving it: nothing here is saved.
 
 import { z } from "@penntools/core/ai";
 import type { AI, AIProvider } from "@penntools/core/ai";
-import { CATEGORIES, DEAL_TYPES, KINDS, LIMITS, NEIGHBORHOODS, isWebLink, sortKinds } from "./discounts.js";
+import { CATEGORIES, DEAL_TYPES, KINDS, LIMITS, NEIGHBORHOODS, SCOPES, isWebLink, sortKinds } from "./discounts.js";
 
 export const MAX_PASTED_TEXT_LENGTH = 8000;
 
 // Fields the text may not mention are .nullable(), so the model leaves them empty
 // rather than guessing.
 export const DealDraft = z.object({
+  scope: z
+    .enum(SCOPES)
+    .nullable()
+    .describe("general: a discount for any student; wharton: only for Wharton students; local: an in-person place in Philadelphia. Null if unclear"),
   kinds: z
     .array(z.enum(KINDS))
     .nullable()
     .describe(
       "Every way the deal can be used: code (a promo code to enter), online (a student price online, often after verifying student status), local (in person). E.g. ['online', 'local'] for a store discount that also works online. Null if unclear",
     ),
-  business: z.string().nullable().describe("The establishment or brand offering the deal"),
+  business: z.string().nullable().describe("The store, business or brand offering the deal"),
   title: z.string().nullable().describe("A short headline only if the deal has a name, e.g. 'Student Premium plan'; else null"),
   dealType: z
     .enum(DEAL_TYPES)
@@ -33,19 +37,34 @@ export const DealDraft = z.object({
     .enum(NEIGHBORHOODS)
     .nullable()
     .describe("The Philadelphia neighborhood of an in-person deal, only if the text or address makes it clear; else null"),
-  url: z.string().nullable().describe("The full https:// link to claim the deal, only if it appears in the text"),
+  url: z
+    .string()
+    .nullable()
+    .describe("The link to claim the deal, only if it's written out in the text; never build or guess one. Else null"),
   howToClaim: z.string().nullable().describe("Short steps to claim it, from the text"),
   category: z.enum(CATEGORIES).nullable(),
   pennSpecific: z
     .boolean()
     .nullable()
     .describe("true if only Penn students can get it (e.g. with a PennCard), false if any student can, null if unclear"),
+  // Plain text, "" when missing: Anthropic allows at most 16 nullable fields in a schema.
+  expiresOn: z.string().describe("The last day the deal works, as YYYY-MM-DD, only if an end date is given; else an empty string"),
+  sourcedFrom: z
+    .string()
+    .describe("Where the deal is listed, if shown: a student discount site or app such as UNiDAYS, Student Beans, ID.me or SheerID; else an empty string"),
 });
-export type DealDraft = z.infer<typeof DealDraft>;
+/** What the AI returns, before fitDraft. */
+export type RawDealDraft = z.infer<typeof DealDraft>;
+/** A draft for the form, after fitDraft: missing fields are null. */
+export type DealDraft = Omit<RawDealDraft, "expiresOn" | "sourcedFrom"> & {
+  expiresOn: string | null;
+  sourcedFrom: string | null;
+};
 
-const SYSTEM_PROMPT = [
-  "You read text about a student discount (from a web page, an email, or copied from a photo of a sign, so it may be jumbled) and fill in a form describing it for Penn students.",
-  "Use only what the text says. Leave a field null rather than guess, and never invent codes or links.",
+/** Shared with fillFromScreenshot. */
+export const FILL_SYSTEM_PROMPT = [
+  "You read text or an image about a student discount (a web page, an email, a screenshot or a photo of a sign, so it may be jumbled) and fill in a form describing it for Penn students.",
+  "Use only what it says. Leave a field null rather than guess, and never invent codes or links.",
   "Keep every field short.",
 ].join(" ");
 
@@ -60,9 +79,10 @@ export function checkPastedText(value: unknown): string | null {
  * The draft cut to what the form accepts, so the student never sees a value
  * that only fails on save: text is shortened to LIMITS, kinds lose repeats,
  * and a link that isn't https, or a code too long to be real, is dropped
- * rather than cut, since half a link or code would be wrong.
+ * rather than cut, since half a link or code would be wrong. An end date
+ * that isn't YYYY-MM-DD is dropped too.
  */
-export function fitDraft(draft: DealDraft): DealDraft {
+export function fitDraft(draft: RawDealDraft): DealDraft {
   const cut = (value: string | null, max: number) => (value === null ? null : value.trim().slice(0, max).trim() || null);
   const url = draft.url?.trim() ?? null;
   const code = draft.code?.trim() ?? null;
@@ -77,18 +97,34 @@ export function fitDraft(draft: DealDraft): DealDraft {
     location: cut(draft.location, LIMITS.location),
     url: url && isWebLink(url) ? url : null,
     howToClaim: cut(draft.howToClaim, LIMITS.howToClaim),
+    sourcedFrom: cut(draft.sourcedFrom, LIMITS.sourcedFrom),
+    expiresOn: /^\d{4}-\d{2}-\d{2}$/.test(draft.expiresOn.trim()) ? draft.expiresOn.trim() : null,
   };
 }
 
-/** The deal described in `pastedText`, as a draft for the form (see fitDraft). */
+/**
+ * Whether `url` is written in `text`, with or without https:// and www., since
+ * the model can make up a likely-looking link even when told not to.
+ */
+export function linkAppearsIn(url: string, text: string): boolean {
+  const bare = (value: string) => value.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+  const link = bare(url);
+  return link.length > 0 && text.toLowerCase().includes(link);
+}
+
+/**
+ * The deal described in `pastedText`, as a draft for the form (see fitDraft).
+ * A link is kept only when it's in the pasted text (see linkAppearsIn).
+ */
 export async function fillFromText(ai: AI, provider: AIProvider, pastedText: string): Promise<DealDraft> {
   const { object } = await ai.generateObject({
     provider,
     tier: "fast",
     reasoning: "low",
     schema: DealDraft,
-    system: SYSTEM_PROMPT,
+    system: FILL_SYSTEM_PROMPT,
     messages: [{ role: "user", content: pastedText }],
   });
-  return fitDraft(object);
+  const draft = fitDraft(object);
+  return { ...draft, url: draft.url && linkAppearsIn(draft.url, pastedText) ? draft.url : null };
 }

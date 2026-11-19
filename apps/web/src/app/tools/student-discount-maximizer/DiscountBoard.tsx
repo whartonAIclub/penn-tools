@@ -1,9 +1,9 @@
 "use client";
 
 // The deal board: filters, deal cards with votes, the Expired section and the
-// Add a deal form. Every change goes through a server action in actions.ts.
+// Add a deal pop-up. Every change goes through a server action in actions.ts.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AIProvider } from "@penntools/core/ai";
 import {
   compareDeals,
@@ -12,6 +12,7 @@ import {
   type DiscountAudience,
   type DiscountCategory,
   type DiscountKind,
+  type DiscountScope,
   type DiscountPage,
   type Neighborhood,
 } from "@penntools/tool-student-discount-maximizer/discounts";
@@ -33,10 +34,17 @@ const AUDIENCES: { value: DiscountAudience | null; label: string }[] = [
 
 const SIGN_IN_HINT = "Sign in with the button at the top right to vote, add deals or mark them expired.";
 
+/** A YYYY-MM-DD date as the student's locale writes it, read as a calendar day (no time zone shift). */
+function formatDate(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString();
+}
+
 /** The Expired section lists every expired deal, newest first. */
 const EXPIRED_FILTERS: Filters = {
   status: "expired",
   kind: null,
+  scope: null,
   category: null,
   audience: null,
   neighborhood: null,
@@ -56,10 +64,12 @@ export function DiscountBoard({
   providers,
   providerLabels,
   kinds,
+  scopes,
   categories,
   neighborhoods,
   dealTypes,
   limits,
+  defaultAddedBy,
 }: {
   /** The first page of active deals, A–Z. */
   initialPage: DiscountPage;
@@ -68,16 +78,20 @@ export function DiscountBoard({
   providers: AIProvider[];
   providerLabels: Record<AIProvider, string>;
   kinds: Option<DiscountKind>[];
+  scopes: Option<DiscountScope>[];
   categories: Option<DiscountCategory>[];
   /** In the order local spots are grouped. */
   neighborhoods: Option<Neighborhood>[];
   dealTypes: DealTypeOption[];
   limits: FormLimits;
+  /** The signed-in student's name, for the form's Added by field. */
+  defaultAddedBy: string;
 }) {
   const [deals, setDeals] = useState(initialPage.deals);
   const [hasMore, setHasMore] = useState(initialPage.hasMore);
   const [loadingMore, setLoadingMore] = useState(false);
   const [kind, setKind] = useState<DiscountKind | null>(null);
+  const [scope, setScope] = useState<DiscountScope | null>(null);
   const [category, setCategory] = useState<DiscountCategory | null>(null);
   const [neighborhood, setNeighborhood] = useState<Neighborhood | null>(null);
   const [audience, setAudience] = useState<DiscountAudience | null>(null);
@@ -86,13 +100,15 @@ export function DiscountBoard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const closeAdd = useCallback(() => setAdding(false), []);
   const [expired, setExpired] = useState<Discount[] | null>(null);
   const [expiredHasMore, setExpiredHasMore] = useState(false);
   const [showExpired, setShowExpired] = useState(false);
 
-  const filters: Filters = { status: "active", kind, category, audience, neighborhood, search, sort };
+  const filters: Filters = { status: "active", kind, scope, category, audience, neighborhood, search, sort };
 
   const kindLabels = Object.fromEntries(kinds.map((k) => [k.value, k.label])) as Record<DiscountKind, string>;
+  const scopeLabels = Object.fromEntries(scopes.map((sc) => [sc.value, sc.label])) as Record<DiscountScope, string>;
   const categoryLabels = Object.fromEntries(categories.map((c) => [c.value, c.label])) as Record<DiscountCategory, string>;
   const neighborhoodLabels = Object.fromEntries(neighborhoods.map((n) => [n.value, n.label])) as Record<Neighborhood, string>;
 
@@ -101,6 +117,7 @@ export function DiscountBoard({
       key={deal.id}
       deal={deal}
       kindLabels={deal.kinds.map((k) => kindLabels[k])}
+      scopeLabel={scopeLabels[deal.scope]}
       categoryLabel={categoryLabels[deal.category]}
       neighborhoodLabel={deal.neighborhood ? neighborhoodLabels[deal.neighborhood] : null}
       signedIn={signedIn}
@@ -124,7 +141,7 @@ export function DiscountBoard({
     const timer = setTimeout(async () => {
       setLoading(true);
       const result = await callAction(() =>
-        loadDiscounts({ status: "active", kind, category, audience, neighborhood, search, sort }),
+        loadDiscounts({ status: "active", kind, scope, category, audience, neighborhood, search, sort }),
       );
       if (request !== latest.current) return;
       setLoading(false);
@@ -137,7 +154,7 @@ export function DiscountBoard({
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [kind, category, audience, neighborhood, search, sort]);
+  }, [kind, scope, category, audience, neighborhood, search, sort]);
 
   async function loadMore() {
     const request = latest.current;
@@ -211,13 +228,14 @@ export function DiscountBoard({
         <div>
           <h1 className={styles.title}>Student Discount Central</h1>
           <p className={styles.intro}>
-            Student deals for Penn students: promo codes, online student pricing and Philly spots. Vote on whether a
-            deal still works; deals most students say are dead move to Expired.
+            Student deals for Penn students: general student discounts, Wharton discounts and local Philly spots, with
+            promo codes, online student pricing and in-person deals. Vote on whether a deal still works; deals most
+            students say are dead, or past their end date, move to Expired.
           </p>
         </div>
         {signedIn && (
-          <button className={styles.button} onClick={() => setAdding(!adding)}>
-            {adding ? "Close" : "Add a deal"}
+          <button className={styles.button} onClick={() => setAdding(true)}>
+            Add a deal
           </button>
         )}
       </div>
@@ -228,14 +246,17 @@ export function DiscountBoard({
         <AddDiscountForm
           providers={providers}
           providerLabels={providerLabels}
+          scopes={scopes}
           dealTypes={dealTypes}
           categories={categories}
           neighborhoods={neighborhoods}
           limits={limits}
+          defaultAddedBy={defaultAddedBy}
           onAdded={(deal) => {
             applyChange(deal);
             setAdding(false);
           }}
+          onClose={closeAdd}
         />
       )}
 
@@ -279,6 +300,19 @@ export function DiscountBoard({
             maxLength={limits.search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          <select
+            className={styles.select}
+            aria-label="Type of discount"
+            value={scope ?? ""}
+            onChange={(e) => setScope((e.target.value || null) as DiscountScope | null)}
+          >
+            <option value="">All types</option>
+            {scopes.map((sc) => (
+              <option key={sc.value} value={sc.value}>
+                {sc.label}
+              </option>
+            ))}
+          </select>
           <select
             className={styles.select}
             aria-label="Category"
@@ -361,6 +395,7 @@ export function DiscountBoard({
                 key={deal.id}
                 deal={deal}
                 kindLabels={deal.kinds.map((k) => kindLabels[k])}
+                scopeLabel={scopeLabels[deal.scope]}
                 categoryLabel={categoryLabels[deal.category]}
                 neighborhoodLabel={deal.neighborhood ? neighborhoodLabels[deal.neighborhood] : null}
                 signedIn={signedIn}
@@ -382,6 +417,7 @@ export function DiscountBoard({
 function DealCard({
   deal,
   kindLabels,
+  scopeLabel,
   categoryLabel,
   neighborhoodLabel,
   signedIn,
@@ -392,6 +428,7 @@ function DealCard({
   deal: Discount;
   /** One per way the deal is used. */
   kindLabels: string[];
+  scopeLabel: string;
   categoryLabel: string;
   neighborhoodLabel: string | null;
   signedIn: boolean;
@@ -436,6 +473,7 @@ function DealCard({
               Penn only
             </span>
           )}
+          <span className={styles.badge}>{scopeLabel}</span>
           {kindLabels.map((label) => (
             <span key={label} className={styles.badge}>
               {label}
@@ -482,13 +520,22 @@ function DealCard({
           Get the deal ↗
         </a>
       )}
+      {deal.expiresOn && !expired && <p className={styles.meta}>Expires {formatDate(deal.expiresOn)}</p>}
+      {(deal.sourcedFrom || deal.addedBy) && (
+        <p className={styles.meta}>
+          {[deal.sourcedFrom && `Sourced from ${deal.sourcedFrom}`, deal.addedBy && `Added by ${deal.addedBy}`]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      )}
 
       <div className={styles.cardActions}>
         {expired ? (
           <>
             <span className={styles.meta}>
-              Expired {deal.expiredReason === "votes" ? "by votes" : "by a student"} on{" "}
-              {new Date(deal.statusChangedAt).toLocaleDateString()}
+              {deal.expiredReason === "date" && deal.expiresOn
+                ? `Ended ${formatDate(deal.expiresOn)}`
+                : `Expired ${deal.expiredReason === "votes" ? "by votes" : "by a student"} on ${new Date(deal.statusChangedAt).toLocaleDateString()}`}
             </span>
             {onRestore && (
               <button

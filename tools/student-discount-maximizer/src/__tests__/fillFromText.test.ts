@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { AI, GenerateObjectRequest, AISchema } from "@penntools/core/ai";
-import { DealDraft, MAX_PASTED_TEXT_LENGTH, checkPastedText, fillFromText } from "../fillFromText.js";
+import { DealDraft, MAX_PASTED_TEXT_LENGTH, checkPastedText, fillFromText, linkAppearsIn } from "../fillFromText.js";
 import { LIMITS, checkNewDiscount } from "../discounts.js";
 
 /** An AI whose generateObject checks `reply` against the request's schema, as the real one does. */
@@ -25,6 +25,7 @@ function fakeAI(reply: unknown) {
 }
 
 const EMPTY_DRAFT = {
+  scope: null,
   kinds: null,
   business: null,
   title: null,
@@ -39,11 +40,23 @@ const EMPTY_DRAFT = {
   howToClaim: null,
   category: null,
   pennSpecific: null,
+  expiresOn: null,
+  sourcedFrom: null,
 };
+
+/** What the AI sends back when the text says nothing: text fields that can't be null come back empty. */
+const EMPTY_REPLY = { ...EMPTY_DRAFT, expiresOn: "", sourcedFrom: "" };
+
+describe("DealDraft", () => {
+  it("has at most 16 fields that can be null, Anthropic's limit for a schema", () => {
+    const nullable = Object.values(DealDraft.shape).filter((field) => field.safeParse(null).success);
+    expect(nullable.length).toBeLessThanOrEqual(16);
+  });
+});
 
 describe("fillFromText", () => {
   it("sends the pasted text with the form's schema on the fast tier", async () => {
-    const { ai, requests } = fakeAI({ ...EMPTY_DRAFT, business: "Spotify", kinds: ["online"], category: "entertainment" });
+    const { ai, requests } = fakeAI({ ...EMPTY_REPLY, business: "Spotify", kinds: ["online"], category: "entertainment" });
     const draft = await fillFromText(ai, "anthropic", "Spotify Premium Student: half price for students.");
 
     expect(draft).toEqual({ ...EMPTY_DRAFT, business: "Spotify", kinds: ["online"], category: "entertainment" });
@@ -58,7 +71,7 @@ describe("fillFromText", () => {
 
   it("fits what the AI returns to the form's limits, so it doesn't fail only on save", async () => {
     const { ai } = fakeAI({
-      ...EMPTY_DRAFT,
+      ...EMPTY_REPLY,
       kinds: ["local", "online", "local"],
       business: "  Sweetgreen  ",
       dealType: "percent",
@@ -74,14 +87,24 @@ describe("fillFromText", () => {
     expect(draft.discount).toHaveLength(LIMITS.discount);
     expect(draft.howToClaim).toHaveLength(LIMITS.howToClaim);
     // What it filled in saves as it is.
-    expect(() => checkNewDiscount({ ...draft, amount: String(draft.amount) })).not.toThrow();
+    expect(() => checkNewDiscount({ ...draft, amount: String(draft.amount), addedBy: "x", noLink: true })).not.toThrow();
 
-    const { ai: withLink } = fakeAI({ ...EMPTY_DRAFT, url: " https://sweetgreen.example.com/students ", code: "PENN20" });
-    expect(await fillFromText(withLink, "anthropic", "text")).toMatchObject({ url: "https://sweetgreen.example.com/students", code: "PENN20" });
+    const { ai: withLink } = fakeAI({ ...EMPTY_REPLY, url: " https://sweetgreen.example.com/students ", code: "PENN20" });
+    expect(await fillFromText(withLink, "anthropic", "Order at sweetgreen.example.com/students")).toMatchObject({
+      url: "https://sweetgreen.example.com/students",
+      code: "PENN20",
+    });
+  });
+
+  it("drops a link the pasted text doesn't contain, since the model can make one up", async () => {
+    const { ai } = fakeAI({ ...EMPTY_REPLY, url: "https://verify.solidcore.co/verify/student" });
+    expect((await fillFromText(ai, "anthropic", "Register at solidcore.co first, then come back.")).url).toBeNull();
+    expect(linkAppearsIn("https://www.Solidcore.co/", "Register at solidcore.co first")).toBe(true);
+    expect(linkAppearsIn("https://solidcore.co/students", "Register at solidcore.co first")).toBe(false);
   });
 
   it("leaves fields the text doesn't mention empty", async () => {
-    const { ai } = fakeAI(EMPTY_DRAFT);
+    const { ai } = fakeAI(EMPTY_REPLY);
     expect(await fillFromText(ai, "openai", "Nothing useful here.")).toEqual(EMPTY_DRAFT);
   });
 });

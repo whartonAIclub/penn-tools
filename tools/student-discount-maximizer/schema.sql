@@ -71,3 +71,46 @@ CREATE TABLE IF NOT EXISTS status_changes (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS status_changes_user_idx ON status_changes (user_id, action, created_at);
+
+-- The type of discount (SCOPES in src/discounts.ts, which checks it): a
+-- general student discount, a Wharton discount or a local Philly discount.
+-- Deals from before this column get local if they're used in person, else
+-- general; seed.mjs sets starter deals' the same way.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS scope TEXT;
+UPDATE discounts SET scope = CASE WHEN 'local' = ANY(kinds) THEN 'local' ELSE 'general' END WHERE scope IS NULL;
+ALTER TABLE discounts ALTER COLUMN scope SET DEFAULT 'general';
+ALTER TABLE discounts ALTER COLUMN scope SET NOT NULL;
+
+-- The last day the deal works; null if it doesn't end. The day after, the
+-- deal counts as expired (see listDiscounts in src/discounts.ts).
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS expires_on DATE;
+
+-- Who added the deal, as they gave their name; null for starter deals.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS added_by TEXT;
+
+-- Where the deal was found, e.g. 'UNiDAYS' or 'Student Beans'; null if not given.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS sourced_from TEXT;
+
+-- Today's date in Philadelphia. Deals end at the end of their last day there,
+-- not in UTC, which is already tomorrow by 7 or 8pm Eastern.
+CREATE OR REPLACE FUNCTION philly_today() RETURNS DATE
+  LANGUAGE sql STABLE PARALLEL SAFE
+  AS $$ SELECT (now() AT TIME ZONE 'America/New_York')::date $$;
+
+-- A store's name reduced for matching duplicates: lowercase letters and
+-- digits only, without a leading "the", so "The Aerie Store!" and "aerie
+-- store" are both 'aeriestore'. The one definition: discounts.store_key below
+-- and findSimilarDeals in src/discounts.ts both use it.
+CREATE OR REPLACE FUNCTION store_key(name TEXT) RETURNS TEXT
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE
+  AS $$ SELECT regexp_replace(regexp_replace(lower(btrim(name)), '^the[[:space:]]+', ''), '[^[:alnum:]]', '', 'g') $$;
+
+-- Each deal's store_key, kept up to date by the database, and indexed so the
+-- Add a deal form's lookups don't read every deal. text_pattern_ops lets the
+-- index serve the prefix matches (LIKE 'key%') as well as equality.
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS store_key TEXT GENERATED ALWAYS AS (store_key(business)) STORED;
+CREATE INDEX IF NOT EXISTS discounts_store_key_idx ON discounts (store_key text_pattern_ops);
+
+-- For the Expired list: deals expired by a student or votes, and deals past their end date.
+CREATE INDEX IF NOT EXISTS discounts_status_changed_idx ON discounts (status, status_changed_at DESC);
+CREATE INDEX IF NOT EXISTS discounts_expires_on_idx ON discounts (expires_on) WHERE expires_on IS NOT NULL;
