@@ -1,0 +1,255 @@
+/* The Community page. The outer card is Nutrition's (n.card); these are the
+   board's own pieces, in Exercise's teal. */
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.lede { margin: 4px 0 0; font-size: 0.875rem; color: #475569; }
+
+.previewPill {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
+/* Stat strip */
+.stats { display: flex; gap: 8px; }
+.stat,
+.statHighlight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 92px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+.stat strong,
+.statHighlight strong { font-size: 1.5rem; font-weight: 800; line-height: 1.1; color: #0f172a; }
+.stat span,
+.statHighlight span { font-size: 0.7rem; font-weight: 700; color: var(--section-label); text-align: center; }
+.statHighlight { border-color: #99f6e4; background: linear-gradient(160deg, #f0fdfa, #fff); }
+.statHighlight strong { color: #0f766e; }
+
+/* The week ahead */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.weekDay,
+.weekDayActive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.weekDay:hover { border-color: #0f766e; transform: translateY(-1px); }
+.weekDayActive { border-color: #0f766e; background: #f0fdfa; box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.2); }
+.weekName { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--section-label); }
+.weekNum { font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+.bubbles { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; min-height: 26px; margin-top: 2px; }
+.bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+.noBubble { color: #cbd5e1; line-height: 26px; }
+
+/* Sport chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip,
+.chipActive {
+  padding: 6px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.chip:hover { border-color: #0f766e; }
+.chipActive { border-color: #0f766e; background: #0f766e; color: #fff; }
+
+/* Activity cards */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.card,
+.cardJoined {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08); }
+.cardJoined { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.25); }
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 78px;
+  padding: 0 16px;
+}
+.bannerEmoji { font-size: 2.4rem; filter: drop-shadow(0 2px 3px rgba(15, 23, 42, 0.15)); }
+.bannerTags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.body { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px 14px; flex: 1; }
+.cardTitle { margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; }
+
+.host { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.82rem; color: #334155; }
+.hostAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.facts { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 0.82rem; color: #334155; }
+
+.signups { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.avatars { display: flex; }
+.avatar,
+.avatarMore,
+.avatarYou {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.avatars > :first-child { margin-left: 0; }
+.avatarMore { background: #f1f5f9; color: var(--section-label); }
+.avatarYou { width: 34px; border-radius: 999px; background: #0f766e; color: #fff; }
+.spotsText { font-size: 0.75rem; font-weight: 700; color: #475569; }
+
+.track { height: 6px; border-radius: 999px; background: #f1f5f9; overflow: hidden; }
+.track > span { display: block; height: 100%; border-radius: 999px; transition: width 0.25s ease; }
+
+.footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 6px; }
+
+.fitGood,
+.fitSwap,
+.fitBad,
+.fitMuted {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.fitGood { background: #dcfce7; color: #166534; }
+.fitSwap { background: #e0f2fe; color: #075985; }
+.fitBad { background: #fef3c7; color: #92400e; }
+.fitMuted { background: #f1f5f9; color: #64748b; }
+
+.joinButton,
+.joinedButton {
+  flex: none;
+  padding: 7px 16px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #0f766e, #115e59);
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.joinButton:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+.joinedButton { background: #fff; color: #0f766e; box-shadow: inset 0 0 0 1.5px #0f766e; }
+
+.notSaved { margin: 0; font-size: 0.7rem; color: var(--section-label); }
+
+/* Host a group workout (coming soon) */
+.hostPanel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 18px;
+  background: #fafbff;
+}
+.hostIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #ede9fe;
+  font-size: 1.4rem;
+}
+.hostText { flex: 1; min-width: 220px; }
+.hostSports { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.hostSport { padding: 3px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--border); font-size: 0.75rem; font-weight: 700; color: #475569; }
+
+.empty { margin: 0; text-align: center; color: #475569; }
+.linkButton { border: none; background: none; padding: 0; font: inherit; font-weight: 700; color: #0f766e; text-decoration: underline; cursor: pointer; }
+
+.sampleNote { margin: 0; font-size: 0.75rem; color: var(--section-label); text-align: center; }
+
+@media (max-width: 640px) {
+  .stats { width: 100%; }
+  .stat, .statHighlight { flex: 1; min-width: 0; }
+  .week { gap: 4px; }
+  .bubble { width: 20px; height: 20px; font-size: 0.7rem; }
+}

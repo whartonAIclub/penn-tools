@@ -49,20 +49,45 @@ export function sampleCrowd(placeId: string, kind: string, hour: number): Sample
 }
 
 export interface SampleActivity {
+  id: string;
   who: string;
   emoji: string;
+  sport: "Tennis" | "Running" | "Lifting" | "Squash" | "Swimming" | "Yoga";
+  title: string;
   /** "started a group tennis session" */
   what: string;
   place: string;
-  when: string;
+  /** Days from today, 0 to 6. */
+  dayOffset: number;
+  start: string;
+  end: string;
+  level: "All levels" | "Casual" | "Competitive";
   joined: number;
   spots: number;
+  /** Initials of a few who've joined, for the avatars. */
+  going: string[];
 }
 
-/** Made-up group activities, as the Community feature might show them. */
+/** Made-up group activities, as the Community feature might show them, on days relative to today. */
 export const SAMPLE_COMMUNITY: SampleActivity[] = [
-  { who: "User 1", emoji: "🎾", what: "started a group tennis session", place: "Hecht Tennis Center", when: "Today, 5:00 PM", joined: 8, spots: 10 },
-  { who: "User 2", emoji: "🏃", what: "is leading a Schuylkill River run", place: "Penn Park", when: "Tomorrow, 7:00 AM", joined: 5, spots: 12 },
-  { who: "User 3", emoji: "🟢", what: "wants squash doubles partners", place: "Penn Squash Center", when: "Fri, 12:15 PM", joined: 3, spots: 4 },
-  { who: "User 4", emoji: "🏋️", what: "set up a Learning Team lift", place: "Pottruck", when: "Sat, 10:00 AM", joined: 6, spots: 8 },
+  { id: "tennis", who: "User 1", emoji: "🎾", sport: "Tennis", title: "Group tennis", what: "started a group tennis session", place: "Hecht Tennis Center", dayOffset: 0, start: "17:00", end: "18:00", level: "All levels", joined: 8, spots: 10, going: ["AK", "JM", "PS", "RT"] },
+  { id: "run", who: "User 2", emoji: "🏃", sport: "Running", title: "Schuylkill River run", what: "is leading a Schuylkill River run", place: "Penn Park", dayOffset: 1, start: "07:00", end: "07:45", level: "Casual", joined: 5, spots: 12, going: ["LW", "DN", "MC"] },
+  { id: "squash", who: "User 3", emoji: "🟢", sport: "Squash", title: "Squash doubles", what: "wants squash doubles partners", place: "Penn Squash Center", dayOffset: 2, start: "12:15", end: "13:00", level: "Competitive", joined: 3, spots: 4, going: ["SB", "HG"] },
+  { id: "lift", who: "User 4", emoji: "🏋️", sport: "Lifting", title: "Learning Team lift", what: "set up a Learning Team lift", place: "Pottruck", dayOffset: 3, start: "10:00", end: "11:00", level: "All levels", joined: 6, spots: 8, going: ["EV", "OK", "TF", "YZ"] },
+  { id: "swim", who: "User 5", emoji: "🏊", sport: "Swimming", title: "Lunchtime laps", what: "is swimming laps at lunch", place: "Sheerr Pool", dayOffset: 1, start: "12:00", end: "12:45", level: "Casual", joined: 2, spots: 6, going: ["CR"] },
+  { id: "yoga", who: "User 6", emoji: "🧘", sport: "Yoga", title: "Recovery yoga", what: "is hosting recovery yoga", place: "Fox Fitness", dayOffset: 4, start: "18:30", end: "19:15", level: "All levels", joined: 9, spots: 15, going: ["NB", "IA", "GL", "WS"] },
+  { id: "run2", who: "User 7", emoji: "🏃", sport: "Running", title: "Rittenhouse 5K", what: "is organizing a 5K loop", place: "Rittenhouse Square", dayOffset: 5, start: "09:00", end: "09:40", level: "All levels", joined: 11, spots: 20, going: ["FP", "UV", "KD", "BX"] },
 ];
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** The activity's date (YYYY-MM-DD) and when it reads, e.g. "Today, 5:00 PM", from today's date. */
+export function activityWhen(activity: SampleActivity, today: string): { date: string; label: string } {
+  const [y, m, d] = today.split("-").map(Number) as [number, number, number];
+  const day = new Date(Date.UTC(y, m - 1, d + activity.dayOffset));
+  const date = day.toISOString().slice(0, 10);
+  const [h, min] = activity.start.split(":").map(Number) as [number, number];
+  const time = `${h % 12 === 0 ? 12 : h % 12}:${String(min).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+  const name = activity.dayOffset === 0 ? "Today" : activity.dayOffset === 1 ? "Tomorrow" : WEEKDAY_SHORT[day.getUTCDay()];
+  return { date, label: `${name}, ${time}` };
+}

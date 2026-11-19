@@ -376,3 +376,6 @@
 .signupTrack { flex: 0 0 90px; height: 6px; border-radius: 999px; background: #eef0f6; overflow: hidden; }
 .signupTrack span { display: block; height: 100%; border-radius: 999px; background: #7c3aed; }
 .joinButton { flex-shrink: 0; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: #f8fafc; color: var(--section-label); font-size: 0.8rem; font-weight: 700; cursor: not-allowed; }
+.seeAll { margin-left: auto; font-size: 0.78rem; font-weight: 800; color: #0f766e; text-decoration: none; }
+.seeAll:hover { text-decoration: underline; }
+.headerRow:has(.seeAll) { justify-content: flex-start; }

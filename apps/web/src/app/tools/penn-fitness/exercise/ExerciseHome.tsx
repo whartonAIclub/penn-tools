@@ -9,11 +9,12 @@ import Link from "next/link";
 import { formatCorner, minutesOfDay, type ExerciseDay, type ExerciseSummary, type PreferredTime, type WeekTip } from "@penntools/tool-penn-fitness";
 import type { HomeExercise } from "../home";
 import type { LoadedWeek } from "./data";
-import { SAMPLE_COMMUNITY, sampleCrowd } from "./demo";
+import { SAMPLE_COMMUNITY, activityWhen, sampleCrowd } from "./demo";
 import { formatMinutes, formatRange, formatTime, formatWeekday } from "./format";
 import styles from "./ExerciseHome.module.css";
 
 const EXERCISE_PAGE = "/tools/penn-fitness/exercise";
+const COMMUNITY_PAGE = "/tools/penn-fitness/community";
 const PREFERENCES = `${EXERCISE_PAGE}#preferences`;
 const WEEKDAY_NAMES: Record<string, string> = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
 const TIME_WORDS: Record<PreferredTime, string> = { MORNING: "mornings", MIDDAY: "midday", EVENING: "evenings" };
@@ -219,16 +220,20 @@ function NearYou({ summary, hour }: { summary: ExerciseSummary; hour: number }) 
 }
 
 /** Group workouts (sample data): what the Community feature might show. */
-function Community() {
+function Community({ today }: { today: string }) {
+  const soonest = [...SAMPLE_COMMUNITY].sort((a, b) => a.dayOffset - b.dayOffset || a.start.localeCompare(b.start)).slice(0, 3);
   return (
     <div className={styles.tile}>
       <div className={styles.headerRow}>
         <h4 className={styles.tileTitle}>👥 Fitness community</h4>
         <span className={styles.previewPill}>Preview</span>
+        <Link href={COMMUNITY_PAGE} className={styles.seeAll}>
+          See all →
+        </Link>
       </div>
       <ul className={styles.communityList}>
-        {SAMPLE_COMMUNITY.map((a) => (
-          <li key={a.who} className={styles.activity}>
+        {soonest.map((a) => (
+          <li key={a.id} className={styles.activity}>
             <span className={styles.activityIcon} aria-hidden="true">
               {a.emoji}
             </span>
@@ -237,7 +242,7 @@ function Community() {
                 <strong>{a.who}</strong> {a.what}
               </span>
               <span className={styles.note}>
-                📍 {a.place} · {a.when}
+                📍 {a.place} · {activityWhen(a, today).label}
               </span>
               <span className={styles.signups}>
                 <span className={styles.signupTrack} aria-hidden="true">
@@ -295,7 +300,7 @@ function ExerciseDetails({ summary, today, hour }: { summary: ExerciseSummary; t
         <NearYou summary={summary} hour={hour} />
       </div>
 
-      <Community />
+      <Community today={today} />
 
       {tips.length > 0 && (
         <div className={styles.tips}>
