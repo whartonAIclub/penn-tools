@@ -419,7 +419,7 @@ function SetupBar({
 
       {confirming ? (
         <div className={styles.confirmRow} role="alert">
-          <p>Clear your setup and plan and start again? Your logged meals and streak stay.</p>
+          <p>Clear your setup and plan and start again? Your logged meals, streak and week (shared with Exercise) stay.</p>
           <button
             className={styles.dangerButton}
             onClick={() => {

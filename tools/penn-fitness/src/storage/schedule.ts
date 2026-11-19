@@ -169,6 +169,8 @@ export interface BlockChanges {
   end?: LocalDateTime;
   label?: string | null;
   zone?: Zone | null;
+  /** Replaces the block's attributes. */
+  attributes?: Attributes;
 }
 
 /** Edits one of the user's blocks (the review screen's corrections); null if they have no such block. */
@@ -181,7 +183,8 @@ export async function updateBlock(sql: Sql, userId: string, id: string, changes:
   if (problems.length > 0) throw new InvalidScheduleError(problems);
   const [row] = await sql<BlockRow[]>`
     UPDATE schedule_blocks
-    SET starts_at = ${next.start}::text::timestamp, ends_at = ${next.end}::text::timestamp, label = ${next.label}, zone = ${next.zone}
+    SET starts_at = ${next.start}::text::timestamp, ends_at = ${next.end}::text::timestamp, label = ${next.label}, zone = ${next.zone},
+        attributes = ${sql.json(next.attributes as Parameters<Sql["json"]>[0])}
     WHERE user_id = ${userId} AND id = ${id}::uuid
     RETURNING ${blockColumns(sql)}
   `;

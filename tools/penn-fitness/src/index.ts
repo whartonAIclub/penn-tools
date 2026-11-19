@@ -81,6 +81,7 @@ export * from "./preferences.js";
 export * from "./sharedPrefs.js";
 export * from "./storage/preferences.js";
 export * from "./storage/schedule.js";
+export * from "./weekTemplate.js";
 
 // Outtake (exercise)
 export * from "./outtake/types.js";

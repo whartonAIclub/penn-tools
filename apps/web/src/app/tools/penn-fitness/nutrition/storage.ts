@@ -1,12 +1,15 @@
 // Where nutrition data is kept for now: this browser's localStorage, per user
 // and, for meals, per day. Temporary until Penn Fitness has its own database
-// tables; only this file should need to change then.
+// tables; only this file should need to change then. The week (classes and
+// commitments) has moved already: it's shared with Exercise, in the database
+// (loadWeek, saveWeek).
 //
 // Everything read back is checked against its schema, since stored data can
 // be stale or edited by hand.
 
 import { z } from "@penntools/core/ai";
 import { LoggedMeal, MealPlan, NutritionPreferences, PlannerProfile, WeeklySchedule } from "@penntools/tool-penn-fitness";
+import { loadSharedWeek, saveSharedWeek } from "../week/actions";
 
 const prefix = (userId: string) => `penn-fitness:${userId}:nutrition`;
 
@@ -58,12 +61,46 @@ export function saveProfile(userId: string, profile: PlannerProfile) {
   write(`${prefix(userId)}:planner-profile`, profile);
 }
 
+/**
+ * A week saved in this browser before the week moved to the shared database;
+ * read once, to move it over (see loadWeek), then forgotten.
+ */
 export function loadSchedule(userId: string): WeeklySchedule | null {
   return read(`${prefix(userId)}:schedule`, WeeklySchedule);
 }
 
-export function saveSchedule(userId: string, schedule: WeeklySchedule) {
-  write(`${prefix(userId)}:schedule`, schedule);
+function forgetLocalSchedule(userId: string) {
+  try {
+    localStorage.removeItem(`${prefix(userId)}:schedule`);
+  } catch {
+    // Storage disabled: nothing was saved there anyway.
+  }
+}
+
+/**
+ * The week, shared with Exercise (week/actions.ts). A week saved only in this
+ * browser is added to the shared week once, alongside what's there (the same
+ * block in both shows once), and then forgotten here. Null when it can't be
+ * loaded.
+ */
+export async function loadWeek(userId: string): Promise<WeeklySchedule | null> {
+  const shared = await loadSharedWeek();
+  if (!shared.ok) return null;
+  const local = loadSchedule(userId);
+  if (!local || local.length === 0) {
+    if (local) forgetLocalSchedule(userId);
+    return shared.schedule;
+  }
+  const moved = await saveSharedWeek([...shared.schedule, ...local]);
+  if (!moved.ok) return [...shared.schedule, ...local];
+  forgetLocalSchedule(userId);
+  return moved.schedule;
+}
+
+/** Saves the week, shared with Exercise; returns it as stored, or null if saving failed. */
+export async function saveWeek(schedule: WeeklySchedule): Promise<WeeklySchedule | null> {
+  const saved = await saveSharedWeek(schedule);
+  return saved.ok ? saved.schedule : null;
 }
 
 export function loadPlan(userId: string): MealPlan | null {
@@ -88,9 +125,12 @@ export function savePlanBasis(userId: string, basis: string) {
   write(`${prefix(userId)}:plan-basis`, basis);
 }
 
-/** Forgets the setup, the plan and its grocery checks. The meal log, and so the streak, stays. */
+/**
+ * Forgets the setup, the plan and its grocery checks. The meal log, and so the
+ * streak, stays, and so does the week, which Exercise shares.
+ */
 export function clearSetup(userId: string) {
-  for (const key of ["preferences", "planner-profile", "schedule", "meal-plan", "plan-basis", "grocery-checks"]) {
+  for (const key of ["preferences", "planner-profile", "meal-plan", "plan-basis", "grocery-checks"]) {
     try {
       localStorage.removeItem(`${prefix(userId)}:${key}`);
     } catch {

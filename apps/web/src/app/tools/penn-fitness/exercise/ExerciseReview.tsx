@@ -169,6 +169,9 @@ export function ExerciseReview(props: Props) {
 
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>Add your week</h2>
+        <p className={styles.meta}>
+          One week for all of Penn Fitness: what you add here shows in Nutrition&apos;s &quot;Your week&quot; too, and the other way round.
+        </p>
         <div className={styles.row}>
           <label className={styles.button}>
             Import a calendar file (.ics)

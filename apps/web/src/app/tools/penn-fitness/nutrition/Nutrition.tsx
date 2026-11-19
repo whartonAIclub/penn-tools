@@ -32,7 +32,7 @@ import {
   loadPlanBasis,
   loadPreferences,
   loadProfile,
-  loadSchedule,
+  loadWeek,
   loggingStreak,
   saveGroceryChecks,
   saveMeals,
@@ -40,7 +40,7 @@ import {
   savePlanBasis,
   savePreferences,
   saveProfile,
-  saveSchedule,
+  saveWeek,
   setupKey,
   spentThisWeek,
   today,
@@ -134,29 +134,36 @@ export function Nutrition({
   const planStale = plan !== null && planBasis !== null && planBasis !== currentKey();
 
   // localStorage exists only in the browser, so load after the first render.
+  // The week comes from the database, shared with Exercise.
   useEffect(() => {
+    let cancelled = false;
     const day = today();
     setDate(day);
     const savedPreferences = loadPreferences(userId);
     const savedProfile = loadProfile(userId);
-    const savedSchedule = loadSchedule(userId);
     const savedPlan = loadPlan(userId);
     setPreferences(savedPreferences);
     setMeals(loadMeals(userId, day));
     setProfile(savedProfile);
-    setSchedule(savedSchedule);
     setPlan(savedPlan);
-    // A plan saved before its setup was recorded is taken as made from today's setup.
-    let basis = loadPlanBasis(userId);
-    if (savedPlan && basis === null) {
-      basis = setupKey(savedProfile ?? DEFAULT_PLANNER_PROFILE, savedPreferences ?? EMPTY_PREFERENCES, savedSchedule ?? []);
-      savePlanBasis(userId, basis);
-    }
-    setPlanBasis(basis);
     setGroceryChecks(loadGroceryChecks(userId));
     setStreak(loggingStreak(userId));
     setWeekSpent(spentThisWeek(userId));
-    setLoaded(true);
+    void loadWeek(userId).then((savedSchedule) => {
+      if (cancelled) return;
+      setSchedule(savedSchedule);
+      // A plan saved before its setup was recorded is taken as made from today's setup.
+      let basis = loadPlanBasis(userId);
+      if (savedPlan && basis === null) {
+        basis = setupKey(savedProfile ?? DEFAULT_PLANNER_PROFILE, savedPreferences ?? EMPTY_PREFERENCES, savedSchedule ?? []);
+        savePlanBasis(userId, basis);
+      }
+      setPlanBasis(basis);
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   const home = () => setView({ kind: "dashboard" });
@@ -168,7 +175,7 @@ export function Nutrition({
     clearSetup(userId);
     setPreferences(null);
     setProfile(null);
-    setSchedule(null);
+    // The week stays: Exercise shares it.
     setPlan(null);
     setPlanBasis(null);
     setGroceryChecks([]);
@@ -186,9 +193,12 @@ export function Nutrition({
     saveProfile(userId, next);
   }
 
+  /** Shows the week straight away, saves it to the shared week, then shows it as stored. */
   function updateSchedule(next: WeeklySchedule) {
     setSchedule(next);
-    saveSchedule(userId, next);
+    void saveWeek(next).then((stored) => {
+      if (stored) setSchedule(stored);
+    });
   }
 
   function updatePlan(next: MealPlan, basis: string) {
