@@ -411,6 +411,8 @@ The engine is built and tested with hand-made fixture weeks before any ingestion
 
 ---
 
+**The Exercise page, rebuilt (November 18, 2026, Arpit's request).** `/tools/penn-fitness/exercise` now uses Nutrition's planner frame and styles (`ExercisePlanner.tsx`): "✨ Let's plan your workouts" in three steps (1. Your week: Nutrition's own `ScheduleStep`, editing the shared week; 2. Where you work out: area cards, building gym, nearest corner; 3. Your workouts: how many, how long, best times, spread out), then "🏃 Your workout week": a card a day with the workout, an "I'm away" toggle, and the setup, each part a click from editing. Waking hours come from Nutrition's About you. The old review screen is gone: confirming, one-off quick-adds and screenshot import there are replaced by Nutrition's week grid (saving it confirms the week). The server actions for quick-add, edit and confirm, and `exercise/screenshot/route.ts`, are unused for now; the screenshot reader could replace the week grid's placeholder "From a screenshot".
+
 **Sample data on the homepage (November 18, 2026, Arpit's request).** The opened Exercise section shows Penn Now's crowd levels ("Quiet now", "usually busiest 5 PM–7 PM") and a "Fitness community" card of group activities as **made-up samples**, each labelled as such on the page, so the layout can be judged before either feature exists. They live in `apps/web/src/app/tools/penn-fitness/exercise/demo.ts`; replace that file when the real features come, don't build on it.
 
 ## 13. Open questions (ask me when they become relevant)

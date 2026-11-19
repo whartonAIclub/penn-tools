@@ -1,365 +1,131 @@
-/* The Exercise page and the homepage's exercise card. Plain on purpose (the
-   spec puts function before polish), using the site's colours. */
+/* The Exercise page's own pieces. The frame (card, steps, choice cards,
+   buttons) is Nutrition's (../nutrition/Nutrition.module.css), so both
+   planners look and work the same. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 24px 20px 48px;
-}
-
-.titleRow {
+/* Number chips: workouts a week, workout length */
+.chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
 }
 
-.title {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--penn-blue);
-}
-
-.section {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--section-label);
-}
-
-.backLink {
-  color: var(--penn-blue);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.layout {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.weekNav {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 600;
-}
-
-.weekNav a {
-  padding: 2px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 18px;
-  background: var(--bg);
-}
-
-.cardHeader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.cardTitle {
-  margin: 0 0 8px;
-  font-size: 1.05rem;
-  color: var(--penn-blue);
-}
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin: 8px 0;
-}
-
-.inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9rem;
-}
-
-.inline input,
-.inline select {
-  padding: 4px 6px;
-  border: 1px solid var(--input-border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-}
-
-.button,
-.primary {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
+.chip,
+.chipActive {
+  min-width: 52px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  font-weight: 800;
+  text-align: center;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
-
-.button {
-  border: 1px solid var(--input-border);
-  background: var(--bg);
-  color: var(--text);
-}
-
-.primary {
-  border: 1px solid var(--penn-blue);
-  background: var(--penn-blue);
+.chip:hover { border-color: #0f766e; transform: translateY(-1px); }
+.chipActive {
+  border-color: #0f766e;
+  background: linear-gradient(160deg, #0f766e, #115e59);
   color: #fff;
+  box-shadow: 0 6px 14px rgba(15, 118, 110, 0.25);
+}
+.chip input,
+.chipActive input { position: absolute; opacity: 0; pointer-events: none; }
+
+/* The week of workouts: a card a day */
+.dayCards {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+@media (max-width: 860px) {
+  .dayCards { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 }
 
-.primary:disabled,
-.button:has(input:disabled) {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.link {
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--penn-blue);
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.meta {
-  margin: 4px 0;
-  font-size: 0.85rem;
-  color: var(--section-label);
-}
-
-.notice,
-.error {
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 0.9rem;
-}
-
-.notice p,
-.error p {
-  margin: 2px 0;
-}
-
-.notice {
-  border: 1px solid #b7d7c2;
-  background: #eef8f1;
-  color: #1d4d2f;
-}
-
-.error {
-  border: 1px solid #e3b4b4;
-  background: #fbeeee;
-  color: #6b1f1f;
-}
-
-.days {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
+.dayCard,
+.dayCardToday,
+.dayCardPast {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.day,
-.dayAway {
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
-
-.dayAway {
-  opacity: 0.7;
-}
-
-.dayHeader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.entries {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.entry,
-.entryUnconfirmed,
-.entryEditing {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 12px;
-  padding: 6px 8px;
-  border-radius: 8px;
-}
-
-.entryUnconfirmed {
-  background: #fff8e6;
-}
-
-.entryEditing {
-  background: var(--sidebar-bg);
-  align-items: center;
-}
-
-.time {
-  min-width: 130px;
-  font-variant-numeric: tabular-nums;
-}
-
-.label {
-  font-weight: 600;
-}
-
-.actions {
-  display: inline-flex;
-  gap: 10px;
-  margin-left: auto;
-}
-
-.tag,
-.warn {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 999px;
-}
-
-.tag {
-  background: var(--nav-active);
-  color: var(--section-label);
-}
-
-.warn {
-  background: #fdecc8;
-  color: #6b4a00;
-}
-
-p.warn {
-  display: inline-block;
-  margin: 0 0 8px;
-  padding: 4px 10px;
-  font-size: 0.85rem;
-}
-
-.semester,
-.semesterProminent {
-  margin-top: 8px;
-  font-size: 0.9rem;
-}
-
-.semesterProminent {
-  border: 1px solid #f0c36d;
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: #fffaf0;
-}
-
-.semester summary,
-.semesterProminent summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.subTitle {
-  margin: 14px 0 2px;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.errorText {
-  font-size: 0.85rem;
-  color: #9b1c1c;
-}
-
-details.card > summary {
-  cursor: pointer;
-}
-
-/* ── Homepage card ─────────────────────────────────────────────────────── */
-
-.homeCard {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  min-height: 170px;
+  padding: 12px 10px;
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 16px 18px;
-  background: var(--bg);
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
 }
+.dayCardToday { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.2); }
+.dayCardPast { opacity: 0.55; }
 
-.homeCardHeader {
+.dayCardHead { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.8rem; color: var(--section-label); }
+.dayCardHead strong { font-size: 0.85rem; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.dayWorkout {
+  flex: 1;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.highlights {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.highlight {
-  border: 1px solid var(--border);
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
   border-radius: 12px;
-  padding: 10px 12px;
+  background: linear-gradient(160deg, #ecfdf5, #fff);
+  border: 1px solid #a7f3d0;
 }
+.dayTime { font-size: 1.15rem; font-weight: 800; color: #0f766e; letter-spacing: -0.01em; }
+.dayPlace { font-size: 0.8rem; font-weight: 700; color: #0f172a; }
+.dayMeta { font-size: 0.72rem; color: #475569; }
 
-.highlightLabel {
-  margin: 0 0 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.dayRest {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 12px;
+  background: #f8fafc;
   color: var(--section-label);
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
-.highlightValue {
-  margin: 0;
-  font-weight: 600;
+.dayBusy { font-size: 0.7rem; color: var(--section-label); text-align: center; }
+
+.awayButton {
+  align-self: center;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--section-label);
+  cursor: pointer;
+}
+.awayButton:hover { border-color: #0f766e; color: #0f766e; }
+
+/* Your setup: each part a click from editing it */
+.setupCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
 }
 
-.cta {
-  align-self: flex-start;
-  color: var(--penn-blue);
-  font-weight: 600;
-  text-decoration: none;
+.setupCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fafbff;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
+.setupCard:hover { border-color: #0f766e; background: #f0fdfa; }
+.setupCard > span:first-child { font-size: 1.3rem; }
+
+.setupText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.setupText strong { font-size: 0.875rem; }
+.setupText small { font-size: 0.75rem; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

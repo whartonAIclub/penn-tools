@@ -1,81 +1,52 @@
-// Penn Fitness · Exercise: the deep dive on the exercise half, linked from the
-// homepage's exercise card. For now, the week's schedule review (section 8.2 of
-// tools/penn-fitness/docs/outtake.md): add the week from a calendar file, a
-// screenshot or by hand, check and correct it, confirm it, and see the
-// workouts suggested around it. `?week=YYYY-MM-DD` shows another week.
+// Penn Fitness · Exercise: plan a week of workouts around the user's week.
+// Laid out in Nutrition's planner frame (ExercisePlanner): a three-step setup
+// (the shared week, where you work out, your workouts), then the week of
+// workouts. Linked from the homepage's Exercise section.
 
 import type { Metadata } from "next";
-import Link from "next/link";
-import { PROVIDER_LABELS } from "@penntools/core/ai";
-import { FACILITIES, isLocalDate, isLowConfidence, mondayOf } from "@penntools/tool-penn-fitness";
-import { getAI } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { SignInPrompt } from "@/components/layout/SignInPrompt";
+import { templateFromTimeline } from "@penntools/tool-penn-fitness";
 import { loadExerciseWeek } from "./data";
-import { ExercisePreferences } from "./ExercisePreferences";
-import { ExerciseReview, type ReviewEntry } from "./ExerciseReview";
-import styles from "./Exercise.module.css";
+import { ExercisePlanner } from "./ExercisePlanner";
+import styles from "../page.module.css";
 
 export const metadata: Metadata = {
   title: "Exercise · Penn Fitness",
 };
 
-export default async function ExercisePage(props: PageProps<"/tools/penn-fitness/exercise">) {
+export default async function ExercisePage() {
   const user = await getCurrentUser();
   if (!user) return <SignInPrompt title="Penn Fitness" />;
 
-  const { week } = await props.searchParams;
-  const weekStart = typeof week === "string" && isLocalDate(week) ? mondayOf(week) : undefined;
-  const loaded = await loadExerciseWeek(user.id, weekStart);
-  const providers = await (await getAI("penn-fitness"))!.providers();
-
-  const entries: ReviewEntry[] = loaded.timeline.entries.map(({ block, repeated, alsoFrom }) => ({
-    id: block.id,
-    start: block.start,
-    end: block.end,
-    label: block.label,
-    source: block.source,
-    alsoFrom,
-    repeated,
-    weekly: block.recurringWeekly,
-    confirmed: block.confirmed,
-    checkThis: isLowConfidence(block),
-  }));
-  const placeName = (id: string) => FACILITIES.find((place) => place.id === id)?.name ?? id;
+  const loaded = await loadExerciseWeek(user.id);
+  const { shared, outtake, summary, timeline } = loaded;
 
   return (
     <div className={styles.page}>
-      <div className={styles.titleRow}>
-        <h1 className={styles.title}>
-          Penn Fitness <span className={styles.section}>· Exercise</span>
-        </h1>
-        <Link href="/tools/penn-fitness" className={styles.backLink}>
-          ← Penn Fitness home
-        </Link>
-      </div>
-      <ExercisePreferences
-        current={{
-          homeCorner: loaded.shared.homeCorner,
-          homeBase: loaded.shared.homeBase,
-          hasBuildingGym: loaded.shared.hasBuildingGym,
-          wakingStart: loaded.shared.wakingStart,
-          wakingEnd: loaded.shared.wakingEnd,
-          weeklyTargetSessions: loaded.outtake.weeklyTargetSessions,
-          sessionMinutes: loaded.outtake.sessionMinutes,
-          preferredTimes: loaded.outtake.preferredTimes,
-          spreadOut: loaded.outtake.spreadOut,
+      <h1 className={styles.title}>
+        Penn Fitness <span className={styles.section}>· Exercise</span>
+      </h1>
+      <ExercisePlanner
+        userId={user.id}
+        schedule={templateFromTimeline(timeline.entries, timeline.weekStart)}
+        prefs={{
+          homeCorner: shared.homeCorner,
+          homeBase: shared.homeBase,
+          hasBuildingGym: shared.hasBuildingGym,
+          wakingStart: shared.wakingStart,
+          wakingEnd: shared.wakingEnd,
+          weeklyTargetSessions: outtake.weeklyTargetSessions,
+          sessionMinutes: outtake.sessionMinutes,
+          preferredTimes: outtake.preferredTimes,
+          spreadOut: outtake.spreadOut,
         }}
-      />
-      <ExerciseReview
-        weekStart={loaded.timeline.weekStart}
-        now={loaded.now}
-        entries={entries}
-        awayDays={loaded.timeline.awayDays}
-        slots={loaded.plan.slots.map((slot) => ({ ...slot, placeName: placeName(slot.placeId) }))}
-        summary={loaded.summary}
-        semester={{ start: loaded.shared.semesterStart, end: loaded.shared.semesterEnd }}
-        providers={providers}
-        labels={PROVIDER_LABELS}
+        days={summary.days}
+        today={loaded.now.slice(0, 10)}
+        sessions={summary.sessions}
+        target={summary.target}
+        reason={summary.reason}
+        busyness={summary.busyness}
       />
     </div>
   );
