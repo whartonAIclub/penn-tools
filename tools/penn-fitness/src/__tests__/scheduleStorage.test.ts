@@ -8,6 +8,7 @@ import {
   addBlocks,
   confirmBlocks,
   deleteBlock,
+  getBlock,
   InvalidScheduleError,
   listAwayDays,
   listBlocksForWeek,
@@ -84,6 +85,9 @@ describe.skipIf(!databaseUrl)("Penn Fitness schedule storage (Postgres)", () => 
     await addBlocks(db.sql, "carol", [block("2026-11-18T10:00", "2026-11-18T11:00")]);
     const [dave] = await addBlocks(db.sql, "dave", [block("2026-11-18T10:00", "2026-11-18T11:00")]);
     expect(await listBlocksForWeek(db.sql, "carol", WEEK)).toHaveLength(1);
+    expect(await getBlock(db.sql, "dave", dave!.id)).toEqual(dave);
+    expect(await getBlock(db.sql, "carol", dave!.id)).toBeNull();
+    expect(await getBlock(db.sql, "dave", "not-a-uuid")).toBeNull();
     expect(await updateBlock(db.sql, "carol", dave!.id, { label: "mine now" })).toBeNull();
     expect(await deleteBlock(db.sql, "carol", dave!.id)).toBe(false);
     expect(await confirmBlocks(db.sql, "carol", [dave!.id])).toBe(0);

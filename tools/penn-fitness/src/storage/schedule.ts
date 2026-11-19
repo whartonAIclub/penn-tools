@@ -157,6 +157,13 @@ export async function replaceImportedBlocks(
   });
 }
 
+/** One of the user's blocks, as stored; null if they have no such block. */
+export async function getBlock(sql: Sql, userId: string, id: string): Promise<BusyBlock | null> {
+  if (!UUID.test(id)) return null;
+  const [row] = await sql<BlockRow[]>`SELECT ${blockColumns(sql)} FROM schedule_blocks WHERE user_id = ${userId} AND id = ${id}::uuid`;
+  return row ? toBlock(row) : null;
+}
+
 export interface BlockChanges {
   start?: LocalDateTime;
   end?: LocalDateTime;

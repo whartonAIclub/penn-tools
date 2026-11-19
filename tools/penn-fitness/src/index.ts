@@ -92,4 +92,6 @@ export * from "./outtake/ingest/ics.js";
 export * from "./outtake/ingest/timetable.js";
 export * from "./outtake/ingest/manual.js";
 export * from "./outtake/ingest/timeline.js";
+export * from "./outtake/clock.js";
+export * from "./outtake/week.js";
 export * from "./outtake/engine/index.js";
