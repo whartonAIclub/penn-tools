@@ -10,8 +10,9 @@ import { ALLOW_LOCAL_TEST_ACCOUNT } from "../../school";
 
 const DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/;
 
-// Next 16 hands route params over as a promise.
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
+// Next 16 hands route params over as a promise. RouteContext types them from
+// this route's own path, so renaming the [id] folder is a type error.
+export async function GET(_req: Request, { params }: RouteContext<"/tools/pennpaws/photo/[id]">): Promise<Response> {
   const { id } = await params;
   const user = await getCurrentUser();
   const sql = toolSql("pennpaws");

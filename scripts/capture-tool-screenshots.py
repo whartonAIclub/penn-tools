@@ -80,6 +80,7 @@ TARGETS = {
     "keepintouch": local("/tools/keepintouch"),  # needs sign-in: its image was taken signed in
     "deadline-calendar": local("/tools/deadline-calendar"),  # needs sign-in: its image was taken signed in
     "wemba-sync": local("/tools/wemba-sync"),  # needs sign-in: its image was taken signed in, with sample data
+    "pennpaws": local("/tools/pennpaws"),  # needs sign-in: its image was taken signed in as a sitter, with the test menu's fake owners
     "student-discount-maximizer": local("/tools/student-discount-maximizer"),  # needs the seeded deals (db:deploy)
     "pass-it-on": local("/tools/pass-it-on"),  # needs sign-in and board access: its image was taken signed in, with sample data
     "chatprep": local("/tools/chatprep"),  # needs sign-in: its image was taken signed in
