@@ -87,4 +87,5 @@ export * from "./outtake/facilities.js";
 export * from "./outtake/prefs.js";
 export * from "./outtake/planInput.js";
 export * from "./outtake/checkIn.js";
+export * from "./outtake/ingest/ics.js";
 export * from "./outtake/engine/index.js";
