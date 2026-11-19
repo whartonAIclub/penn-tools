@@ -6,6 +6,21 @@ Both halves' tests pass together (169 tests). Nutrition was written against the 
 
 ---
 
+## For Manali: please check
+
+Arpit has kept Nutrition's code as you wrote it, apart from one fix it needed to run. These are the things that need you, most useful first; details are in the sections below.
+
+1. **The database is ready for Nutrition.** `pennfitness` is registered on `team/pennfitness` and works locally: run `node packages/platform/scripts/setup-tools.mjs` from the repo root (with Postgres running). Nutrition can move off `localStorage` whenever you like: only `nutrition/storage.ts` should change, and your tables go in `tools/penn-fitness/schema.sql` with `intake_` names (see section 3, "Where data is stored").
+2. **One change was made in your files:** `getAI()` → `getAI("penn-fitness")` in `page.tsx` and twice in `nutrition/actions.ts`. `main` now requires the tool's id, and without it the page crashed for every signed-in user (section 2).
+3. **Two lines to fix before the PR:** the settings-error lists in `nutrition/QuickLog.tsx:20` and `nutrition/planner/PlanView.tsx:24` should call `isSettingsError(kind)`; `pnpm check:tools` fails until they do (section 1).
+4. **A bug:** "I ate this" logs the same meal again on every click (section 4).
+5. **The preview plan ignores the user's setup**, e.g. peanut butter on the list for a peanut allergy, with only a small "Preview mode" badge to say it's a sample (section 4).
+6. **`readIcs` is now used by both halves.** Outtake builds on it rather than parsing calendars again. Three small changes would help both (real start and end times, a flag for repeating events, keeping busy all-day events); see section 3, "Calendar import".
+7. **Screenshot reading works now.** Your "From a screenshot" says the AI can't read images yet, but `main` added image support since you branched. Outtake's `readTimetable` (`src/outtake/ingest/timetable.ts`) reads a timetable photo with it, retrying once on a bad reply; the week grid could use it instead of the sample (its events have day, times, label and location, close to your `ScheduleBlock`).
+8. **Shared-layer decisions to make together:** one schedule model, shared preferences (home as a corner, not a street address), place data, folder names, streaks, and the common view (sections 3 to 5).
+
+---
+
 ## 1. Must fix before a PR
 
 `pnpm check:tools` fails on two lines, so the PR can't be merged until they're fixed. They don't change how the app runs.
