@@ -18,29 +18,7 @@ import {
 } from "@penntools/tool-student-discount-maximizer";
 import { getAI } from "@/lib/ai";
 import { signInRequired } from "@/lib/auth";
-
-/**
- * The body as text, or null once it's over MAX_SCREENSHOT_REQUEST_BYTES.
- * Counted while reading, since Content-Length can be missing or wrong.
- */
-async function readBody(req: NextRequest): Promise<string | null> {
-  if (Number(req.headers.get("content-length")) > MAX_SCREENSHOT_REQUEST_BYTES) return null;
-  const reader = req.body?.getReader();
-  if (!reader) return "";
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_SCREENSHOT_REQUEST_BYTES) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
+import { readBodyText } from "@/lib/readBody";
 
 function fail(message: string, status: number): Response {
   return Response.json({ ok: false, error: { message } }, { status });
@@ -50,7 +28,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ai = await getAI("student-discount-maximizer");
   if (!ai) return signInRequired();
 
-  const text = await readBody(req);
+  const text = await readBodyText(req, MAX_SCREENSHOT_REQUEST_BYTES);
   if (text === null) return fail("That image is too big. Crop it to the deal and try again.", 413);
   let body: { provider?: unknown; screenshot?: unknown } = {};
   try {
